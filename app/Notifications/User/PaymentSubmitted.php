@@ -38,6 +38,6 @@ class PaymentSubmitted extends Notification implements ShouldQueue
             ->line('Your payment of ' . number_format($this->payment->amount, 2) . ' for order ' . $this->payment->order->order_number . ' has been submitted.')
             ->line('Status: Pending review')
             ->action('View Payment', url('/payments/' . $this->payment->id))
-            ->line('Thank you for using MBUNIETECH!');
+            ->line('Thank you for using MbunieEduHub!');
     }
 }

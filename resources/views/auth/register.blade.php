@@ -15,7 +15,7 @@
         content="#07090f"
     >
 
-    <title>Register - MBUNIETECH</title>
+    <title>Register - MbunieEduHub</title>
 
 
     <style>
@@ -1469,7 +1469,7 @@
                 <div class="brand">
 
                     <div class="brand-name">
-                        MBUNIETECH
+                        MbunieEduHub
                     </div>
 
                     <div class="brand-line"></div>
@@ -1490,7 +1490,7 @@
 
                 <p class="register-description">
 
-                    Join MBUNIETECH and get access to
+                    Join MbunieEduHub and get access to
                     your personal account, services and
                     digital solutions.
 
@@ -1538,7 +1538,7 @@
                         </span>
 
                         <span>
-                            One account for MBUNIETECH services
+                            One account for MbunieEduHub services
                         </span>
 
                     </div>
@@ -1602,7 +1602,7 @@
                         <p class="form-subtitle">
 
                             Fill in the information below
-                            to create your MBUNIETECH account.
+                            to create your MbunieEduHub account.
 
                         </p>
 

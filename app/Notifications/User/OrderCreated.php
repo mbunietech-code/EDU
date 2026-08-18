@@ -39,6 +39,6 @@ class OrderCreated extends Notification implements ShouldQueue
             ->line('Your order ' . $this->order->order_number . ' has been created.')
             ->line('Amount: ' . number_format($this->order->amount, 2))
             ->action('View Order', url('/my-orders/' . $this->order->id))
-            ->line('Thank you for using MBUNIETECH!');
+            ->line('Thank you for using MbunieEduHub!');
     }
 }

@@ -38,6 +38,6 @@ class PaymentApproved extends Notification implements ShouldQueue
             ->line('Your payment of ' . number_format($this->payment->amount, 2) . ' for order ' . $this->payment->order->order_number . ' has been approved.')
             ->line('Your order is now confirmed.')
             ->action('View Subscription', url('/my-subscriptions'))
-            ->line('Thank you for using MBUNIETECH!');
+            ->line('Thank you for using MbunieEduHub!');
     }
 }

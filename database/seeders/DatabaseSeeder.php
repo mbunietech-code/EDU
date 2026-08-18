@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['email' => 'admin@mbunietech.co.tz'],
             [
-                'name' => 'MBUNIETECH Admin',
+                'name' => 'MbunieEduHub Admin',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
                 'is_admin' => true,
@@ -140,7 +140,7 @@ class DatabaseSeeder extends Seeder
                     Account::create([
                         'product_id' => $product->id,
                         'name' => $product->name . ' Account ' . $i,
-                        'description' => 'Shared authorized access account managed by MBUNIETECH.',
+                        'description' => 'Shared authorized access account managed by MbunieEduHub.',
                         'credentials' => null,
                         'status' => 'available',
                         'metadata' => [

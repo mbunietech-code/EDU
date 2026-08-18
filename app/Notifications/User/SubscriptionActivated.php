@@ -41,6 +41,6 @@ class SubscriptionActivated extends Notification implements ShouldQueue
             ->line('Valid from: ' . $this->subscription->start_date->toDateString())
             ->line('Valid until: ' . $this->subscription->expiry_date->toDateString())
             ->action('View Subscription', url('/my-subscriptions'))
-            ->line('Thank you for using MBUNIETECH!');
+            ->line('Thank you for using MbunieEduHub!');
     }
 }

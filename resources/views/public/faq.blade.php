@@ -1,9 +1,9 @@
-<x-layouts.public title="Frequently Asked Questions" metaDescription="Answers to common questions about MBUNIETECH AI access subscriptions, payments and support.">
+<x-layouts.public title="Frequently Asked Questions" metaDescription="Answers to common questions about MbunieEduHub AI access subscriptions, payments and support.">
 
     <section class="mbui-container py-16">
         <div class="max-w-3xl">
             <h1 class="text-3xl font-bold tracking-tight text-gray-900">Frequently Asked Questions</h1>
-            <p class="mt-3 text-gray-600">Everything you need to know about MBUNIETECH.</p>
+            <p class="mt-3 text-gray-600">Everything you need to know about MbunieEduHub.</p>
         </div>
 
         <div class="mt-10 max-w-3xl space-y-4" x-data="{ open: null }">

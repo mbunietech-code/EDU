@@ -1,4 +1,4 @@
-<x-layouts.public title="Contact" metaDescription="Get in touch with MBUNIETECH for support and inquiries.">
+<x-layouts.public title="Contact" metaDescription="Get in touch with MbunieEduHub for support and inquiries.">
 
     <section class="mbui-container py-16">
         <div class="grid gap-10 lg:grid-cols-2">

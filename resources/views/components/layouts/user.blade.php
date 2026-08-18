@@ -1,4 +1,4 @@
-@props(['title' => config('app.name', 'MBUNIETECH'), 'header' => null])
+@props(['title' => config('app.name', 'MbunieEduHub'), 'header' => null])
 
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ? $title . ' | ' . config('app.name', 'MBUNIETECH') : config('app.name', 'MBUNIETECH') }}</title>
+    <title>{{ $title ? $title . ' | ' . config('app.name', 'MbunieEduHub') : config('app.name', 'MbunieEduHub') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
@@ -17,7 +17,7 @@
             <div class="flex h-16 items-center justify-between gap-2 border-b border-gray-800 px-6">
                 <div class="flex items-center gap-2">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
-                    <span class="text-base font-bold tracking-tight text-white">MBUNIETECH</span>
+                    <span class="text-base font-bold tracking-tight text-white">MbunieEduHub</span>
                 </div>
                 <button type="button" class="lg:hidden text-gray-400 hover:text-white" @click="sidebarOpen = false">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

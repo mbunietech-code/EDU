@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Operations Overview</h1>
-            <p class="mt-1 text-sm text-gray-500">Real-time health of the MBUNIETECH access platform.</p>
+            <p class="mt-1 text-sm text-gray-500">Real-time health of the MbunieEduHub access platform.</p>
         </div>
     </div>
 

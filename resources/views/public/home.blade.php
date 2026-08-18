@@ -1,4 +1,4 @@
-<x-layouts.public title="AI Access Management" metaDescription="MBUNIETECH - Authorized AI tools and access management for Tanzania. Simple payments, managed subscriptions, professional support.">
+<x-layouts.public title="AI Access Management" metaDescription="MbunieEduHub - Authorized AI tools and access management for Tanzania. Simple payments, managed subscriptions, professional support.">
 
     <section class="relative overflow-hidden bg-gray-900">
         <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-gray-900 to-gray-900"></div>
@@ -12,7 +12,7 @@
                     <span class="text-indigo-400">managed for you.</span>
                 </h1>
                 <p class="mt-6 max-w-2xl text-lg text-gray-300">
-                    MBUNIETECH gives you authorized access to leading AI tools with transparent pricing, simple manual payments, and subscriptions that just work.
+                    MbunieEduHub gives you authorized access to leading AI tools with transparent pricing, simple manual payments, and subscriptions that just work.
                 </p>
                 <div class="mt-8 flex flex-col sm:flex-row gap-3">
                     <a href="{{ route('public.products.index') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">

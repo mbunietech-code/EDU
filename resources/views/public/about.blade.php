@@ -1,10 +1,10 @@
-<x-layouts.public title="About" metaDescription="Learn about MBUNIETECH, Tanzania's authorized AI access management platform.">
+<x-layouts.public title="About" metaDescription="Learn about MbunieEduHub, Tanzania's authorized AI access management platform.">
 
     <section class="mbui-container py-16">
         <div class="max-w-3xl">
-            <h1 class="text-3xl font-bold tracking-tight text-gray-900">About MBUNIETECH</h1>
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900">About MbunieEduHub</h1>
             <p class="mt-4 text-lg text-gray-600">
-                MBUNIETECH provides authorized access to leading AI tools with transparent pricing, manual payment verification, and managed subscriptions—built for the Tanzanian market.
+                MbunieEduHub provides authorized access to leading AI tools with transparent pricing, manual payment verification, and managed subscriptions—built for the Tanzanian market.
             </p>
         </div>
 

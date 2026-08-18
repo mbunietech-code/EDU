@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - MBUNIETECH</title>
+    <title>Forgot Password - MbunieEduHub</title>
     <style>
         :root {
             --bg: #e2e2e5;

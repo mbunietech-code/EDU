@@ -8,7 +8,7 @@
 
     <meta name="theme-color" content="#080a0f">
 
-    <title>Login - MBUNIETECH</title>
+    <title>Login - MbunieEduHub</title>
 
     <style>
         /* =========================================================
@@ -1219,7 +1219,7 @@
                 <div class="brand">
 
                     <div class="brand-name">
-                        MBUNIETECH
+                        MbunieEduHub
                     </div>
 
                     <div class="brand-line"></div>
@@ -1235,7 +1235,7 @@
 
 
                 <p class="login-description">
-                    Welcome back to MBUNIETECH.
+                    Welcome back to MbunieEduHub.
                     Sign in to access your account,
                     manage your services and continue
                     where you left off.
@@ -1279,7 +1279,7 @@
                         </span>
 
                         <span>
-                            Access your MBUNIETECH dashboard
+                            Access your MbunieEduHub dashboard
                         </span>
 
                     </div>

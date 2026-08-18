@@ -1,4 +1,4 @@
-@props(['title' => config('app.name', 'MBUNIETECH'), 'metaDescription' => null, 'bodyClass' => null])
+@props(['title' => config('app.name', 'MbunieEduHub'), 'metaDescription' => null, 'bodyClass' => null])
 
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full scroll-smooth">
@@ -7,14 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ? $title . ' | ' . config('app.name', 'MBUNIETECH') : config('app.name', 'MBUNIETECH') }}</title>
+    <title>{{ $title ? $title . ' | ' . config('app.name', 'MbunieEduHub') : config('app.name', 'MbunieEduHub') }}</title>
 
     @if ($metaDescription)
         <meta name="description" content="{{ $metaDescription }}">
     @endif
 
     <link rel="canonical" href="{{ url()->current() }}">
-    <meta property="og:title" content="{{ $title ? $title . ' | ' . config('app.name', 'MBUNIETECH') : config('app.name', 'MBUNIETECH') }}">
+    <meta property="og:title" content="{{ $title ? $title . ' | ' . config('app.name', 'MbunieEduHub') : config('app.name', 'MbunieEduHub') }}">
     @if ($metaDescription)
         <meta property="og:description" content="{{ $metaDescription }}">
     @endif
@@ -32,7 +32,7 @@
             <div class="flex items-center gap-8">
                 <a href="{{ route('public.home') }}" class="flex items-center gap-2">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
-                    <span class="text-lg font-bold tracking-tight text-gray-900">MBUNIETECH</span>
+                    <span class="text-lg font-bold tracking-tight text-gray-900">MbunieEduHub</span>
                 </a>
 
                 <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
@@ -69,7 +69,7 @@
                 <div class="md:col-span-2">
                     <div class="flex items-center gap-2">
                         <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
-                        <span class="text-base font-bold tracking-tight text-gray-900">MBUNIETECH</span>
+                        <span class="text-base font-bold tracking-tight text-gray-900">MbunieEduHub</span>
                     </div>
                     <p class="mt-3 max-w-md text-sm text-gray-500">
                         Authorized AI access management for individuals and businesses. Simple payments, managed access, professional support.
@@ -98,7 +98,7 @@
                 </div>
             </div>
             <div class="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-                <p class="text-xs text-gray-400">&copy; {{ date('Y') }} MBUNIETECH. All rights reserved.</p>
+                <p class="text-xs text-gray-400">&copy; {{ date('Y') }} MbunieEduHub. All rights reserved.</p>
                 <p class="text-xs text-gray-400">mt.co.tz</p>
             </div>
         </div>

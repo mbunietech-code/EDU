@@ -39,6 +39,6 @@ class SubscriptionExpired extends Notification implements ShouldQueue
             ->line('Your subscription to ' . $this->subscription->product->name . ' has expired.')
             ->line('Your access has been revoked.')
             ->action('Renew Subscription', url('/products'))
-            ->line('Thank you for using MBUNIETECH!');
+            ->line('Thank you for using MbunieEduHub!');
     }
 }
