@@ -1,5 +1,17 @@
 <?php
 
+$detectedEnv = (function () {
+    $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? null;
+
+    if ($host) {
+        $host = parse_url('http://'.$host, PHP_URL_HOST);
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1'], true) ? 'local' : 'production';
+    }
+
+    return PHP_OS_FAMILY === 'Windows' ? 'local' : 'production';
+})();
+
 return [
 
     /*
@@ -26,7 +38,7 @@ return [
     |
     */
 
-    'env' => env('APP_ENV', 'production'),
+    'env' => env('APP_ENV', $detectedEnv),
 
     /*
     |--------------------------------------------------------------------------

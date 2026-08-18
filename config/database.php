@@ -2,6 +2,24 @@
 
 use Illuminate\Support\Str;
 
+$host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? null;
+
+if ($host) {
+    $host = parse_url('http://'.$host, PHP_URL_HOST);
+}
+
+$isProduction = $host
+    ? ! in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+    : PHP_OS_FAMILY !== 'Windows';
+
+$dbCredentials = [
+    'host' => env('DB_HOST', env($isProduction ? 'HOSTINGER_DB_HOST' : 'LOCAL_DB_HOST', '127.0.0.1')),
+    'port' => env('DB_PORT', env($isProduction ? 'HOSTINGER_DB_PORT' : 'LOCAL_DB_PORT', '3306')),
+    'database' => env('DB_DATABASE', env($isProduction ? 'HOSTINGER_DB_DATABASE' : 'LOCAL_DB_DATABASE', 'laravel')),
+    'username' => env('DB_USERNAME', env($isProduction ? 'HOSTINGER_DB_USERNAME' : 'LOCAL_DB_USERNAME', 'root')),
+    'password' => env('DB_PASSWORD', env($isProduction ? 'HOSTINGER_DB_PASSWORD' : 'LOCAL_DB_PASSWORD', '')),
+];
+
 return [
 
     /*
@@ -42,11 +60,11 @@ return [
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'host' => $dbCredentials['host'],
+            'port' => $dbCredentials['port'],
+            'database' => $dbCredentials['database'],
+            'username' => $dbCredentials['username'],
+            'password' => $dbCredentials['password'],
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_0900_ai_ci'),
