@@ -35,10 +35,8 @@ class PaymentApprovalService
             $order = $payment->order;
             $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
 
-            $key = null;
-
             if ($order->product->isSoftware()) {
-                $key = $this->softwareAccessService->activateForOrder($order);
+                $this->softwareAccessService->activateForOrder($order);
             } else {
                 $this->subscriptionService->createFromOrder($order);
             }
@@ -50,7 +48,6 @@ class PaymentApprovalService
                 [
                     'order_id' => $order->id,
                     'subscription_id' => $order->subscription?->id,
-                    'product_key_id' => $key?->id,
                 ]
             );
         });

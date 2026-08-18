@@ -31,7 +31,7 @@ class OrderController extends Controller
         return view('user.orders.index', compact('orders'));
     }
 
-    public function create(Product $product, Plan $plan = null)
+    public function create(Product $product, ?Plan $plan = null)
     {
         if ($product->status !== 'published') {
             abort(404);
@@ -87,7 +87,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load(['product', 'plan', 'payments.paymentProofs', 'subscription', 'productKey']);
+        $order->load(['product', 'plan', 'payments.paymentProofs', 'subscription']);
 
         return view('user.orders.show', compact('order'));
     }

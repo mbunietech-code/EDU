@@ -60,11 +60,6 @@ class Order extends Model
         return $this->hasOne(Subscription::class);
     }
 
-    public function productKey(): HasOne
-    {
-        return $this->hasOne(ProductKey::class);
-    }
-
     public function scopePending($query)
     {
         return $query->where('status', 'pending');

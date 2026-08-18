@@ -81,9 +81,7 @@ Route::prefix('admin')
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::resource('products', AdminProductController::class);
-        Route::get('products/{product}/keys', [AdminProductController::class, 'keys'])->name('products.keys');
-        Route::post('products/{product}/keys', [AdminProductController::class, 'storeKeys'])->name('products.keys.store');
-        Route::delete('product-keys/{productKey}', [AdminProductController::class, 'destroyKey'])->name('product-keys.destroy');
+        Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])->name('software-files.store');
         Route::resource('plans', AdminPlanController::class);
         Route::resource('accounts', AdminAccountController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');

@@ -57,9 +57,6 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.products.edit', $product) }}" class="mbui-anchor text-sm">Edit</a>
-                                @if ($product->isSoftware())
-                                    <a href="{{ route('admin.products.keys', $product) }}" class="mbui-anchor text-sm">Keys</a>
-                                @endif
                                 <form method="POST" action="{{ route('admin.products.destroy', $product) }}" onsubmit="return confirm('Delete {{ $product->name }}? This permanently removes the product and its related plans, accounts and orders.');">
                                     @csrf
                                     @method('DELETE')

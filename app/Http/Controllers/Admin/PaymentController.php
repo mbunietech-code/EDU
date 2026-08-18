@@ -50,22 +50,7 @@ class PaymentController extends Controller
         try {
             $this->paymentApprovalService->approve($payment);
         } catch (\RuntimeException $e) {
-            $message = $e->getMessage();
             $product = $payment->order->product;
-
-            if ($message === 'no available product key') {
-                $this->notificationService->notifyAdminAccountUnavailable($product);
-                report($e);
-
-                \App\Models\ActivityLog::log(
-                    'payment_approval_failed',
-                    'Payment',
-                    $payment->id,
-                    ['reason' => $message]
-                );
-
-                return back()->with('error', 'Payment reviewed but no available product key exists for this software. Add product keys for the product.');
-            }
 
             $this->notificationService->notifyAdminAccountUnavailable($product);
             report($e);
@@ -74,7 +59,7 @@ class PaymentController extends Controller
                 'payment_approval_failed',
                 'Payment',
                 $payment->id,
-                ['reason' => $message]
+                ['reason' => $e->getMessage()]
             );
 
             return back()->with('error', 'Payment review started but no available account exists for the product. An account is required to activate the subscription.');

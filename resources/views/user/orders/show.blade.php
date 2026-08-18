@@ -43,7 +43,11 @@
                             <p class="text-sm font-semibold text-emerald-800">Access active until {{ $order->software_access_expires_at->format('d M Y H:i') }}</p>
                             <div class="mt-3">
                                 <p class="text-xs font-medium uppercase tracking-wide text-emerald-700">Product key</p>
-                                <p class="mt-1 select-all break-all rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-sm text-gray-900">{{ $order->productKey?->key_value ?? 'Assigned by admin' }}</p>
+                                @if ($order->product->software_key)
+                                    <p class="mt-1 select-all break-all rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-sm text-gray-900">{{ $order->product->software_key }}</p>
+                                @else
+                                    <p class="mt-1 text-sm text-gray-500">The key will be available here once the seller releases it.</p>
+                                @endif
                             </div>
                             @if ($order->product->software_file)
                                 <a href="{{ route('user.orders.download-software', $order) }}" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">

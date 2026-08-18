@@ -6,10 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Product;
-use App\Models\ProductKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -48,6 +46,9 @@ class ProductController extends Controller
         if ($request->hasFile('software_file')) {
             $validated['software_filename'] = $request->file('software_file')->getClientOriginalName();
             $validated['software_file'] = $this->storeSoftwareFile($request->file('software_file'));
+        } elseif ($request->filled('software_file_path')) {
+            $validated['software_file'] = $request->input('software_file_path');
+            $validated['software_filename'] = $request->input('software_filename');
         }
 
         $this->normalizeType($validated);
@@ -91,6 +92,14 @@ class ProductController extends Controller
             $this->deleteSoftwareFile($product);
             $validated['software_filename'] = $request->file('software_file')->getClientOriginalName();
             $validated['software_file'] = $this->storeSoftwareFile($request->file('software_file'));
+        } elseif ($request->filled('software_file_path') && $request->input('software_file_path') !== $product->software_file) {
+            $this->deleteSoftwareFile($product);
+            $validated['software_file'] = $request->input('software_file_path');
+            $validated['software_filename'] = $request->input('software_filename');
+        }
+
+        if (($validated['type'] ?? $product->type) !== 'software' && $product->software_file) {
+            $this->deleteSoftwareFile($product);
         }
 
         $this->normalizeType($validated, $product);
@@ -128,90 +137,18 @@ class ProductController extends Controller
         return back()->with('success', 'Product deleted.');
     }
 
-    public function keys(Product $product)
+    public function uploadSoftwareFile(Request $request)
     {
-        $this->authorize('view', $product);
-
-        $product->loadCount([
-            'productKeys as keys_available_count' => fn ($query) => $query->whereNull('order_id'),
-            'productKeys as keys_sold_count' => fn ($query) => $query->whereNotNull('order_id'),
-        ]);
-
-        $keys = $product->productKeys()
-            ->with('order')
-            ->latest('id')
-            ->paginate(20);
-
-        return view('admin.products.keys', compact('product', 'keys'));
-    }
-
-    public function storeKeys(Request $request, Product $product)
-    {
-        $this->authorize('update', $product);
-
         $validated = $request->validate([
-            'keys_list' => ['required', 'string'],
+            'software_file' => ['required', 'file', 'mimes:exe,zip,msi,rar,apk', 'max:153600'],
         ]);
 
-        $lines = array_values(array_filter(
-            array_map('trim', explode("\n", $validated['keys_list']))
-        ));
+        $path = $this->storeSoftwareFile($request->file('software_file'));
 
-        if ($lines === []) {
-            return back()->with('error', 'Enter at least one product key.');
-        }
-
-        $now = now();
-        $inserted = 0;
-
-        foreach ($lines as $keyValue) {
-            $existing = ProductKey::where('product_id', $product->id)
-                ->where('key_value', $keyValue)
-                ->exists();
-
-            if ($existing) {
-                continue;
-            }
-
-            ProductKey::create([
-                'product_id' => $product->id,
-                'key_value' => $keyValue,
-                'status' => 'available',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            $inserted++;
-        }
-
-        \App\Models\ActivityLog::log(
-            'product_keys_added',
-            'Product',
-            $product->id,
-            ['product' => $product->name, 'added' => $inserted]
-        );
-
-        return back()->with('success', "{$inserted} product key(s) added.");
-    }
-
-    public function destroyKey(ProductKey $productKey)
-    {
-        $this->authorize('delete', $productKey->product);
-
-        if (! $productKey->isAvailable()) {
-            return back()->with('error', 'Only unsold product keys can be deleted.');
-        }
-
-        $productKey->delete();
-
-        \App\Models\ActivityLog::log(
-            'product_key_deleted',
-            'ProductKey',
-            $productKey->id,
-            ['product' => $productKey->product->name]
-        );
-
-        return back()->with('success', 'Product key deleted.');
+        return response()->json([
+            'path' => $path,
+            'filename' => $request->file('software_file')->getClientOriginalName(),
+        ]);
     }
 
     protected function normalizeType(array &$validated, ?Product $product = null): void
@@ -222,6 +159,7 @@ class ProductController extends Controller
             $validated['software_file'] = null;
             $validated['software_filename'] = null;
             $validated['software_version'] = null;
+            $validated['software_key'] = null;
         }
     }
 

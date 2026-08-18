@@ -6,7 +6,6 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Product;
-use App\Models\ProductKey;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -22,12 +21,13 @@ class SoftwareDeliveryTest extends TestCase
         return User::factory()->create(['is_admin' => true]);
     }
 
-    private function softwareContext(array $keys = ['SOFT-KEY-001']): array
+    private function softwareContext(): array
     {
         $product = Product::factory()->create([
             'status' => 'published',
             'type' => 'software',
             'software_version' => 'v1.0',
+            'software_key' => 'SHARED-KEY-999',
         ]);
 
         $plan = Plan::factory()->create([
@@ -36,14 +36,6 @@ class SoftwareDeliveryTest extends TestCase
             'duration_days' => null,
             'price' => 50000,
         ]);
-
-        foreach ($keys as $keyValue) {
-            ProductKey::create([
-                'product_id' => $product->id,
-                'key_value' => $keyValue,
-                'status' => 'available',
-            ]);
-        }
 
         $user = User::factory()->create();
         $order = Order::factory()->create([
@@ -66,7 +58,7 @@ class SoftwareDeliveryTest extends TestCase
         return compact('product', 'plan', 'user', 'order', 'payment');
     }
 
-    public function test_approval_assigns_a_key_and_opens_access_window(): void
+    public function test_approval_opens_the_access_window_with_the_shared_key(): void
     {
         $ctx = $this->softwareContext();
 
@@ -79,34 +71,27 @@ class SoftwareDeliveryTest extends TestCase
         $this->assertDatabaseHas('payments', ['id' => $ctx['payment']->id, 'status' => 'approved']);
         $this->assertDatabaseHas('orders', ['id' => $ctx['order']->id, 'status' => 'confirmed']);
 
-        $key = ProductKey::where('product_id', $ctx['product']->id)->first();
-        $this->assertEquals('sold', $key->status);
-        $this->assertEquals($ctx['order']->id, $key->order_id);
-
         $ctx['order']->refresh();
         $this->assertNotNull($ctx['order']->software_access_expires_at);
         $this->assertTrue($ctx['order']->softwareAccessActive());
 
         $this->assertDatabaseCount('subscriptions', 0);
-        $this->assertDatabaseHas('product_keys', ['id' => $key->id, 'status' => 'sold', 'order_id' => $ctx['order']->id]);
+        $this->assertDatabaseHas('products', ['id' => $ctx['product']->id, 'software_key' => 'SHARED-KEY-999']);
     }
 
-    public function test_approval_fails_and_rolls_back_when_no_key_available(): void
+    public function test_key_is_hidden_before_payment_approval(): void
     {
-        $ctx = $this->softwareContext([]);
+        $ctx = $this->softwareContext();
 
-        $response = $this->actingAs($this->admin())
-            ->post(route('admin.payments.approve', $ctx['payment']));
+        $response = $this->actingAs($ctx['user'])
+            ->get(route('user.orders.show', $ctx['order']));
 
-        $response->assertRedirect();
-        $response->assertSessionHas('error');
-
-        $this->assertDatabaseHas('payments', ['id' => $ctx['payment']->id, 'status' => 'pending']);
-        $this->assertDatabaseHas('orders', ['id' => $ctx['order']->id, 'status' => 'pending']);
-        $this->assertDatabaseCount('subscriptions', 0);
+        $response->assertOk();
+        $response->assertDontSee('SHARED-KEY-999');
+        $response->assertSee('Once your payment is approved');
     }
 
-    public function test_buyer_sees_key_when_access_is_open(): void
+    public function test_buyer_sees_shared_key_when_access_is_open(): void
     {
         $ctx = $this->softwareContext();
         $this->actingAs($this->admin())->post(route('admin.payments.approve', $ctx['payment']));
@@ -115,11 +100,11 @@ class SoftwareDeliveryTest extends TestCase
             ->get(route('user.orders.show', $ctx['order']));
 
         $response->assertOk();
-        $response->assertSee('SOFT-KEY-001');
+        $response->assertSee('SHARED-KEY-999');
         $response->assertSee('Access active until');
     }
 
-    public function test_access_locks_after_access_window_passes(): void
+    public function test_key_hides_after_access_window_passes(): void
     {
         $ctx = $this->softwareContext();
         $this->actingAs($this->admin())->post(route('admin.payments.approve', $ctx['payment']));
@@ -131,7 +116,7 @@ class SoftwareDeliveryTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Access expired');
-        $response->assertDontSee('SOFT-KEY-001');
+        $response->assertDontSee('SHARED-KEY-999');
     }
 
     public function test_download_requires_active_access(): void

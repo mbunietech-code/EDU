@@ -57,16 +57,64 @@
                 </div>
                 <div>
                     <x-input-label for="software_file" value="Software file (exe / zip - leave empty to keep current)" />
-                    <input id="software_file" type="file" name="software_file" accept=".exe,.zip,.msi,.rar,.apk"
-                        class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100">
+                    <div x-data="{ uploading: false, progress: 0, filePath: '', fileName: '',
+                        onFileChange(ev) {
+                            const file = ev.target.files[0];
+                            if (!file) return;
+                            this.filePath = '';
+                            this.fileName = '';
+                            const fd = new FormData();
+                            fd.append('software_file', file);
+                            fd.append('_token', document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content'));
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', '{{ route('admin.software-files.store') }}');
+                            xhr.setRequestHeader('Accept', 'application/json');
+                            this.uploading = true;
+                            this.progress = 0;
+                            xhr.upload.onprogress = (e) => { if (e.lengthComputable) this.progress = Math.round((e.loaded / e.total) * 100); };
+                            xhr.onload = () => {
+                                this.uploading = false;
+                                if (xhr.status === 200) {
+                                    const r = JSON.parse(xhr.responseText);
+                                    this.filePath = r.path;
+                                    this.fileName = r.filename;
+                                } else {
+                                    alert('Upload failed. Use an exe/zip/msi/rar/apk file under 150MB.');
+                                }
+                            };
+                            xhr.onerror = () => { this.uploading = false; alert('Upload failed. Check your connection.'); };
+                            xhr.send(fd);
+                        },
+                        detach() { this.filePath = ''; this.fileName = ''; }
+                    }">
+                        <input type="file" accept=".exe,.zip,.msi,.rar,.apk"
+                            class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                            @change="onFileChange($event)">
+                        <template x-if="uploading">
+                            <div class="mt-2">
+                                <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                                    <div class="h-full rounded-full bg-indigo-600 transition-all" :style="'width:' + progress + '%'"></div>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Uploading <span x-text="progress + '%'"></span></p>
+                            </div>
+                        </template>
+                        <p x-show="filePath && !uploading" class="mt-2 text-xs text-emerald-700">
+                            Attached: <span class="font-medium" x-text="fileName"></span>
+                            <button type="button" class="ml-1 font-medium text-red-600 hover:text-red-800" @click="detach()">Remove</button>
+                        </p>
+                        <input type="hidden" name="software_file_path" :value="filePath">
+                        <input type="hidden" name="software_filename" :value="fileName">
+                    </div>
                     <x-input-error :messages="$errors->get('software_file')" class="mt-2" />
                     @if ($product->software_filename)
                         <p class="mt-1 text-xs text-gray-500">Current file: <span class="font-medium text-gray-700">{{ $product->software_filename }}</span></p>
                     @endif
-                    @if ($product->isSoftware())
-                        <a href="{{ route('admin.products.keys', $product) }}" class="mt-2 inline-block text-xs font-medium text-indigo-600 hover:text-indigo-800">Manage product keys &rarr;</a>
-                    @endif
                 </div>
+            </div>
+            <div>
+                <x-input-label for="software_key" value="Software key (shared)" />
+                <textarea id="software_key" name="software_key" rows="2" class="mbui-input mt-1" placeholder="Paste the one key all buyers will receive. It is shown to a buyer only after their payment is approved.">{{ old('software_key', $product->software_key) }}</textarea>
+                <x-input-error :messages="$errors->get('software_key')" class="mt-2" />
             </div>
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>

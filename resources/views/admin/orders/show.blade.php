@@ -41,7 +41,7 @@
                     <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
                         <div>
                             <dt class="mbui-section-label">Product key</dt>
-                            <dd class="mt-1 font-mono text-sm text-gray-900">{{ $order->productKey?->key_value ?? 'Not assigned' }}</dd>
+                            <dd class="mt-1 font-mono text-sm text-gray-900">{{ $order->product->software_key ?? 'Not set' }}</dd>
                         </div>
                         <div>
                             <dt class="mbui-section-label">Software file</dt>

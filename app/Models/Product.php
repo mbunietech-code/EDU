@@ -22,6 +22,7 @@ class Product extends Model
         'software_file',
         'software_filename',
         'software_version',
+        'software_key',
         'is_featured',
         'meta_title',
         'meta_description',
@@ -61,11 +62,6 @@ class Product extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
-    }
-
-    public function productKeys(): HasMany
-    {
-        return $this->hasMany(ProductKey::class);
     }
 
     public function scopePublished($query)
