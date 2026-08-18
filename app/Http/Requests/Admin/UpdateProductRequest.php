@@ -21,7 +21,7 @@ class UpdateProductRequest extends FormRequest
             'features_list' => ['nullable', 'string'],
             'features' => ['nullable', 'array'],
             'price' => ['required', 'numeric', 'min:0'],
-            'image' => ['nullable', 'image', 'max:2048'],
+            'image' => ['nullable', 'mimes:jpg,jpeg,png,gif,bmp,webp,svg,avif,tiff,tif,ico,heic,heif', 'max:5120'],
             'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
             'is_featured' => ['boolean'],
             'meta_title' => ['nullable', 'string', 'max:255'],
