@@ -24,7 +24,14 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse ($products as $product)
                     <tr>
-                        <td class="mbui-td font-medium text-gray-900">{{ $product->name }}</td>
+                        <td class="mbui-td">
+                            <div class="flex items-center gap-3">
+                                @if ($product->imageUrl())
+                                    <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-10 w-10 rounded-lg border border-gray-200 object-cover">
+                                @endif
+                                <span class="font-medium text-gray-900">{{ $product->name }}</span>
+                            </div>
+                        </td>
                         <td class="mbui-td text-gray-500">{{ $product->slug }}</td>
                         <td class="mbui-td">{{ $product->plans_count }}</td>
                         <td class="mbui-td">{{ $product->accounts_count }}</td>

@@ -46,7 +46,7 @@
                     <input id="image" type="file" name="image" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100">
                     <x-input-error :messages="$errors->get('image')" class="mt-2" />
                     @if ($product->image)
-                        <p class="mt-2 text-xs text-gray-500">Current: {{ $product->image }}</p>
+                        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="mt-2 h-24 w-24 rounded-lg border border-gray-200 object-cover">
                     @endif
                 </div>
                 <div class="flex items-end pb-1">
