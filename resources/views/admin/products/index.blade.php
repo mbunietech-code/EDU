@@ -40,13 +40,11 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.products.edit', $product) }}" class="mbui-anchor text-sm">Edit</a>
-                                @if ($product->status !== 'archived')
-                                    <form method="POST" action="{{ route('admin.products.destroy', $product) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Archive</button>
-                                    </form>
-                                @endif
+                                <form method="POST" action="{{ route('admin.products.destroy', $product) }}" onsubmit="return confirm('Delete {{ $product->name }}? This permanently removes the product and its related plans, accounts and orders.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
+                                </form>
                             </div>
                         </td>
                     </tr>

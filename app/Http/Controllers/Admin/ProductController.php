@@ -94,15 +94,18 @@ class ProductController extends Controller
     {
         $this->authorize('delete', $product);
 
-        $product->update(['status' => 'archived']);
+        $name = $product->name;
+        $id = $product->id;
+
+        $product->delete();
 
         \App\Models\ActivityLog::log(
-            'product_archived',
+            'product_deleted',
             'Product',
-            $product->id,
-            ['name' => $product->name]
+            $id,
+            ['name' => $name]
         );
 
-        return back()->with('success', 'Product archived.');
+        return back()->with('success', 'Product deleted.');
     }
 }
