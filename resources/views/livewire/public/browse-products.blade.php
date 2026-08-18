@@ -48,6 +48,9 @@
                         </span>
                         <span class="text-xs font-medium text-gray-400">{{ $product->plans_count }} plan(s)</span>
                     </div>
+                    <p class="mt-1 text-xs text-gray-400">
+                        &asymp; ${{ number_format($product->price * $rates['USD'], 2) }} USD &middot; &asymp; &yen;{{ number_format($product->price * $rates['CNY'], 2) }} CNY
+                    </p>
                 </a>
             @endforeach
         </div>

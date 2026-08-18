@@ -3,6 +3,7 @@
 namespace App\Livewire\Public;
 
 use App\Models\Product;
+use App\Services\CurrencyRateService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,6 +16,10 @@ class BrowseProducts extends Component
     public string $sort = 'latest';
 
     protected $queryString = ['search', 'sort'];
+
+    public function __construct(protected CurrencyRateService $currencyRates)
+    {
+    }
 
     public function updatedSearch(): void
     {
@@ -44,6 +49,8 @@ class BrowseProducts extends Component
 
         $products = $query->paginate(12);
 
-        return view('livewire.public.browse-products', ['products' => $products]);
+        $rates = $this->currencyRates->rates();
+
+        return view('livewire.public.browse-products', ['products' => $products, 'rates' => $rates]);
     }
 }

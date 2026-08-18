@@ -53,6 +53,9 @@
                             <span class="text-lg font-bold text-gray-900">TZS {{ number_format($product->price) }}</span>
                             <span class="mbui-anchor text-sm">View plans &rarr;</span>
                         </div>
+                        <p class="mt-1 text-xs text-gray-400">
+                            &asymp; ${{ number_format($product->price * $rates['USD'], 2) }} USD &middot; &asymp; &yen;{{ number_format($product->price * $rates['CNY'], 2) }} CNY
+                        </p>
                     </a>
                 @endforeach
             </div>
