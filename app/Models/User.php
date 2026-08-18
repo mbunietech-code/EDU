@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -51,6 +52,25 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'actor_id');
+    }
+
+    public function conversation(): HasOne
+    {
+        return $this->hasOne(Conversation::class);
+    }
+
+    public function unreadChatMessagesCount(): int
+    {
+        if ($this->is_admin) {
+            return ChatMessage::where('is_from_admin', false)
+                ->where('is_read', false)
+                ->count();
+        }
+
+        return ChatMessage::whereHas('conversation', fn ($query) => $query->where('user_id', $this->id))
+            ->where('is_from_admin', true)
+            ->where('is_read', false)
+            ->count();
     }
 
     public function isAdmin(): bool

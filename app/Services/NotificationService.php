@@ -17,6 +17,7 @@ use App\Notifications\Admin\NewOrder;
 use App\Notifications\Admin\NewPaymentProof;
 use App\Notifications\Admin\ExpiringSubscription;
 use App\Notifications\Admin\AccountUnavailable;
+use App\Notifications\ChatMessageReceived;
 use Illuminate\Support\Facades\Notification;
 
 class NotificationService
@@ -90,5 +91,16 @@ class NotificationService
     {
         $admins = User::where('is_admin', true)->get();
         Notification::send($admins, new AccountUnavailable($product));
+    }
+
+    public function notifyUserNewChatMessage(\App\Models\Conversation $conversation): void
+    {
+        Notification::send($conversation->user, new ChatMessageReceived($conversation, 'Admin'));
+    }
+
+    public function notifyAdminsNewChatMessage(\App\Models\Conversation $conversation): void
+    {
+        $admins = User::where('is_admin', true)->get();
+        Notification::send($admins, new ChatMessageReceived($conversation, $conversation->user->name));
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccountController as AdminAccountController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Public\FaqController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ProductController as PublicProductController;
 use App\Http\Controllers\User\DashboardController;
+use App\Http\Controllers\User\ChatController as UserChatController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\User\OrderController;
 use App\Http\Controllers\User\PaymentController as UserPaymentController;
@@ -56,6 +58,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/payments/{payment}/proof/{proof}', [UserPaymentController::class, 'showProof'])->name('user.payments.proof');
     Route::get('/orders/{order}/pay', [UserPaymentController::class, 'create'])->name('user.payments.create');
     Route::post('/orders/{order}/pay', [UserPaymentController::class, 'store'])->name('user.payments.store');
+
+    Route::get('/messages', [UserChatController::class, 'index'])->name('user.chat.index');
+    Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');
+    Route::get('/messages/{conversation}/fetch', [UserChatController::class, 'fetch'])->name('user.chat.fetch');
+    Route::post('/messages/{conversation}', [UserChatController::class, 'store'])->name('user.chat.store');
+    Route::get('/messages/{conversation}/file/{message}', [UserChatController::class, 'attachment'])->name('user.chat.attachment');
 
     Route::get('/my-subscriptions', [SubscriptionController::class, 'index'])->name('user.subscriptions.index');
     Route::get('/my-subscriptions/{subscription}', [SubscriptionController::class, 'show'])->name('user.subscriptions.show');
@@ -102,6 +110,12 @@ Route::prefix('admin')
         Route::put('payment-methods/{paymentMethod}', [AdminPaymentMethodController::class, 'update'])->name('payment-methods.update');
         Route::post('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'uploadQr'])->name('payment-methods.qr');
         Route::delete('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'removeQr'])->name('payment-methods.qr.remove');
+
+        Route::get('messages', [AdminChatController::class, 'index'])->name('chat.index');
+        Route::get('messages/{conversation}', [AdminChatController::class, 'show'])->name('chat.show');
+        Route::get('messages/{conversation}/fetch', [AdminChatController::class, 'fetch'])->name('chat.fetch');
+        Route::post('messages/{conversation}', [AdminChatController::class, 'store'])->name('chat.store');
+        Route::get('messages/{conversation}/file/{message}', [AdminChatController::class, 'attachment'])->name('chat.attachment');
 
         Route::get('subscriptions', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
         Route::get('subscriptions/{subscription}', [AdminSubscriptionController::class, 'show'])->name('subscriptions.show');
