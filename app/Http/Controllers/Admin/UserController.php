@@ -64,4 +64,27 @@ class UserController extends Controller
 
         return back()->with('success', 'User activated.');
     }
+
+    public function destroy(User $user)
+    {
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        if ($user->is_admin) {
+            return back()->with('error', 'Admin accounts cannot be deleted.');
+        }
+
+        $email = $user->email;
+        $user->delete();
+
+        \App\Models\ActivityLog::log(
+            'user_deleted',
+            'User',
+            $user->id,
+            ['email' => $email]
+        );
+
+        return redirect()->route('admin.users.index')->with('success', 'User deleted.');
+    }
 }

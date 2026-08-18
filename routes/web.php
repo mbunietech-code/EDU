@@ -77,6 +77,7 @@ Route::prefix('admin')
         Route::resource('users', AdminUserController::class)->only(['index', 'show']);
         Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
         Route::post('users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
+        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::resource('products', AdminProductController::class);
         Route::resource('plans', AdminPlanController::class);

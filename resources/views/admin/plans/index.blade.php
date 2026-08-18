@@ -33,10 +33,10 @@
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.plans.edit', $plan) }}" class="mbui-anchor text-sm">Edit</a>
                                 @if ($plan->status === 'active')
-                                    <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}">
+                                    <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" onsubmit="return confirm('Delete this plan permanently? This also removes any linked orders.');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Deactivate</button>
+                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
                                     </form>
                                 @endif
                             </div>

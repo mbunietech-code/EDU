@@ -83,15 +83,22 @@ class PlanController extends Controller
     {
         $this->authorize('delete', $plan);
 
-        $plan->update(['status' => 'inactive']);
+        $inUse = $plan->subscriptions()->whereIn('status', ['active', 'expiring_soon', 'pending'])->exists();
+
+        if ($inUse) {
+            return back()->with('error', 'Cannot delete a plan in use by active subscriptions. Deactivate it instead.');
+        }
+
+        $name = $plan->name;
+        $plan->delete();
 
         \App\Models\ActivityLog::log(
-            'plan_deactivated',
+            'plan_deleted',
             'Plan',
             $plan->id,
-            ['name' => $plan->name]
+            ['name' => $name]
         );
 
-        return back()->with('success', 'Plan deactivated.');
+        return back()->with('success', 'Plan deleted.');
     }
 }
