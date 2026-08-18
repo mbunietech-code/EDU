@@ -22,8 +22,27 @@
                         </span>
                     </div>
                     <div class="flex items-center justify-between gap-3">
-                        <p class="truncate text-sm {{ $conversation->unread ? 'font-medium text-gray-900' : 'text-gray-500' }}">
-                            {{ match (true) { ($conversation->latestMessage?->type ?? 'text') === 'text' => $conversation->latestMessage?->body, ($conversation->latestMessage?->type ?? 'text') === 'image' => 'Attached an image', ($conversation->latestMessage?->type ?? 'text') === 'video' => 'Attached a video', ($conversation->latestMessage?->type ?? 'text') === 'audio' => 'Attached a voice note', default => '—' }}
+                        <p class="truncate text-sm {{ $conversation->unread > 0 ? 'font-medium text-gray-900' : 'text-gray-500' }}">
+                            @php
+                                $latestMessage = $conversation->latestMessage;
+                                $messageType = $latestMessage?->type ?? 'text';
+                            @endphp
+                            @switch($messageType)
+                                @case('text')
+                                    {{ $latestMessage?->body ?? 'No message' }}
+                                    @break
+                                @case('image')
+                                    Attached an image
+                                    @break
+                                @case('video')
+                                    Attached a video
+                                    @break
+                                @case('audio')
+                                    Attached a voice note
+                                    @break
+                                @default
+                                    New message
+                            @endswitch
                         </p>
                         @if ($conversation->unread > 0)
                             <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-xs font-semibold text-white">
