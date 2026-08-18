@@ -21,7 +21,12 @@ CREATE TABLE IF NOT EXISTS payment_methods (
 INSERT INTO payment_methods (code, name, description, instructions, enabled, sort_order, link_url, store_url, created_at, updated_at) VALUES
 ('yas', 'MIX by YAS', 'Pay securely with MIX by YAS QR code.', 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 1, 'intent://#Intent;package=tz.tigo.mfsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dtz.tigo.mfsapp;end', 'https://play.google.com/store/apps/details?id=tz.tigo.mfsapp', NOW(), NOW()),
 ('alipay', 'Alipay', 'Pay securely with Alipay QR code.', 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 2, NULL, NULL, NOW(), NOW()),
-('wechat_pay', 'WeChat Pay', 'Pay securely with WeChat Pay QR code.', 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 3, NULL, NULL, NOW(), NOW())
+('wechat_pay', 'WeChat Pay', 'Pay securely with WeChat Pay QR code.', 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 3, NULL, NULL, NOW(), NOW()),
+('airtel', 'Airtel Scan', 'Pay securely with Airtel Money QR code.', 'Open Airtel Money, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 4, NULL, NULL, NOW(), NOW()),
+('voda', 'Voda M-Pesa', 'Pay securely with Vodacom M-Pesa QR code.', 'Open Vodacom M-Pesa, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 5, NULL, NULL, NOW(), NOW()),
+('crdb', 'CRDB', 'Pay securely with CRDB QR code.', 'Open CRDB, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 6, NULL, NULL, NOW(), NOW()),
+('halotel', 'Halotel', 'Pay securely with Halotel QR code.', 'Open Halotel, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 7, NULL, NULL, NOW(), NOW()),
+('all_network', 'All Network', 'Pay securely with All Network QR code.', 'Open the app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 8, NULL, NULL, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     description = VALUES(description),
@@ -33,7 +38,7 @@ ON DUPLICATE KEY UPDATE
     updated_at = NOW();
 
 INSERT INTO settings (`key`, `value`, `type`, `group`, `description`, `created_at`, `updated_at`) VALUES
-('payment_methods', 'alipay,wechat_pay,yas', 'string', 'payments', 'Comma separated accepted payment methods', NOW(), NOW())
+('payment_methods', 'alipay,wechat_pay,yas,airtel,voda,crdb,halotel,all_network', 'string', 'payments', 'Comma separated accepted payment methods', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     `value` = VALUES(`value`),
     `group` = VALUES(`group`),

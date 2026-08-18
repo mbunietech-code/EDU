@@ -155,7 +155,7 @@ class DatabaseSeeder extends Seeder
         $settings = [
             ['key' => 'support_email', 'value' => 'support@mbunietech.co.tz', 'type' => 'string', 'group' => 'general', 'description' => 'Public support email address'],
             ['key' => 'expiry_warning_days', 'value' => '3', 'type' => 'integer', 'group' => 'subscriptions', 'description' => 'Days before expiry to warn the user'],
-            ['key' => 'payment_methods', 'value' => 'alipay,wechat_pay,yas', 'type' => 'string', 'group' => 'payments', 'description' => 'Comma separated accepted payment methods'],
+            ['key' => 'payment_methods', 'value' => 'alipay,wechat_pay,yas,airtel,voda,crdb,halotel,all_network', 'type' => 'string', 'group' => 'payments', 'description' => 'Comma separated accepted payment methods'],
             ['key' => 'currency', 'value' => 'TZS', 'type' => 'string', 'group' => 'general', 'description' => 'Default currency display'],
         ];
 
@@ -167,7 +167,11 @@ class DatabaseSeeder extends Seeder
             ['code' => 'yas', 'name' => 'MIX by YAS', 'description' => 'Pay securely with MIX by YAS QR code.', 'instructions' => 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 1, 'link_url' => 'intent://#Intent;package=tz.tigo.mfsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dtz.tigo.mfsapp;end', 'store_url' => 'https://play.google.com/store/apps/details?id=tz.tigo.mfsapp'],
             ['code' => 'alipay', 'name' => 'Alipay', 'description' => 'Pay securely with Alipay QR code.', 'instructions' => 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 2],
             ['code' => 'wechat_pay', 'name' => 'WeChat Pay', 'description' => 'Pay securely with WeChat Pay QR code.', 'instructions' => 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 3],
-        ];
+            ['code' => 'airtel', 'name' => 'Airtel Scan', 'description' => 'Pay securely with Airtel Money QR code.', 'instructions' => 'Open Airtel Money, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 4],
+            ['code' => 'voda', 'name' => 'Voda M-Pesa', 'description' => 'Pay securely with Vodacom M-Pesa QR code.', 'instructions' => 'Open Vodacom M-Pesa, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 5],
+            ['code' => 'crdb', 'name' => 'CRDB', 'description' => 'Pay securely with CRDB QR code.', 'instructions' => 'Open CRDB, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 6],
+            ['code' => 'halotel', 'name' => 'Halotel', 'description' => 'Pay securely with Halotel QR code.', 'instructions' => 'Open Halotel, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 7],
+            ['code' => 'all_network', 'name' => 'All Network', 'description' => 'Pay securely with All Network QR code.', 'instructions' => 'Open the app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 8],
         ];
 
         foreach ($paymentMethods as $method) {

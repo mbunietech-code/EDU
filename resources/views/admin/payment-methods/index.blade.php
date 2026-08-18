@@ -9,7 +9,7 @@
 
     <div class="mt-6 mbui-card p-6">
         <h2 class="text-base font-semibold text-gray-900">Add payment method</h2>
-        <p class="mt-1 text-sm text-gray-500">Any method you add here is automatically shown at checkout, including the tap-QR-to-open-app behaviour when you provide an app link.</p>
+        <p class="mt-1 text-sm text-gray-500">A method appears at checkout as soon as you upload its QR code. Provide an app link to enable tap-QR-to-open-app.</p>
 
         <form method="POST" action="{{ route('admin.payment-methods.store') }}" class="mt-5 space-y-4">
             @csrf

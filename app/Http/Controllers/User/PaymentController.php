@@ -50,6 +50,7 @@ class PaymentController extends Controller
         }
 
         $paymentMethods = \App\Models\PaymentMethod::enabled()
+            ->whereNotNull('qr_image')
             ->orderBy('sort_order')
             ->get();
 
