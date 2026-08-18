@@ -38,7 +38,7 @@ return [
     |
     */
 
-    'env' => env('APP_ENV', $detectedEnv),
+    'env' => env('APP_ENV') === 'testing' ? 'testing' : $detectedEnv,
 
     /*
     |--------------------------------------------------------------------------
