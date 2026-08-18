@@ -16,9 +16,9 @@
         ========================================================= */
 
         :root {
-            --primary: #ff3b30;
-            --primary-hover: #ff5147;
-            --secondary: #ff006e;
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --secondary: #8b5cf6;
 
             --background: #07090f;
             --background-soft: #0b0e15;
@@ -83,12 +83,12 @@
             background:
                 radial-gradient(
                     circle at 10% 10%,
-                    rgba(255, 59, 48, 0.10),
+                    rgba(99, 102, 241, 0.10),
                     transparent 32%
                 ),
                 radial-gradient(
                     circle at 90% 90%,
-                    rgba(255, 0, 110, 0.08),
+                    rgba(139, 92, 246, 0.08),
                     transparent 32%
                 ),
                 var(--background);
@@ -146,7 +146,7 @@
             top: -200px;
             left: -180px;
 
-            background: rgba(255, 59, 48, 0.06);
+            background: rgba(99, 102, 241, 0.06);
         }
 
 
@@ -157,7 +157,7 @@
             bottom: -180px;
             right: -150px;
 
-            background: rgba(255, 0, 110, 0.06);
+            background: rgba(139, 92, 246, 0.06);
         }
 
 
@@ -213,8 +213,8 @@
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255, 59, 48, 0.14),
-                    rgba(255, 0, 110, 0.04) 50%,
+                    rgba(99, 102, 241, 0.14),
+                    rgba(139, 92, 246, 0.04) 50%,
                     rgba(0, 0, 0, 0.12)
                 );
         }
@@ -236,7 +236,7 @@
             background:
                 radial-gradient(
                     circle,
-                    rgba(255, 59, 48, 0.16),
+                    rgba(99, 102, 241, 0.16),
                     transparent 70%
                 );
         }
@@ -258,7 +258,7 @@
             background:
                 radial-gradient(
                     circle,
-                    rgba(255, 0, 110, 0.12),
+                    rgba(139, 92, 246, 0.12),
                     transparent 70%
                 );
         }
@@ -331,8 +331,8 @@
                 linear-gradient(
                     90deg,
                     #ffffff,
-                    #ff5b52,
-                    #ff006e
+                    #818cf8,
+                    #8b5cf6
                 );
 
             -webkit-background-clip: text;
@@ -438,9 +438,9 @@
 
             border-radius: 50%;
 
-            background: rgba(255, 59, 48, 0.10);
+            background: rgba(99, 102, 241, 0.10);
 
-            color: #ff5b52;
+            color: #818cf8;
 
             font-size: 11px;
         }
@@ -671,12 +671,12 @@
             background: #0f131c;
 
             box-shadow:
-                0 0 0 3px rgba(255, 59, 48, 0.09);
+                0 0 0 3px rgba(99, 102, 241, 0.09);
         }
 
 
         .input-wrapper:focus-within .input-icon {
-            color: #ff5b52;
+            color: #818cf8;
         }
 
 
@@ -782,7 +782,7 @@
 
 
         .forgot-link {
-            color: #ff665d;
+            color: #818cf8;
 
             font-size: 12px;
 
@@ -795,7 +795,7 @@
 
 
         .forgot-link:hover {
-            color: #ff006e;
+            color: #8b5cf6;
 
             text-decoration: underline;
         }
@@ -841,7 +841,7 @@
             overflow: hidden;
 
             box-shadow:
-                0 12px 28px rgba(255, 59, 48, 0.20);
+                0 12px 28px rgba(99, 102, 241, 0.20);
 
             transition: var(--transition);
         }
@@ -879,7 +879,7 @@
             transform: translateY(-2px);
 
             box-shadow:
-                0 16px 35px rgba(255, 59, 48, 0.28);
+                0 16px 35px rgba(99, 102, 241, 0.28);
         }
 
 
@@ -915,7 +915,7 @@
 
 
         .register-link a {
-            color: #ff5b52;
+            color: #818cf8;
 
             font-weight: 650;
 
@@ -926,7 +926,7 @@
 
 
         .register-link a:hover {
-            color: #ff006e;
+            color: #8b5cf6;
 
             text-decoration: underline;
         }
