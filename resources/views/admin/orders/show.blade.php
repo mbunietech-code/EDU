@@ -33,6 +33,42 @@
                 </dl>
             </x-mbui.card>
 
+            @if ($order->isSoftware())
+                <x-mbui.card>
+                    <div class="flex items-center justify-between">
+                        <h2 class="mbui-section-label">Software delivery</h2>
+                    </div>
+                    <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
+                        <div>
+                            <dt class="mbui-section-label">Product key</dt>
+                            <dd class="mt-1 font-mono text-sm text-gray-900">{{ $order->productKey?->key_value ?? 'Not assigned' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="mbui-section-label">Software file</dt>
+                            <dd class="mt-1 text-gray-900">{{ $order->product->software_filename ?? 'None' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="mbui-section-label">Access status</dt>
+                            <dd class="mt-1">
+                                @if ($order->softwareAccessActive())
+                                    <x-mbui.badge appearance="success">Open until {{ $order->software_access_expires_at->format('d M Y H:i') }}</x-mbui.badge>
+                                @elseif ($order->softwareAccessLocked())
+                                    <x-mbui.badge appearance="danger">Locked</x-mbui.badge>
+                                @else
+                                    <span class="text-gray-400">Awaiting payment</span>
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
+                    @if ($order->softwareAccessLocked())
+                        <form method="POST" action="{{ route('admin.orders.reopen-access', $order) }}" class="mt-4">
+                            @csrf
+                            <x-mbui.button type="submit" variant="secondary">Re-open access (20 min)</x-mbui.button>
+                        </form>
+                    @endif
+                </x-mbui.card>
+            @endif
+
             <div>
                 <h2 class="mbui-section-label">Payments</h2>
                 @forelse ($order->payments as $payment)

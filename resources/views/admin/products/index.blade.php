@@ -18,6 +18,7 @@
                     <th class="mbui-th">Price</th>
                     <th class="mbui-th">Featured</th>
                     <th class="mbui-th">Status</th>
+                    <th class="mbui-th">Type</th>
                     <th class="mbui-th">Action</th>
                 </tr>
             </thead>
@@ -47,8 +48,18 @@
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$product->status" /></td>
                         <td class="mbui-td">
+                            @if ($product->isSoftware())
+                                <x-mbui.badge appearance="info">Software</x-mbui.badge>
+                            @else
+                                <x-mbui.badge appearance="neutral">Subscription</x-mbui.badge>
+                            @endif
+                        </td>
+                        <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.products.edit', $product) }}" class="mbui-anchor text-sm">Edit</a>
+                                @if ($product->isSoftware())
+                                    <a href="{{ route('admin.products.keys', $product) }}" class="mbui-anchor text-sm">Keys</a>
+                                @endif
                                 <form method="POST" action="{{ route('admin.products.destroy', $product) }}" onsubmit="return confirm('Delete {{ $product->name }}? This permanently removes the product and its related plans, accounts and orders.');">
                                     @csrf
                                     @method('DELETE')
@@ -58,7 +69,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="mbui-td text-center text-gray-400">No products</td></tr>
+                    <tr><td colspan="9" class="mbui-td text-center text-gray-400">No products</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

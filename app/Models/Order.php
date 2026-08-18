@@ -21,11 +21,13 @@ class Order extends Model
         'status',
         'payment_instructions',
         'confirmed_at',
+        'software_access_expires_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'confirmed_at' => 'datetime',
+        'software_access_expires_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -58,6 +60,11 @@ class Order extends Model
         return $this->hasOne(Subscription::class);
     }
 
+    public function productKey(): HasOne
+    {
+        return $this->hasOne(ProductKey::class);
+    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
@@ -71,5 +78,23 @@ class Order extends Model
     public function isConfirmed(): bool
     {
         return $this->status === 'confirmed';
+    }
+
+    public function isSoftware(): bool
+    {
+        return $this->product?->isSoftware() ?? false;
+    }
+
+    public function softwareAccessActive(): bool
+    {
+        return $this->isConfirmed()
+            && $this->software_access_expires_at
+            && $this->software_access_expires_at->isFuture();
+    }
+
+    public function softwareAccessLocked(): bool
+    {
+        return $this->isConfirmed()
+            && ($this->software_access_expires_at === null || $this->software_access_expires_at->isPast());
     }
 }

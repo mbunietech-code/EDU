@@ -50,23 +50,47 @@ class PaymentController extends Controller
         try {
             $this->paymentApprovalService->approve($payment);
         } catch (\RuntimeException $e) {
-            $this->notificationService->notifyAdminAccountUnavailable($payment->order->product);
+            $message = $e->getMessage();
+            $product = $payment->order->product;
+
+            if ($message === 'no available product key') {
+                $this->notificationService->notifyAdminAccountUnavailable($product);
+                report($e);
+
+                \App\Models\ActivityLog::log(
+                    'payment_approval_failed',
+                    'Payment',
+                    $payment->id,
+                    ['reason' => $message]
+                );
+
+                return back()->with('error', 'Payment reviewed but no available product key exists for this software. Add product keys for the product.');
+            }
+
+            $this->notificationService->notifyAdminAccountUnavailable($product);
             report($e);
 
             \App\Models\ActivityLog::log(
                 'payment_approval_failed',
                 'Payment',
                 $payment->id,
-                ['reason' => $e->getMessage()]
+                ['reason' => $message]
             );
 
             return back()->with('error', 'Payment review started but no available account exists for the product. An account is required to activate the subscription.');
         }
 
         $this->notificationService->notifyPaymentApproved($payment->user, $payment->fresh());
-        $this->notificationService->notifySubscriptionActivated($payment->user, $payment->order->subscription);
 
-        return back()->with('success', 'Payment approved and subscription activated.');
+        $order = $payment->order;
+
+        if ($order->isSoftware()) {
+            $this->notificationService->notifySoftwareDelivered($payment->user, $order);
+        } else {
+            $this->notificationService->notifySubscriptionActivated($payment->user, $order->subscription);
+        }
+
+        return back()->with('success', 'Payment approved and ' . ($order->isSoftware() ? 'software delivered.' : 'subscription activated.'));
     }
 
     public function reject(Request $request, Payment $payment)

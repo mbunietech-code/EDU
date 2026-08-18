@@ -13,15 +13,18 @@ class PaymentApprovalService
     protected ApprovePayment $approvePayment;
     protected RejectPayment $rejectPayment;
     protected SubscriptionService $subscriptionService;
+    protected SoftwareAccessService $softwareAccessService;
 
     public function __construct(
         ApprovePayment $approvePayment,
         RejectPayment $rejectPayment,
-        SubscriptionService $subscriptionService
+        SubscriptionService $subscriptionService,
+        SoftwareAccessService $softwareAccessService
     ) {
         $this->approvePayment = $approvePayment;
         $this->rejectPayment = $rejectPayment;
         $this->subscriptionService = $subscriptionService;
+        $this->softwareAccessService = $softwareAccessService;
     }
 
     public function approve(Payment $payment): void
@@ -32,13 +35,23 @@ class PaymentApprovalService
             $order = $payment->order;
             $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
 
-            $subscription = $this->subscriptionService->createFromOrder($order);
+            $key = null;
+
+            if ($order->product->isSoftware()) {
+                $key = $this->softwareAccessService->activateForOrder($order);
+            } else {
+                $this->subscriptionService->createFromOrder($order);
+            }
 
             \App\Models\ActivityLog::log(
                 'payment_approved',
                 'Payment',
                 $payment->id,
-                ['order_id' => $order->id, 'subscription_id' => $subscription->id]
+                [
+                    'order_id' => $order->id,
+                    'subscription_id' => $order->subscription?->id,
+                    'product_key_id' => $key?->id,
+                ]
             );
         });
     }

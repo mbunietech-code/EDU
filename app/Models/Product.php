@@ -18,6 +18,10 @@ class Product extends Model
         'price',
         'image',
         'status',
+        'type',
+        'software_file',
+        'software_filename',
+        'software_version',
         'is_featured',
         'meta_title',
         'meta_description',
@@ -26,7 +30,13 @@ class Product extends Model
     protected $casts = [
         'features' => 'array',
         'is_featured' => 'boolean',
+        'type' => 'string',
     ];
+
+    public function isSoftware(): bool
+    {
+        return $this->type === 'software';
+    }
 
     public function imageUrl(): ?string
     {
@@ -51,6 +61,11 @@ class Product extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function productKeys(): HasMany
+    {
+        return $this->hasMany(ProductKey::class);
     }
 
     public function scopePublished($query)

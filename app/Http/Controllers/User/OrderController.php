@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OrderController extends Controller
@@ -86,9 +87,27 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load(['product', 'plan', 'payments.paymentProofs', 'subscription']);
+        $order->load(['product', 'plan', 'payments.paymentProofs', 'subscription', 'productKey']);
 
         return view('user.orders.show', compact('order'));
+    }
+
+    public function downloadSoftware(Order $order)
+    {
+        $this->authorize('view', $order);
+
+        if (! $order->isSoftware() || ! $order->softwareAccessActive()) {
+            return back()->with('error', 'Software download is locked. It opens for 20 minutes after payment is approved.');
+        }
+
+        $product = $order->product;
+
+        if (! $product->software_file || ! Storage::disk(config('software.download_disk', 'private'))->exists($product->software_file)) {
+            abort(404);
+        }
+
+        return Storage::disk(config('software.download_disk', 'private'))
+            ->download($product->software_file, $product->software_filename ?: basename($product->software_file));
     }
 
     protected function generateOrderNumber(): string

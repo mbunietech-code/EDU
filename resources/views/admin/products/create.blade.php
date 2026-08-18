@@ -38,6 +38,29 @@
                     </select>
                     <x-input-error :messages="$errors->get('status')" class="mt-2" />
                 </div>
+                <div>
+                    <x-input-label for="type" value="Product type" />
+                    <select id="type" name="type" class="mbui-input mt-1">
+                        <option value="subscription" @selected(old('type', 'subscription') === 'subscription')>Subscription (account access)</option>
+                        <option value="software" @selected(old('type') === 'software')>Software (product key + download)</option>
+                    </select>
+                    <x-input-error :messages="$errors->get('type')" class="mt-2" />
+                </div>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="software_version" value="Software version (optional)" />
+                    <x-text-input id="software_version" class="mbui-input mt-1" type="text" name="software_version" :value="old('software_version')" placeholder="v1.0" />
+                    <x-input-error :messages="$errors->get('software_version')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="software_file" value="Software file (exe / zip)" />
+                    <input id="software_file" type="file" name="software_file" accept=".exe,.zip,.msi,.rar,.apk"
+                        class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100">
+                    <x-input-error :messages="$errors->get('software_file')" class="mt-2" />
+                    <p class="mt-1 text-xs text-gray-400">Used only for software products. Buyers can download it within the 20-minute access window after their payment is approved.</p>
+                </div>
             </div>
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>

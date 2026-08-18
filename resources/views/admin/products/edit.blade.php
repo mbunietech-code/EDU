@@ -39,6 +39,34 @@
                     </select>
                     <x-input-error :messages="$errors->get('status')" class="mt-2" />
                 </div>
+                <div>
+                    <x-input-label for="type" value="Product type" />
+                    <select id="type" name="type" class="mbui-input mt-1">
+                        <option value="subscription" @selected(old('type', $product->type) === 'subscription')>Subscription (account access)</option>
+                        <option value="software" @selected(old('type', $product->type) === 'software')>Software (product key + download)</option>
+                    </select>
+                    <x-input-error :messages="$errors->get('type')" class="mt-2" />
+                </div>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="software_version" value="Software version (optional)" />
+                    <x-text-input id="software_version" class="mbui-input mt-1" type="text" name="software_version" :value="old('software_version', $product->software_version)" placeholder="v1.0" />
+                    <x-input-error :messages="$errors->get('software_version')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="software_file" value="Software file (exe / zip - leave empty to keep current)" />
+                    <input id="software_file" type="file" name="software_file" accept=".exe,.zip,.msi,.rar,.apk"
+                        class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100">
+                    <x-input-error :messages="$errors->get('software_file')" class="mt-2" />
+                    @if ($product->software_filename)
+                        <p class="mt-1 text-xs text-gray-500">Current file: <span class="font-medium text-gray-700">{{ $product->software_filename }}</span></p>
+                    @endif
+                    @if ($product->isSoftware())
+                        <a href="{{ route('admin.products.keys', $product) }}" class="mt-2 inline-block text-xs font-medium text-indigo-600 hover:text-indigo-800">Manage product keys &rarr;</a>
+                    @endif
+                </div>
             </div>
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>

@@ -33,6 +33,34 @@
                 </dl>
             </x-mbui.card>
 
+            @if ($order->isSoftware())
+                <x-mbui.card>
+                    <h2 class="mbui-section-label">Software delivery</h2>
+                    @if (! $order->isConfirmed())
+                        <p class="mt-3 text-sm text-gray-600">Once your payment is approved, your product key and the software download will be revealed here. Access opens for {{ config('software.access_minutes') }} minutes.</p>
+                    @elseif ($order->softwareAccessActive())
+                        <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                            <p class="text-sm font-semibold text-emerald-800">Access active until {{ $order->software_access_expires_at->format('d M Y H:i') }}</p>
+                            <div class="mt-3">
+                                <p class="text-xs font-medium uppercase tracking-wide text-emerald-700">Product key</p>
+                                <p class="mt-1 select-all break-all rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-sm text-gray-900">{{ $order->productKey?->key_value ?? 'Assigned by admin' }}</p>
+                            </div>
+                            @if ($order->product->software_file)
+                                <a href="{{ route('user.orders.download-software', $order) }}" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                                    Download {{ $order->product->software_filename ?? 'software' }}
+                                </a>
+                            @endif
+                            <p class="mt-3 text-xs text-emerald-700">Download now. Access closes automatically {{ $order->software_access_expires_at->diffForHumans() }}.</p>
+                        </div>
+                    @elseif ($order->softwareAccessLocked())
+                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <p class="text-sm font-semibold text-amber-800">Access expired</p>
+                            <p class="mt-1 text-sm text-amber-700">The {{ config('software.access_minutes') }}-minute access window has closed. Contact support to re-open your download.</p>
+                        </div>
+                    @endif
+                </x-mbui.card>
+            @endif
+
             @if ($order->payment_instructions)
                 <x-mbui.card>
                     <h2 class="mbui-section-label">Payment instructions</h2>

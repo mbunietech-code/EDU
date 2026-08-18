@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/my-orders', [OrderController::class, 'index'])->name('user.orders.index');
     Route::get('/my-orders/{order}', [OrderController::class, 'show'])->name('user.orders.show');
+    Route::get('/my-orders/{order}/download-software', [OrderController::class, 'downloadSoftware'])->name('user.orders.download-software');
 
     Route::get('/payments', [UserPaymentController::class, 'index'])->name('user.payments.index');
     Route::get('/payments/{payment}', [UserPaymentController::class, 'show'])->name('user.payments.show');
@@ -80,6 +81,9 @@ Route::prefix('admin')
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::resource('products', AdminProductController::class);
+        Route::get('products/{product}/keys', [AdminProductController::class, 'keys'])->name('products.keys');
+        Route::post('products/{product}/keys', [AdminProductController::class, 'storeKeys'])->name('products.keys.store');
+        Route::delete('product-keys/{productKey}', [AdminProductController::class, 'destroyKey'])->name('product-keys.destroy');
         Route::resource('plans', AdminPlanController::class);
         Route::resource('accounts', AdminAccountController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
@@ -87,6 +91,7 @@ Route::prefix('admin')
 
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::post('orders/{order}/reopen-access', [AdminOrderController::class, 'reopenAccess'])->name('orders.reopen-access');
 
         Route::get('payments', [AdminPaymentController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
