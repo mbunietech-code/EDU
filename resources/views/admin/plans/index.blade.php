@@ -24,7 +24,7 @@
                     <tr>
                         <td class="mbui-td font-medium text-gray-900">{{ $plan->name }}</td>
                         <td class="mbui-td">{{ $plan->product->name }}</td>
-                        <td class="mbui-td">{{ $plan->duration_days }} days</td>
+                        <td class="mbui-td">{{ $plan->durationLabel() }}</td>
                         <td class="mbui-td">TZS {{ number_format($plan->price) }}</td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$plan->status" /></td>
                         <td class="mbui-td">

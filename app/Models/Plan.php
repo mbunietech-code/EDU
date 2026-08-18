@@ -15,6 +15,7 @@ class Plan extends Model
         'product_id',
         'name',
         'description',
+        'duration_type',
         'duration_days',
         'price',
         'status',
@@ -22,9 +23,20 @@ class Plan extends Model
     ];
 
     protected $casts = [
+        'duration_type' => 'string',
         'duration_days' => 'integer',
         'sort_order' => 'integer',
     ];
+
+    public function isLifetime(): bool
+    {
+        return $this->duration_type === 'lifetime';
+    }
+
+    public function durationLabel(): string
+    {
+        return $this->isLifetime() ? 'Lifetime' : $this->duration_days.' days';
+    }
 
     public function product(): BelongsTo
     {

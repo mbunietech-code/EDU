@@ -19,7 +19,7 @@
                     </div>
                     <div>
                         <dt class="mbui-section-label">Plan</dt>
-                        <dd class="mt-1 text-gray-900">{{ $order->plan->name }} ({{ $order->plan->duration_days }} days)</dd>
+                        <dd class="mt-1 text-gray-900">{{ $order->plan->name }} ({{ $order->plan->durationLabel() }})</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Amount</dt>

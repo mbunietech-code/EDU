@@ -103,6 +103,32 @@ class SubscriptionLifecycleTest extends TestCase
         $this->assertEquals(1, Subscription::expiringSoon()->count());
     }
 
+    public function test_lifetime_plan_gets_far_future_expiry(): void
+    {
+        $product = Product::factory()->create(['status' => 'published']);
+        $plan = Plan::factory()->create([
+            'product_id' => $product->id,
+            'duration_type' => 'lifetime',
+            'duration_days' => null,
+        ]);
+        $account = Account::factory()->create(['product_id' => $product->id, 'status' => 'available']);
+        $user = User::factory()->create();
+        $order = Order::factory()->create([
+            'user_id' => $user->id,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'status' => 'confirmed',
+        ]);
+
+        $service = app(SubscriptionService::class);
+        $subscription = $service->createFromOrder($order);
+
+        $this->assertEquals('active', $subscription->status);
+        $this->assertEquals('2099-12-31', $subscription->expiry_date->toDateString());
+        $this->assertTrue($subscription->isActive());
+        $this->assertFalse($subscription->isExpiringSoon(30));
+    }
+
     public function test_expired_scope(): void
     {
         $product = Product::factory()->create(['status' => 'published']);

@@ -20,7 +20,7 @@
                 </div>
                 <div class="flex items-center justify-between px-6 py-4 text-sm">
                     <span class="text-gray-500">Plan</span>
-                    <span class="font-medium text-gray-900">{{ $plan->name }} ({{ $plan->duration_days }} days)</span>
+                    <span class="font-medium text-gray-900">{{ $plan->name }} ({{ $plan->durationLabel() }})</span>
                 </div>
                 <div class="flex items-center justify-between px-6 py-4 text-sm">
                     <span class="text-gray-500">Plan description</span>

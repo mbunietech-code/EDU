@@ -17,6 +17,7 @@ class PlanFactory extends Factory
             'product_id' => Product::factory(),
             'name' => fake()->word() . ' Plan',
             'description' => fake()->sentence(),
+            'duration_type' => 'days',
             'duration_days' => fake()->randomElement([7, 30, 60, 90, 180, 365]),
             'price' => fake()->randomFloat(2, 5, 200),
             'status' => 'active',

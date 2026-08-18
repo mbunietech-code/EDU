@@ -40,7 +40,12 @@ class SubscriptionService
             }
 
             $startDate = Carbon::now(config('app.timezone'));
-            $endDate = $startDate->copy()->addDays($order->plan->duration_days);
+
+            if ($order->plan->isLifetime()) {
+                $endDate = Carbon::parse('2099-12-31', config('app.timezone'));
+            } else {
+                $endDate = $startDate->copy()->addDays($order->plan->duration_days);
+            }
 
             return $this->createSubscription->execute($order, $account, $startDate, $endDate);
         });

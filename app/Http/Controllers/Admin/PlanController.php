@@ -30,7 +30,13 @@ class PlanController extends Controller
     {
         $this->authorize('create', Plan::class);
 
-        $plan = Plan::create($request->validated());
+        $data = $request->validated();
+
+        if ($data['duration_type'] === 'lifetime') {
+            $data['duration_days'] = null;
+        }
+
+        $plan = Plan::create($data);
 
         \App\Models\ActivityLog::log(
             'plan_created',
@@ -54,7 +60,13 @@ class PlanController extends Controller
     {
         $this->authorize('update', $plan);
 
-        $plan->update($request->validated());
+        $data = $request->validated();
+
+        if ($data['duration_type'] === 'lifetime') {
+            $data['duration_days'] = null;
+        }
+
+        $plan->update($data);
 
         \App\Models\ActivityLog::log(
             'plan_updated',
