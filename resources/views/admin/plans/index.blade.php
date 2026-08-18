@@ -25,7 +25,9 @@
                         <td class="mbui-td font-medium text-gray-900">{{ $plan->name }}</td>
                         <td class="mbui-td">{{ $plan->product->name }}</td>
                         <td class="mbui-td">{{ $plan->durationLabel() }}</td>
-                        <td class="mbui-td">TZS {{ number_format($plan->price) }}</td>
+                        <td class="mbui-td">TZS {{ number_format($plan->price) }}
+                            <x-currency-conversion :amount="$plan->price" class="mt-1 text-xs text-gray-400" />
+                        </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$plan->status" /></td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">

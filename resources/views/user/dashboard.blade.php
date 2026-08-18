@@ -79,7 +79,9 @@
                                 <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
                             </td>
                             <td class="mbui-td">{{ $order->product->name }}</td>
-                            <td class="mbui-td">TZS {{ number_format($order->amount) }}</td>
+                            <td class="mbui-td">TZS {{ number_format($order->amount) }}
+                                <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                            </td>
                             <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
                             <td class="mbui-td">
                                 <a href="{{ route('user.payments.create', $order) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Submit payment</a>

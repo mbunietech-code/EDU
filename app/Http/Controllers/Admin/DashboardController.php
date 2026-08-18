@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\CurrencyRateService;
 use App\Services\ReportService;
 
 class DashboardController extends Controller
@@ -33,6 +34,8 @@ class DashboardController extends Controller
 
         $revenueReport = $this->reportService->getRevenueReport(6);
 
-        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport'));
+        $rates = app(CurrencyRateService::class)->rates();
+
+        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport', 'rates'));
     }
 }

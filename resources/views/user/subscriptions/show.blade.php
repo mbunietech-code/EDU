@@ -87,6 +87,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-900">{{ $subscription->order->order_number }}</p>
                         <p class="text-xs text-gray-500">TZS {{ number_format($subscription->order->amount) }}</p>
+                        <x-currency-conversion :amount="$subscription->order->amount" class="mt-1 text-xs text-gray-400" />
                     </div>
                     <a href="{{ route('user.orders.show', $subscription->order) }}" class="mbui-anchor text-sm">View</a>
                 </div>

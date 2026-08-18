@@ -41,7 +41,9 @@
                         </td>
                         <td class="mbui-td">{{ $order->user->name }}</td>
                         <td class="mbui-td">{{ $order->product->name }} / {{ $order->plan->name }}</td>
-                        <td class="mbui-td">TZS {{ number_format($order->amount) }}</td>
+                        <td class="mbui-td">TZS {{ number_format($order->amount) }}
+                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                        </td>
                         <td class="mbui-td">
                             @if ($order->payment)
                                 <x-mbui.status-badge :status="$order->payment->status" />

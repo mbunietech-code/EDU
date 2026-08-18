@@ -24,6 +24,7 @@
                     <div>
                         <dt class="mbui-section-label">Amount</dt>
                         <dd class="mt-1 font-bold text-gray-900">TZS {{ number_format($order->amount) }}</dd>
+                        <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
                     </div>
                     <div>
                         <dt class="mbui-section-label">Status</dt>

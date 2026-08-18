@@ -4,6 +4,7 @@
         <a href="{{ route('admin.reports.revenue') }}" class="mbui-card group p-6 transition hover:shadow-md">
             <h3 class="text-base font-semibold text-gray-900 group-hover:text-indigo-600">Revenue</h3>
             <p class="mt-1 text-sm text-gray-500">Monthly approved revenue. Current month: TZS {{ number_format($metrics['monthly_revenue']) }}</p>
+            <x-currency-conversion :amount="$metrics['monthly_revenue']" class="mt-1 text-xs text-gray-400" />
         </a>
         <a href="{{ route('admin.reports.orders') }}" class="mbui-card group p-6 transition hover:shadow-md">
             <h3 class="text-base font-semibold text-gray-900 group-hover:text-indigo-600">Orders</h3>

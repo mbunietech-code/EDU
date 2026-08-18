@@ -28,7 +28,9 @@
                     <tr>
                         <td class="mbui-td">{{ $row['year'] }}</td>
                         <td class="mbui-td">{{ Carbon\Carbon::create()->month($row['month'])->format('F') }}</td>
-                        <td class="mbui-td font-semibold text-gray-900">TZS {{ number_format((float) $row['total']) }}</td>
+                        <td class="mbui-td font-semibold text-gray-900">TZS {{ number_format((float) $row['total']) }}
+                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs text-gray-400" />
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="3" class="mbui-td text-center text-gray-400">No approved payments in this range</td></tr>

@@ -30,6 +30,9 @@
                     <span class="text-gray-500">Amount</span>
                     <span class="text-lg font-bold text-gray-900">TZS {{ number_format($plan->price) }}</span>
                 </div>
+                <div class="px-6 pb-4 text-right text-xs text-gray-400">
+                    <x-currency-conversion :amount="$plan->price" />
+                </div>
             </div>
 
             <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">

@@ -24,10 +24,12 @@
                     <div>
                         <dt class="mbui-section-label">Amount</dt>
                         <dd class="mt-1 font-bold text-gray-900">TZS {{ number_format($payment->amount) }}</dd>
+                        <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs text-gray-400" />
                     </div>
                     <div>
                         <dt class="mbui-section-label">Order amount</dt>
                         <dd class="mt-1 text-gray-900">TZS {{ number_format($payment->order->amount) }}</dd>
+                        <x-currency-conversion :amount="$payment->order->amount" class="mt-1 text-xs text-gray-400" />
                     </div>
                 </dl>
 
