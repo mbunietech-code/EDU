@@ -71,9 +71,9 @@ class PaymentController extends Controller
         $payment = Payment::create([
             'order_id' => $order->id,
             'user_id' => auth()->id(),
-            'amount' => $validated['amount'],
+            'amount' => $validated['amount'] ?? $order->amount,
             'payment_method' => $validated['payment_method'],
-            'transaction_reference' => $validated['transaction_reference'],
+            'transaction_reference' => $validated['transaction_reference'] ?? null,
             'status' => 'pending',
         ]);
 

@@ -113,20 +113,6 @@
 
                 <div class="grid gap-5 sm:grid-cols-2">
                     <div>
-                        <x-input-label for="transaction_reference" value="Transaction / reference number" />
-                        <x-text-input id="transaction_reference" class="mbui-input mt-1" type="text" name="transaction_reference" :value="old('transaction_reference')" required />
-                        <x-input-error :messages="$errors->get('transaction_reference')" class="mt-2" />
-                    </div>
-
-                    <div>
-                        <x-input-label for="amount" value="Amount paid" />
-                        <x-text-input id="amount" class="mbui-input mt-1" type="number" step="0.01" min="0" name="amount" :value="old('amount', $order->amount)" required />
-                        <x-input-error :messages="$errors->get('amount')" class="mt-2" />
-                    </div>
-                </div>
-
-                <div class="grid gap-5 sm:grid-cols-2">
-                    <div>
                         <x-input-label for="payment_proof" value="Payment proof image" />
                         <input id="payment_proof" type="file" name="payment_proof" accept="image/*"
                             class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
