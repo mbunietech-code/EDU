@@ -30,16 +30,21 @@
             methods: @json($methodsArray),
             preview: null,
             selected() { return this.methods.find(m => m.code === this.selectedMethod) || {}; },
+            payHref() {
+                const m = this.selected();
+                if (/android/i.test(navigator.userAgent)) return m.link || m.store || "#";
+                return m.store || m.link || "#";
+            },
             openPay() {
                 const m = this.selected();
-                if (m.link) {
-                    if (/android/i.test(navigator.userAgent)) {
+                if (/android/i.test(navigator.userAgent)) {
+                    if (m.link) {
                         window.location.href = m.link;
                     } else if (m.store) {
                         window.open(m.store, "_blank");
                     }
-                } else if (m.store) {
-                    window.open(m.store, "_blank");
+                } else {
+                    window.open(m.store || m.link || "#", "_blank");
                 }
             }
         }'>
@@ -72,8 +77,7 @@
                 <template x-if="selectedMethod">
                     <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-5">
                         <div class="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-                            <a x-show="selected().qr" :href="selected().link || '#'"
-                                @click.prevent="selected().link || selected().store ? openPay() : null"
+                            <a x-show="selected().qr" :href="payHref()"
                                 :title="'Tap to open ' + selected().name + ' app'"
                                 class="shrink-0 cursor-pointer">
                                 <img :src="selected().qr" :alt="selected().name"
@@ -88,13 +92,19 @@
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="'Scan the QR code with ' + selected().name"></h3>
                                 <p class="mt-2 text-sm text-gray-600" x-text="selected().instructions || 'Complete the payment, then confirm below.'"></p>
                                 <template x-if="selected().link || selected().store">
-                                    <button type="button" @click="openPay()"
-                                        class="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                        <span x-text="'Open ' + selected().name + ' app'"></span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                    </button>
+                                    <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                        <button type="button" @click="openPay()"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                            <span x-text="'Open ' + selected().name + ' app'"></span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </button>
+                                        <a :href="payHref()" target="_blank" rel="noopener"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">
+                                            <span x-text="'Open ' + selected().name + ' payment link'"></span>
+                                        </a>
+                                    </div>
                                 </template>
                             </div>
                         </div>
