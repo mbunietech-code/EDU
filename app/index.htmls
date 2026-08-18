@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Under Maintenance</title>
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        body{
+            background:linear-gradient(135deg,#0f172a,#1e3a8a);
+            color:#fff;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            min-height:100vh;
+            text-align:center;
+            padding:20px;
+        }
+
+        .container{
+            max-width:650px;
+            background:rgba(255,255,255,0.08);
+            backdrop-filter:blur(10px);
+            padding:50px;
+            border-radius:20px;
+            box-shadow:0 15px 35px rgba(0,0,0,.3);
+        }
+
+        h1{
+            font-size:42px;
+            margin-bottom:20px;
+        }
+
+        p{
+            font-size:18px;
+            line-height:1.7;
+            color:#ddd;
+        }
+
+        .icon{
+            font-size:80px;
+            margin-bottom:20px;
+        }
+
+        .status{
+            display:inline-block;
+            margin-top:30px;
+            padding:10px 25px;
+            background:#f59e0b;
+            color:#000;
+            border-radius:30px;
+            font-weight:bold;
+        }
+
+        .footer{
+            margin-top:35px;
+            font-size:14px;
+            color:#ccc;
+        }
+
+        @media(max-width:600px){
+            h1{
+                font-size:30px;
+            }
+
+            p{
+                font-size:16px;
+            }
+
+            .container{
+                padding:30px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="icon">🛠️</div>
+
+    <h1>Website Under Maintenance</h1>
+
+    <p>
+        Samahani kwa usumbufu.
+        Kwa sasa tunafanya maboresho kwenye mfumo ili kukupa huduma bora zaidi.
+        Tafadhali rudi tena baada ya muda mfupi.
+    </p>
+
+    <div class="status">
+        Maintenance in Progress
+    </div>
+
+    <div class="footer">
+        &copy; 2026 Your Company. All Rights Reserved.
+    </div>
+
+</div>
+
+</body>
+</html>
