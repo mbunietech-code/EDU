@@ -17,10 +17,6 @@ class BrowseProducts extends Component
 
     protected $queryString = ['search', 'sort'];
 
-    public function __construct(protected CurrencyRateService $currencyRates)
-    {
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -49,7 +45,7 @@ class BrowseProducts extends Component
 
         $products = $query->paginate(12);
 
-        $rates = $this->currencyRates->rates();
+        $rates = app(CurrencyRateService::class)->rates();
 
         return view('livewire.public.browse-products', ['products' => $products, 'rates' => $rates]);
     }
