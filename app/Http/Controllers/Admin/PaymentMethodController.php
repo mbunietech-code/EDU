@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StorePaymentMethodRequest;
 use App\Http\Requests\Admin\UpdatePaymentMethodRequest;
 use App\Http\Requests\Admin\UploadPaymentMethodQrRequest;
 use App\Models\ActivityLog;
@@ -16,6 +17,20 @@ class PaymentMethodController extends Controller
         $paymentMethods = PaymentMethod::orderBy('sort_order')->get();
 
         return view('admin.payment-methods.index', compact('paymentMethods'));
+    }
+
+    public function store(StorePaymentMethodRequest $request)
+    {
+        $paymentMethod = PaymentMethod::create($request->validated());
+
+        ActivityLog::log(
+            'payment_method_created',
+            'PaymentMethod',
+            $paymentMethod->id,
+            ['code' => $paymentMethod->code]
+        );
+
+        return back()->with('success', 'Payment method added. Upload its QR code below.');
     }
 
     public function update(UpdatePaymentMethodRequest $request, PaymentMethod $paymentMethod)

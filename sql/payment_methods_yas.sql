@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     name VARCHAR(255) NOT NULL,
     description TEXT NULL,
     qr_image VARCHAR(255) NULL,
+    link_url VARCHAR(255) NULL,
+    store_url VARCHAR(255) NULL,
     instructions TEXT NULL,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     sort_order INT NOT NULL DEFAULT 0,
@@ -16,16 +18,18 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     UNIQUE KEY payment_methods_code_unique (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO payment_methods (code, name, description, instructions, enabled, sort_order, created_at, updated_at) VALUES
-('yas', 'MIX by YAS', 'Pay securely with MIX by YAS QR code.', 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 1, NOW(), NOW()),
-('alipay', 'Alipay', 'Pay securely with Alipay QR code.', 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 2, NOW(), NOW()),
-('wechat_pay', 'WeChat Pay', 'Pay securely with WeChat Pay QR code.', 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 3, NOW(), NOW())
+INSERT INTO payment_methods (code, name, description, instructions, enabled, sort_order, link_url, store_url, created_at, updated_at) VALUES
+('yas', 'MIX by YAS', 'Pay securely with MIX by YAS QR code.', 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 1, 'intent://#Intent;package=tz.tigo.mfsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dtz.tigo.mfsapp;end', 'https://play.google.com/store/apps/details?id=tz.tigo.mfsapp', NOW(), NOW()),
+('alipay', 'Alipay', 'Pay securely with Alipay QR code.', 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 2, NULL, NULL, NOW(), NOW()),
+('wechat_pay', 'WeChat Pay', 'Pay securely with WeChat Pay QR code.', 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 1, 3, NULL, NULL, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     description = VALUES(description),
     instructions = VALUES(instructions),
     enabled = VALUES(enabled),
     sort_order = VALUES(sort_order),
+    link_url = VALUES(link_url),
+    store_url = VALUES(store_url),
     updated_at = NOW();
 
 INSERT INTO settings (`key`, `value`, `type`, `group`, `description`, `created_at`, `updated_at`) VALUES
@@ -35,3 +39,12 @@ ON DUPLICATE KEY UPDATE
     `group` = VALUES(`group`),
     `description` = VALUES(`description`),
     `updated_at` = NOW();
+
+-- =====================================================================
+-- UPGRADE PATH (only if payment_methods already existed WITHOUT the
+-- link_url / store_url columns from an earlier version of this script).
+-- Run this ALTER *before* the INSERT above in that case.
+-- =====================================================================
+-- ALTER TABLE payment_methods
+--     ADD COLUMN link_url VARCHAR(255) NULL AFTER qr_image,
+--     ADD COLUMN store_url VARCHAR(255) NULL AFTER link_url;

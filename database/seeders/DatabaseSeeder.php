@@ -164,7 +164,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $paymentMethods = [
-            ['code' => 'yas', 'name' => 'MIX by YAS', 'description' => 'Pay securely with MIX by YAS QR code.', 'instructions' => 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 1],
+            ['code' => 'yas', 'name' => 'MIX by YAS', 'description' => 'Pay securely with MIX by YAS QR code.', 'instructions' => 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 1, 'link_url' => 'intent://#Intent;package=tz.tigo.mfsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dtz.tigo.mfsapp;end', 'store_url' => 'https://play.google.com/store/apps/details?id=tz.tigo.mfsapp'],
             ['code' => 'alipay', 'name' => 'Alipay', 'description' => 'Pay securely with Alipay QR code.', 'instructions' => 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 2],
             ['code' => 'wechat_pay', 'name' => 'WeChat Pay', 'description' => 'Pay securely with WeChat Pay QR code.', 'instructions' => 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 3],
         ];

@@ -94,6 +94,7 @@ Route::prefix('admin')
         Route::get('payments/{payment}/proof/{proof}', [AdminPaymentController::class, 'showProof'])->name('payments.proof');
 
         Route::get('payment-methods', [AdminPaymentMethodController::class, 'index'])->name('payment-methods.index');
+        Route::post('payment-methods', [AdminPaymentMethodController::class, 'store'])->name('payment-methods.store');
         Route::put('payment-methods/{paymentMethod}', [AdminPaymentMethodController::class, 'update'])->name('payment-methods.update');
         Route::post('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'uploadQr'])->name('payment-methods.qr');
         Route::delete('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'removeQr'])->name('payment-methods.qr.remove');

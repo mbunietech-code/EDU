@@ -7,6 +7,60 @@
         </div>
     </div>
 
+    <div class="mt-6 mbui-card p-6">
+        <h2 class="text-base font-semibold text-gray-900">Add payment method</h2>
+        <p class="mt-1 text-sm text-gray-500">Any method you add here is automatically shown at checkout, including the tap-QR-to-open-app behaviour when you provide an app link.</p>
+
+        <form method="POST" action="{{ route('admin.payment-methods.store') }}" class="mt-5 space-y-4">
+            @csrf
+            <input type="hidden" name="enabled" value="1">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                    <x-input-label for="new-code" value="Code (unique, e.g. mpesa)" />
+                    <x-text-input id="new-code" class="mbui-input mt-1" type="text" name="code" :value="old('code')" placeholder="mpesa" required />
+                    <x-input-error :messages="$errors->get('code')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="new-name" value="Name" />
+                    <x-text-input id="new-name" class="mbui-input mt-1" type="text" name="name" :value="old('name')" placeholder="M-Pesa" required />
+                    <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="new-sort_order" value="Sort order" />
+                    <x-text-input id="new-sort_order" class="mbui-input mt-1" type="number" min="0" name="sort_order" :value="old('sort_order', 4)" />
+                    <x-input-error :messages="$errors->get('sort_order')" class="mt-2" />
+                </div>
+            </div>
+            <div>
+                <x-input-label for="new-description" value="Description" />
+                <x-text-input id="new-description" class="mbui-input mt-1" type="text" name="description" :value="old('description')" />
+                <x-input-error :messages="$errors->get('description')" class="mt-2" />
+            </div>
+            <div>
+                <x-input-label for="new-instructions" value="Payment instructions" />
+                <textarea id="new-instructions" name="instructions" rows="2" class="mbui-input mt-1" placeholder="Open the app, scan the QR code, enter the exact amount and complete the payment.">{{ old('instructions') }}</textarea>
+                <x-input-error :messages="$errors->get('instructions')" class="mt-2" />
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="new-link_url" value="App link (tap QR opens app)" />
+                    <x-text-input id="new-link_url" class="mbui-input mt-1" type="text" name="link_url" :value="old('link_url')" placeholder="intent://#Intent;package=...;S.browser_fallback_url=...;end" />
+                    <x-input-error :messages="$errors->get('link_url')" class="mt-2" />
+                    <p class="mt-1 text-xs text-gray-400">Android deep link / intent URL used when the customer taps the QR on a phone.</p>
+                </div>
+                <div>
+                    <x-input-label for="new-store_url" value="App store link (fallback)" />
+                    <x-text-input id="new-store_url" class="mbui-input mt-1" type="text" name="store_url" :value="old('store_url')" placeholder="https://play.google.com/store/apps/details?id=..." />
+                    <x-input-error :messages="$errors->get('store_url')" class="mt-2" />
+                    <p class="mt-1 text-xs text-gray-400">Opens when the app cannot be launched (iPhone/desktop or app not installed).</p>
+                </div>
+            </div>
+            <div class="flex justify-end border-t border-gray-100 pt-4">
+                <x-mbui.button type="submit">Add payment method</x-mbui.button>
+            </div>
+        </form>
+    </div>
+
     <div class="mt-6 grid gap-6 lg:grid-cols-2">
         @forelse ($paymentMethods as $method)
             <div class="mbui-card p-6">
@@ -39,6 +93,20 @@
                         <x-input-label for="instructions-{{ $method->id }}" value="Payment instructions" />
                         <textarea id="instructions-{{ $method->id }}" name="instructions" rows="3" class="mbui-input mt-1">{{ old('instructions', $method->instructions) }}</textarea>
                         <x-input-error :messages="$errors->get('instructions')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="link_url-{{ $method->id }}" value="App link (tap QR opens app)" />
+                        <x-text-input id="link_url-{{ $method->id }}" class="mbui-input mt-1" type="text" name="link_url" :value="old('link_url', $method->link_url)"
+                            placeholder="intent://#Intent;package=tz.tigo.mfsapp;S.browser_fallback_url=...;end" />
+                        <x-input-error :messages="$errors->get('link_url')" class="mt-2" />
+                        <p class="mt-1 text-xs text-gray-400">Android deep link / intent URL used when the customer taps the QR on a phone.</p>
+                    </div>
+                    <div>
+                        <x-input-label for="store_url-{{ $method->id }}" value="App store link (fallback)" />
+                        <x-text-input id="store_url-{{ $method->id }}" class="mbui-input mt-1" type="text" name="store_url" :value="old('store_url', $method->store_url)"
+                            placeholder="https://play.google.com/store/apps/details?id=tz.tigo.mfsapp" />
+                        <x-input-error :messages="$errors->get('store_url')" class="mt-2" />
+                        <p class="mt-1 text-xs text-gray-400">Opens when the app cannot be launched (iPhone/desktop or app not installed).</p>
                     </div>
                     <div>
                         <x-input-label for="sort_order-{{ $method->id }}" value="Sort order" />
