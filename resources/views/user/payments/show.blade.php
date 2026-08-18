@@ -25,7 +25,7 @@
                     </div>
                     <div>
                         <dt class="mbui-section-label">Payment method</dt>
-                        <dd class="mt-1 text-gray-900">{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}</dd>
+                        <dd class="mt-1 text-gray-900">{{ $payment->paymentMethodLabel() }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Transaction reference</dt>

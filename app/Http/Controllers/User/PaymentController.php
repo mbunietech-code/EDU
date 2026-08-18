@@ -49,7 +49,11 @@ class PaymentController extends Controller
                 ->with('error', 'This order is no longer pending payment.');
         }
 
-        return view('user.payments.create', compact('order'));
+        $paymentMethods = \App\Models\PaymentMethod::enabled()
+            ->orderBy('sort_order')
+            ->get();
+
+        return view('user.payments.create', compact('order', 'paymentMethods'));
     }
 
     public function store(UploadPaymentProofRequest $request, Order $order)

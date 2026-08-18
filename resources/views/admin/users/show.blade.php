@@ -86,7 +86,7 @@
                 @forelse ($user->payments as $payment)
                     <tr>
                         <td class="mbui-td"><a href="{{ route('admin.payments.show', $payment) }}" class="mbui-anchor">{{ $payment->order->order_number }}</a></td>
-                        <td class="mbui-td">{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}</td>
+                        <td class="mbui-td">{{ $payment->paymentMethodLabel() }}</td>
                         <td class="mbui-td">{{ $payment->transaction_reference }}</td>
                         <td class="mbui-td">TZS {{ number_format($payment->amount) }}</td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$payment->status" /></td>

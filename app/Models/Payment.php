@@ -73,4 +73,15 @@ class Payment extends Model
     {
         return $this->status === 'pending';
     }
+
+    public function paymentMethodLabel(): string
+    {
+        static $methods = null;
+
+        if ($methods === null) {
+            $methods = PaymentMethod::pluck('name', 'code')->all();
+        }
+
+        return $methods[$this->payment_method] ?? ucwords(str_replace('_', ' ', $this->payment_method));
+    }
 }

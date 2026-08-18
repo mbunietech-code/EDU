@@ -39,7 +39,7 @@
                     <tr class="{{ $payment->isPending() ? 'bg-amber-50/40' : '' }}">
                         <td class="mbui-td"><a href="{{ route('admin.orders.show', $payment->order) }}" class="mbui-anchor">{{ $payment->order->order_number }}</a></td>
                         <td class="mbui-td">{{ $payment->user->name }}</td>
-                        <td class="mbui-td">{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}</td>
+                        <td class="mbui-td">{{ $payment->paymentMethodLabel() }}</td>
                         <td class="mbui-td font-medium text-gray-900">TZS {{ number_format($payment->amount) }}</td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$payment->status" /></td>
                         <td class="mbui-td text-gray-500">{{ $payment->created_at->format('d M Y H:i') }}</td>

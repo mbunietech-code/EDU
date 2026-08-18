@@ -15,7 +15,7 @@ class UploadPaymentProofRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_method' => ['required', 'string', 'max:255'],
+            'payment_method' => ['required', 'string', Rule::exists('payment_methods', 'code')],
             'transaction_reference' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0'],
             'payment_proof' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:5120'],

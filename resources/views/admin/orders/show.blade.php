@@ -37,7 +37,7 @@
                 @forelse ($order->payments as $payment)
                     <div class="mt-3 mbui-card p-4 flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-900">{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }} &middot; {{ $payment->transaction_reference }}</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $payment->paymentMethodLabel() }} &middot; {{ $payment->transaction_reference }}</p>
                             <p class="text-xs text-gray-500">TZS {{ number_format($payment->amount) }} &middot; {{ $payment->created_at->format('d M Y H:i') }}</p>
                         </div>
                         <div class="flex items-center gap-3">

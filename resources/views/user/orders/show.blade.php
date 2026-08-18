@@ -56,7 +56,7 @@
                 @foreach ($order->payments as $payment)
                     <div class="mt-3 mbui-card p-4 flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-900">Payment via {{ $payment->payment_method }}</p>
+                            <p class="text-sm font-medium text-gray-900">Payment via {{ $payment->paymentMethodLabel() }}</p>
                             <p class="text-xs text-gray-500">Ref: {{ $payment->transaction_reference }} &middot; {{ $payment->created_at->format('d M Y H:i') }}</p>
                         </div>
                         <div class="flex items-center gap-3">

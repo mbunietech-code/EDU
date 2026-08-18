@@ -15,7 +15,7 @@
                 <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
                     <div>
                         <dt class="mbui-section-label">Method</dt>
-                        <dd class="mt-1 text-gray-900">{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}</dd>
+                        <dd class="mt-1 text-gray-900">{{ $payment->paymentMethodLabel() }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Reference</dt>
