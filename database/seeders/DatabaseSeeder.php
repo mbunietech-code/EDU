@@ -155,7 +155,7 @@ class DatabaseSeeder extends Seeder
         $settings = [
             ['key' => 'support_email', 'value' => 'support@mbunietech.co.tz', 'type' => 'string', 'group' => 'general', 'description' => 'Public support email address'],
             ['key' => 'expiry_warning_days', 'value' => '3', 'type' => 'integer', 'group' => 'subscriptions', 'description' => 'Days before expiry to warn the user'],
-            ['key' => 'payment_methods', 'value' => 'alipay,wechat_pay', 'type' => 'string', 'group' => 'payments', 'description' => 'Comma separated accepted payment methods'],
+            ['key' => 'payment_methods', 'value' => 'alipay,wechat_pay,yas', 'type' => 'string', 'group' => 'payments', 'description' => 'Comma separated accepted payment methods'],
             ['key' => 'currency', 'value' => 'TZS', 'type' => 'string', 'group' => 'general', 'description' => 'Default currency display'],
         ];
 
@@ -164,8 +164,10 @@ class DatabaseSeeder extends Seeder
         }
 
         $paymentMethods = [
-            ['code' => 'alipay', 'name' => 'Alipay', 'description' => 'Pay securely with Alipay QR code.', 'instructions' => 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 1],
-            ['code' => 'wechat_pay', 'name' => 'WeChat Pay', 'description' => 'Pay securely with WeChat Pay QR code.', 'instructions' => 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 2],
+            ['code' => 'yas', 'name' => 'MIX by YAS', 'description' => 'Pay securely with MIX by YAS QR code.', 'instructions' => 'Open the MIX by YAS app, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 1],
+            ['code' => 'alipay', 'name' => 'Alipay', 'description' => 'Pay securely with Alipay QR code.', 'instructions' => 'Open Alipay, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 2],
+            ['code' => 'wechat_pay', 'name' => 'WeChat Pay', 'description' => 'Pay securely with WeChat Pay QR code.', 'instructions' => 'Open WeChat, scan the QR code, enter the exact amount and complete the payment. Then fill in the transaction reference below.', 'enabled' => true, 'sort_order' => 3],
+        ];
         ];
 
         foreach ($paymentMethods as $method) {
