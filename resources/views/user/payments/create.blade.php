@@ -81,7 +81,7 @@
                                 :title="'Tap to open ' + selected().name + ' app'"
                                 class="shrink-0 cursor-pointer">
                                 <img :src="selected().qr" :alt="selected().name"
-                                    class="h-40 w-40 sm:h-32 sm:w-32 rounded-lg bg-white border border-gray-200 object-cover">
+                                    class="h-48 w-48 sm:h-40 sm:w-40 rounded-lg bg-white border border-gray-200 object-cover">
                                 <template x-if="selected().link || selected().store">
                                     <span class="mt-2 block rounded-lg bg-indigo-600 px-3 py-1.5 text-center text-xs font-semibold text-white">
                                         Tap QR to open the app
