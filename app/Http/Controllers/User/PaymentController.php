@@ -66,6 +66,11 @@ class PaymentController extends Controller
                 ->with('error', 'This order is already paid or confirmed.');
         }
 
+        if ($order->payments()->where('status', 'pending')->exists()) {
+            return redirect()->route('user.orders.show', $order)
+                ->with('error', 'You already have a payment awaiting review.');
+        }
+
         $validated = $request->validated();
 
         $payment = Payment::create([

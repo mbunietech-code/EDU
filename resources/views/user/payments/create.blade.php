@@ -29,6 +29,7 @@
             selectedMethod: "{{ $defaultMethod }}",
             methods: @json($methodsArray),
             preview: null,
+            submitting: false,
             selected() { return this.methods.find(m => m.code === this.selectedMethod) || {}; },
             payHref() {
                 const m = this.selected();
@@ -54,7 +55,7 @@
                 Payment is temporarily unavailable. Please contact support.
             </div>
         @else
-            <form method="POST" action="{{ route('user.payments.store', $order) }}" enctype="multipart/form-data" class="space-y-5">
+            <form method="POST" action="{{ route('user.payments.store', $order) }}" enctype="multipart/form-data" class="space-y-5" @submit="submitting = true">
                 @csrf
 
                 <div>
@@ -135,7 +136,7 @@
 
                 <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                     <a href="{{ route('user.orders.show', $order) }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
-                    <x-mbui.button type="submit">Submit payment</x-mbui.button>
+                    <x-mbui.button type="submit" :disabled="submitting">Submit payment</x-mbui.button>
                 </div>
             </form>
         @endif
