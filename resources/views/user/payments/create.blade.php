@@ -136,7 +136,7 @@
 
                 <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                     <a href="{{ route('user.orders.show', $order) }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
-                    <x-mbui.button type="submit" :disabled="submitting">Submit payment</x-mbui.button>
+                    <x-mbui.button type="submit" x-bind:disabled="submitting">Submit payment</x-mbui.button>
                 </div>
             </form>
         @endif
