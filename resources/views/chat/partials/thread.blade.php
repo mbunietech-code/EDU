@@ -103,8 +103,8 @@
     });
 </script>
 
-<div x-data="chatThread({{ $conversation->id }}, {{ $isAdmin ? 'true' : 'false' }}, '{{ $sendUrl }}', '{{ $fetchUrl }}')" class="flex h-[70vh] flex-col">
-        <div x-ref="scroller" class="flex-1 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-3">
+<div x-data="chatThread({{ $conversation->id }}, {{ $isAdmin ? 'true' : 'false' }}, '{{ $sendUrl }}', '{{ $fetchUrl }}')" class="flex min-h-0 flex-1 flex-col">
+        <div x-ref="scroller" class="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-3">
         <template x-for="m in messages" :key="m.id">
             <div class="flex" :class="m.fromAdmin === viewer ? 'justify-end' : 'justify-start'">
                 <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm"
@@ -131,7 +131,7 @@
         </template>
     </div>
 
-    <div class="sticky bottom-0 flex items-end gap-2 border-t border-gray-100 bg-white/90 pb-2 pt-3 backdrop-blur">
+    <div class="flex shrink-0 items-end gap-2 border-t border-gray-100 bg-white/90 pb-2 pt-3 backdrop-blur">
         <label class="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-indigo-600" title="Attach image / video">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
@@ -156,7 +156,7 @@
                 <span class="text-xs font-semibold text-red-600">Stop</span>
             </template>
         </button>
-        <textarea x-model="draft" rows="3" class="mbui-input flex-1 resize-y" placeholder="{{ $isAdmin ? 'Reply to ' . $conversation->user->name . '...' : 'Type a message...' }}" @keydown.enter.prevent="sendText()"></textarea>
+        <textarea x-model="draft" rows="1" class="mbui-input flex-1 resize-none" placeholder="{{ $isAdmin ? 'Reply to ' . $conversation->user->name . '...' : 'Type a message...' }}" @keydown.enter.prevent="sendText()"></textarea>
         <button type="button" @click="sendText()" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             Send
         </button>
