@@ -14,6 +14,7 @@ class PaymentMethod extends Model
         'code',
         'name',
         'description',
+        'account_number',
         'qr_image',
         'link_url',
         'store_url',

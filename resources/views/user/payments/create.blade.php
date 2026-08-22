@@ -4,6 +4,7 @@
             'code' => $m->code,
             'name' => $m->name,
             'qr' => $m->qrImageUrl(),
+            'account' => $m->account_number,
             'instructions' => $m->instructions,
             'link' => $m->link_url,
             'store' => $m->store_url,
@@ -47,6 +48,15 @@
                 } else {
                     window.open(m.store || m.link || "#", "_blank");
                 }
+            },
+            copied: false,
+            copyAccount() {
+                const m = this.selected();
+                if (!m.account) return;
+                navigator.clipboard.writeText(m.account).then(() => {
+                    this.copied = true;
+                    setTimeout(() => this.copied = false, 1500);
+                });
             }
         }'>
 
@@ -60,9 +70,9 @@
 
                 <div>
                     <x-input-label value="Choose payment method" />
-                    <div class="mt-1 grid gap-3 sm:grid-cols-2">
+                    <div class="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         @foreach ($paymentMethods as $method)
-                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4">
+                            <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3">
                                 <input type="radio" name="payment_method" :value="'{{ $method->code }}'" x-model="selectedMethod"
                                     class="mt-1 h-4 w-4 text-indigo-600" @checked($defaultMethod === $method->code)>
                                 <span>
@@ -83,6 +93,19 @@
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="'Scan the QR code with ' + selected().name"></h3>
                                 <p class="mt-2 text-sm text-gray-600" x-text="selected().instructions || 'Complete the payment, then confirm below.'"></p>
+                                <template x-if="selected().account">
+                                    <div class="mt-3">
+                                        <p class="text-xs font-medium text-gray-500">Can't scan? Enter this number manually:</p>
+                                        <button type="button" @click="copyAccount()"
+                                            class="mt-1 inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 font-mono text-sm font-semibold text-gray-900 hover:bg-indigo-50">
+                                            <span x-text="selected().account"></span>
+                                            <svg class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                                            </svg>
+                                        </button>
+                                        <span x-show="copied" x-cloak class="ml-2 text-xs font-medium text-emerald-600">Copied!</span>
+                                    </div>
+                                </template>
                                 <template x-if="selected().link || selected().store">
                                     <div class="mt-3">
                                         <button type="button" @click="openPay()"

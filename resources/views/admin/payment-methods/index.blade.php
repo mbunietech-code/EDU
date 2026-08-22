@@ -31,10 +31,18 @@
                     <x-input-error :messages="$errors->get('sort_order')" class="mt-2" />
                 </div>
             </div>
-            <div>
-                <x-input-label for="new-description" value="Description" />
-                <x-text-input id="new-description" class="mbui-input mt-1" type="text" name="description" :value="old('description')" />
-                <x-input-error :messages="$errors->get('description')" class="mt-2" />
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="new-description" value="Description" />
+                    <x-text-input id="new-description" class="mbui-input mt-1" type="text" name="description" :value="old('description')" />
+                    <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="new-account_number" value="Account / phone number" />
+                    <x-text-input id="new-account_number" class="mbui-input mt-1" type="text" name="account_number" :value="old('account_number')" placeholder="e.g. 0712 345 678" />
+                    <x-input-error :messages="$errors->get('account_number')" class="mt-2" />
+                    <p class="mt-1 text-xs text-gray-400">Shown to buyers so they can type it in manually if they can't scan the QR.</p>
+                </div>
             </div>
             <div>
                 <x-input-label for="new-instructions" value="Payment instructions" />
@@ -77,6 +85,7 @@
                 <form method="POST" action="{{ route('admin.payment-methods.update', $method) }}" class="mt-5 space-y-4">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="name" value="{{ $method->name }}">
                     <input type="hidden" name="enabled" value="0">
                     <div class="flex items-center justify-between gap-3">
                         <label class="text-sm font-medium text-gray-700" for="enabled-{{ $method->id }}">Enable at checkout</label>
@@ -88,6 +97,12 @@
                         <x-input-label for="description-{{ $method->id }}" value="Description" />
                         <x-text-input id="description-{{ $method->id }}" class="mbui-input mt-1" type="text" name="description" :value="old('description', $method->description)" />
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="account_number-{{ $method->id }}" value="Account / phone number" />
+                        <x-text-input id="account_number-{{ $method->id }}" class="mbui-input mt-1" type="text" name="account_number" :value="old('account_number', $method->account_number)" placeholder="e.g. 0712 345 678" />
+                        <x-input-error :messages="$errors->get('account_number')" class="mt-2" />
+                        <p class="mt-1 text-xs text-gray-400">Shown to buyers so they can type it in manually if they can't scan the QR.</p>
                     </div>
                     <div>
                         <x-input-label for="instructions-{{ $method->id }}" value="Payment instructions" />

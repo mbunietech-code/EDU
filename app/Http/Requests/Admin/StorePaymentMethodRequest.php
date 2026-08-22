@@ -18,6 +18,7 @@ class StorePaymentMethodRequest extends FormRequest
             'code' => ['required', 'string', 'max:255', Rule::unique('payment_methods', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'account_number' => ['nullable', 'string', 'max:255'],
             'instructions' => ['nullable', 'string', 'max:2000'],
             'enabled' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
