@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\EnsureFinanceUnlocked;
 use App\Http\Middleware\TwoFactorMiddleware;
 use App\Http\Middleware\UpdateLastSeen;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             '2fa' => TwoFactorMiddleware::class,
+            'finance.unlocked' => EnsureFinanceUnlocked::class,
         ]);
 
         $middleware->web(append: [UpdateLastSeen::class]);

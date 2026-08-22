@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
@@ -166,6 +167,13 @@ Route::prefix('admin')
         Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
         Route::post('settings/mail', [SettingController::class, 'updateMail'])->name('settings.mail.update');
         Route::post('settings/mail/test', [SettingController::class, 'testMail'])->name('settings.mail.test');
+
+        Route::get('finance/pin', [FinanceController::class, 'pin'])->name('finance.pin');
+        Route::post('finance/pin', [FinanceController::class, 'verify'])->name('finance.pin.verify');
+        Route::post('finance/lock', [FinanceController::class, 'lock'])->name('finance.lock');
+        Route::middleware('finance.unlocked')->group(function () {
+            Route::get('finance', [FinanceController::class, 'dashboard'])->name('finance.dashboard');
+        });
     });
 
 require __DIR__.'/auth.php';
