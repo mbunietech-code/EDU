@@ -88,8 +88,15 @@
                 <template x-if="selectedMethod">
                     <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-5">
                         <div class="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-                            <img x-show="selected().qr" :src="selected().qr" :alt="selected().name"
-                                class="h-48 w-48 shrink-0 sm:h-40 sm:w-40 rounded-lg bg-white border border-gray-200 object-cover">
+                            <button type="button" x-show="selected().qr" @click="openPay()" class="shrink-0 text-center">
+                                <img :src="selected().qr" :alt="selected().name"
+                                    class="h-48 w-48 sm:h-40 sm:w-40 rounded-lg border border-gray-200 bg-white object-cover">
+                                <template x-if="selected().link || selected().store">
+                                    <span class="mt-2 block rounded-lg bg-indigo-600 px-3 py-1.5 text-center text-xs font-semibold text-white">
+                                        Tap to open the app
+                                    </span>
+                                </template>
+                            </button>
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="'Scan the QR code with ' + selected().name"></h3>
                                 <p class="mt-2 text-sm text-gray-600" x-text="selected().instructions || 'Complete the payment, then confirm below.'"></p>
@@ -104,17 +111,6 @@
                                             </svg>
                                         </button>
                                         <span x-show="copied" x-cloak class="ml-2 text-xs font-medium text-emerald-600">Copied!</span>
-                                    </div>
-                                </template>
-                                <template x-if="selected().link || selected().store">
-                                    <div class="mt-3">
-                                        <button type="button" @click="openPay()"
-                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                            <span x-text="'Open ' + selected().name + ' app'"></span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                            </svg>
-                                        </button>
                                     </div>
                                 </template>
                             </div>
