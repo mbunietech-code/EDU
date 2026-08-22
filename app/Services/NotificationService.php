@@ -10,6 +10,7 @@ use App\Notifications\User\PaymentApproved;
 use App\Notifications\User\PaymentRejected;
 use App\Notifications\User\SubscriptionActivated;
 use App\Notifications\User\SoftwareDelivered;
+use App\Notifications\User\ToolKeyDelivered;
 use App\Notifications\User\ExpiryWarning;
 use App\Notifications\User\SubscriptionExpired;
 use App\Notifications\User\AccessRevoked;
@@ -52,6 +53,11 @@ class NotificationService
     public function notifySoftwareDelivered(User $user, $order): void
     {
         Notification::send($user, new SoftwareDelivered($order));
+    }
+
+    public function notifyToolKeyDelivered(User $user, $order): void
+    {
+        Notification::send($user, new ToolKeyDelivered($order));
     }
 
     public function notifyExpiryWarning(User $user, $subscription): void

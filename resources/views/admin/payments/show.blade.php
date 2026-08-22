@@ -78,7 +78,11 @@
                     </form>
 
                     <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
-                        Approving will confirm the order, assign an available account and activate the subscription. This runs atomically.
+                        @if ($payment->order->isToolOrder())
+                            Approving will confirm the order and deliver the tool's product key to the buyer automatically.
+                        @else
+                            Approving will confirm the order, assign an available account and activate the subscription. This runs atomically.
+                        @endif
                     </div>
                 </x-mbui.card>
             @else

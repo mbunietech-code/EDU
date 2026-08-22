@@ -69,13 +69,18 @@ class PaymentController extends Controller
 
         $order = $payment->order;
 
-        if ($order->isSoftware()) {
+        if ($order->isToolOrder()) {
+            $this->notificationService->notifyToolKeyDelivered($payment->user, $order);
+            $message = 'tool key delivered.';
+        } elseif ($order->isSoftware()) {
             $this->notificationService->notifySoftwareDelivered($payment->user, $order);
+            $message = 'software delivered.';
         } else {
             $this->notificationService->notifySubscriptionActivated($payment->user, $order->subscription);
+            $message = 'subscription activated.';
         }
 
-        return back()->with('success', 'Payment approved and ' . ($order->isSoftware() ? 'software delivered.' : 'subscription activated.'));
+        return back()->with('success', 'Payment approved and ' . $message);
     }
 
     public function reject(Request $request, Payment $payment)

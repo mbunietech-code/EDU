@@ -37,7 +37,7 @@
                 @forelse ($user->orders as $order)
                     <tr>
                         <td class="mbui-td"><a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a></td>
-                        <td class="mbui-td">{{ $order->product->name }}</td>
+                        <td class="mbui-td">{{ $order->itemName() }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
                             <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
                         </td>

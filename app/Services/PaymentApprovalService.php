@@ -35,7 +35,10 @@ class PaymentApprovalService
             $order = $payment->order;
             $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
 
-            if ($order->product->isSoftware()) {
+            if ($order->isToolOrder()) {
+                // Tool orders deliver a static product key already stored on the tool;
+                // nothing further to activate, it becomes visible now that the order is confirmed.
+            } elseif ($order->product->isSoftware()) {
                 $this->softwareAccessService->activateForOrder($order);
             } else {
                 $this->subscriptionService->createFromOrder($order);

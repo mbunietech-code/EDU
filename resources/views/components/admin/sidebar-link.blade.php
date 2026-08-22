@@ -1,6 +1,6 @@
 @props(['route', 'label', 'badge' => null, 'active' => false])
 
-<a href="{{ $route }}" {{ $attributes->merge(['class' => ($active ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white') . ' group flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition']) }}>
+<a href="{{ $route }}" {{ $attributes->merge(['class' => ($active ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white') . ' group flex items-center gap-x-3 rounded-lg px-3 py-1.5 text-sm font-medium transition']) }}>
     <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         {{ $slot }}
     </svg>

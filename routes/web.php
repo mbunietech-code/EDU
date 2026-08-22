@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
+use App\Http\Controllers\Admin\ToolController as AdminToolController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\ContactController;
@@ -26,6 +27,8 @@ use App\Http\Controllers\User\OrderController;
 use App\Http\Controllers\User\PaymentController as UserPaymentController;
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\SubscriptionController;
+use App\Http\Controllers\User\ToolController as UserToolController;
+use App\Http\Controllers\User\ToolOrderController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +48,11 @@ Route::get('/ai-tools/{product:slug}', [PublicProductController::class, 'show'])
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    Route::get('/research-tools', [UserToolController::class, 'index'])->name('user.tools.index');
+    Route::get('/research-tools/{tool:slug}', [UserToolController::class, 'show'])->name('user.tools.show');
+    Route::get('/research-tools/{tool:slug}/order', [ToolOrderController::class, 'create'])->name('user.tool-orders.create');
+    Route::post('/tool-orders', [ToolOrderController::class, 'store'])->name('user.tool-orders.store');
+
     Route::get('/products/{product:slug}/order', [OrderController::class, 'create'])->name('user.orders.create');
     Route::get('/products/{product:slug}/order/{plan}', [OrderController::class, 'create'])->name('user.orders.create.plan');
     Route::post('/orders', [OrderController::class, 'store'])->name('user.orders.store');
@@ -52,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-orders', [OrderController::class, 'index'])->name('user.orders.index');
     Route::get('/my-orders/{order}', [OrderController::class, 'show'])->name('user.orders.show');
     Route::get('/my-orders/{order}/download-software', [OrderController::class, 'downloadSoftware'])->name('user.orders.download-software');
+    Route::get('/my-orders/{order}/download-tool', [ToolOrderController::class, 'download'])->name('user.orders.download-tool');
 
     Route::get('/payments', [UserPaymentController::class, 'index'])->name('user.payments.index');
     Route::get('/payments/{payment}', [UserPaymentController::class, 'show'])->name('user.payments.show');
@@ -91,6 +100,8 @@ Route::prefix('admin')
         Route::resource('products', AdminProductController::class);
         Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])->name('software-files.store');
         Route::resource('plans', AdminPlanController::class);
+        Route::resource('tools', AdminToolController::class)->except(['show']);
+        Route::post('tool-files', [AdminToolController::class, 'uploadFile'])->name('tool-files.store');
         Route::resource('accounts', AdminAccountController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
         Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])->name('accounts.decrypt');

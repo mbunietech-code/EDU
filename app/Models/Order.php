@@ -17,6 +17,7 @@ class Order extends Model
         'order_number',
         'product_id',
         'plan_id',
+        'tool_id',
         'amount',
         'status',
         'payment_instructions',
@@ -43,6 +44,11 @@ class Order extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function tool(): BelongsTo
+    {
+        return $this->belongsTo(Tool::class);
     }
 
     public function payments(): HasMany
@@ -78,6 +84,16 @@ class Order extends Model
     public function isSoftware(): bool
     {
         return $this->product?->isSoftware() ?? false;
+    }
+
+    public function isToolOrder(): bool
+    {
+        return $this->tool_id !== null;
+    }
+
+    public function itemName(): string
+    {
+        return $this->tool?->name ?? $this->product?->name ?? 'N/A';
     }
 
     public function softwareAccessActive(): bool

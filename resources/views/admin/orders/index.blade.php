@@ -40,7 +40,7 @@
                             <a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
                         </td>
                         <td class="mbui-td">{{ $order->user->name }}</td>
-                        <td class="mbui-td">{{ $order->product->name }} / {{ $order->plan->name }}</td>
+                        <td class="mbui-td">{{ $order->itemName() }}{{ $order->plan ? ' / ' . $order->plan->name : '' }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
                             <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
                         </td>

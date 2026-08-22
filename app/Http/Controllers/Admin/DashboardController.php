@@ -22,7 +22,7 @@ class DashboardController extends Controller
     {
         $metrics = $this->reportService->getDashboardMetrics();
 
-        $recentOrders = Order::with(['user', 'product'])
+        $recentOrders = Order::with(['user', 'product', 'tool'])
             ->latest()
             ->take(10)
             ->get();

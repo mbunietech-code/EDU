@@ -24,7 +24,7 @@ class OrderController extends Controller
     {
         $orders = auth()->user()
             ->orders()
-            ->with(['product', 'plan'])
+            ->with(['product', 'plan', 'tool'])
             ->latest()
             ->paginate(15);
 
@@ -87,7 +87,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load(['product', 'plan', 'payments.paymentProofs', 'subscription']);
+        $order->load(['product', 'plan', 'tool.primaryDownload', 'payments.paymentProofs', 'subscription']);
 
         return view('user.orders.show', compact('order'));
     }

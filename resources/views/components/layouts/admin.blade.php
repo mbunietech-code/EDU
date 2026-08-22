@@ -31,8 +31,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
                 </x-admin.sidebar-link>
 
-                <div class="pt-4">
-                    <p class="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Management</p>
+                <div class="pt-2">
+                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Management</p>
                 </div>
 
                 <x-admin.sidebar-link :route="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" label="Users">
@@ -51,8 +51,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 18.75v-2.25m0 0a2.25 2.25 0 00-4.5 0m4.5 0a2.25 2.25 0 01-4.5 0m0-12V6m0 0H8.25m0 0c0-.621.504-1.125 1.125-1.125H18.75A1.125 1.125 0 0119.875 6v6.75m-9 0V10.5c0-.621.504-1.125 1.125-1.125h7.875m-4.125 0a1.125 1.125 0 01-2.25 0m2.25 0a1.5 1.5 0 103 0m-3 3v7.5c0 .621-.504 1.125-1.125 1.125h-9A1.125 1.125 0 014.5 19.125v-7.5c0-.621.504-1.125 1.125-1.125h7.125z" />
                 </x-admin.sidebar-link>
 
-                <div class="pt-4">
-                    <p class="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Operations</p>
+                <x-admin.sidebar-link :route="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')" label="Research Tools">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.25l9 5.25-3.75 2.25L12 15.75l-5.25-3L3 7.5l9-5.25z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.25v13.5" />
+                </x-admin.sidebar-link>
+
+                <div class="pt-2">
+                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Operations</p>
                 </div>
 
                 <x-admin.sidebar-link :route="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')" label="Orders">
@@ -76,8 +81,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </x-admin.sidebar-link>
 
-                <div class="pt-4">
-                    <p class="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Insights</p>
+                <div class="pt-2">
+                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Insights</p>
                 </div>
 
                 <x-admin.sidebar-link :route="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')" label="Reports">

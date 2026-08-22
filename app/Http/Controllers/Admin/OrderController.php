@@ -11,7 +11,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $orders = Order::with(['user', 'product', 'plan', 'payment'])
+        $orders = Order::with(['user', 'product', 'plan', 'tool', 'payment'])
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
             })
@@ -32,7 +32,7 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        $order->load(['user', 'product', 'plan', 'payments.paymentProofs', 'payments.reviewer', 'subscription']);
+        $order->load(['user', 'product', 'plan', 'tool', 'payments.paymentProofs', 'payments.reviewer', 'subscription']);
 
         return view('admin.orders.show', compact('order'));
     }

@@ -16,7 +16,7 @@
         <x-mbui.stats-card title="Expiring Soon" :value="number_format($metrics['expiring_soon'])" :trend="'Threshold: 3 days'" />
         <x-mbui.stats-card title="Expired" :value="number_format($metrics['expired_subscriptions'])" />
         <x-mbui.stats-card title="Monthly Revenue" :value="'TZS ' . number_format($metrics['monthly_revenue'])"
-            :trend="'&asymp; $' . number_format($metrics['monthly_revenue'] * $rates['USD'], 2) . ' USD &middot; &asymp; &yen;' . number_format($metrics['monthly_revenue'] * $rates['CNY'], 2) . ' CNY'" />
+            :trend="'≈ $' . number_format($metrics['monthly_revenue'] * $rates['USD'], 2) . ' USD · ≈ ¥' . number_format($metrics['monthly_revenue'] * $rates['CNY'], 2) . ' CNY'" />
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
@@ -35,7 +35,7 @@
                     <tr>
                         <td class="mbui-td"><a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a></td>
                         <td class="mbui-td">{{ $order->user->name }}</td>
-                        <td class="mbui-td">{{ $order->product->name }}</td>
+                        <td class="mbui-td">{{ $order->itemName() }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
                             <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
                         </td>

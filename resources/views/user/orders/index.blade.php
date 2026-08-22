@@ -33,8 +33,8 @@
                                 <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
                                 <p class="text-xs text-gray-400">{{ $order->created_at->format('d M Y H:i') }}</p>
                             </td>
-                            <td class="mbui-td">{{ $order->product->name }}</td>
-                            <td class="mbui-td">{{ $order->plan->name }}</td>
+                            <td class="mbui-td">{{ $order->itemName() }}</td>
+                            <td class="mbui-td">{{ $order->plan->name ?? '—' }}</td>
                             <td class="mbui-td font-medium text-gray-900">TZS {{ number_format($order->amount) }}
                                 <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
                             </td>

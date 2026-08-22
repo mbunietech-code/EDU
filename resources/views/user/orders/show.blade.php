@@ -14,12 +14,12 @@
                 <h2 class="mbui-section-label">Order summary</h2>
                 <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
                     <div>
-                        <dt class="mbui-section-label">Product</dt>
-                        <dd class="mt-1 font-medium text-gray-900">{{ $order->product->name }}</dd>
+                        <dt class="mbui-section-label">{{ $order->isToolOrder() ? 'Tool' : 'Product' }}</dt>
+                        <dd class="mt-1 font-medium text-gray-900">{{ $order->itemName() }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Plan</dt>
-                        <dd class="mt-1 font-medium text-gray-900">{{ $order->plan->name }} ({{ $order->plan->durationLabel() }})</dd>
+                        <dd class="mt-1 font-medium text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '—' }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Amount</dt>
@@ -32,6 +32,32 @@
                     </div>
                 </dl>
             </x-mbui.card>
+
+            @if ($order->isToolOrder())
+                <x-mbui.card>
+                    <h2 class="mbui-section-label">Tool access</h2>
+                    @if (! $order->isConfirmed())
+                        <p class="mt-3 text-sm text-gray-600">Once your payment is approved, your product key for {{ $order->tool->name }} will appear here automatically.</p>
+                    @else
+                        <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                            <p class="text-sm font-semibold text-emerald-800">Payment approved</p>
+                            <div class="mt-3">
+                                <p class="text-xs font-medium uppercase tracking-wide text-emerald-700">Product key</p>
+                                @if ($order->tool->license_key)
+                                    <p class="mt-1 select-all break-all rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-sm text-gray-900">{{ $order->tool->license_key }}</p>
+                                @else
+                                    <p class="mt-1 text-sm text-gray-500">The key will be available here once the seller releases it.</p>
+                                @endif
+                            </div>
+                            @if ($order->tool->primaryDownload)
+                                <a href="{{ route('user.orders.download-tool', $order) }}" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                                    Download {{ $order->tool->primaryDownload->file_filename }}
+                                </a>
+                            @endif
+                        </div>
+                    @endif
+                </x-mbui.card>
+            @endif
 
             @if ($order->isSoftware())
                 <x-mbui.card>

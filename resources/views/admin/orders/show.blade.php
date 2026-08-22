@@ -14,12 +14,12 @@
                 <h2 class="mbui-section-label">Order details</h2>
                 <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
                     <div>
-                        <dt class="mbui-section-label">Product</dt>
-                        <dd class="mt-1 font-medium text-gray-900">{{ $order->product->name }}</dd>
+                        <dt class="mbui-section-label">{{ $order->isToolOrder() ? 'Tool' : 'Product' }}</dt>
+                        <dd class="mt-1 font-medium text-gray-900">{{ $order->itemName() }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Plan</dt>
-                        <dd class="mt-1 text-gray-900">{{ $order->plan->name }} ({{ $order->plan->durationLabel() }})</dd>
+                        <dd class="mt-1 text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '—' }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Amount</dt>
@@ -32,6 +32,28 @@
                     </div>
                 </dl>
             </x-mbui.card>
+
+            @if ($order->isToolOrder())
+                <x-mbui.card>
+                    <h2 class="mbui-section-label">Tool delivery</h2>
+                    <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
+                        <div>
+                            <dt class="mbui-section-label">Product key</dt>
+                            <dd class="mt-1 font-mono text-sm text-gray-900">{{ $order->tool->license_key ?? 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="mbui-section-label">Delivery status</dt>
+                            <dd class="mt-1">
+                                @if ($order->isConfirmed())
+                                    <x-mbui.badge appearance="success">Delivered to buyer</x-mbui.badge>
+                                @else
+                                    <span class="text-gray-400">Awaiting payment approval</span>
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
+                </x-mbui.card>
+            @endif
 
             @if ($order->isSoftware())
                 <x-mbui.card>
