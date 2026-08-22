@@ -24,7 +24,7 @@
             @foreach ($products as $product)
                 <a href="{{ route('public.products.show', $product) }}" class="mbui-card group p-6 transition hover:shadow-md">
                     @if ($product->imageUrl())
-                        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-40 w-full rounded-lg object-cover">
+                        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-28 w-full rounded-lg border border-gray-100 bg-gray-50 object-contain p-3">
                     @endif
                     <div class="flex items-start justify-between">
                         @if ($product->imageUrl())
@@ -48,7 +48,7 @@
                         </span>
                         <span class="text-xs font-medium text-gray-400">{{ $product->plans_count }} plan(s)</span>
                     </div>
-                    <p class="mt-1 text-xs text-gray-400">
+                    <p class="mt-1 text-xs font-semibold text-gray-600">
                         &asymp; ${{ number_format($product->price * $rates['USD'], 2) }} USD &middot; &asymp; &yen;{{ number_format($product->price * $rates['CNY'], 2) }} CNY
                     </p>
                 </a>

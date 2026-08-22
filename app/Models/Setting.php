@@ -23,11 +23,14 @@ class Setting extends Model
         return $setting ? $setting->value : $default;
     }
 
-    public static function set(string $key, mixed $value, string $type = 'string'): void
+    public static function set(string $key, mixed $value, string $type = 'string', ?string $group = null): void
     {
-        self::updateOrCreate(
-            ['key' => $key],
-            ['value' => $value, 'type' => $type]
-        );
+        $attributes = ['value' => $value, 'type' => $type];
+
+        if ($group !== null) {
+            $attributes['group'] = $group;
+        }
+
+        self::updateOrCreate(['key' => $key], $attributes);
     }
 }

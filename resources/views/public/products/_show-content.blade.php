@@ -46,7 +46,7 @@
                                     <span class="text-sm font-bold text-gray-900">TZS {{ number_format($plan->price) }}</span>
                                 </div>
                                 <div class="mt-1 text-right">
-                                    <x-currency-conversion :amount="$plan->price" class="text-xs text-gray-400" />
+                                    <x-currency-conversion :amount="$plan->price" class="text-xs font-semibold text-gray-600" />
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">{{ $plan->description }}</p>
                                 <p class="mt-2 text-xs font-medium text-gray-600">{{ $plan->durationLabel() }} duration</p>

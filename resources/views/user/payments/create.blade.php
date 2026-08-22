@@ -19,7 +19,7 @@
         <div>
             <h1 class="mbui-title">Submit payment for {{ $order->order_number }}</h1>
             <p class="mt-1 text-sm text-gray-500">Amount due: <span class="font-semibold">TZS {{ number_format($order->amount) }}</span></p>
-            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
         </div>
         <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor text-sm">Back to order</a>
     </div>

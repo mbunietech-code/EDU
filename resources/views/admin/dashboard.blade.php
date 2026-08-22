@@ -37,7 +37,7 @@
                         <td class="mbui-td">{{ $order->user->name }}</td>
                         <td class="mbui-td">{{ $order->itemName() }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
-                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
                     </tr>
@@ -63,7 +63,7 @@
                         <td class="mbui-td"><a href="{{ route('admin.payments.show', $payment) }}" class="mbui-anchor">{{ $payment->order->order_number }}</a></td>
                         <td class="mbui-td">{{ $payment->user->name }}</td>
                         <td class="mbui-td">TZS {{ number_format($payment->amount) }}
-                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$payment->status" /></td>
                         <td class="mbui-td">
@@ -91,7 +91,7 @@
                         <div class="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 text-center">
                             <p class="text-xs font-medium text-gray-500">{{ Carbon\Carbon::create()->month($row['month'])->format('M') }}</p>
                             <p class="mt-1 text-sm font-bold text-gray-900">TZS {{ number_format((float) $row['total']) }}</p>
-                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
                         </div>
                     @endforeach
                 </div>

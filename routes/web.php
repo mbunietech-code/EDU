@@ -42,11 +42,11 @@ Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');
 Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('public.contact.store');
 
-Route::get('/ai-tools', [PublicProductController::class, 'index'])->name('public.products.index');
-Route::get('/ai-tools/{product:slug}', [PublicProductController::class, 'show'])->name('public.products.show');
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/ai-tools', [PublicProductController::class, 'index'])->name('public.products.index');
+    Route::get('/ai-tools/{product:slug}', [PublicProductController::class, 'show'])->name('public.products.show');
 
     Route::get('/research-tools', [UserToolController::class, 'index'])->name('user.tools.index');
     Route::get('/research-tools/{tool:slug}', [UserToolController::class, 'show'])->name('user.tools.show');
@@ -150,6 +150,8 @@ Route::prefix('admin')
 
         Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('settings/mail', [SettingController::class, 'updateMail'])->name('settings.mail.update');
+        Route::post('settings/mail/test', [SettingController::class, 'testMail'])->name('settings.mail.test');
     });
 
 require __DIR__.'/auth.php';

@@ -24,7 +24,7 @@
                     <div>
                         <dt class="mbui-section-label">Amount</dt>
                         <dd class="mt-1 font-bold text-gray-900">TZS {{ number_format($order->amount) }}</dd>
-                        <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                        <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                     </div>
                     <div>
                         <dt class="mbui-section-label">Confirmed at</dt>
@@ -98,7 +98,7 @@
                         <div>
                             <p class="text-sm font-medium text-gray-900">{{ $payment->paymentMethodLabel() }} &middot; {{ $payment->transaction_reference }}</p>
                             <p class="text-xs text-gray-500">TZS {{ number_format($payment->amount) }} &middot; {{ $payment->created_at->format('d M Y H:i') }}</p>
-                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </div>
                         <div class="flex items-center gap-3">
                             <x-mbui.status-badge :status="$payment->status" />

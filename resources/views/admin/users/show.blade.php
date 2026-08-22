@@ -39,7 +39,7 @@
                         <td class="mbui-td"><a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a></td>
                         <td class="mbui-td">{{ $order->itemName() }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
-                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
                     </tr>
@@ -91,7 +91,7 @@
                         <td class="mbui-td">{{ $payment->paymentMethodLabel() }}</td>
                         <td class="mbui-td">{{ $payment->transaction_reference }}</td>
                         <td class="mbui-td">TZS {{ number_format($payment->amount) }}
-                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$payment->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$payment->status" /></td>
                     </tr>

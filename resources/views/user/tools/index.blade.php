@@ -17,7 +17,7 @@
                 @foreach ($tools as $tool)
                     <a href="{{ route('user.tools.show', $tool) }}" class="mbui-card group p-6 transition hover:shadow-md">
                         @if ($tool->imageUrl())
-                            <img src="{{ $tool->imageUrl() }}" alt="{{ $tool->name }}" class="h-40 w-full rounded-lg object-cover">
+                            <img src="{{ $tool->imageUrl() }}" alt="{{ $tool->name }}" class="h-28 w-full rounded-lg border border-gray-100 bg-gray-50 object-contain p-3">
                         @else
                             <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -31,7 +31,7 @@
                             <span class="text-lg font-bold text-gray-900">TZS {{ number_format($tool->price) }}</span>
                             <span class="mbui-anchor text-sm">View &rarr;</span>
                         </div>
-                        <x-currency-conversion :amount="$tool->price" class="mt-1 text-xs text-gray-400" />
+                        <x-currency-conversion :amount="$tool->price" class="mt-1 text-xs font-semibold text-gray-600" />
                     </a>
                 @endforeach
             </div>

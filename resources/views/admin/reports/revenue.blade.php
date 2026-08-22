@@ -29,7 +29,7 @@
                         <td class="mbui-td">{{ $row['year'] }}</td>
                         <td class="mbui-td">{{ Carbon\Carbon::create()->month($row['month'])->format('F') }}</td>
                         <td class="mbui-td font-semibold text-gray-900">TZS {{ number_format((float) $row['total']) }}
-                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                     </tr>
                 @empty

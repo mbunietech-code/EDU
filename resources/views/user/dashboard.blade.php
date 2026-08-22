@@ -68,7 +68,7 @@
                 @foreach ($featuredProducts as $product)
                     <a href="{{ route('public.products.show', $product) }}" class="mbui-card group p-6 transition hover:shadow-md">
                         @if ($product->imageUrl())
-                            <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-40 w-full rounded-lg object-cover">
+                            <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-28 w-full rounded-lg border border-gray-100 bg-gray-50 object-contain p-3">
                         @else
                             <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -82,7 +82,7 @@
                             <span class="text-lg font-bold text-gray-900">TZS {{ number_format($product->price) }}</span>
                             <span class="mbui-anchor text-sm">View plans &rarr;</span>
                         </div>
-                        <p class="mt-1 text-xs text-gray-400">
+                        <p class="mt-1 text-xs font-semibold text-gray-600">
                             &asymp; ${{ number_format($product->price * $rates['USD'], 2) }} USD &middot; &asymp; &yen;{{ number_format($product->price * $rates['CNY'], 2) }} CNY
                         </p>
                     </a>
@@ -112,7 +112,7 @@
                             </td>
                             <td class="mbui-td">{{ $order->itemName() }}</td>
                             <td class="mbui-td">TZS {{ number_format($order->amount) }}
-                                <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs text-gray-400" />
+                                <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                             </td>
                             <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
                             <td class="mbui-td">

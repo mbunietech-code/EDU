@@ -37,7 +37,7 @@
                         <td class="mbui-td">{{ $product->plans_count }}</td>
                         <td class="mbui-td">{{ $product->accounts_count }}</td>
                         <td class="mbui-td">TZS {{ number_format($product->price) }}
-                            <x-currency-conversion :amount="$product->price" class="mt-1 text-xs text-gray-400" />
+                            <x-currency-conversion :amount="$product->price" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td">
                             @if ($product->is_featured)
