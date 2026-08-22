@@ -112,16 +112,16 @@
                 </x-admin.sidebar-link>
             </nav>
 
-            <div class="shrink-0 border-t border-gray-800 p-4 space-y-2">
-                <a href="{{ route('public.home') }}" class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <div class="shrink-0 border-t border-gray-800 p-1.5 space-y-0">
+                <a href="{{ route('public.home') }}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-xs text-gray-300 hover:bg-gray-800 hover:text-white">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                     </svg>
                     View Public Site
                 </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <x-mbui.button variant="ghost" type="submit" class="w-full justify-start !text-gray-300 hover:!bg-gray-800 hover:!text-white">
+                    <x-mbui.button variant="ghost" type="submit" class="w-full justify-start !gap-2 !px-2 !py-1 !text-xs !text-gray-300 hover:!bg-gray-800 hover:!text-white">
                         Sign out
                     </x-mbui.button>
                 </form>
