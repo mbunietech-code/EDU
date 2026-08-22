@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
+use App\Models\User;
 use App\Services\ChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -38,7 +39,9 @@ class ChatController extends Controller
             fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment')
         )->values();
 
-        return view('user.chat.show', compact('conversation', 'messages', 'payload'));
+        $supportOnline = User::anyAdminOnline();
+
+        return view('user.chat.show', compact('conversation', 'messages', 'payload', 'supportOnline'));
     }
 
     public function store(Conversation $conversation, Request $request)
@@ -74,6 +77,7 @@ class ChatController extends Controller
             'messages' => $messages->map(
                 fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment')
             ),
+            'otherOnline' => User::anyAdminOnline(),
         ]);
     }
 

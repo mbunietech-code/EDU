@@ -16,14 +16,20 @@ class ChatController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->input('search');
+
         $conversations = Conversation::with(['user', 'latestMessage'])
             ->withCount(['messages as unread' => fn ($query) => $query->where('is_from_admin', false)->where('is_read', false)])
+            ->when($search, fn ($query) => $query->whereHas('user', fn ($q) => $q
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+            ))
             ->latest('updated_at')
             ->get();
 
-        return view('admin.chat.index', compact('conversations'));
+        return view('admin.chat.index', compact('conversations', 'search'));
     }
 
     public function create()
@@ -60,7 +66,9 @@ class ChatController extends Controller
             fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment')
         )->values();
 
-        return view('admin.chat.show', compact('conversation', 'messages', 'payload'));
+        $customerOnline = $conversation->user->isOnline();
+
+        return view('admin.chat.show', compact('conversation', 'messages', 'payload', 'customerOnline'));
     }
 
     public function store(Conversation $conversation, Request $request)
@@ -92,6 +100,7 @@ class ChatController extends Controller
             'messages' => $messages->map(
                 fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment')
             ),
+            'otherOnline' => $conversation->user->isOnline(),
         ]);
     }
 

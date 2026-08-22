@@ -1,8 +1,8 @@
-@props(['conversation', 'payload', 'isAdmin', 'sendUrl', 'fetchUrl'])
+@props(['conversation', 'payload', 'isAdmin', 'sendUrl', 'fetchUrl', 'otherOnline' => false])
 
 <script>
     document.addEventListener('alpine:init', () => {
-        Alpine.data('chatThread', (conversationId, viewer, sendUrl, fetchUrl) => ({
+        Alpine.data('chatThread', (conversationId, viewer, sendUrl, fetchUrl, otherOnline) => ({
             conversationId: conversationId,
             messages: (window.__chatThread && window.__chatThread[conversationId]) || [],
             viewer: viewer,
@@ -11,6 +11,7 @@
             rec: null,
             sendUrl: sendUrl,
             fetchUrl: fetchUrl,
+            otherOnline: otherOnline,
             init() {
                 this.scrollBottom();
                 setInterval(() => this.poll(), 5000);
@@ -26,6 +27,9 @@
                 try {
                     const res = await fetch(this.fetchUrl + '?after=' + last, { headers: { 'Accept': 'application/json' } });
                     const data = await res.json();
+                    if (typeof data.otherOnline === 'boolean') {
+                        this.otherOnline = data.otherOnline;
+                    }
                     if (data.messages && data.messages.length) {
                         this.messages = this.messages.concat(data.messages);
                         this.scrollBottom();
@@ -103,7 +107,7 @@
     });
 </script>
 
-<div x-data="chatThread({{ $conversation->id }}, {{ $isAdmin ? 'true' : 'false' }}, '{{ $sendUrl }}', '{{ $fetchUrl }}')" class="flex min-h-0 flex-1 flex-col">
+<div class="flex min-h-0 flex-1 flex-col">
         <div x-ref="scroller" class="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-3">
         <template x-for="m in messages" :key="m.id">
             <div class="flex" :class="m.fromAdmin === viewer ? 'justify-end' : 'justify-start'">

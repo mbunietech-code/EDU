@@ -9,11 +9,22 @@
     </div>
 
     <div class="mt-6 mbui-card overflow-hidden">
+        <div class="border-b border-gray-200 px-4 py-3">
+            <form method="GET" class="flex gap-3">
+                <input type="search" name="search" value="{{ $search }}" placeholder="Search by name or email..." class="mbui-input sm:w-80">
+                <x-mbui.button type="submit" variant="secondary" class="!px-4 !py-2">Filter</x-mbui.button>
+                @if ($search)
+                    <a href="{{ route('admin.chat.index') }}" class="mbui-anchor self-center text-sm">Clear</a>
+                @endif
+            </form>
+        </div>
         @forelse ($conversations as $conversation)
             <a href="{{ route('admin.chat.show', $conversation) }}"
                class="flex items-center gap-3 border-b border-gray-100 p-4 transition hover:bg-gray-50">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
+                <span class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
                     {{ strtoupper(substr($conversation->user->name, 0, 1)) }}
+                    <span class="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white {{ $conversation->user->isOnline() ? 'bg-emerald-500' : 'bg-gray-300' }}"
+                        title="{{ $conversation->user->isOnline() ? 'Online' : 'Offline' }}"></span>
                 </span>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center justify-between gap-3">

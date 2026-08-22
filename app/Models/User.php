@@ -29,6 +29,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
         ];
@@ -81,5 +82,17 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function isOnline(): bool
+    {
+        return $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(2));
+    }
+
+    public static function anyAdminOnline(): bool
+    {
+        return static::where('is_admin', true)
+            ->where('last_seen_at', '>', now()->subMinutes(2))
+            ->exists();
     }
 }
