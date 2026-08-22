@@ -5,6 +5,7 @@
             <h1 class="mbui-title">Chats</h1>
             <p class="mt-1 text-sm text-gray-500">Conversations with customers. Open one to reply, or record a voice note.</p>
         </div>
+        <a href="{{ route('admin.chat.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New message</a>
     </div>
 
     <div class="mt-6 mbui-card overflow-hidden">

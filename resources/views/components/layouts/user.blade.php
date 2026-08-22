@@ -41,6 +41,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26" />
                 </x-user.sidebar-link>
 
+                <x-user.sidebar-link :route="route('public.scholarships.index')" :active="request()->routeIs('public.scholarships.*')" label="Scholarships">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443" />
+                </x-user.sidebar-link>
+
                 @php($consultation = [
                     ['id' => 'thesis', 'name' => 'Thesis Writing', 'items' => ['Chapter writing', 'Editing', 'Formatting', 'Referencing']],
                     ['id' => 'data', 'name' => 'Data analysis', 'items' => ['SPSS', 'Stata', 'R', 'Python']],
@@ -67,8 +71,8 @@
                             <div>
                                 <button type="button"
                                     @click="consultationSub = consultationSub === '{{ $group['id'] }}' ? null : '{{ $group['id'] }}'"
-                                    class="flex w-full items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
-                                    <span class="flex-1">{{ $group['name'] }}</span>
+                                    class="flex w-full items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                                    <span class="flex-1 text-left">{{ $group['name'] }}</span>
                                     <svg class="h-4 w-4 shrink-0 transition-transform"
                                         :class="consultationSub === '{{ $group['id'] }}' ? 'transform rotate-180' : ''"
                                         fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -80,9 +84,9 @@
                                     class="mt-1 ml-6 space-y-1">
                                     @foreach ($group['items'] as $item)
                                         <a href="{{ route('public.contact') }}"
-                                            class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                                            class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
                                             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"></span>
-                                            <span>{{ $item }}</span>
+                                            <span class="text-left">{{ $item }}</span>
                                         </a>
                                     @endforeach
                                 </div>

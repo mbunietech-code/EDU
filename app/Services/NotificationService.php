@@ -16,6 +16,7 @@ use App\Notifications\User\SubscriptionExpired;
 use App\Notifications\User\AccessRevoked;
 use App\Notifications\Admin\NewOrder;
 use App\Notifications\Admin\NewPaymentProof;
+use App\Notifications\Admin\NewContactMessage;
 use App\Notifications\Admin\ExpiringSubscription;
 use App\Notifications\Admin\AccountUnavailable;
 use App\Notifications\ChatMessageReceived;
@@ -85,6 +86,12 @@ class NotificationService
     {
         $admins = User::where('is_admin', true)->get();
         Notification::send($admins, new NewPaymentProof($payment));
+    }
+
+    public function notifyAdminNewContactMessage($contactMessage): void
+    {
+        $admins = User::where('is_admin', true)->get();
+        Notification::send($admins, new NewContactMessage($contactMessage));
     }
 
     public function notifyAdminExpiringSubscription($subscription): void

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AccountController as AdminAccountController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
+use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Admin\PaymentMethodController as AdminPaymentMethodCont
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\ScholarshipController as AdminScholarshipController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\ToolController as AdminToolController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\FaqController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ProductController as PublicProductController;
+use App\Http\Controllers\Public\ScholarshipController as PublicScholarshipController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ChatController as UserChatController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
@@ -41,6 +44,11 @@ Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');
 Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('public.contact.store');
+Route::view('/terms', 'public.legal.terms')->name('public.terms');
+Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
+
+Route::get('/scholarships', [PublicScholarshipController::class, 'index'])->name('public.scholarships.index');
+Route::get('/scholarships/{scholarship:slug}', [PublicScholarshipController::class, 'show'])->name('public.scholarships.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -102,6 +110,10 @@ Route::prefix('admin')
         Route::resource('plans', AdminPlanController::class);
         Route::resource('tools', AdminToolController::class)->except(['show']);
         Route::post('tool-files', [AdminToolController::class, 'uploadFile'])->name('tool-files.store');
+        Route::resource('scholarships', AdminScholarshipController::class)->except(['show']);
+        Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
+        Route::get('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('contact-messages.show');
+        Route::delete('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
         Route::resource('accounts', AdminAccountController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
         Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])->name('accounts.decrypt');
@@ -123,6 +135,8 @@ Route::prefix('admin')
         Route::delete('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'removeQr'])->name('payment-methods.qr.remove');
 
         Route::get('messages', [AdminChatController::class, 'index'])->name('chat.index');
+        Route::get('messages/create', [AdminChatController::class, 'create'])->name('chat.create');
+        Route::post('messages/create', [AdminChatController::class, 'start'])->name('chat.start');
         Route::get('messages/{conversation}', [AdminChatController::class, 'show'])->name('chat.show');
         Route::get('messages/{conversation}/fetch', [AdminChatController::class, 'fetch'])->name('chat.fetch');
         Route::post('messages/{conversation}', [AdminChatController::class, 'store'])->name('chat.store');

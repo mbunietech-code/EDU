@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
+use App\Models\User;
 use App\Services\ChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,26 @@ class ChatController extends Controller
             ->get();
 
         return view('admin.chat.index', compact('conversations'));
+    }
+
+    public function create()
+    {
+        $users = User::where('is_admin', false)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return view('admin.chat.create', compact('users'));
+    }
+
+    public function start(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+        ]);
+
+        $conversation = Conversation::firstOrCreate(['user_id' => $validated['user_id']]);
+
+        return redirect()->route('admin.chat.show', $conversation);
     }
 
     public function show(Conversation $conversation)

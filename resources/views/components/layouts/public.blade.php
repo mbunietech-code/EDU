@@ -38,6 +38,7 @@
                 <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
                     <a href="{{ route('public.home') }}" class="hover:text-gray-900">Home</a>
                     <a href="{{ route('public.products.index') }}" class="hover:text-gray-900">AI Tools</a>
+                    <a href="{{ route('public.scholarships.index') }}" class="hover:text-gray-900">Scholarships</a>
                     <a href="{{ route('public.about') }}" class="hover:text-gray-900">About</a>
                     <a href="{{ route('public.faq') }}" class="hover:text-gray-900">FAQ</a>
                     <a href="{{ route('public.contact') }}" class="hover:text-gray-900">Contact</a>
@@ -60,6 +61,11 @@
     </header>
 
     <main class="flex-1">
+        @if (session('success') || session('error') || $errors->any())
+            <div class="mbui-container pt-6">
+                <x-partials.flash />
+            </div>
+        @endif
         {{ $slot }}
     </main>
 
@@ -97,9 +103,13 @@
                     </ul>
                 </div>
             </div>
-            <div class="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div class="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <p class="text-xs text-gray-400">&copy; {{ date('Y') }} MbunieEduHub. All rights reserved.</p>
-                <p class="text-xs text-gray-400">mt.co.tz</p>
+                <div class="flex items-center gap-4 text-xs text-gray-400">
+                    <a href="{{ route('public.terms') }}" class="hover:text-gray-600">Terms of Service</a>
+                    <a href="{{ route('public.privacy') }}" class="hover:text-gray-600">Privacy Policy</a>
+                    <span>mt.co.tz</span>
+                </div>
             </div>
         </div>
     </footer>
