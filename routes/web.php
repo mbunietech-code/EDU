@@ -173,6 +173,12 @@ Route::prefix('admin')
         Route::post('finance/lock', [FinanceController::class, 'lock'])->name('finance.lock');
         Route::middleware('finance.unlocked')->group(function () {
             Route::get('finance', [FinanceController::class, 'dashboard'])->name('finance.dashboard');
+            Route::get('finance/capital', [FinanceController::class, 'capitalIndex'])->name('finance.capital.index');
+            Route::post('finance/capital', [FinanceController::class, 'capitalStore'])->name('finance.capital.store');
+            Route::delete('finance/capital/{capitalEntry}', [FinanceController::class, 'capitalDestroy'])->name('finance.capital.destroy');
+            Route::get('finance/expenses', [FinanceController::class, 'expenseIndex'])->name('finance.expenses.index');
+            Route::post('finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
+            Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');
         });
     });
 
