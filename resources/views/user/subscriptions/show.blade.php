@@ -53,7 +53,18 @@
                         <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
                             Your access is <strong>active</strong>. Enjoy {{ $subscription->product->name }} until {{ $subscription->expiry_date->format('d M Y') }}.
                         </div>
-                        <div class="mt-4"><a href="{{ route('public.products.show', $subscription->product) }}" class="mbui-anchor text-sm">Redeem / assign access</a></div>
+
+                        @if ($credentials)
+                            <div class="mt-4 rounded-lg border border-gray-200 p-4">
+                                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Login details for {{ $subscription->product->name }}</p>
+                                <p class="mt-2 select-all whitespace-pre-wrap break-all rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900">{{ $credentials }}</p>
+                                <p class="mt-2 text-xs text-gray-500">Use these details to sign in to {{ $subscription->product->name }} directly. Do not share them with anyone outside your account.</p>
+                            </div>
+                        @elseif ($subscription->account)
+                            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                Your access is active, but login details aren't available yet. Contact support if this doesn't resolve shortly.
+                            </div>
+                        @endif
                     @else
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600">
                             Access is currently <strong>{{ str_replace('_', ' ', $subscription->status) }}</strong>.

@@ -4,9 +4,14 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Services\CredentialService;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(protected CredentialService $credentialService)
+    {
+    }
+
     public function index()
     {
         $subscriptions = auth()->user()
@@ -24,6 +29,13 @@ class SubscriptionController extends Controller
 
         $subscription->load(['product', 'plan', 'account', 'order']);
 
-        return view('user.subscriptions.show', compact('subscription'));
+        $credentials = null;
+        $canViewCredentials = $subscription->account && ($subscription->isActive() || $subscription->status === 'expiring_soon');
+
+        if ($canViewCredentials) {
+            $credentials = $this->credentialService->decryptValue($subscription->account->credentials);
+        }
+
+        return view('user.subscriptions.show', compact('subscription', 'credentials'));
     }
 }

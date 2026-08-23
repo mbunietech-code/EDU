@@ -24,12 +24,12 @@ class DashboardController extends Controller
 
         $recentOrders = Order::with(['user', 'product', 'tool'])
             ->latest()
-            ->take(10)
+            ->take(5)
             ->get();
 
         $recentPayments = Payment::with(['user', 'order.product'])
             ->latest()
-            ->take(10)
+            ->take(5)
             ->get();
 
         $revenueReport = $this->reportService->getRevenueReport(6);

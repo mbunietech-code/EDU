@@ -43,8 +43,16 @@
                     <x-input-error :messages="$errors->get('amount')" class="mt-2" />
                 </div>
                 <div>
-                    <x-input-label for="exp-category" value="Category (optional)" />
-                    <x-text-input id="exp-category" class="mbui-input mt-1" type="text" name="category" :value="old('category')" placeholder="e.g. Hosting, Subscription" />
+                    <x-input-label for="exp-category" value="Category" />
+                    <select id="exp-category" name="category" class="mbui-input mt-1">
+                        <option value="">Select category</option>
+                        <option value="Operating Expenses (OPEX)" @selected(old('category') === 'Operating Expenses (OPEX)')>Operating Expenses (OPEX) — rent, salaries, hosting, marketing</option>
+                        <option value="Cost of Goods Sold (COGS)" @selected(old('category') === 'Cost of Goods Sold (COGS)')>Cost of Goods Sold (COGS) — direct product/account costs</option>
+                        <option value="Financial Expenses" @selected(old('category') === 'Financial Expenses')>Financial Expenses — loan interest, bank charges</option>
+                        <option value="Depreciation & Amortization" @selected(old('category') === 'Depreciation & Amortization')>Depreciation & Amortization</option>
+                        <option value="Miscellaneous" @selected(old('category') === 'Miscellaneous')>Miscellaneous</option>
+                    </select>
+                    <x-input-error :messages="$errors->get('category')" class="mt-2" />
                 </div>
                 <div>
                     <x-input-label for="exp-date" value="Date spent" />

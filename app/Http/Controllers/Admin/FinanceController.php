@@ -12,6 +12,7 @@ use App\Models\Tool;
 use App\Services\FinanceOverviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rule;
 
 class FinanceController extends Controller
 {
@@ -122,7 +123,13 @@ class FinanceController extends Controller
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'category' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', Rule::in([
+                'Operating Expenses (OPEX)',
+                'Cost of Goods Sold (COGS)',
+                'Financial Expenses',
+                'Depreciation & Amortization',
+                'Miscellaneous',
+            ])],
             'description' => ['nullable', 'string', 'max:2000'],
             'spent_at' => ['required', 'date'],
         ]);
