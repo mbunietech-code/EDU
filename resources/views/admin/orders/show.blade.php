@@ -5,7 +5,17 @@
             <h1 class="mbui-title">{{ $order->order_number }}</h1>
             <p class="mt-1 text-sm text-gray-500">{{ $order->user->name }} ({{ $order->user->email }}) &middot; {{ $order->created_at->format('d M Y H:i') }}</p>
         </div>
-        <x-mbui.status-badge :status="$order->status" />
+        <div class="flex items-center gap-3">
+            @if ($order->isConfirmed())
+                <a href="{{ route('admin.orders.receipt', $order) }}" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 12m0 0l4.5-4.5M12 12V3" />
+                    </svg>
+                    Download Receipt
+                </a>
+            @endif
+            <x-mbui.status-badge :status="$order->status" />
+        </div>
     </div>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-3">

@@ -95,11 +95,14 @@
                         </td>
                         <td class="mbui-td text-gray-500">{{ $entry->created_at->format('d M Y') }} @if($entry->creator) &middot; {{ $entry->creator->name }} @endif</td>
                         <td class="mbui-td">
-                            <form method="POST" action="{{ route('admin.finance.capital.destroy', $entry) }}" onsubmit="return confirm('Remove this capital entry?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
-                            </form>
+                            <div class="flex items-center gap-3">
+                                <a href="{{ route('admin.finance.capital.edit', $entry) }}" class="mbui-anchor text-sm">Edit</a>
+                                <form method="POST" action="{{ route('admin.finance.capital.destroy', $entry) }}" onsubmit="return confirm('Remove this capital entry?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty

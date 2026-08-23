@@ -100,6 +100,35 @@ class FinanceController extends Controller
         return back()->with('success', 'Capital entry recorded.');
     }
 
+    public function capitalEdit(FinanceCapitalEntry $capitalEntry)
+    {
+        $products = Product::orderBy('name')->get(['id', 'name']);
+        $tools = Tool::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.finance.capital-edit', compact('capitalEntry', 'products', 'tools'));
+    }
+
+    public function capitalUpdate(Request $request, FinanceCapitalEntry $capitalEntry)
+    {
+        $validated = $request->validate([
+            'product_id' => ['nullable', 'exists:products,id'],
+            'tool_id' => ['nullable', 'exists:tools,id'],
+            'label' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'source' => ['required', 'string', 'max:255'],
+            'is_loan' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $validated['label'] = $this->resolveLabel($validated);
+
+        $capitalEntry->update($validated);
+
+        ActivityLog::log('finance_capital_updated', 'FinanceCapitalEntry', $capitalEntry->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
+
+        return redirect()->route('admin.finance.capital.index')->with('success', 'Capital entry updated.');
+    }
+
     public function capitalDestroy(FinanceCapitalEntry $capitalEntry)
     {
         $capitalEntry->delete();
@@ -142,6 +171,41 @@ class FinanceController extends Controller
         ActivityLog::log('finance_expense_added', 'FinanceExpense', null, ['label' => $validated['label'], 'amount' => $validated['amount']]);
 
         return back()->with('success', 'Expense recorded.');
+    }
+
+    public function expenseEdit(FinanceExpense $expense)
+    {
+        $products = Product::orderBy('name')->get(['id', 'name']);
+        $tools = Tool::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.finance.expense-edit', compact('expense', 'products', 'tools'));
+    }
+
+    public function expenseUpdate(Request $request, FinanceExpense $expense)
+    {
+        $validated = $request->validate([
+            'product_id' => ['nullable', 'exists:products,id'],
+            'tool_id' => ['nullable', 'exists:tools,id'],
+            'label' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'category' => ['nullable', Rule::in([
+                'Operating Expenses (OPEX)',
+                'Cost of Goods Sold (COGS)',
+                'Financial Expenses',
+                'Depreciation & Amortization',
+                'Miscellaneous',
+            ])],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'spent_at' => ['required', 'date'],
+        ]);
+
+        $validated['label'] = $this->resolveLabel($validated);
+
+        $expense->update($validated);
+
+        ActivityLog::log('finance_expense_updated', 'FinanceExpense', $expense->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
+
+        return redirect()->route('admin.finance.expenses.index')->with('success', 'Expense updated.');
     }
 
     public function expenseDestroy(FinanceExpense $expense)

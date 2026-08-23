@@ -79,24 +79,22 @@
         </x-mbui.table>
     </div>
 
-    @if (count($revenueReport) > 0)
-        <div class="mt-8">
-            <x-mbui.card>
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base font-semibold text-gray-900">Revenue (last 6 months)</h2>
-                    <a href="{{ route('admin.reports.revenue') }}" class="mbui-anchor text-sm">Full report</a>
-                </div>
-                <div class="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                    @foreach (collect($revenueReport)->sortByDesc('month')->take(6) as $row)
-                        <div class="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 text-center">
-                            <p class="text-xs font-medium text-gray-500">{{ Carbon\Carbon::create()->month($row['month'])->format('M') }}</p>
-                            <p class="mt-1 text-sm font-bold text-gray-900">TZS {{ number_format((float) $row['total']) }}</p>
-                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
-                        </div>
-                    @endforeach
-                </div>
-            </x-mbui.card>
-        </div>
-    @endif
+    <div class="mt-8">
+        <x-mbui.card>
+            <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-900">Revenue (last 6 months)</h2>
+                <a href="{{ route('admin.reports.revenue') }}" class="mbui-anchor text-sm">Full report</a>
+            </div>
+            <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                @foreach ($revenueReport as $row)
+                    <div class="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 text-center">
+                        <p class="text-xs font-medium text-gray-500">{{ Carbon\Carbon::create($row['year'], $row['month'])->format('M Y') }}</p>
+                        <p class="mt-1 text-sm font-bold text-gray-900">TZS {{ number_format((float) $row['total']) }}</p>
+                        <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
+                    </div>
+                @endforeach
+            </div>
+        </x-mbui.card>
+    </div>
 
 </x-layouts.admin>

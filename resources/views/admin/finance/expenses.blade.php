@@ -96,11 +96,14 @@
                         <td class="mbui-td text-gray-500">{{ $expense->spent_at->format('d M Y') }}</td>
                         <td class="mbui-td text-gray-500">{{ $expense->creator?->name ?? '-' }}</td>
                         <td class="mbui-td">
-                            <form method="POST" action="{{ route('admin.finance.expenses.destroy', $expense) }}" onsubmit="return confirm('Remove this expense?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
-                            </form>
+                            <div class="flex items-center gap-3">
+                                <a href="{{ route('admin.finance.expenses.edit', $expense) }}" class="mbui-anchor text-sm">Edit</a>
+                                <form method="POST" action="{{ route('admin.finance.expenses.destroy', $expense) }}" onsubmit="return confirm('Remove this expense?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty

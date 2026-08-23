@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FinanceController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
@@ -70,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-orders/{order}', [OrderController::class, 'show'])->name('user.orders.show');
     Route::get('/my-orders/{order}/download-software', [OrderController::class, 'downloadSoftware'])->name('user.orders.download-software');
     Route::get('/my-orders/{order}/download-tool', [ToolOrderController::class, 'download'])->name('user.orders.download-tool');
+    Route::get('/my-orders/{order}/receipt', [ReceiptController::class, 'userShow'])->name('user.orders.receipt');
 
     Route::get('/payments', [UserPaymentController::class, 'index'])->name('user.payments.index');
     Route::get('/payments/{payment}', [UserPaymentController::class, 'show'])->name('user.payments.show');
@@ -122,6 +124,7 @@ Route::prefix('admin')
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{order}/reopen-access', [AdminOrderController::class, 'reopenAccess'])->name('orders.reopen-access');
+        Route::get('orders/{order}/receipt', [ReceiptController::class, 'adminShow'])->name('orders.receipt');
 
         Route::get('payments', [AdminPaymentController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
@@ -175,9 +178,13 @@ Route::prefix('admin')
             Route::get('finance', [FinanceController::class, 'dashboard'])->name('finance.dashboard');
             Route::get('finance/capital', [FinanceController::class, 'capitalIndex'])->name('finance.capital.index');
             Route::post('finance/capital', [FinanceController::class, 'capitalStore'])->name('finance.capital.store');
+            Route::get('finance/capital/{capitalEntry}/edit', [FinanceController::class, 'capitalEdit'])->name('finance.capital.edit');
+            Route::put('finance/capital/{capitalEntry}', [FinanceController::class, 'capitalUpdate'])->name('finance.capital.update');
             Route::delete('finance/capital/{capitalEntry}', [FinanceController::class, 'capitalDestroy'])->name('finance.capital.destroy');
             Route::get('finance/expenses', [FinanceController::class, 'expenseIndex'])->name('finance.expenses.index');
             Route::post('finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
+            Route::get('finance/expenses/{expense}/edit', [FinanceController::class, 'expenseEdit'])->name('finance.expenses.edit');
+            Route::put('finance/expenses/{expense}', [FinanceController::class, 'expenseUpdate'])->name('finance.expenses.update');
             Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');
         });
     });
