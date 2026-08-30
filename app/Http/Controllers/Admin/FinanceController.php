@@ -13,10 +13,17 @@ use App\Services\DeletionService;
 use App\Services\FinanceOverviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
+    /**
+     * Validation rules for an uploaded expense receipt (image or PDF, max 5 MB).
+     */
+    private const RECEIPT_RULES = ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'];
+
     public function pin()
     {
         if (session('finance_unlocked')) {
@@ -165,11 +172,17 @@ class FinanceController extends Controller
                 'Miscellaneous',
             ])],
             'description' => ['nullable', 'string', 'max:2000'],
+            'receipt' => self::RECEIPT_RULES,
             'spent_at' => ['required', 'date'],
         ]);
 
+        unset($validated['receipt']);
         $validated['created_by'] = auth()->id();
         $validated['label'] = $this->resolveLabel($validated);
+
+        if ($request->hasFile('receipt')) {
+            $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
+        }
 
         FinanceExpense::create($validated);
 
@@ -201,10 +214,23 @@ class FinanceController extends Controller
                 'Miscellaneous',
             ])],
             'description' => ['nullable', 'string', 'max:2000'],
+            'receipt' => self::RECEIPT_RULES,
+            'remove_receipt' => ['nullable', 'boolean'],
             'spent_at' => ['required', 'date'],
         ]);
 
+        $removeReceipt = (bool) ($validated['remove_receipt'] ?? false);
+        unset($validated['receipt'], $validated['remove_receipt']);
+
         $validated['label'] = $this->resolveLabel($validated);
+
+        if ($request->hasFile('receipt')) {
+            $this->deleteReceiptFile($expense->receipt_path);
+            $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
+        } elseif ($removeReceipt) {
+            $this->deleteReceiptFile($expense->receipt_path);
+            $validated['receipt_path'] = null;
+        }
 
         $expense->update($validated);
 
@@ -213,15 +239,34 @@ class FinanceController extends Controller
         return redirect()->route('admin.finance.expenses.index')->with('success', 'Expense updated.');
     }
 
+    public function expenseReceipt(FinanceExpense $expense): StreamedResponse
+    {
+        abort_unless($expense->hasReceipt(), 404);
+        abort_unless(Storage::disk('private')->exists($expense->receipt_path), 404);
+
+        return Storage::disk('private')->response($expense->receipt_path);
+    }
+
     public function expenseDestroy(Request $request, FinanceExpense $expense, DeletionService $deletionService)
     {
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
         ]);
 
+        $receiptPath = $expense->receipt_path;
+
         $deletionService->delete($expense, $validated['reason']);
 
+        $this->deleteReceiptFile($receiptPath);
+
         return back()->with('success', 'Expense removed.');
+    }
+
+    protected function deleteReceiptFile(?string $path): void
+    {
+        if (filled($path) && Storage::disk('private')->exists($path)) {
+            Storage::disk('private')->delete($path);
+        }
     }
 
     protected function resolveLabel(array $validated): string

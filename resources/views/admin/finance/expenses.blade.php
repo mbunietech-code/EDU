@@ -9,7 +9,7 @@
 
     <div class="mt-6 mbui-card p-6">
         <h2 class="text-base font-semibold text-gray-900">Add expense</h2>
-        <form method="POST" action="{{ route('admin.finance.expenses.store') }}" class="mt-4 space-y-4">
+        <form method="POST" action="{{ route('admin.finance.expenses.store') }}" enctype="multipart/form-data" class="mt-4 space-y-4">
             @csrf
             <div class="grid gap-4 sm:grid-cols-3">
                 <div>
@@ -60,9 +60,18 @@
                     <x-input-error :messages="$errors->get('spent_at')" class="mt-2" />
                 </div>
             </div>
-            <div>
-                <x-input-label for="exp-description" value="Description (optional)" />
-                <textarea id="exp-description" name="description" rows="2" class="mbui-input mt-1">{{ old('description') }}</textarea>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="exp-description" value="Description (optional)" />
+                    <textarea id="exp-description" name="description" rows="2" class="mbui-input mt-1">{{ old('description') }}</textarea>
+                </div>
+                <div>
+                    <x-input-label for="exp-receipt" value="Receipt (optional)" />
+                    <input id="exp-receipt" type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+                        class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                    <p class="mt-1 text-xs text-gray-500">Image or PDF, max 5 MB.</p>
+                    <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
+                </div>
             </div>
             <div class="flex justify-end border-t border-gray-100 pt-4">
                 <x-mbui.button type="submit">Add expense</x-mbui.button>
@@ -78,6 +87,7 @@
                     <th class="mbui-th">Amount</th>
                     <th class="mbui-th">Category</th>
                     <th class="mbui-th">Date</th>
+                    <th class="mbui-th">Receipt</th>
                     <th class="mbui-th">Recorded by</th>
                     <th class="mbui-th">Action</th>
                 </tr>
@@ -94,6 +104,13 @@
                         <td class="mbui-td font-semibold text-red-600">TZS {{ number_format($expense->amount) }}</td>
                         <td class="mbui-td">{{ $expense->category ?? '-' }}</td>
                         <td class="mbui-td text-gray-500">{{ $expense->spent_at->format('d M Y') }}</td>
+                        <td class="mbui-td">
+                            @if ($expense->hasReceipt())
+                                <a href="{{ route('admin.finance.expenses.receipt', $expense) }}" target="_blank" rel="noopener" class="mbui-anchor text-sm">View</a>
+                            @else
+                                <span class="text-sm text-gray-400">—</span>
+                            @endif
+                        </td>
                         <td class="mbui-td text-gray-500">{{ $expense->creator?->name ?? '-' }}</td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
@@ -103,7 +120,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="mbui-td text-center text-gray-400">No expenses recorded yet</td></tr>
+                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No expenses recorded yet</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

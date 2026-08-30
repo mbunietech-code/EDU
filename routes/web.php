@@ -191,6 +191,7 @@ Route::prefix('admin')
             Route::delete('finance/capital/{capitalEntry}', [FinanceController::class, 'capitalDestroy'])->name('finance.capital.destroy');
             Route::get('finance/expenses', [FinanceController::class, 'expenseIndex'])->name('finance.expenses.index');
             Route::post('finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
+            Route::get('finance/expenses/{expense}/receipt', [FinanceController::class, 'expenseReceipt'])->name('finance.expenses.receipt');
             Route::get('finance/expenses/{expense}/edit', [FinanceController::class, 'expenseEdit'])->name('finance.expenses.edit');
             Route::put('finance/expenses/{expense}', [FinanceController::class, 'expenseUpdate'])->name('finance.expenses.update');
             Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');

@@ -8,7 +8,7 @@
     </div>
 
     <div class="mt-6 mbui-card p-6 max-w-2xl">
-        <form method="POST" action="{{ route('admin.finance.expenses.update', $expense) }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.finance.expenses.update', $expense) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
             <div class="grid gap-4 sm:grid-cols-3">
@@ -61,6 +61,22 @@
             <div>
                 <x-input-label for="exp-description" value="Description (optional)" />
                 <textarea id="exp-description" name="description" rows="2" class="mbui-input mt-1">{{ old('description', $expense->description) }}</textarea>
+            </div>
+            <div>
+                <x-input-label for="exp-receipt" value="Receipt (optional)" />
+                @if ($expense->hasReceipt())
+                    <div class="mt-1 flex items-center gap-4 text-sm">
+                        <a href="{{ route('admin.finance.expenses.receipt', $expense) }}" target="_blank" rel="noopener" class="mbui-anchor">View current receipt</a>
+                        <label class="inline-flex items-center gap-2 text-gray-600">
+                            <input type="checkbox" name="remove_receipt" value="1" class="rounded border-gray-300">
+                            Remove it
+                        </label>
+                    </div>
+                @endif
+                <input id="exp-receipt" type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+                    class="mbui-input mt-2 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                <p class="mt-1 text-xs text-gray-500">{{ $expense->hasReceipt() ? 'Upload a file to replace the current receipt.' : 'Image or PDF, max 5 MB.' }}</p>
+                <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
             </div>
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
                 <a href="{{ route('admin.finance.expenses.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>

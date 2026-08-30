@@ -16,6 +16,7 @@ class FinanceExpense extends Model
         'amount',
         'category',
         'description',
+        'receipt_path',
         'spent_at',
         'created_by',
     ];
@@ -38,5 +39,10 @@ class FinanceExpense extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function hasReceipt(): bool
+    {
+        return filled($this->receipt_path);
     }
 }
