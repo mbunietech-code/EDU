@@ -10,6 +10,11 @@ set(BINARY_NAME "mhub")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Some bundled third-party CMakeLists (e.g. the Firebase C++ SDK pulled in by
+# firebase_core) still declare a pre-3.5 minimum, which CMake 3.31+ rejects.
+# This provides the fallback minimum so they can still configure.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

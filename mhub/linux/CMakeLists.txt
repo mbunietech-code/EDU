@@ -13,6 +13,10 @@ set(APPLICATION_ID "com.mbunie.mhub")
 # versions of CMake.
 cmake_policy(SET CMP0063 NEW)
 
+# Fallback minimum for bundled third-party CMakeLists that still declare a
+# pre-3.5 minimum (e.g. the Firebase C++ SDK).
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # Load bundled libraries from the lib/ directory relative to the binary.
 set(CMAKE_INSTALL_RPATH "$ORIGIN/lib")
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/async_value_view.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/stat_grid.dart';
 import '../auth/auth_controller.dart';
 import 'dashboard_repository.dart';
@@ -15,7 +16,10 @@ class UserDashboardScreen extends ConsumerWidget {
     final async = ref.watch(userDashboardProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: const [NotificationBell()],
+      ),
       body: AsyncValueView<DashboardData>(
         value: async,
         onRefresh: () async => ref.refresh(userDashboardProvider.future),

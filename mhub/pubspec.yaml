@@ -51,6 +51,14 @@ dependencies:
   # Utilities
   intl: ^0.20.2
 
+  # Local notifications (all platforms). Background push via FCM is added
+  # for Android in a follow-up — firebase_core currently breaks the desktop
+  # (Windows/Linux) CMake build.
+  flutter_local_notifications: ^18.0.1
+
+  # App lifecycle (pause polling when backgrounded)
+  # (uses the built-in WidgetsBindingObserver — no package needed)
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

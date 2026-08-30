@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/async_value_view.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/stat_grid.dart';
 import 'dashboard_repository.dart';
 
@@ -13,7 +14,10 @@ class AdminDashboardScreen extends ConsumerWidget {
     final async = ref.watch(adminDashboardProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin overview')),
+      appBar: AppBar(
+        title: const Text('Admin overview'),
+        actions: const [NotificationBell()],
+      ),
       body: AsyncValueView<DashboardData>(
         value: async,
         onRefresh: () async => ref.refresh(adminDashboardProvider.future),

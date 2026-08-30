@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/notifications/notification_center.dart';
 import '../../core/storage.dart';
 import '../../models/user.dart';
 import 'auth_repository.dart';
@@ -57,6 +60,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final user = await _repo.me();
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
+      unawaited(_ref.read(notificationCenterProvider).start());
     } on ApiException {
       await _tokens.clear();
       state = state.copyWith(
@@ -76,6 +80,8 @@ class AuthController extends StateNotifier<AuthState> {
         user: result.user,
         busy: false,
       );
+      // Register this device for push (fire-and-forget).
+      unawaited(_ref.read(notificationCenterProvider).start());
       return true;
     } on ApiException catch (e) {
       state = state.copyWith(busy: false, error: e.message);
@@ -85,6 +91,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(busy: true);
+    _ref.read(notificationCenterProvider).stop();
     await _repo.logout();
     await _tokens.clear();
     state = const AuthState(status: AuthStatus.unauthenticated);
