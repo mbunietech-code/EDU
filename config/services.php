@@ -31,4 +31,16 @@ return [
         ],
     ],
 
+    /*
+    | Firebase Cloud Messaging — push notifications for the MHub app.
+    | credentials: path to the service-account JSON (Project settings ->
+    | Service accounts -> Generate new private key). project_id is read from
+    | that file when not set here.
+    */
+    'fcm' => [
+        'enabled' => env('FCM_ENABLED', true),
+        'credentials' => env('FCM_CREDENTIALS', storage_path('app/firebase/service-account.json')),
+        'project_id' => env('FCM_PROJECT_ID'),
+    ],
+
 ];

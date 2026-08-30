@@ -17,3 +17,8 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Firebase
+/storage/app/firebase/*.json
+mhub/android/app/google-services.json
+mhub/lib/firebase_options.dart
