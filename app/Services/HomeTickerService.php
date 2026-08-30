@@ -80,7 +80,7 @@ class HomeTickerService
     {
         return collect(config('marketing.ticker.promos', []))
             ->map(fn ($p) => [
-                'icon' => (string) ($p['icon'] ?? '•'),
+                'icon' => (string) ($p['icon'] ?? 'star'),
                 'text' => (string) ($p['text'] ?? ''),
                 'url' => $p['url'] ?? null,
                 'live' => false,
@@ -118,7 +118,7 @@ class HomeTickerService
             }
             $events[] = [
                 'at' => $order->updated_at,
-                'icon' => '✅',
+                'icon' => 'unlock',
                 'text' => "Someone unlocked {$name} access",
                 'url' => route('public.products.index'),
             ];
@@ -136,7 +136,7 @@ class HomeTickerService
             $name = $sub->product->name ?? 'a plan';
             $events[] = [
                 'at' => $sub->created_at,
-                'icon' => '⚡',
+                'icon' => 'bolt',
                 'text' => "{$name} subscription just activated",
                 'url' => route('public.products.index'),
             ];
@@ -152,7 +152,7 @@ class HomeTickerService
         foreach ($tools as $tool) {
             $events[] = [
                 'at' => $tool->created_at,
-                'icon' => '🧰',
+                'icon' => 'tool',
                 'text' => "New tool available: {$tool->name}",
                 'url' => route('user.tools.show', $tool->slug),
             ];
@@ -168,7 +168,7 @@ class HomeTickerService
         foreach ($products as $product) {
             $events[] = [
                 'at' => $product->created_at,
-                'icon' => '✨',
+                'icon' => 'product',
                 'text' => "Now available: {$product->name}",
                 'url' => route('public.products.show', $product->slug),
             ];
@@ -187,7 +187,7 @@ class HomeTickerService
         foreach ($scholarships as $scholarship) {
             $events[] = [
                 'at' => $scholarship->created_at,
-                'icon' => '🎓',
+                'icon' => 'scholarship',
                 'text' => "New scholarship: {$scholarship->title}",
                 'url' => route('public.scholarships.show', $scholarship->slug),
             ];
@@ -201,7 +201,7 @@ class HomeTickerService
         if ($newMembers >= 3) {
             $events[] = [
                 'at' => now(),
-                'icon' => '👥',
+                'icon' => 'members',
                 'text' => "{$newMembers} new members joined this week",
                 'url' => null,
             ];

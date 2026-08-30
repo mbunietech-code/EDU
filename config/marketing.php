@@ -42,10 +42,12 @@ return [
         'activity_only' => env('HOME_TICKER_ACTIVITY_ONLY', false),
 
         // Manual promo messages (padding / fallback).
+        // 'icon' is a keyword mapped to an SVG in the ticker component:
+        // bolt | unlock | tool | product | scholarship | members | shield | star
         'promos' => [
-            ['icon' => '⚡', 'text' => 'Claude, ChatGPT & more — activated fast after payment', 'url' => '/ai-tools'],
-            ['icon' => '🎓', 'text' => 'Fresh scholarship opportunities added every week', 'url' => '/scholarships'],
-            ['icon' => '🛡️', 'text' => 'Authorized access, managed subscriptions, real support', 'url' => '/about'],
+            ['icon' => 'bolt', 'text' => 'Claude, ChatGPT & more — activated fast after payment', 'url' => '/ai-tools'],
+            ['icon' => 'scholarship', 'text' => 'Fresh scholarship opportunities added every week', 'url' => '/scholarships'],
+            ['icon' => 'shield', 'text' => 'Authorized access, managed subscriptions, real support', 'url' => '/about'],
         ],
     ],
 
