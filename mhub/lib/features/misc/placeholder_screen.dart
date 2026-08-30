@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Temporary screen for features whose API + UI are not built yet.
+import '../../theme/tokens.dart';
+
+/// Temporary screen for features whose native version is not built yet.
 class PlaceholderScreen extends StatelessWidget {
   const PlaceholderScreen({super.key, required this.title, this.icon});
 
@@ -10,21 +12,23 @@ class PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.pageBackground,
       appBar: AppBar(title: Text(title)),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon ?? Icons.construction,
-                size: 48, color: Theme.of(context).colorScheme.outline),
+            Icon(icon ?? Icons.construction_outlined,
+                size: 44, color: AppColors.gray400),
             const SizedBox(height: 12),
-            Text('$title inakuja hivi karibuni',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('$title is coming soon',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray700)),
             const SizedBox(height: 4),
-            Text(
-              'Screen hii itaunganishwa na API ya backend.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            const Text('This screen is being built to match the website.',
+                style: TextStyle(fontSize: 13, color: AppColors.gray500)),
           ],
         ),
       ),

@@ -74,9 +74,13 @@ set_target_properties(${BINARY_NAME}
 )
 
 
-# Generated plugin build rules, which manage building the plugins and adding
-# them to the application.
-include(flutter/generated_plugins.cmake)
+# Generated plugin build rules. Firebase has no working Linux support, so
+# strip any firebase_* plugin from the generated list (the Dart code guards
+# Firebase to Android/iOS anyway).
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/flutter/generated_plugins.cmake" _mhub_plugins)
+string(REGEX REPLACE "[ \t]*firebase_[A-Za-z0-9_]+[ \t]*\r?\n" "" _mhub_plugins "${_mhub_plugins}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated_plugins.filtered.cmake" "${_mhub_plugins}")
+include("${CMAKE_CURRENT_BINARY_DIR}/generated_plugins.filtered.cmake")
 
 
 # === Installation ===

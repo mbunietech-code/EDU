@@ -22,6 +22,15 @@ class OrdersRepository {
   Future<void> cancel(int id) async {
     await _api.post('/orders/$id/cancel');
   }
+
+  /// Place a new order for a product plan. Returns the created order.
+  Future<Order> create({required int productId, required int planId}) async {
+    final data = await _api.post('/orders', data: {
+      'product_id': productId,
+      'plan_id': planId,
+    });
+    return Order.fromJson((data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
+  }
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {

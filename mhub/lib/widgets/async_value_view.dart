@@ -26,7 +26,13 @@ class AsyncValueView<T> extends StatelessWidget {
           child: child,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(
+        child: SizedBox(
+          height: 28,
+          width: 28,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      ),
       error: (err, _) => _ErrorState(
         message: '$err',
         onRetry: onRefresh,

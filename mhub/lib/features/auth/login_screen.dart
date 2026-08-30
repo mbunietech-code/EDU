@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../theme/app_theme.dart';
+import '../../theme/tokens.dart';
+import '../../widgets/mbui/mbui.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -37,79 +38,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final state = ref.watch(authControllerProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.pageBackground,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const _Logo(),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sign in to MHub',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 28),
-                  TextFormField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.alternate_email),
+            child: MbuiCard(
+              padding: const EdgeInsets.all(28),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Center(child: _BrandMark()),
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Text('Welcome back',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.gray900,
+                          )),
                     ),
-                    validator: (v) => (v == null || !v.contains('@'))
-                        ? 'Enter a valid email'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _password,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility
-                            : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                    const SizedBox(height: 4),
+                    const Center(
+                      child: Text('Sign in to your MbunieEduHub account.',
+                          style: TextStyle(fontSize: 13, color: AppColors.gray500)),
+                    ),
+                    const SizedBox(height: 24),
+                    _Field(
+                      label: 'Email Address',
+                      child: TextFormField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(hintText: 'you@example.com'),
+                        validator: (v) => (v == null || !v.contains('@'))
+                            ? 'Enter a valid email'
+                            : null,
                       ),
                     ),
-                    onFieldSubmitted: (_) => _submit(),
-                    validator: (v) => (v == null || v.isEmpty)
-                        ? 'Enter your password'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  if (state.error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        state.error!,
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error),
+                    const SizedBox(height: 16),
+                    _Field(
+                      label: 'Password',
+                      child: TextFormField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        autofillHints: const [AutofillHints.password],
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              color: AppColors.gray400,
+                            ),
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                          ),
+                        ),
+                        onFieldSubmitted: (_) => _submit(),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Enter your password' : null,
                       ),
                     ),
-                  const SizedBox(height: 4),
-                  FilledButton(
-                    onPressed: state.busy ? null : _submit,
-                    child: state.busy
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Sign in'),
-                  ),
-                ],
+                    if (state.error != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.red50,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.red600.withValues(alpha: 0.2)),
+                        ),
+                        child: Text(state.error!,
+                            style: const TextStyle(color: AppColors.red700, fontSize: 13)),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    MbuiButton(
+                      label: 'Sign in',
+                      loading: state.busy,
+                      fullWidth: true,
+                      onPressed: _submit,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -119,43 +133,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _Logo extends StatelessWidget {
-  const _Logo();
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.child});
+  final String label;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppTheme.brandNavy, AppTheme.brandSky],
-            ),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'M',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 52,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'MHUB',
-          style: Theme.of(context)
-              .textTheme
-              .headlineSmall
-              ?.copyWith(fontWeight: FontWeight.w900, letterSpacing: 2),
-        ),
+        Text(label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.gray700,
+            )),
+        const SizedBox(height: 6),
+        child,
       ],
+    );
+  }
+}
+
+class _BrandMark extends StatelessWidget {
+  const _BrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.indigo600,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      alignment: Alignment.center,
+      child: const Text('M',
+          style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
     );
   }
 }

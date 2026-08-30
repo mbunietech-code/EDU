@@ -59,6 +59,21 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get(path, queryParameters: query));
 
+  /// Fetch raw bytes (e.g. an authenticated image/file download).
+  Future<List<int>> getBytes(String path) async {
+    try {
+      final res = await _dio.get<List<int>>(
+        path,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final code = res.statusCode ?? 0;
+      if (code >= 200 && code < 300 && res.data != null) return res.data!;
+      throw ApiException('Request failed ($code).', statusCode: code);
+    } on DioException catch (e) {
+      throw ApiException(_transportMessage(e), statusCode: e.response?.statusCode);
+    }
+  }
+
   Future<dynamic> post(String path, {Object? data}) =>
       _send(() => _dio.post(path, data: data));
 

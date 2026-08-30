@@ -1,19 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../theme/tokens.dart';
+import '../admin/admin_catalogue_screen.dart';
+import '../admin/admin_chat_screen.dart';
+import '../admin/admin_finance_screen.dart';
+import '../admin/admin_orders_screen.dart';
+import '../admin/admin_payments_screen.dart';
+import '../admin/admin_reports_screen.dart';
+import '../admin/admin_system_screen.dart';
+import '../admin/admin_users_screen.dart';
 import '../auth/auth_controller.dart';
+import '../chat/chat_screen.dart';
 import '../dashboard/admin_dashboard_screen.dart';
 import '../dashboard/user_dashboard_screen.dart';
-import '../misc/placeholder_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../orders/orders_screen.dart';
+import '../payments/payments_screen.dart';
 import '../products/products_screen.dart';
 import '../profile/profile_screen.dart';
+import '../scholarships/scholarships_screen.dart';
+import '../subscriptions/subscriptions_screen.dart';
+import '../tools/tools_screen.dart';
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.screen);
+  const _Destination(this.label, this.icon, this.screen, {this.primary = false});
   final String label;
   final IconData icon;
   final Widget screen;
+  final bool primary;
 }
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -29,40 +44,73 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   List<_Destination> _destinationsFor({required bool isAdmin}) {
     if (isAdmin) {
       return const [
-        _Destination('Overview', Icons.dashboard_outlined, AdminDashboardScreen()),
-        _Destination('Orders', Icons.receipt_long_outlined,
-            PlaceholderScreen(title: 'Orders', icon: Icons.receipt_long)),
-        _Destination('Payments', Icons.payments_outlined,
-            PlaceholderScreen(title: 'Payments', icon: Icons.payments)),
-        _Destination('Users', Icons.group_outlined,
-            PlaceholderScreen(title: 'Users', icon: Icons.group)),
-        _Destination('Messages', Icons.chat_bubble_outline,
-            PlaceholderScreen(title: 'Messages', icon: Icons.chat_bubble)),
+        _Destination('Overview', Icons.dashboard_outlined, AdminDashboardScreen(), primary: true),
+        _Destination('Payments', Icons.payments_outlined, AdminPaymentsScreen(), primary: true),
+        _Destination('Orders', Icons.receipt_long_outlined, AdminOrdersScreen(), primary: true),
+        _Destination('Messages', Icons.chat_bubble_outline, AdminChatScreen(), primary: true),
+        _Destination('Catalogue', Icons.inventory_2_outlined, AdminCatalogueScreen()),
+        _Destination('Users', Icons.group_outlined, AdminUsersScreen()),
+        _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
+        _Destination('Finance', Icons.account_balance_outlined, AdminFinanceScreen()),
+        _Destination('System', Icons.tune, AdminSystemScreen()),
+        _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
       ];
     }
     return const [
-      _Destination('Home', Icons.home_outlined, UserDashboardScreen()),
-      _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen()),
-      _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen()),
-      _Destination('Messages', Icons.chat_bubble_outline,
-          PlaceholderScreen(title: 'Messages', icon: Icons.chat_bubble)),
+      _Destination('Home', Icons.home_outlined, UserDashboardScreen(), primary: true),
+      _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen(), primary: true),
+      _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
+      _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
+      _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
+      _Destination('Subscriptions', Icons.autorenew, SubscriptionsScreen()),
+      _Destination('Research Tools', Icons.science_outlined, ToolsScreen()),
+      _Destination('Scholarships', Icons.school_outlined, ScholarshipsScreen()),
+      _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
       _Destination('Profile', Icons.person_outline, ProfileScreen()),
     ];
+  }
+
+  void _openMore(List<_Destination> all) {
+    final extra = <int>[
+      for (var i = 0; i < all.length; i++)
+        if (!all[i].primary) i,
+    ];
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final i in extra)
+              ListTile(
+                leading: Icon(all[i].icon),
+                title: Text(all[i].label),
+                selected: i == _index,
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() => _index = i);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;
     final isAdmin = user?.isAdmin ?? false;
-    final destinations = _destinationsFor(isAdmin: isAdmin);
-    final safeIndex = _index.clamp(0, destinations.length - 1);
+    final all = _destinationsFor(isAdmin: isAdmin);
+    final safeIndex = _index.clamp(0, all.length - 1);
 
     final body = IndexedStack(
       index: safeIndex,
-      children: [for (final d in destinations) d.screen],
+      children: [for (final d in all) d.screen],
     );
-    final wide = MediaQuery.sizeOf(context).width >= 720;
+    final wide = MediaQuery.sizeOf(context).width >= 800;
 
     if (wide) {
       return Scaffold(
@@ -73,15 +121,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               onDestinationSelected: (i) => setState(() => _index = i),
               labelType: NavigationRailLabelType.all,
               leading: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 14),
                 child: _RailBadge(),
               ),
               destinations: [
-                for (final d in destinations)
-                  NavigationRailDestination(
-                    icon: Icon(d.icon),
-                    label: Text(d.label),
-                  ),
+                for (final d in all)
+                  NavigationRailDestination(icon: Icon(d.icon), label: Text(d.label)),
               ],
             ),
             const VerticalDivider(width: 1),
@@ -91,14 +136,32 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       );
     }
 
+    // Mobile: bottom bar with the primary destinations + a "More" entry.
+    final primary = <int>[
+      for (var i = 0; i < all.length; i++)
+        if (all[i].primary) i,
+    ];
+    final onMore = !primary.contains(safeIndex);
+    final selectedBar = onMore ? primary.length : primary.indexOf(safeIndex);
+
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: safeIndex,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: selectedBar,
+        onDestinationSelected: (i) {
+          if (i == primary.length) {
+            _openMore(all);
+          } else {
+            setState(() => _index = primary[i]);
+          }
+        },
         destinations: [
-          for (final d in destinations)
-            NavigationDestination(icon: Icon(d.icon), label: d.label),
+          for (final i in primary)
+            NavigationDestination(icon: Icon(all[i].icon), label: all[i].label),
+          NavigationDestination(
+            icon: Icon(onMore ? Icons.more_horiz : Icons.more_horiz_outlined),
+            label: 'More',
+          ),
         ],
       ),
     );
@@ -111,20 +174,15 @@ class _RailBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF0B2A5B), Color(0xFF2C9CFF)],
-        ),
+        color: AppColors.indigo600,
       ),
       alignment: Alignment.center,
       child: const Text('M',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22)),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
     );
   }
 }

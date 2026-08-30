@@ -11,10 +11,14 @@ add_executable(${BINARY_NAME} WIN32
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
-  "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
+  # firebase-filtered copy produced by the top-level CMakeLists.txt
+  "${CMAKE_BINARY_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
 )
+
+# The filtered registrant #includes "generated_plugin_registrant.h" from flutter/.
+target_include_directories(${BINARY_NAME} PRIVATE "${FLUTTER_MANAGED_DIR}")
 
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.

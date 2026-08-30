@@ -15,8 +15,9 @@ class MHubApp extends ConsumerWidget {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
+      // Light-only, to match the website.
       theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.light,
       home: const _AuthGate(),
     );
   }

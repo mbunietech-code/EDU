@@ -89,9 +89,18 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Re-fetch the current user (e.g. after editing the profile).
+  Future<void> refreshUser() async {
+    try {
+      state = state.copyWith(user: await _repo.me());
+    } on ApiException {
+      // keep the current user
+    }
+  }
+
   Future<void> logout() async {
     state = state.copyWith(busy: true);
-    _ref.read(notificationCenterProvider).stop();
+    unawaited(_ref.read(notificationCenterProvider).stop());
     await _repo.logout();
     await _tokens.clear();
     state = const AuthState(status: AuthStatus.unauthenticated);

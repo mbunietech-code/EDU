@@ -22,9 +22,25 @@ class FcmService
 
     public function isConfigured(): bool
     {
-        return (bool) config('services.fcm.enabled')
-            && is_string(config('services.fcm.credentials'))
-            && is_file(config('services.fcm.credentials'));
+        return (bool) config('services.fcm.enabled') && $this->credentialsPath() !== null;
+    }
+
+    /**
+     * The configured path, or the first *.json in storage/app/firebase/
+     * (Firebase downloads the service-account key with a long default name).
+     */
+    private function credentialsPath(): ?string
+    {
+        $configured = config('services.fcm.credentials');
+        if (is_string($configured) && is_file($configured)) {
+            return $configured;
+        }
+
+        foreach (glob(storage_path('app/firebase/*.json')) ?: [] as $file) {
+            return $file;
+        }
+
+        return null;
     }
 
     /**
@@ -86,8 +102,8 @@ class FcmService
 
     private function credentials(): array
     {
-        $path = config('services.fcm.credentials');
-        $json = json_decode((string) file_get_contents($path), true);
+        $path = $this->credentialsPath();
+        $json = json_decode((string) file_get_contents((string) $path), true);
 
         if (! is_array($json) || empty($json['client_email']) || empty($json['private_key'])) {
             throw new \RuntimeException('Invalid FCM service-account file.');

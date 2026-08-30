@@ -17,6 +17,7 @@ class OrdersScreen extends ConsumerWidget {
     final async = ref.watch(ordersProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(title: Text(title)),
       body: AsyncValueView<List<Order>>(
         value: async,

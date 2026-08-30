@@ -4,11 +4,49 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Plan;
+use App\Models\Product;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    public function store(Request $request, NotificationService $notifications): JsonResponse
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'plan_id' => ['required', 'exists:plans,id'],
+        ]);
+
+        $product = Product::where('id', $data['product_id'])->where('status', 'published')->firstOrFail();
+        $plan = Plan::where('id', $data['plan_id'])
+            ->where('product_id', $product->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        do {
+            $number = 'MBT-'.strtoupper(Str::random(6));
+        } while (Order::where('order_number', $number)->exists());
+
+        $order = Order::create([
+            'user_id' => $request->user()->id,
+            'order_number' => $number,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'amount' => $plan->price,
+            'status' => 'pending',
+        ]);
+
+        $notifications->notifyOrderCreated($request->user(), $order);
+        \App\Models\ActivityLog::log('order_created', 'Order', $order->id, [
+            'order_number' => $order->order_number, 'amount' => $order->amount,
+        ]);
+
+        return response()->json(['data' => $this->row($order->fresh()->load(['product', 'plan']))], 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $orders = $request->user()

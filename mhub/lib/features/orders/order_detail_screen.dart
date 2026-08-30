@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
 import '../../models/order.dart';
 import '../../widgets/async_value_view.dart';
+import '../../widgets/mbui/mbui.dart';
 import '../../widgets/status_chip.dart';
+import '../payments/submit_payment_screen.dart';
 import 'orders_repository.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -18,6 +20,7 @@ class OrderDetailScreen extends ConsumerWidget {
     final async = ref.watch(orderDetailProvider(orderId));
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(title: Text(title)),
       body: AsyncValueView<Order>(
         value: async,
@@ -71,6 +74,23 @@ class OrderDetailScreen extends ConsumerWidget {
                     trailing: StatusChip(p.status),
                   ),
                 ),
+            ],
+            if (o.isPending && !o.payments.any((p) => p.status == 'pending')) ...[
+              const SizedBox(height: 24),
+              MbuiButton(
+                label: o.payments.isEmpty ? 'Submit payment' : 'Submit another payment',
+                icon: Icons.receipt_long_outlined,
+                fullWidth: true,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SubmitPaymentScreen(
+                      orderId: o.id,
+                      orderTitle: o.title,
+                      amountLabel: o.amountLabel,
+                    ),
+                  ),
+                ),
+              ),
             ],
             if (o.canCancel) ...[
               const SizedBox(height: 28),

@@ -54,13 +54,28 @@ endfunction()
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
 
+# --- Firebase / desktop exclusion --------------------------------------------
+# firebase_core has no working Windows desktop support (its Windows CMake
+# references non-existent firestore/storage targets). Strip every firebase_*
+# entry from the generated plugin list AND the plugin registrant, and build the
+# filtered copies. The Dart code guards all Firebase calls to Android/iOS.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/flutter/generated_plugins.cmake" _mhub_plugins)
+string(REGEX REPLACE "[ \t]*firebase_[A-Za-z0-9_]+[ \t]*\r?\n" "" _mhub_plugins "${_mhub_plugins}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated_plugins.filtered.cmake" "${_mhub_plugins}")
+
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/flutter/generated_plugin_registrant.cc" _mhub_reg)
+string(REGEX REPLACE "#include +<firebase_[^>\n]+>[ \t]*\r?\n" "" _mhub_reg "${_mhub_reg}")
+string(REGEX REPLACE "[ \t]*Firebase[A-Za-z0-9]+RegisterWithRegistrar\\([^;]*\\);[ \t]*\r?\n" "" _mhub_reg "${_mhub_reg}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated_plugin_registrant.cc" "${_mhub_reg}")
+set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/generated_plugin_registrant.cc"
+  PROPERTIES GENERATED TRUE)
+# ---------------------------------------------------------------------------
+
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
-
-# Generated plugin build rules, which manage building the plugins and adding
-# them to the application.
-include(flutter/generated_plugins.cmake)
+# Generated plugin build rules (firebase-filtered copy from above).
+include("${CMAKE_CURRENT_BINARY_DIR}/generated_plugins.filtered.cmake")
 
 
 # === Installation ===

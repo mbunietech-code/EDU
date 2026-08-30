@@ -50,14 +50,15 @@ dependencies:
 
   # Utilities
   intl: ^0.20.2
+  image_picker: ^1.1.2
+  url_launcher: ^6.3.1
 
-  # Local notifications (all platforms). Background push via FCM is added
-  # for Android in a follow-up — firebase_core currently breaks the desktop
-  # (Windows/Linux) CMake build.
+  # Local notifications (all platforms) + FCM background push (Android/iOS).
+  # firebase_* is filtered out of the Windows/Linux CMake build (see
+  # windows/CMakeLists.txt) since firebase_core has no working desktop support.
   flutter_local_notifications: ^18.0.1
-
-  # App lifecycle (pause polling when backgrounded)
-  # (uses the built-in WidgetsBindingObserver — no package needed)
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
 
 dev_dependencies:
   flutter_test:
@@ -69,9 +70,11 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.2
 
 flutter_launcher_icons:
-  image_path: "assets/icon/mhub_icon.png"
+  image_path: "assets/icon/mhub_icon_square.png"
   android: true
   min_sdk_android: 21
+  adaptive_icon_background: "#21327F"
+  adaptive_icon_foreground: "assets/icon/mhub_icon_fg.png"
   windows:
     generate: true
     icon_size: 256

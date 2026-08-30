@@ -23,6 +23,32 @@ class DatabaseBackupService
         return $db.'_backup_'.now()->format('Y-m-d_His').'.sql';
     }
 
+    /**
+     * Build the full backup as a string (used by the API, which stores the
+     * file server-side instead of streaming it to the client).
+     */
+    public function dumpToString(): string
+    {
+        ob_start();
+        $pdo = DB::connection()->getPdo();
+        $database = DB::connection()->getDatabaseName();
+
+        $this->line('-- MbunieEduHub database backup');
+        $this->line('-- Database: '.$database);
+        $this->line('-- Generated: '.now()->toDateTimeString());
+        $this->line('SET NAMES utf8mb4;');
+        $this->line('SET FOREIGN_KEY_CHECKS = 0;');
+        $this->line('');
+
+        foreach ($this->tables($database) as $table) {
+            $this->dumpTable($pdo, $table);
+        }
+
+        $this->line('SET FOREIGN_KEY_CHECKS = 1;');
+
+        return (string) ob_get_clean();
+    }
+
     public function download(): StreamedResponse
     {
         $filename = $this->filename();
