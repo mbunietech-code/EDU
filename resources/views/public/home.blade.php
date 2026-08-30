@@ -4,10 +4,7 @@
         <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-gray-900 to-gray-900"></div>
         <div class="relative mbui-container py-20 sm:py-28">
             <div class="max-w-3xl">
-                <p class="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/20">
-                    Authorized AI Access Management
-                </p>
-                <h1 class="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">
                     Premium AI tools,<br>
                     <span class="text-indigo-400">managed for you.</span>
                 </h1>
