@@ -245,12 +245,20 @@ class FinanceController extends Controller
         return redirect()->route('admin.finance.expenses.index')->with('success', 'Expense updated.');
     }
 
-    public function expenseReceipt(FinanceExpense $expense): StreamedResponse
+    public function expenseReceipt(Request $request, FinanceExpense $expense): StreamedResponse
     {
         abort_unless($expense->hasReceipt(), 404);
-        abort_unless(Storage::disk('private')->exists($expense->receipt_path), 404);
 
-        return Storage::disk('private')->response($expense->receipt_path);
+        $disk = Storage::disk('private');
+        abort_unless($disk->exists($expense->receipt_path), 404);
+
+        $extension = pathinfo($expense->receipt_path, PATHINFO_EXTENSION) ?: 'file';
+        $name = 'receipt-'.\Illuminate\Support\Str::slug($expense->label ?: 'expense').'-'.$expense->id.'.'.$extension;
+
+        // ?download=1 forces a file download; otherwise it opens inline.
+        return $request->boolean('download')
+            ? $disk->download($expense->receipt_path, $name)
+            : $disk->response($expense->receipt_path, $name);
     }
 
     public function expenseDestroy(Request $request, FinanceExpense $expense, DeletionService $deletionService)

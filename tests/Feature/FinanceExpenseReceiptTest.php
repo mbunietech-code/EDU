@@ -66,10 +66,19 @@ class FinanceExpenseReceiptTest extends TestCase
             'receipt_path' => $path,
         ]);
 
+        // Inline view
+        $inline = $this->actingAs($this->admin())
+            ->withSession(['finance_unlocked' => true])
+            ->get(route('admin.finance.expenses.receipt', $expense));
+        $inline->assertOk();
+        $this->assertStringContainsString('inline', $inline->headers->get('content-disposition'));
+
+        // Forced download
         $this->actingAs($this->admin())
             ->withSession(['finance_unlocked' => true])
-            ->get(route('admin.finance.expenses.receipt', $expense))
-            ->assertOk();
+            ->get(route('admin.finance.expenses.receipt', ['expense' => $expense, 'download' => 1]))
+            ->assertOk()
+            ->assertDownload('receipt-hosting-'.$expense->id.'.png');
     }
 
     public function test_receipt_can_be_replaced_and_removed_on_update(): void

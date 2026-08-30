@@ -110,7 +110,10 @@
                         <td class="mbui-td text-gray-500">{{ $expense->spent_at->format('d M Y') }}</td>
                         <td class="mbui-td">
                             @if ($expense->hasReceipt())
-                                <a href="{{ route('admin.finance.expenses.receipt', $expense) }}" target="_blank" rel="noopener" class="mbui-anchor text-sm">View</a>
+                                <div class="flex items-center gap-3">
+                                    <a href="{{ route('admin.finance.expenses.receipt', $expense) }}" target="_blank" rel="noopener" class="mbui-anchor text-sm">View</a>
+                                    <a href="{{ route('admin.finance.expenses.receipt', ['expense' => $expense, 'download' => 1]) }}" class="mbui-anchor text-sm">Download</a>
+                                </div>
                             @else
                                 <span class="text-sm text-gray-400">—</span>
                             @endif

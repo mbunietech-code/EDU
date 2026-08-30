@@ -66,8 +66,9 @@
             <div>
                 <x-input-label for="exp-receipt" value="Receipt (optional)" />
                 @if ($expense->hasReceipt())
-                    <div class="mt-1 flex items-center gap-4 text-sm">
+                    <div class="mt-1 flex flex-wrap items-center gap-4 text-sm">
                         <a href="{{ route('admin.finance.expenses.receipt', $expense) }}" target="_blank" rel="noopener" class="mbui-anchor">View current receipt</a>
+                        <a href="{{ route('admin.finance.expenses.receipt', ['expense' => $expense, 'download' => 1]) }}" class="mbui-anchor">Download</a>
                         <label class="inline-flex items-center gap-2 text-gray-600">
                             <input type="checkbox" name="remove_receipt" value="1" class="rounded border-gray-300">
                             Remove it
