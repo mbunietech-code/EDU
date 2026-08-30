@@ -72,6 +72,64 @@
 
     <div class="mt-6">
         <x-mbui.card class="p-6">
+            <h2 class="mbui-section-label">App downloads</h2>
+            <p class="mt-1 text-sm text-gray-500">Download buttons for the MHub app, shown at the bottom of every public page. For each platform, either upload the installer <strong>or</strong> paste a link (e.g. a GitHub release or store page). Large files are better linked than uploaded.</p>
+
+            <form method="POST" action="{{ route('admin.settings.downloads.update') }}" enctype="multipart/form-data" class="mt-5 space-y-6">
+                @csrf
+
+                @foreach ($appPlatforms as $platform => $label)
+                    @php $row = $appDownloads[$platform]; @endphp
+                    <fieldset class="rounded-lg border border-gray-200 p-4">
+                        <legend class="flex items-center gap-2 px-1 text-sm font-semibold text-gray-900">
+                            {{ $label }}
+                            @if ($row['url'])
+                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">link set</span>
+                            @elseif ($row['path'])
+                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">file uploaded</span>
+                            @else
+                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">not set</span>
+                            @endif
+                        </legend>
+
+                        <div class="mt-3 grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <x-input-label :for="'url_'.$platform" value="Link (URL)" />
+                                <x-text-input :id="'url_'.$platform" type="url" :name="'url_'.$platform" class="mbui-input mt-1"
+                                    :value="old('url_'.$platform, $row['url'])" placeholder="https://github.com/.../MHub-Setup.exe" />
+                                <x-input-error :messages="$errors->get('url_'.$platform)" class="mt-1" />
+                            </div>
+                            <div>
+                                <x-input-label :for="'file_'.$platform" value="…or upload a file" />
+                                <input :id="'file_'.$platform" type="file" name="file_{{ $platform }}"
+                                    class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                                <x-input-error :messages="$errors->get('file_'.$platform)" class="mt-1" />
+                            </div>
+                            <div>
+                                <x-input-label :for="'version_'.$platform" value="Version (optional)" />
+                                <x-text-input :id="'version_'.$platform" type="text" :name="'version_'.$platform" class="mbui-input mt-1"
+                                    :value="old('version_'.$platform, $row['version'])" placeholder="v1.0.0" />
+                            </div>
+                        </div>
+
+                        @if ($row['url'] || $row['path'])
+                            <label class="mt-3 inline-flex items-center gap-2 text-sm text-gray-600">
+                                <input type="checkbox" name="remove_{{ $platform }}" value="1" class="rounded border-gray-300">
+                                Remove this download
+                            </label>
+                        @endif
+                    </fieldset>
+                @endforeach
+
+                <div class="flex items-center justify-end border-t border-gray-100 pt-5">
+                    <x-mbui.button type="submit">Save app downloads</x-mbui.button>
+                </div>
+            </form>
+        </x-mbui.card>
+    </div>
+
+    <div class="mt-6">
+        <x-mbui.card class="p-6">
             <h2 class="mbui-section-label">Email (SMTP) settings</h2>
             <p class="mt-1 text-sm text-gray-500">Used to send order, payment and password-reset emails. Leave the password blank to keep the current one.</p>
 

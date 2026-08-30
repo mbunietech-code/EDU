@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\CredentialService;
 use App\Services\MailSettingsService;
+use App\Support\AppDownloads;
 use App\Support\Branding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -20,7 +21,7 @@ class SettingController extends Controller
 
     public function index()
     {
-        $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP])
+        $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP, AppDownloads::GROUP])
             ->orderBy('group')
             ->orderBy('key')
             ->paginate(20);
@@ -32,7 +33,63 @@ class SettingController extends Controller
             'favicon' => Branding::faviconUrl(),
         ];
 
-        return view('admin.settings.index', compact('settings', 'mailSettings', 'branding'));
+        $appDownloads = AppDownloads::adminRows();
+        $appPlatforms = AppDownloads::PLATFORMS;
+
+        return view('admin.settings.index', compact('settings', 'mailSettings', 'branding', 'appDownloads', 'appPlatforms'));
+    }
+
+    public function updateDownloads(Request $request)
+    {
+        $rules = [];
+        foreach (array_keys(AppDownloads::PLATFORMS) as $platform) {
+            $rules["file_{$platform}"] = ['nullable', 'file', 'max:262144', 'extensions:apk,zip,exe,msi,dmg,deb,appimage,gz,tar'];
+            $rules["url_{$platform}"] = ['nullable', 'url', 'max:2048'];
+            $rules["version_{$platform}"] = ['nullable', 'string', 'max:50'];
+            $rules["remove_{$platform}"] = ['nullable', 'boolean'];
+        }
+        $request->validate($rules);
+
+        $disk = Storage::disk('public');
+
+        foreach (array_keys(AppDownloads::PLATFORMS) as $platform) {
+            $pathKey = AppDownloads::key($platform, 'path');
+            $urlKey = AppDownloads::key($platform, 'url');
+            $versionKey = AppDownloads::key($platform, 'version');
+
+            $currentPath = Setting::get($pathKey);
+            $remove = (bool) $request->boolean("remove_{$platform}");
+
+            if ($request->hasFile("file_{$platform}")) {
+                if ($currentPath && $disk->exists($currentPath)) {
+                    $disk->delete($currentPath);
+                }
+                $stored = $request->file("file_{$platform}")->store('app-downloads', 'public');
+                Setting::set($pathKey, $stored, 'string', AppDownloads::GROUP);
+                Setting::set($urlKey, '', 'string', AppDownloads::GROUP);
+            } elseif ($remove) {
+                if ($currentPath && $disk->exists($currentPath)) {
+                    $disk->delete($currentPath);
+                }
+                Setting::set($pathKey, '', 'string', AppDownloads::GROUP);
+                Setting::set($urlKey, '', 'string', AppDownloads::GROUP);
+            } elseif ($request->filled("url_{$platform}")) {
+                // A URL replaces any uploaded file.
+                if ($currentPath && $disk->exists($currentPath)) {
+                    $disk->delete($currentPath);
+                }
+                Setting::set($pathKey, '', 'string', AppDownloads::GROUP);
+                Setting::set($urlKey, $request->input("url_{$platform}"), 'string', AppDownloads::GROUP);
+            }
+
+            Setting::set($versionKey, $request->input("version_{$platform}", '') ?? '', 'string', AppDownloads::GROUP);
+        }
+
+        AppDownloads::forget();
+
+        \App\Models\ActivityLog::log('app_downloads_updated', 'Setting');
+
+        return back()->with('success', 'App downloads updated.');
     }
 
     public function updateBranding(Request $request)

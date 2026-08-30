@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,6 +20,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Authenticated member area
     Route::get('/dashboard', [DashboardController::class, 'user']);
+
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/{slug}', [ProductController::class, 'show']);
+
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
 
     // Admin area
     Route::middleware('admin')->prefix('admin')->group(function () {

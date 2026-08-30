@@ -69,7 +69,9 @@
         {{ $slot }}
     </main>
 
-    <footer class="mt-16 border-t border-gray-200 bg-white">
+    <x-partials.app-downloads />
+
+    <footer class="border-t border-gray-200 bg-white">
         <div class="mbui-container py-12">
             <div class="grid gap-8 md:grid-cols-4">
                 <div class="md:col-span-2">
