@@ -11,16 +11,16 @@ class StatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth ~/ 220 == 0
-            ? 1
-            : (constraints.maxWidth ~/ 220).clamp(1, 4);
+        final columns = (constraints.maxWidth ~/ 200).clamp(1, 4);
+        // Keep tiles compact: shorter when stacked in a single column.
+        final aspect = columns == 1 ? 3.4 : 1.5;
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.7,
+          childAspectRatio: aspect,
           children: [for (final s in stats) _StatTile(stat: s)],
         );
       },
