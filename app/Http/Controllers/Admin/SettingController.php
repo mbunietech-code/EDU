@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\CredentialService;
 use App\Services\MailSettingsService;
+use App\Support\Branding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
@@ -18,14 +20,66 @@ class SettingController extends Controller
 
     public function index()
     {
-        $settings = Setting::where('group', '!=', 'mail')
+        $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP])
             ->orderBy('group')
             ->orderBy('key')
             ->paginate(20);
 
         $mailSettings = Setting::where('group', 'mail')->pluck('value', 'key');
 
-        return view('admin.settings.index', compact('settings', 'mailSettings'));
+        $branding = [
+            'logo' => Branding::logoUrl(),
+            'favicon' => Branding::faviconUrl(),
+        ];
+
+        return view('admin.settings.index', compact('settings', 'mailSettings', 'branding'));
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $request->validate([
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'favicon' => ['nullable', 'file', 'mimes:png,ico', 'max:512'],
+            'remove_logo' => ['nullable', 'boolean'],
+            'remove_favicon' => ['nullable', 'boolean'],
+        ]);
+
+        $disk = Storage::disk('public');
+
+        $this->handleBrandingAsset(
+            $request, $disk, 'logo', Branding::LOGO_KEY, (bool) $request->boolean('remove_logo'),
+        );
+        $this->handleBrandingAsset(
+            $request, $disk, 'favicon', Branding::FAVICON_KEY, (bool) $request->boolean('remove_favicon'),
+        );
+
+        Branding::forget();
+
+        \App\Models\ActivityLog::log('branding_updated', 'Setting');
+
+        return back()->with('success', 'Branding updated.');
+    }
+
+    private function handleBrandingAsset(Request $request, $disk, string $field, string $key, bool $remove): void
+    {
+        $current = Setting::get($key);
+
+        if ($request->hasFile($field)) {
+            if ($current && $disk->exists($current)) {
+                $disk->delete($current);
+            }
+            $path = $request->file($field)->store('branding', 'public');
+            Setting::set($key, $path, 'string', Branding::GROUP);
+
+            return;
+        }
+
+        if ($remove) {
+            if ($current && $disk->exists($current)) {
+                $disk->delete($current);
+            }
+            Setting::set($key, '', 'string', Branding::GROUP);
+        }
     }
 
     public function update(Request $request)

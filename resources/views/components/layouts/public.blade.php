@@ -21,7 +21,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
 
-    <link rel="icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" href="{{ \App\Support\Branding::faviconUrl() ?? asset('favicon.ico') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -31,7 +31,7 @@
         <nav class="mbui-container flex h-16 items-center justify-between">
             <div class="flex items-center gap-8">
                 <a href="{{ route('public.home') }}" class="flex items-center gap-2">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
+                    <x-brand-mark class="h-9 w-9" />
                     <span class="text-lg font-bold tracking-tight text-gray-900">MbunieEduHub</span>
                 </a>
 
@@ -74,7 +74,7 @@
             <div class="grid gap-8 md:grid-cols-4">
                 <div class="md:col-span-2">
                     <div class="flex items-center gap-2">
-                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
+                        <x-brand-mark class="h-8 w-8" />
                         <span class="text-base font-bold tracking-tight text-gray-900">MbunieEduHub</span>
                     </div>
                     <p class="mt-3 max-w-md text-sm text-gray-500">

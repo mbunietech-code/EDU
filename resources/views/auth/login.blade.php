@@ -3,6 +3,9 @@
     <section class="mbui-container flex min-h-[70vh] items-center justify-center py-16">
         <div class="w-full max-w-md">
             <div class="mbui-card p-8">
+                <div class="mb-4 flex justify-center">
+                    <x-brand-mark class="h-12 w-12" rounded="rounded-xl" />
+                </div>
                 <h1 class="mbui-title text-center">Welcome back</h1>
                 <p class="mt-1 text-center text-sm text-gray-500">Sign in to your MbunieEduHub account.</p>
 

@@ -9,6 +9,69 @@
 
     <div class="mt-6">
         <x-mbui.card class="p-6">
+            <h2 class="mbui-section-label">Branding</h2>
+            <p class="mt-1 text-sm text-gray-500">Your logo appears in the site header, footer, admin sidebar and sign-in page. The favicon is the small icon shown in the browser tab.</p>
+
+            <form method="POST" action="{{ route('admin.settings.branding.update') }}" enctype="multipart/form-data" class="mt-5 grid gap-8 sm:grid-cols-2">
+                @csrf
+
+                <div>
+                    <x-input-label value="Logo" />
+                    <div class="mt-2 flex items-center gap-4">
+                        <div class="flex h-16 w-16 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+                            @if ($branding['logo'])
+                                <img src="{{ $branding['logo'] }}" alt="Current logo" class="h-full w-full object-contain">
+                            @else
+                                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
+                            @endif
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" name="logo" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                                class="mbui-input file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700">
+                            <p class="mt-1 text-xs text-gray-500">PNG, JPG or WebP. Max 2 MB. Square works best.</p>
+                        </div>
+                    </div>
+                    @if ($branding['logo'])
+                        <label class="mt-2 inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" name="remove_logo" value="1" class="rounded border-gray-300"> Remove current logo
+                        </label>
+                    @endif
+                    <x-input-error :messages="$errors->get('logo')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label value="Favicon" />
+                    <div class="mt-2 flex items-center gap-4">
+                        <div class="flex h-16 w-16 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+                            @if ($branding['favicon'])
+                                <img src="{{ $branding['favicon'] }}" alt="Current favicon" class="h-8 w-8 object-contain">
+                            @else
+                                <span class="text-xs text-gray-400">none</span>
+                            @endif
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" name="favicon" accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon"
+                                class="mbui-input file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700">
+                            <p class="mt-1 text-xs text-gray-500">PNG or ICO. Max 512 KB. 32×32 or 48×48 px.</p>
+                        </div>
+                    </div>
+                    @if ($branding['favicon'])
+                        <label class="mt-2 inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" name="remove_favicon" value="1" class="rounded border-gray-300"> Remove current favicon
+                        </label>
+                    @endif
+                    <x-input-error :messages="$errors->get('favicon')" class="mt-2" />
+                </div>
+
+                <div class="sm:col-span-2 flex items-center justify-end border-t border-gray-100 pt-5">
+                    <x-mbui.button type="submit">Save branding</x-mbui.button>
+                </div>
+            </form>
+        </x-mbui.card>
+    </div>
+
+    <div class="mt-6">
+        <x-mbui.card class="p-6">
             <h2 class="mbui-section-label">Email (SMTP) settings</h2>
             <p class="mt-1 text-sm text-gray-500">Used to send order, payment and password-reset emails. Leave the password blank to keep the current one.</p>
 

@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ? $title . ' | Admin | ' . config('app.name', 'MbunieEduHub') : 'Admin | ' . config('app.name', 'MbunieEduHub') }}</title>
+    <link rel="icon" href="{{ \App\Support\Branding::faviconUrl() ?? asset('favicon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
@@ -16,7 +17,7 @@
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
             <div class="flex h-16 items-center justify-between gap-2 border-b border-gray-800 px-6">
                 <div class="flex items-center gap-2">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">M</span>
+                    <x-brand-mark class="h-8 w-8" />
                     <span class="text-base font-bold tracking-tight text-white">MbunieEduHub</span>
                 </div>
                 <button type="button" class="lg:hidden text-gray-400 hover:text-white" @click="sidebarOpen = false">
