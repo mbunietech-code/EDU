@@ -12,7 +12,7 @@
                     <span class="text-indigo-400">managed for you.</span>
                 </h1>
                 <p class="mt-6 max-w-2xl text-lg text-gray-300">
-                    MbunieEduHub gives you authorized access to leading AI tools with transparent pricing, simple manual payments, and subscriptions that just work.
+                    MbunieEduHub gives you authorized access to leading AI tools with transparent pricing and subscriptions that just work.
                 </p>
                 <div class="mt-8 flex flex-col sm:flex-row gap-3">
                     <a href="{{ route('public.products.index') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
