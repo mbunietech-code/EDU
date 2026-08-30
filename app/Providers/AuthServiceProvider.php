@@ -16,6 +16,7 @@ use App\Policies\AccountPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\SubscriptionPolicy;
+use App\Support\Permissions;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,5 +35,18 @@ class AuthServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('admin-access', fn (User $user) => $user->is_admin);
+
+        // Super admins bypass every permission check.
+        Gate::before(fn (User $user) => $user->isSuperAdmin() ? true : null);
+
+        // One gate per fine-grained admin permission.
+        foreach (Permissions::keys() as $key) {
+            Gate::define($key, fn (User $user) => $user->hasPermission($key));
+        }
+
+        // These two are ALWAYS super-admin only — never grantable to a
+        // normal admin, not even via the "unrestricted" (null) fallback.
+        Gate::define('database.access', fn (User $user) => $user->isSuperAdmin());
+        Gate::define('team.manage', fn (User $user) => $user->isSuperAdmin());
     }
 }

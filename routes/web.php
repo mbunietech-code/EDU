@@ -5,7 +5,9 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DatabaseController;
 use App\Http\Controllers\Admin\DeletedRecordController;
+use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
@@ -43,6 +45,7 @@ Route::get('/up', function () {
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('public.home');
+Route::get('/ticker/feed', [\App\Http\Controllers\Public\TickerController::class, 'feed'])->name('public.ticker.feed');
 Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');
 Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
@@ -104,81 +107,168 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        Route::resource('users', AdminUserController::class)->only(['index', 'show']);
-        Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
-        Route::post('users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
-        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+        // --- Users --------------------------------------------------------
+        Route::middleware('can:users.view')->group(function () {
+            Route::resource('users', AdminUserController::class)->only(['index', 'show']);
+        });
+        Route::middleware('can:users.manage')->group(function () {
+            Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
+            Route::post('users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
+            Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+        });
 
-        Route::resource('products', AdminProductController::class);
-        Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])->name('software-files.store');
-        Route::resource('plans', AdminPlanController::class);
-        Route::resource('tools', AdminToolController::class)->except(['show']);
-        Route::post('tool-files', [AdminToolController::class, 'uploadFile'])->name('tool-files.store');
-        Route::resource('scholarships', AdminScholarshipController::class)->except(['show']);
-        Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
-        Route::get('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('contact-messages.show');
-        Route::delete('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
-        Route::resource('accounts', AdminAccountController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
-        Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
-        Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])->name('accounts.decrypt');
+        // --- Team (admins & permissions) — super admin only ---------------
+        Route::middleware('can:team.manage')->group(function () {
+            Route::get('team', [AdminTeamController::class, 'index'])->name('team.index');
+            Route::get('team/create', [AdminTeamController::class, 'create'])->name('team.create');
+            Route::post('team', [AdminTeamController::class, 'store'])->name('team.store');
+            Route::get('team/{user}/edit', [AdminTeamController::class, 'edit'])->name('team.edit');
+            Route::put('team/{user}', [AdminTeamController::class, 'update'])->name('team.update');
+            Route::delete('team/{user}', [AdminTeamController::class, 'destroy'])->name('team.destroy');
+        });
 
-        Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
-        Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
-        Route::get('orders/{order}/edit', [AdminOrderController::class, 'edit'])->name('orders.edit');
-        Route::put('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
-        Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
-        Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('orders.destroy');
-        Route::post('orders/{order}/reopen-access', [AdminOrderController::class, 'reopenAccess'])->name('orders.reopen-access');
-        Route::get('orders/{order}/receipt', [ReceiptController::class, 'adminShow'])->name('orders.receipt');
+        // --- Database (schema changes & backup) — super admin only -------
+        Route::middleware('can:database.access')->group(function () {
+            Route::get('database', [DatabaseController::class, 'index'])->name('database.index');
+            Route::post('database/apply', [DatabaseController::class, 'apply'])->name('database.apply');
+            Route::get('database/backup', [DatabaseController::class, 'backup'])->name('database.backup');
+        });
 
-        Route::get('payments', [AdminPaymentController::class, 'index'])->name('payments.index');
-        Route::get('payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
-        Route::post('payments/{payment}/approve', [AdminPaymentController::class, 'approve'])->name('payments.approve');
-        Route::post('payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
-        Route::get('payments/{payment}/proof/{proof}', [AdminPaymentController::class, 'showProof'])->name('payments.proof');
+        // --- Catalogue ---------------------------------------------------
+        Route::middleware('can:products.view')->group(function () {
+            Route::resource('products', AdminProductController::class)->only(['index', 'show']);
+            Route::resource('plans', AdminPlanController::class)->only(['index', 'show']);
+        });
+        Route::middleware('can:products.manage')->group(function () {
+            Route::resource('products', AdminProductController::class)->except(['index', 'show']);
+            Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])->name('software-files.store');
+            Route::resource('plans', AdminPlanController::class)->except(['index', 'show']);
+        });
 
-        Route::get('payment-methods', [AdminPaymentMethodController::class, 'index'])->name('payment-methods.index');
-        Route::post('payment-methods', [AdminPaymentMethodController::class, 'store'])->name('payment-methods.store');
-        Route::put('payment-methods/{paymentMethod}', [AdminPaymentMethodController::class, 'update'])->name('payment-methods.update');
-        Route::post('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'uploadQr'])->name('payment-methods.qr');
-        Route::delete('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'removeQr'])->name('payment-methods.qr.remove');
+        Route::middleware('can:tools.view')->group(function () {
+            Route::resource('tools', AdminToolController::class)->only(['index']);
+        });
+        Route::middleware('can:tools.manage')->group(function () {
+            Route::resource('tools', AdminToolController::class)->except(['show', 'index']);
+            Route::post('tool-files', [AdminToolController::class, 'uploadFile'])->name('tool-files.store');
+        });
 
-        Route::get('messages', [AdminChatController::class, 'index'])->name('chat.index');
-        Route::get('messages/create', [AdminChatController::class, 'create'])->name('chat.create');
-        Route::post('messages/create', [AdminChatController::class, 'start'])->name('chat.start');
-        Route::get('messages/{conversation}', [AdminChatController::class, 'show'])->name('chat.show');
-        Route::get('messages/{conversation}/fetch', [AdminChatController::class, 'fetch'])->name('chat.fetch');
-        Route::post('messages/{conversation}', [AdminChatController::class, 'store'])->name('chat.store');
-        Route::get('messages/{conversation}/file/{message}', [AdminChatController::class, 'attachment'])->name('chat.attachment');
+        Route::middleware('can:scholarships.view')->group(function () {
+            Route::resource('scholarships', AdminScholarshipController::class)->only(['index']);
+        });
+        Route::middleware('can:scholarships.manage')->group(function () {
+            Route::resource('scholarships', AdminScholarshipController::class)->except(['show', 'index']);
+        });
 
-        Route::get('subscriptions', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
-        Route::get('subscriptions/{subscription}', [AdminSubscriptionController::class, 'show'])->name('subscriptions.show');
-        Route::post('subscriptions/{subscription}/extend', [AdminSubscriptionController::class, 'extend'])->name('subscriptions.extend');
-        Route::post('subscriptions/{subscription}/suspend', [AdminSubscriptionController::class, 'suspend'])->name('subscriptions.suspend');
-        Route::post('subscriptions/{subscription}/revoke', [AdminSubscriptionController::class, 'revoke'])->name('subscriptions.revoke');
-        Route::post('subscriptions/{subscription}/expire', [AdminSubscriptionController::class, 'expire'])->name('subscriptions.expire');
+        // --- Contact messages ------------------------------------------
+        Route::middleware('can:contact_messages.view')->group(function () {
+            Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
+            Route::get('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('contact-messages.show');
+        });
+        Route::middleware('can:contact_messages.manage')->group(function () {
+            Route::delete('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
+        });
 
-        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-        Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
-        Route::get('reports/orders', [ReportController::class, 'orders'])->name('reports.orders');
-        Route::get('reports/products', [ReportController::class, 'products'])->name('reports.products');
-        Route::get('reports/accounts', [ReportController::class, 'accounts'])->name('reports.accounts');
-        Route::get('reports/subscriptions', [ReportController::class, 'subscriptions'])->name('reports.subscriptions');
+        // --- Shared accounts ------------------------------------------
+        Route::middleware('can:accounts.view')->group(function () {
+            Route::get('accounts', [AdminAccountController::class, 'index'])->name('accounts.index');
+            Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
+        });
+        Route::middleware('can:accounts.manage')->group(function () {
+            Route::resource('accounts', AdminAccountController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
+            Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])->name('accounts.decrypt');
+        });
 
+        // --- Orders ---------------------------------------------------
+        Route::middleware('can:orders.view')->group(function () {
+            Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
+            Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+            Route::get('orders/{order}/receipt', [ReceiptController::class, 'adminShow'])->name('orders.receipt');
+        });
+        Route::middleware('can:orders.manage')->group(function () {
+            Route::get('orders/{order}/edit', [AdminOrderController::class, 'edit'])->name('orders.edit');
+            Route::put('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
+            Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
+            Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('orders.destroy');
+            Route::post('orders/{order}/reopen-access', [AdminOrderController::class, 'reopenAccess'])->name('orders.reopen-access');
+        });
+
+        // --- Payments -----------------------------------------------
+        Route::middleware('can:payments.view')->group(function () {
+            Route::get('payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+            Route::get('payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
+            Route::get('payments/{payment}/proof/{proof}', [AdminPaymentController::class, 'showProof'])->name('payments.proof');
+        });
+        Route::middleware('can:payments.manage')->group(function () {
+            Route::post('payments/{payment}/approve', [AdminPaymentController::class, 'approve'])->name('payments.approve');
+            Route::post('payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
+        });
+
+        Route::middleware('can:payment_methods.manage')->group(function () {
+            Route::get('payment-methods', [AdminPaymentMethodController::class, 'index'])->name('payment-methods.index');
+            Route::post('payment-methods', [AdminPaymentMethodController::class, 'store'])->name('payment-methods.store');
+            Route::put('payment-methods/{paymentMethod}', [AdminPaymentMethodController::class, 'update'])->name('payment-methods.update');
+            Route::post('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'uploadQr'])->name('payment-methods.qr');
+            Route::delete('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'removeQr'])->name('payment-methods.qr.remove');
+        });
+
+        // --- Support chat ------------------------------------------
+        Route::middleware('can:chat.view')->group(function () {
+            Route::get('messages', [AdminChatController::class, 'index'])->name('chat.index');
+            Route::get('messages/create', [AdminChatController::class, 'create'])->name('chat.create');
+            Route::get('messages/{conversation}', [AdminChatController::class, 'show'])->name('chat.show');
+            Route::get('messages/{conversation}/fetch', [AdminChatController::class, 'fetch'])->name('chat.fetch');
+            Route::get('messages/{conversation}/file/{message}', [AdminChatController::class, 'attachment'])->name('chat.attachment');
+        });
+        Route::middleware('can:chat.manage')->group(function () {
+            Route::post('messages/create', [AdminChatController::class, 'start'])->name('chat.start');
+            Route::post('messages/{conversation}', [AdminChatController::class, 'store'])->name('chat.store');
+        });
+
+        // --- Subscriptions ----------------------------------------
+        Route::middleware('can:subscriptions.view')->group(function () {
+            Route::get('subscriptions', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
+            Route::get('subscriptions/{subscription}', [AdminSubscriptionController::class, 'show'])->name('subscriptions.show');
+        });
+        Route::middleware('can:subscriptions.manage')->group(function () {
+            Route::post('subscriptions/{subscription}/extend', [AdminSubscriptionController::class, 'extend'])->name('subscriptions.extend');
+            Route::post('subscriptions/{subscription}/suspend', [AdminSubscriptionController::class, 'suspend'])->name('subscriptions.suspend');
+            Route::post('subscriptions/{subscription}/revoke', [AdminSubscriptionController::class, 'revoke'])->name('subscriptions.revoke');
+            Route::post('subscriptions/{subscription}/expire', [AdminSubscriptionController::class, 'expire'])->name('subscriptions.expire');
+        });
+
+        // --- Reports ---------------------------------------------
+        Route::middleware('can:reports.view')->group(function () {
+            Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+            Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
+            Route::get('reports/orders', [ReportController::class, 'orders'])->name('reports.orders');
+            Route::get('reports/products', [ReportController::class, 'products'])->name('reports.products');
+            Route::get('reports/accounts', [ReportController::class, 'accounts'])->name('reports.accounts');
+            Route::get('reports/subscriptions', [ReportController::class, 'subscriptions'])->name('reports.subscriptions');
+        });
+
+        // --- Notifications (personal — every admin) --------------
         Route::get('notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/mark-all-read', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
         Route::post('notifications/{notification}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.mark-read');
 
-        Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+        Route::middleware('can:activity_logs.view')->group(function () {
+            Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+        });
 
-        Route::get('deleted-records', [DeletedRecordController::class, 'index'])->name('deleted-records.index');
-        Route::get('deleted-records/{deletedRecord}', [DeletedRecordController::class, 'show'])->name('deleted-records.show');
+        Route::middleware('can:deleted_records.view')->group(function () {
+            Route::get('deleted-records', [DeletedRecordController::class, 'index'])->name('deleted-records.index');
+            Route::get('deleted-records/{deletedRecord}', [DeletedRecordController::class, 'show'])->name('deleted-records.show');
+        });
 
-        Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
-        Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
-        Route::post('settings/mail', [SettingController::class, 'updateMail'])->name('settings.mail.update');
-        Route::post('settings/mail/test', [SettingController::class, 'testMail'])->name('settings.mail.test');
+        Route::middleware('can:settings.manage')->group(function () {
+            Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
+            Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+            Route::post('settings/mail', [SettingController::class, 'updateMail'])->name('settings.mail.update');
+            Route::post('settings/mail/test', [SettingController::class, 'testMail'])->name('settings.mail.test');
+        });
 
+        Route::middleware('can:finance.access')->group(function () {
         Route::get('finance/pin', [FinanceController::class, 'pin'])->name('finance.pin');
         Route::post('finance/pin', [FinanceController::class, 'verify'])->name('finance.pin.verify');
         Route::post('finance/lock', [FinanceController::class, 'lock'])->name('finance.lock');
@@ -195,6 +285,7 @@ Route::prefix('admin')
             Route::get('finance/expenses/{expense}/edit', [FinanceController::class, 'expenseEdit'])->name('finance.expenses.edit');
             Route::put('finance/expenses/{expense}', [FinanceController::class, 'expenseUpdate'])->name('finance.expenses.update');
             Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');
+        });
         });
     });
 

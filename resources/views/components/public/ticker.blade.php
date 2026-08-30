@@ -3,17 +3,22 @@
 @php
     $items = collect($items)->filter(fn ($i) => filled($i['text'] ?? null))->values();
     $secondsPerItem = (int) (config('marketing.ticker.seconds_per_item') ?: 4);
-    // One full loop scrolls the whole (non-duplicated) list past once.
+    $refreshSeconds = (int) (config('marketing.ticker.refresh_seconds') ?: 20);
     $duration = max(18, $items->count() * $secondsPerItem);
 @endphp
 
 @if ($items->isNotEmpty())
-    <section aria-label="Announcements" class="mbui-ticker">
+    <section aria-label="Announcements"
+             class="mbui-ticker"
+             data-mbui-ticker
+             data-feed="{{ route('public.ticker.feed') }}"
+             data-refresh="{{ $refreshSeconds }}"
+             data-seconds-per-item="{{ $secondsPerItem }}">
         <div class="mbui-ticker__viewport">
             <div class="mbui-ticker__track" style="--mbui-ticker-duration: {{ $duration }}s;">
-                {{-- The list is rendered twice so the animation can loop seamlessly. --}}
+                {{-- Rendered twice so the scroll animation can loop seamlessly. --}}
                 @foreach ([1, 2] as $pass)
-                    <ul class="mbui-ticker__group" @if($pass === 2) aria-hidden="true" @endif>
+                    <ul class="mbui-ticker__group" @if ($pass === 2) aria-hidden="true" @endif>
                         @foreach ($items as $item)
                             <li class="mbui-ticker__item">
                                 @if (!empty($item['url']))
@@ -86,5 +91,92 @@
                 .mbui-ticker__group[aria-hidden="true"] { display: none; }
             }
         </style>
+    @endonce
+
+    @once
+        @push('scripts')
+            <script>
+                (function () {
+                    var root = document.querySelector('[data-mbui-ticker]');
+                    if (!root) return;
+
+                    var track = root.querySelector('.mbui-ticker__track');
+                    var feedUrl = root.dataset.feed;
+                    var refreshMs = Math.max(8, parseInt(root.dataset.refresh || '20', 10)) * 1000;
+                    var secondsPerItem = Math.max(2, parseInt(root.dataset.secondsPerItem || '4', 10));
+                    var timer = null;
+
+                    function safeUrl(u) {
+                        if (!u) return null;
+                        if (u.charAt(0) === '/') return u;
+                        try {
+                            var parsed = new URL(u, window.location.origin);
+                            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+                        } catch (e) {}
+                        return null;
+                    }
+
+                    function buildGroup(items, hidden) {
+                        var ul = document.createElement('ul');
+                        ul.className = 'mbui-ticker__group';
+                        if (hidden) ul.setAttribute('aria-hidden', 'true');
+                        items.forEach(function (item) {
+                            var li = document.createElement('li');
+                            li.className = 'mbui-ticker__item';
+
+                            var url = safeUrl(item.url);
+                            var link = document.createElement(url ? 'a' : 'span');
+                            link.className = 'mbui-ticker__link';
+                            if (url) link.href = url;
+
+                            var icon = document.createElement('span');
+                            icon.className = 'mbui-ticker__icon';
+                            icon.textContent = item.icon || '•';
+
+                            var text = document.createElement('span');
+                            text.textContent = item.text || '';
+
+                            link.appendChild(icon);
+                            link.appendChild(text);
+                            li.appendChild(link);
+                            ul.appendChild(li);
+                        });
+                        return ul;
+                    }
+
+                    function render(items) {
+                        if (!items || !items.length) return;
+                        track.innerHTML = '';
+                        track.appendChild(buildGroup(items, false));
+                        track.appendChild(buildGroup(items, true));
+                        var duration = Math.max(18, items.length * secondsPerItem);
+                        track.style.setProperty('--mbui-ticker-duration', duration + 's');
+                    }
+
+                    function fetchFeed() {
+                        fetch(feedUrl, { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+                            .then(function (r) { return r.ok ? r.json() : null; })
+                            .then(function (data) { if (data && data.items) render(data.items); })
+                            .catch(function () { /* keep showing what we have */ });
+                    }
+
+                    function start() {
+                        if (timer) return;
+                        timer = setInterval(fetchFeed, refreshMs);
+                    }
+                    function stop() {
+                        if (timer) { clearInterval(timer); timer = null; }
+                    }
+
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.hidden) { stop(); } else { fetchFeed(); start(); }
+                    });
+
+                    // First refresh shortly after load, then on the interval.
+                    setTimeout(fetchFeed, 3000);
+                    start();
+                })();
+            </script>
+        @endpush
     @endonce
 @endif

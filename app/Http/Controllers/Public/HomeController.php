@@ -17,7 +17,7 @@ class HomeController extends Controller
             ->take(3)
             ->get();
 
-        $tickerItems = $ticker->items();
+        $tickerItems = $ticker->cachedItems();
 
         return view('public.home', compact('scholarships', 'tickerItems'));
     }
