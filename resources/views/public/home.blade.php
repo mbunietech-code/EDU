@@ -26,6 +26,8 @@
         </div>
     </section>
 
+    <x-public.ticker :items="$tickerItems ?? []" />
+
     <section class="border-y border-gray-200 bg-white">
         <div class="mbui-container py-16">
             <h2 class="text-center text-2xl font-bold tracking-tight text-gray-900">How it works</h2>

@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Scholarship;
+use App\Services\HomeTickerService;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(HomeTickerService $ticker)
     {
         $scholarships = Scholarship::published()
             ->open()
@@ -16,6 +17,8 @@ class HomeController extends Controller
             ->take(3)
             ->get();
 
-        return view('public.home', compact('scholarships'));
+        $tickerItems = $ticker->items();
+
+        return view('public.home', compact('scholarships', 'tickerItems'));
     }
 }
