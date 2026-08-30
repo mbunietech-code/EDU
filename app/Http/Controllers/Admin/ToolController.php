@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreToolRequest;
 use App\Http\Requests\Admin\UpdateToolRequest;
 use App\Models\Tool;
+use App\Services\DeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -101,20 +102,14 @@ class ToolController extends Controller
             ->with('success', 'Tool updated.');
     }
 
-    public function destroy(Tool $tool)
+    public function destroy(Request $request, Tool $tool, DeletionService $deletionService)
     {
-        $name = $tool->name;
-        $id = $tool->id;
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
 
         $this->deleteDownload($tool);
-        $tool->delete();
-
-        \App\Models\ActivityLog::log(
-            'tool_deleted',
-            'Tool',
-            $id,
-            ['name' => $name]
-        );
+        $deletionService->delete($tool, $validated['reason']);
 
         return back()->with('success', 'Tool deleted.');
     }

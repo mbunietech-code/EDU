@@ -25,4 +25,4 @@ ${n?'Expression: "'+n+`"
   * (c) 2018-present Yuxi (Evan) You and Vue contributors
   * @license MIT
   **)
-*/window.Alpine=Ts;Ts.start();
+*/window.Alpine=Ts;Ts.start();window.submitWithReason=function(e,t){const n=window.prompt(t||"Please give a reason:");return!n||!n.trim()?!1:(e.querySelector('[name="reason"]').value=n.trim(),!0)};

@@ -32,11 +32,7 @@
                 <a href="mailto:{{ $contactMessage->email }}?subject=Re: {{ $contactMessage->subject }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
                     Reply by email
                 </a>
-                <form method="POST" action="{{ route('admin.contact-messages.destroy', $contactMessage) }}" onsubmit="return confirm('Delete this message?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                </form>
+                <x-mbui.reasoned-action :action="route('admin.contact-messages.destroy', $contactMessage)" method="DELETE" label="Delete" prompt-text="Why are you deleting this message?" class="text-sm font-medium text-red-600 hover:text-red-800" />
             </div>
         </x-mbui.card>
     </div>

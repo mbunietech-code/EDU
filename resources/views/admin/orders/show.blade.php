@@ -14,9 +14,20 @@
                     Download Receipt
                 </a>
             @endif
+            <a href="{{ route('admin.orders.edit', $order) }}" class="mbui-anchor text-sm">Edit</a>
+            @if (! $order->isConfirmed() && $order->status !== 'rejected')
+                <x-mbui.reasoned-action :action="route('admin.orders.reject', $order)" method="POST" label="Disapprove" prompt-text="Why are you disapproving this order?" class="text-sm font-medium text-amber-600 hover:text-amber-800" />
+            @endif
+            <x-mbui.reasoned-action :action="route('admin.orders.destroy', $order)" method="DELETE" label="Delete" prompt-text="Why are you deleting this order? This cannot be undone." />
             <x-mbui.status-badge :status="$order->status" />
         </div>
     </div>
+
+    @if ($order->rejection_reason)
+        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <strong>Disapproved:</strong> {{ $order->rejection_reason }}
+        </div>
+    @endif
 
     <div class="mt-6 grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2 space-y-6">

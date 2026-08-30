@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Product;
+use App\Services\DeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -117,22 +118,16 @@ class ProductController extends Controller
             ->with('success', 'Product updated.');
     }
 
-    public function destroy(Product $product)
+    public function destroy(Request $request, Product $product, DeletionService $deletionService)
     {
         $this->authorize('delete', $product);
 
-        $name = $product->name;
-        $id = $product->id;
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
 
         $this->deleteSoftwareFile($product);
-        $product->delete();
-
-        \App\Models\ActivityLog::log(
-            'product_deleted',
-            'Product',
-            $id,
-            ['name' => $name]
-        );
+        $deletionService->delete($product, $validated['reason']);
 
         return back()->with('success', 'Product deleted.');
     }

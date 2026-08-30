@@ -49,11 +49,7 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.scholarships.edit', $scholarship) }}" class="mbui-anchor text-sm">Edit</a>
-                                <form method="POST" action="{{ route('admin.scholarships.destroy', $scholarship) }}" onsubmit="return confirm('Delete {{ $scholarship->title }}?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                </form>
+                                <x-mbui.reasoned-action :action="route('admin.scholarships.destroy', $scholarship)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $scholarship->title }}?" class="text-sm font-medium text-red-600 hover:text-red-800" />
                             </div>
                         </td>
                     </tr>

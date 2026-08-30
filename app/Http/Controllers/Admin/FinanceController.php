@@ -9,6 +9,7 @@ use App\Models\FinanceExpense;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Tool;
+use App\Services\DeletionService;
 use App\Services\FinanceOverviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -129,9 +130,13 @@ class FinanceController extends Controller
         return redirect()->route('admin.finance.capital.index')->with('success', 'Capital entry updated.');
     }
 
-    public function capitalDestroy(FinanceCapitalEntry $capitalEntry)
+    public function capitalDestroy(Request $request, FinanceCapitalEntry $capitalEntry, DeletionService $deletionService)
     {
-        $capitalEntry->delete();
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($capitalEntry, $validated['reason']);
 
         return back()->with('success', 'Capital entry removed.');
     }
@@ -208,9 +213,13 @@ class FinanceController extends Controller
         return redirect()->route('admin.finance.expenses.index')->with('success', 'Expense updated.');
     }
 
-    public function expenseDestroy(FinanceExpense $expense)
+    public function expenseDestroy(Request $request, FinanceExpense $expense, DeletionService $deletionService)
     {
-        $expense->delete();
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($expense, $validated['reason']);
 
         return back()->with('success', 'Expense removed.');
     }

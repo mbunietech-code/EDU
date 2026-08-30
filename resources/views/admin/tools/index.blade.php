@@ -48,11 +48,7 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.tools.edit', $tool) }}" class="mbui-anchor text-sm">Edit</a>
-                                <form method="POST" action="{{ route('admin.tools.destroy', $tool) }}" onsubmit="return confirm('Delete {{ $tool->name }}? This permanently removes the tool. Existing orders keep their history.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                </form>
+                                <x-mbui.reasoned-action :action="route('admin.tools.destroy', $tool)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $tool->name }}? This permanently removes the tool." class="text-sm font-medium text-red-600 hover:text-red-800" />
                             </div>
                         </td>
                     </tr>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
+use App\Services\DeletionService;
+use Illuminate\Http\Request;
 
 class ContactMessageController extends Controller
 {
@@ -23,9 +25,13 @@ class ContactMessageController extends Controller
         return view('admin.contact-messages.show', compact('contactMessage'));
     }
 
-    public function destroy(ContactMessage $contactMessage)
+    public function destroy(Request $request, ContactMessage $contactMessage, DeletionService $deletionService)
     {
-        $contactMessage->delete();
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($contactMessage, $validated['reason']);
 
         return redirect()->route('admin.contact-messages.index')->with('success', 'Message deleted.');
     }

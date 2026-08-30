@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreScholarshipRequest;
 use App\Http\Requests\Admin\UpdateScholarshipRequest;
 use App\Models\Scholarship;
+use App\Services\DeletionService;
+use Illuminate\Http\Request;
 
 class ScholarshipController extends Controller
 {
@@ -70,19 +72,13 @@ class ScholarshipController extends Controller
             ->with('success', 'Scholarship updated.');
     }
 
-    public function destroy(Scholarship $scholarship)
+    public function destroy(Request $request, Scholarship $scholarship, DeletionService $deletionService)
     {
-        $title = $scholarship->title;
-        $id = $scholarship->id;
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
 
-        $scholarship->delete();
-
-        \App\Models\ActivityLog::log(
-            'scholarship_deleted',
-            'Scholarship',
-            $id,
-            ['title' => $title]
-        );
+        $deletionService->delete($scholarship, $validated['reason']);
 
         return back()->with('success', 'Scholarship deleted.');
     }

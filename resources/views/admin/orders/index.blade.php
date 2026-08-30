@@ -31,6 +31,7 @@
                     <th class="mbui-th">Payment</th>
                     <th class="mbui-th">Status</th>
                     <th class="mbui-th">Date</th>
+                    <th class="mbui-th">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -53,9 +54,18 @@
                         </td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
                         <td class="mbui-td text-gray-500">{{ $order->created_at->format('d M Y') }}</td>
+                        <td class="mbui-td">
+                            <div class="flex items-center gap-2">
+                                <a href="{{ route('admin.orders.edit', $order) }}" class="mbui-anchor text-xs">Edit</a>
+                                @if (! $order->isConfirmed() && $order->status !== 'rejected')
+                                    <x-mbui.reasoned-action :action="route('admin.orders.reject', $order)" method="POST" label="Disapprove" prompt-text="Why are you disapproving this order?" class="text-xs font-medium text-amber-600 hover:text-amber-800" />
+                                @endif
+                                <x-mbui.reasoned-action :action="route('admin.orders.destroy', $order)" method="DELETE" label="Delete" prompt-text="Why are you deleting this order? This cannot be undone." class="text-xs font-medium text-red-600 hover:text-red-800" />
+                            </div>
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No orders found</td></tr>
+                    <tr><td colspan="8" class="mbui-td text-center text-gray-400">No orders found</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

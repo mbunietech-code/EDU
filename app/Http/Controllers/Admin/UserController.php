@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\DeletionService;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -65,7 +66,7 @@ class UserController extends Controller
         return back()->with('success', 'User activated.');
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user, DeletionService $deletionService)
     {
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot delete your own account.');
@@ -75,15 +76,11 @@ class UserController extends Controller
             return back()->with('error', 'Admin accounts cannot be deleted.');
         }
 
-        $email = $user->email;
-        $user->delete();
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
 
-        \App\Models\ActivityLog::log(
-            'user_deleted',
-            'User',
-            $user->id,
-            ['email' => $email]
-        );
+        $deletionService->delete($user, $validated['reason']);
 
         return redirect()->route('admin.users.index')->with('success', 'User deleted.');
     }

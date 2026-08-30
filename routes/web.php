@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DeletedRecordController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
@@ -123,6 +124,10 @@ Route::prefix('admin')
 
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::get('orders/{order}/edit', [AdminOrderController::class, 'edit'])->name('orders.edit');
+        Route::put('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
+        Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
+        Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('orders.destroy');
         Route::post('orders/{order}/reopen-access', [AdminOrderController::class, 'reopenAccess'])->name('orders.reopen-access');
         Route::get('orders/{order}/receipt', [ReceiptController::class, 'adminShow'])->name('orders.receipt');
 
@@ -165,6 +170,9 @@ Route::prefix('admin')
         Route::post('notifications/{notification}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.mark-read');
 
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+
+        Route::get('deleted-records', [DeletedRecordController::class, 'index'])->name('deleted-records.index');
+        Route::get('deleted-records/{deletedRecord}', [DeletedRecordController::class, 'show'])->name('deleted-records.show');
 
         Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('settings', [SettingController::class, 'update'])->name('settings.update');

@@ -61,11 +61,7 @@
                                             <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Suspend</button>
                                         </form>
                                     @endif
-                                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete this user permanently? This also removes their orders, payments and subscriptions.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                    </form>
+                                    <x-mbui.reasoned-action :action="route('admin.users.destroy', $user)" method="DELETE" label="Delete" prompt-text="Why are you deleting this user? This also removes their orders, payments and subscriptions." class="text-sm font-medium text-red-600 hover:text-red-800" />
                                 @endif
                             </div>
                         </td>

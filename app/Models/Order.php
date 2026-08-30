@@ -21,6 +21,7 @@ class Order extends Model
         'amount',
         'status',
         'payment_instructions',
+        'rejection_reason',
         'confirmed_at',
         'software_access_expires_at',
     ];

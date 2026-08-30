@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\StorePlanRequest;
 use App\Http\Requests\Admin\UpdatePlanRequest;
 use App\Models\Plan;
 use App\Models\Product;
+use App\Services\DeletionService;
+use Illuminate\Http\Request;
 
 class PlanController extends Controller
 {
@@ -79,7 +81,7 @@ class PlanController extends Controller
             ->with('success', 'Plan updated.');
     }
 
-    public function destroy(Plan $plan)
+    public function destroy(Request $request, Plan $plan, DeletionService $deletionService)
     {
         $this->authorize('delete', $plan);
 
@@ -89,15 +91,11 @@ class PlanController extends Controller
             return back()->with('error', 'Cannot delete a plan in use by active subscriptions. Deactivate it instead.');
         }
 
-        $name = $plan->name;
-        $plan->delete();
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
 
-        \App\Models\ActivityLog::log(
-            'plan_deleted',
-            'Plan',
-            $plan->id,
-            ['name' => $name]
-        );
+        $deletionService->delete($plan, $validated['reason']);
 
         return back()->with('success', 'Plan deleted.');
     }

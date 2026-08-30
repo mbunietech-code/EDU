@@ -97,11 +97,7 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.finance.capital.edit', $entry) }}" class="mbui-anchor text-sm">Edit</a>
-                                <form method="POST" action="{{ route('admin.finance.capital.destroy', $entry) }}" onsubmit="return confirm('Remove this capital entry?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
-                                </form>
+                                <x-mbui.reasoned-action :action="route('admin.finance.capital.destroy', $entry)" method="DELETE" label="Remove" prompt-text="Why are you removing this capital entry?" class="text-sm font-medium text-red-600 hover:text-red-800" />
                             </div>
                         </td>
                     </tr>
