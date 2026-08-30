@@ -30,18 +30,22 @@ This Flutter project lives at `prod/mhub/`; the Laravel backend is its parent
 | POST   | `/api/logout`         | sanctum         | Revoke current token       |
 | GET    | `/api/dashboard`      | sanctum         | Member dashboard data      |
 | GET    | `/api/admin/dashboard`| sanctum + admin | Admin dashboard data       |
+| GET    | `/api/products`       | sanctum         | Published products list    |
+| GET    | `/api/products/{slug}`| sanctum         | Product detail + plans     |
+| GET    | `/api/orders`         | sanctum         | Current user's orders      |
+| GET    | `/api/orders/{id}`    | sanctum         | Order detail (own only)    |
 
 ## Configuring the API base URL
 
-The base URL is resolved in `lib/core/config.dart`. Override it at run/build time:
+The base URL is resolved in `lib/core/config.dart`. It **defaults to the live
+backend** `https://mbuniehub.com`. Override it for local development:
 
 ```bash
-flutter run  --dart-define=MHUB_API_BASE=http://127.0.0.1:8123
-flutter build apk --dart-define=MHUB_API_BASE=https://mbuniehub.com
+flutter run --dart-define=MHUB_API_BASE=http://192.168.1.5:8123   # your PC's LAN IP
 ```
 
-Defaults when no define is given: `http://10.0.2.2` on Android (emulator
-loopback), `http://localhost` elsewhere.
+(Use the LAN IP, not `localhost`, when running on a real phone, and start the
+backend with `php artisan serve --host=0.0.0.0 --port=8123`.)
 
 ## Running in development
 

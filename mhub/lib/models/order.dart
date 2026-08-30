@@ -20,6 +20,7 @@ class Order {
     this.plan,
     required this.amountLabel,
     required this.status,
+    this.canCancel = false,
     this.createdAgo,
     this.paymentInstructions,
     this.rejectionReason,
@@ -32,6 +33,7 @@ class Order {
   final String? plan;
   final String amountLabel;
   final String status;
+  final bool canCancel;
   final String? createdAgo;
   final String? paymentInstructions;
   final String? rejectionReason;
@@ -48,6 +50,7 @@ class Order {
         plan: j['plan'] as String?,
         amountLabel: j['amount_label'] as String? ?? '',
         status: j['status'] as String? ?? 'pending',
+        canCancel: j['can_cancel'] == true,
         createdAgo: j['created_ago'] as String?,
         paymentInstructions: j['payment_instructions'] as String?,
         rejectionReason: j['rejection_reason'] as String?,

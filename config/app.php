@@ -6,7 +6,12 @@ $detectedEnv = (function () {
     if ($host) {
         $host = parse_url('http://'.$host, PHP_URL_HOST);
 
-        return in_array($host, ['localhost', '127.0.0.1', '::1'], true) ? 'local' : 'production';
+        $isLocal = in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            // private LAN ranges — for testing on a phone against `artisan serve`
+            || preg_match('/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/', (string) $host) === 1
+            || str_ends_with((string) $host, '.local');
+
+        return $isLocal ? 'local' : 'production';
     }
 
     return PHP_OS_FAMILY === 'Windows' ? 'local' : 'production';

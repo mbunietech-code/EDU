@@ -82,6 +82,22 @@ class Order extends Model
         return $this->status === 'confirmed';
     }
 
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
+
+    /**
+     * A customer may cancel their own order only while it is still pending
+     * and no payment has been approved. Confirmed orders can never be
+     * cancelled by the customer.
+     */
+    public function canBeCancelledByCustomer(): bool
+    {
+        return $this->status === 'pending'
+            && ! $this->payments()->where('status', 'approved')->exists();
+    }
+
     public function isSoftware(): bool
     {
         return $this->product?->isSoftware() ?? false;

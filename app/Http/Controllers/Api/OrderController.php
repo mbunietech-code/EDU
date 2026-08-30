@@ -49,6 +49,26 @@ class OrderController extends Controller
         ]);
     }
 
+    public function cancel(Request $request, Order $order): JsonResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+
+        if (! $order->canBeCancelledByCustomer()) {
+            return response()->json([
+                'message' => $order->isConfirmed()
+                    ? 'A confirmed order cannot be cancelled.'
+                    : 'This order can no longer be cancelled.',
+            ], 422);
+        }
+
+        $order->update(['status' => 'cancelled']);
+        \App\Models\ActivityLog::log('order_cancelled_by_customer', 'Order', $order->id, [
+            'order_number' => $order->order_number,
+        ]);
+
+        return response()->json(['data' => $this->row($order->fresh())]);
+    }
+
     private function row(Order $o): array
     {
         return [
@@ -59,6 +79,7 @@ class OrderController extends Controller
             'amount' => (float) $o->amount,
             'amount_label' => 'TZS '.number_format((float) $o->amount),
             'status' => $o->status,
+            'can_cancel' => $o->canBeCancelledByCustomer(),
             'created_at' => optional($o->created_at)->toIso8601String(),
             'created_ago' => optional($o->created_at)->diffForHumans(),
         ];

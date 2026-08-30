@@ -24,8 +24,8 @@ class ProductsScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemcount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemCount: products.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, i) => _ProductCard(product: products[i]),
           );
         },
@@ -126,7 +126,7 @@ class _Thumb extends StatelessWidget {
         width: 56,
         height: 56,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
+        errorBuilder: (_, _, _) => fallback,
       ),
     );
   }

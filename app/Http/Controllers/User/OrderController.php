@@ -92,6 +92,25 @@ class OrderController extends Controller
         return view('user.orders.show', compact('order'));
     }
 
+    public function cancel(Order $order)
+    {
+        $this->authorize('view', $order);
+
+        if (! $order->canBeCancelledByCustomer()) {
+            return back()->with('error', $order->isConfirmed()
+                ? 'A confirmed order cannot be cancelled. Contact support if you need help.'
+                : 'This order can no longer be cancelled.');
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        \App\Models\ActivityLog::log('order_cancelled_by_customer', 'Order', $order->id, [
+            'order_number' => $order->order_number,
+        ]);
+
+        return redirect()->route('user.orders.index')->with('success', 'Order cancelled.');
+    }
+
     public function downloadSoftware(Order $order)
     {
         $this->authorize('view', $order);

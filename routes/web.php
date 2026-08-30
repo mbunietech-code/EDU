@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/my-orders', [OrderController::class, 'index'])->name('user.orders.index');
     Route::get('/my-orders/{order}', [OrderController::class, 'show'])->name('user.orders.show');
+    Route::post('/my-orders/{order}/cancel', [OrderController::class, 'cancel'])->name('user.orders.cancel');
     Route::get('/my-orders/{order}/download-software', [OrderController::class, 'downloadSoftware'])->name('user.orders.download-software');
     Route::get('/my-orders/{order}/download-tool', [ToolOrderController::class, 'download'])->name('user.orders.download-tool');
     Route::get('/my-orders/{order}/receipt', [ReceiptController::class, 'userShow'])->name('user.orders.receipt');

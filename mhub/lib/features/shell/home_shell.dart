@@ -5,6 +5,8 @@ import '../auth/auth_controller.dart';
 import '../dashboard/admin_dashboard_screen.dart';
 import '../dashboard/user_dashboard_screen.dart';
 import '../misc/placeholder_screen.dart';
+import '../orders/orders_screen.dart';
+import '../products/products_screen.dart';
 import '../profile/profile_screen.dart';
 
 class _Destination {
@@ -41,10 +43,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
     return const [
       _Destination('Home', Icons.home_outlined, UserDashboardScreen()),
-      _Destination('AI Tools', Icons.smart_toy_outlined,
-          PlaceholderScreen(title: 'AI Tools', icon: Icons.smart_toy)),
-      _Destination('My Orders', Icons.shopping_bag_outlined,
-          PlaceholderScreen(title: 'My Orders', icon: Icons.shopping_bag)),
+      _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen()),
+      _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen()),
       _Destination('Messages', Icons.chat_bubble_outline,
           PlaceholderScreen(title: 'Messages', icon: Icons.chat_bubble)),
       _Destination('Profile', Icons.person_outline, ProfileScreen()),

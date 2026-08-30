@@ -135,10 +135,19 @@
                     </div>
                 @endforeach
                 @if ($order->isPending())
-                    <div class="mt-4">
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
                         <a href="{{ route('user.payments.create', $order) }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
                             Make payment
                         </a>
+                        @if ($order->canBeCancelledByCustomer())
+                            <form method="POST" action="{{ route('user.orders.cancel', $order) }}"
+                                  onsubmit="return confirm('Cancel this order? This cannot be undone.');">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+                                    Cancel order
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @endif
             </div>

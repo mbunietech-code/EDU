@@ -18,6 +18,10 @@ class OrdersRepository {
     final data = await _api.get('/orders/$id');
     return Order.fromJson((data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
   }
+
+  Future<void> cancel(int id) async {
+    await _api.post('/orders/$id/cancel');
+  }
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
