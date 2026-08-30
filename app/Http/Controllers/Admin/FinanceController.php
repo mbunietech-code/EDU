@@ -154,7 +154,9 @@ class FinanceController extends Controller
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.finance.expenses', compact('expenses', 'products', 'tools'));
+        $receiptsSupported = $this->receiptsSupported();
+
+        return view('admin.finance.expenses', compact('expenses', 'products', 'tools', 'receiptsSupported'));
     }
 
     public function expenseStore(Request $request)
@@ -180,7 +182,7 @@ class FinanceController extends Controller
         $validated['created_by'] = auth()->id();
         $validated['label'] = $this->resolveLabel($validated);
 
-        if ($request->hasFile('receipt')) {
+        if ($this->receiptsSupported() && $request->hasFile('receipt')) {
             $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
         }
 
@@ -196,7 +198,9 @@ class FinanceController extends Controller
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.finance.expense-edit', compact('expense', 'products', 'tools'));
+        $receiptsSupported = $this->receiptsSupported();
+
+        return view('admin.finance.expense-edit', compact('expense', 'products', 'tools', 'receiptsSupported'));
     }
 
     public function expenseUpdate(Request $request, FinanceExpense $expense)
@@ -224,12 +228,14 @@ class FinanceController extends Controller
 
         $validated['label'] = $this->resolveLabel($validated);
 
-        if ($request->hasFile('receipt')) {
-            $this->deleteReceiptFile($expense->receipt_path);
-            $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
-        } elseif ($removeReceipt) {
-            $this->deleteReceiptFile($expense->receipt_path);
-            $validated['receipt_path'] = null;
+        if ($this->receiptsSupported()) {
+            if ($request->hasFile('receipt')) {
+                $this->deleteReceiptFile($expense->receipt_path);
+                $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
+            } elseif ($removeReceipt) {
+                $this->deleteReceiptFile($expense->receipt_path);
+                $validated['receipt_path'] = null;
+            }
         }
 
         $expense->update($validated);
@@ -267,6 +273,21 @@ class FinanceController extends Controller
         if (filled($path) && Storage::disk('private')->exists($path)) {
             Storage::disk('private')->delete($path);
         }
+    }
+
+    /**
+     * Whether the receipt_path column exists yet (the schema change may not
+     * have been applied on this database). Cached per request.
+     */
+    protected function receiptsSupported(): bool
+    {
+        static $supported = null;
+
+        if ($supported === null) {
+            $supported = \Illuminate\Support\Facades\Schema::hasColumn('finance_expenses', 'receipt_path');
+        }
+
+        return $supported;
     }
 
     protected function resolveLabel(array $validated): string

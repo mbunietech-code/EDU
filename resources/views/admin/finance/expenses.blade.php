@@ -67,10 +67,14 @@
                 </div>
                 <div>
                     <x-input-label for="exp-receipt" value="Receipt (optional)" />
-                    <input id="exp-receipt" type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
-                        class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
-                    <p class="mt-1 text-xs text-gray-500">Image or PDF, max 5 MB.</p>
-                    <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
+                    @if (($receiptsSupported ?? true))
+                        <input id="exp-receipt" type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+                            class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                        <p class="mt-1 text-xs text-gray-500">Image or PDF, max 5 MB.</p>
+                        <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
+                    @else
+                        <p class="mt-1 text-xs text-amber-600">Receipt uploads need a database update — see Admin → Database.</p>
+                    @endif
                 </div>
             </div>
             <div class="flex justify-end border-t border-gray-100 pt-4">

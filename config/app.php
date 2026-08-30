@@ -49,9 +49,13 @@ return [
     | stack traces will be shown on every error that occurs within your
     | application. If disabled, a simple generic error page is shown.
     |
+    | Debug mode is also force-disabled on any non-local host regardless of
+    | the APP_DEBUG value, so a misconfigured .env can never expose stack
+    | traces, SQL, or request data to visitors in production.
+    |
     */
 
-    'debug' => (bool) env('APP_DEBUG', false),
+    'debug' => (bool) env('APP_DEBUG', false) && $detectedEnv !== 'production',
 
     /*
     |--------------------------------------------------------------------------
