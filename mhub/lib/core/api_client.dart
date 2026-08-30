@@ -30,7 +30,14 @@ class ApiClient {
             baseUrl: AppConfig.apiUrl,
             connectTimeout: const Duration(seconds: 15),
             receiveTimeout: const Duration(seconds: 20),
-            headers: {'Accept': 'application/json'},
+            headers: {
+              'Accept': 'application/json',
+              // Identify the app to the host's edge/CDN so bot protection can
+              // allow it (the JS "checking your browser" challenge cannot be
+              // solved by a native HTTP client).
+              'User-Agent': 'MHubApp/1.0 (+https://mbuniehub.com)',
+              'X-Requested-With': 'com.mbuniehub.mhub',
+            },
             validateStatus: (code) => code != null && code < 500,
           ),
         ) {
