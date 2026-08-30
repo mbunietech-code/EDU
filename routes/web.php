@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageCo
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DatabaseController;
 use App\Http\Controllers\Admin\DeletedRecordController;
+use App\Http\Controllers\Admin\ErrorLogController;
 use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\ReceiptController;
@@ -135,31 +136,33 @@ Route::prefix('admin')
             Route::get('database/backup', [DatabaseController::class, 'backup'])->name('database.backup');
         });
 
-        // --- Catalogue ---------------------------------------------------
-        Route::middleware('can:products.view')->group(function () {
-            Route::resource('products', AdminProductController::class)->only(['index', 'show']);
-            Route::resource('plans', AdminPlanController::class)->only(['index', 'show']);
-        });
-        Route::middleware('can:products.manage')->group(function () {
-            Route::resource('products', AdminProductController::class)->except(['index', 'show']);
-            Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])->name('software-files.store');
-            Route::resource('plans', AdminPlanController::class)->except(['index', 'show']);
-        });
+        // --- Catalogue --------------------------------------------------
+        // One resource registration per model (correct route ordering);
+        // per-action permissions via middlewareFor. These controllers have
+        // no show() action, so 'show' is excluded everywhere.
+        Route::resource('products', AdminProductController::class)
+            ->except(['show'])
+            ->middlewareFor('index', 'can:products.view')
+            ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:products.manage');
+        Route::post('software-files', [AdminProductController::class, 'uploadSoftwareFile'])
+            ->middleware('can:products.manage')->name('software-files.store');
 
-        Route::middleware('can:tools.view')->group(function () {
-            Route::resource('tools', AdminToolController::class)->only(['index']);
-        });
-        Route::middleware('can:tools.manage')->group(function () {
-            Route::resource('tools', AdminToolController::class)->except(['show', 'index']);
-            Route::post('tool-files', [AdminToolController::class, 'uploadFile'])->name('tool-files.store');
-        });
+        Route::resource('plans', AdminPlanController::class)
+            ->except(['show'])
+            ->middlewareFor('index', 'can:products.view')
+            ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:products.manage');
 
-        Route::middleware('can:scholarships.view')->group(function () {
-            Route::resource('scholarships', AdminScholarshipController::class)->only(['index']);
-        });
-        Route::middleware('can:scholarships.manage')->group(function () {
-            Route::resource('scholarships', AdminScholarshipController::class)->except(['show', 'index']);
-        });
+        Route::resource('tools', AdminToolController::class)
+            ->except(['show'])
+            ->middlewareFor('index', 'can:tools.view')
+            ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:tools.manage');
+        Route::post('tool-files', [AdminToolController::class, 'uploadFile'])
+            ->middleware('can:tools.manage')->name('tool-files.store');
+
+        Route::resource('scholarships', AdminScholarshipController::class)
+            ->except(['show'])
+            ->middlewareFor('index', 'can:scholarships.view')
+            ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:scholarships.manage');
 
         // --- Contact messages ------------------------------------------
         Route::middleware('can:contact_messages.view')->group(function () {
@@ -170,15 +173,12 @@ Route::prefix('admin')
             Route::delete('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
         });
 
-        // --- Shared accounts ------------------------------------------
-        Route::middleware('can:accounts.view')->group(function () {
-            Route::get('accounts', [AdminAccountController::class, 'index'])->name('accounts.index');
-            Route::get('accounts/{account}', [AdminAccountController::class, 'show'])->name('accounts.show');
-        });
-        Route::middleware('can:accounts.manage')->group(function () {
-            Route::resource('accounts', AdminAccountController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
-            Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])->name('accounts.decrypt');
-        });
+        // --- Shared accounts -----------------------------------------
+        Route::resource('accounts', AdminAccountController::class)
+            ->middlewareFor(['index', 'show'], 'can:accounts.view')
+            ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:accounts.manage');
+        Route::post('accounts/{account}/decrypt', [AdminAccountController::class, 'decryptCredentials'])
+            ->middleware('can:accounts.manage')->name('accounts.decrypt');
 
         // --- Orders ---------------------------------------------------
         Route::middleware('can:orders.view')->group(function () {
@@ -260,6 +260,15 @@ Route::prefix('admin')
         Route::middleware('can:deleted_records.view')->group(function () {
             Route::get('deleted-records', [DeletedRecordController::class, 'index'])->name('deleted-records.index');
             Route::get('deleted-records/{deletedRecord}', [DeletedRecordController::class, 'show'])->name('deleted-records.show');
+        });
+
+        Route::middleware('can:error_logs.view')->group(function () {
+            Route::get('error-logs', [ErrorLogController::class, 'index'])->name('error-logs.index');
+            Route::post('error-logs/clear-resolved', [ErrorLogController::class, 'clearResolved'])->name('error-logs.clear-resolved');
+            Route::get('error-logs/{errorLog}', [ErrorLogController::class, 'show'])->name('error-logs.show');
+            Route::post('error-logs/{errorLog}/resolve', [ErrorLogController::class, 'resolve'])->name('error-logs.resolve');
+            Route::post('error-logs/{errorLog}/reopen', [ErrorLogController::class, 'reopen'])->name('error-logs.reopen');
+            Route::delete('error-logs/{errorLog}', [ErrorLogController::class, 'destroy'])->name('error-logs.destroy');
         });
 
         Route::middleware('can:settings.manage')->group(function () {

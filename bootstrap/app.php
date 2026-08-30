@@ -26,5 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [UpdateLastSeen::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->report(function (\Throwable $e) {
+            \App\Support\ErrorLogger::handle($e);
+        });
     })->create();

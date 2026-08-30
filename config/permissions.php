@@ -54,6 +54,8 @@ return [
             'reports.view'          => 'View reports',
             'activity_logs.view'    => 'View activity logs',
             'deleted_records.view'  => 'View deleted items',
+            'error_logs.view'       => 'View server error logs',
+            'error_logs.manage'     => 'Resolve / clear error logs',
         ],
 
         'System' => [

@@ -18,8 +18,15 @@
         </div>
         <div class="max-h-80 overflow-y-auto divide-y divide-gray-100">
             @forelse ($recentNotifications as $notification)
-                <a href="{{ auth()->user()->is_admin ? route('admin.notifications.index') : route('user.notifications.index') }}" class="block px-4 py-3 hover:bg-gray-50">
+                @php
+                    $isError = ($notification->data['type'] ?? null) === 'error';
+                    $link = $isError && auth()->user()->is_admin && !empty($notification->data['error_log_id'])
+                        ? route('admin.error-logs.show', $notification->data['error_log_id'])
+                        : (auth()->user()->is_admin ? route('admin.notifications.index') : route('user.notifications.index'));
+                @endphp
+                <a href="{{ $link }}" class="block px-4 py-3 hover:bg-gray-50">
                     <p class="text-sm {{ $notification->read_at ? 'text-gray-600' : 'font-medium text-gray-900' }}">
+                        @if ($isError)<span class="mr-1 inline-block h-2 w-2 rounded-full bg-red-500 align-middle"></span>@endif
                         {{ $notification->data['message'] ?? 'New notification' }}
                     </p>
                     <p class="mt-0.5 text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</p>
