@@ -8,6 +8,7 @@ use App\Services\CredentialService;
 use App\Services\MailSettingsService;
 use App\Support\AppDownloads;
 use App\Support\Branding;
+use App\Support\DevSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +23,7 @@ class SettingController extends Controller
     public function index()
     {
         $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP, AppDownloads::GROUP])
+            ->where('key', '!=', DevSettings::KEY)
             ->orderBy('group')
             ->orderBy('key')
             ->paginate(20);
@@ -35,8 +37,22 @@ class SettingController extends Controller
 
         $appDownloads = AppDownloads::adminRows();
         $appPlatforms = AppDownloads::PLATFORMS;
+        $adminDebug = DevSettings::adminDebugEnabled();
 
-        return view('admin.settings.index', compact('settings', 'mailSettings', 'branding', 'appDownloads', 'appPlatforms'));
+        return view('admin.settings.index', compact('settings', 'mailSettings', 'branding', 'appDownloads', 'appPlatforms', 'adminDebug'));
+    }
+
+    public function updateDev(Request $request)
+    {
+        $request->validate(['show_error_details' => ['nullable', 'boolean']]);
+
+        DevSettings::set($request->boolean('show_error_details'));
+
+        \App\Models\ActivityLog::log('dev_settings_updated', 'Setting', null, [
+            'show_error_details' => $request->boolean('show_error_details'),
+        ]);
+
+        return back()->with('success', 'Developer settings saved.');
     }
 
     public function updateDownloads(Request $request)

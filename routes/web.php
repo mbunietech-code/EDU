@@ -276,6 +276,7 @@ Route::prefix('admin')
             Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
             Route::post('settings/branding', [SettingController::class, 'updateBranding'])->name('settings.branding.update');
             Route::post('settings/downloads', [SettingController::class, 'updateDownloads'])->name('settings.downloads.update');
+            Route::post('settings/dev', [SettingController::class, 'updateDev'])->name('settings.dev.update');
             Route::post('settings/mail', [SettingController::class, 'updateMail'])->name('settings.mail.update');
             Route::post('settings/mail/test', [SettingController::class, 'testMail'])->name('settings.mail.test');
         });
@@ -302,3 +303,4 @@ Route::prefix('admin')
     });
 
 require __DIR__.'/auth.php';
+

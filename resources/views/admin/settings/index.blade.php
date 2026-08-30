@@ -130,6 +130,48 @@
 
     <div class="mt-6">
         <x-mbui.card class="p-6">
+            <h2 class="mbui-section-label">Developer tools</h2>
+
+            <form method="POST" action="{{ route('admin.settings.dev.update') }}" class="mt-4">
+                @csrf
+                <label class="flex items-start gap-3">
+                    <input type="checkbox" name="show_error_details" value="1" @checked($adminDebug)
+                        class="mt-1 rounded border-gray-300 text-indigo-600">
+                    <span>
+                        <span class="block text-sm font-medium text-gray-900">Show error details to admins</span>
+                        <span class="block text-sm text-gray-500">
+                            When on, signed-in admins see the full error (message, file, line, stack trace)
+                            instead of the generic page. <strong>Visitors always see the friendly page</strong> —
+                            this never exposes anything publicly. Turn it off when you're done debugging.
+                        </span>
+                    </span>
+                </label>
+
+                @if ($adminDebug)
+                    <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Error details are currently <strong>ON</strong> for admins.
+                    </p>
+                @endif
+
+                <div class="mt-4 flex items-center justify-end border-t border-gray-100 pt-4">
+                    <x-mbui.button type="submit">Save developer settings</x-mbui.button>
+                </div>
+            </form>
+
+            <p class="mt-4 border-t border-gray-100 pt-4 text-sm text-gray-500">
+                Every server error is also recorded under
+                @can('error_logs.view')
+                    <a href="{{ route('admin.error-logs.index') }}" class="mbui-anchor">Error Logs</a>,
+                @else
+                    Error Logs,
+                @endcan
+                even when this switch is off.
+            </p>
+        </x-mbui.card>
+    </div>
+
+    <div class="mt-6">
+        <x-mbui.card class="p-6">
             <h2 class="mbui-section-label">Email (SMTP) settings</h2>
             <p class="mt-1 text-sm text-gray-500">Used to send order, payment and password-reset emails. Leave the password blank to keep the current one.</p>
 

@@ -228,6 +228,14 @@
             </header>
 
             <main class="p-4 sm:p-6 lg:p-8">
+                @if (\App\Support\DevSettings::adminDebugEnabled())
+                    <div class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                        <span><strong>Error details are ON</strong> for admins. Visitors still see the friendly page.</span>
+                        @can('settings.manage')
+                            <a href="{{ route('admin.settings.index') }}" class="shrink-0 font-semibold underline">Turn off</a>
+                        @endcan
+                    </div>
+                @endif
                 <x-partials.flash />
                 {{ $slot }}
             </main>

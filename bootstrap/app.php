@@ -29,4 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->report(function (\Throwable $e) {
             \App\Support\ErrorLogger::handle($e);
         });
+
+        // Signed-in admins can opt into a detailed error page (Settings ->
+        // Developer tools). Visitors are never affected.
+        $exceptions->render(function (\Throwable $e, $request) {
+            return \App\Support\AdminDebugRenderer::render($e, $request);
+        });
     })->create();
