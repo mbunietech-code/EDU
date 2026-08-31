@@ -7,6 +7,7 @@ use App\Models\Research;
 use App\Models\ResearchCategory;
 use App\Models\ResearchChapter;
 use App\Models\ResearchSection;
+use App\Services\ResearchImporter;
 use App\Services\ResearchWorkflow;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,19 @@ class ContributorController extends Controller
 
     private function authorize_(Research $research): void
     {
-        abort_unless($research->user_id === auth()->id(), 403);
+        abort_unless(
+            $research->user_id === auth()->id() || auth()->user()->is_admin,
+            403,
+        );
+    }
+
+    private function assertEditable(Research $research): void
+    {
+        abort_unless(
+            $research->isEditableBy(auth()->user()),
+            403,
+            'This research is queued for review and cannot be edited right now.',
+        );
     }
 
     public function index()
@@ -71,7 +84,7 @@ class ContributorController extends Controller
     public function update(Request $request, Research $research)
     {
         $this->authorize_($research);
-        abort_unless($research->isEditableByAuthor(), 403, 'This research is locked while under review.');
+        $this->assertEditable($research);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -107,11 +120,44 @@ class ContributorController extends Controller
         return back()->with('success', 'Submitted for review. You will be notified of the outcome.');
     }
 
+    public function import(Request $request, Research $research, ResearchImporter $importer)
+    {
+        $this->authorize_($research);
+        $this->assertEditable($research);
+
+        $request->validate([
+            'document' => ['nullable', 'file', 'mimes:docx,md,markdown,txt,text', 'max:15360'],
+            'text' => ['nullable', 'string', 'max:400000'],
+        ]);
+
+        if (! $request->hasFile('document') && blank($request->input('text'))) {
+            return back()->with('error', 'Attach a document or paste some text first.');
+        }
+
+        try {
+            $result = $importer->import(
+                $research,
+                $request->file('document'),
+                $request->input('text'),
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not import: '.$e->getMessage());
+        }
+
+        if ($result['chapters'] === 0) {
+            return back()->with('error', 'Nothing recognisable was found. Use "# Heading" for chapters and "## Heading" for sections.');
+        }
+
+        \App\Models\ActivityLog::log('research_imported', 'Research', $research->id, $result);
+
+        return back()->with('success', "Imported {$result['chapters']} chapter(s) and {$result['sections']} section(s). Review and edit as needed.");
+    }
+
     // --- Chapters ------------------------------------------------------
     public function storeChapter(Request $request, Research $research)
     {
         $this->authorize_($research);
-        abort_unless($research->isEditableByAuthor(), 403);
+        $this->assertEditable($research);
 
         $data = $request->validate(['title' => ['required', 'string', 'max:255']]);
 
@@ -126,7 +172,7 @@ class ContributorController extends Controller
     public function updateChapter(Request $request, ResearchChapter $chapter)
     {
         $this->authorize_($chapter->research);
-        abort_unless($chapter->research->isEditableByAuthor(), 403);
+        $this->assertEditable($chapter->research);
 
         $chapter->update($request->validate(['title' => ['required', 'string', 'max:255']]));
 
@@ -136,7 +182,7 @@ class ContributorController extends Controller
     public function destroyChapter(ResearchChapter $chapter)
     {
         $this->authorize_($chapter->research);
-        abort_unless($chapter->research->isEditableByAuthor(), 403);
+        $this->assertEditable($chapter->research);
 
         $chapter->delete();
 
@@ -157,7 +203,7 @@ class ContributorController extends Controller
     public function createSection(ResearchChapter $chapter)
     {
         $this->authorize_($chapter->research);
-        abort_unless($chapter->research->isEditableByAuthor(), 403);
+        $this->assertEditable($chapter->research);
 
         $section = $chapter->sections()->create([
             'heading' => 'Untitled section',
@@ -171,11 +217,11 @@ class ContributorController extends Controller
     {
         $this->authorize_($chapter->research);
         abort_unless($section->research_chapter_id === $chapter->id, 404);
-        abort_unless($chapter->research->isEditableByAuthor(), 403);
+        $this->assertEditable($chapter->research);
 
         $section->update($request->validate([
             'heading' => ['required', 'string', 'max:255'],
-            'body' => ['nullable', 'string', 'max:60000'],
+            'body' => ['nullable', 'string', 'max:200000'],
         ]));
 
         return redirect()->route('research.contributor.edit', $chapter->research)
@@ -186,7 +232,7 @@ class ContributorController extends Controller
     {
         $this->authorize_($chapter->research);
         abort_unless($section->research_chapter_id === $chapter->id, 404);
-        abort_unless($chapter->research->isEditableByAuthor(), 403);
+        $this->assertEditable($chapter->research);
 
         $section->delete();
 
@@ -197,7 +243,7 @@ class ContributorController extends Controller
     public function reorder(Request $request, Research $research)
     {
         $this->authorize_($research);
-        abort_unless($research->isEditableByAuthor(), 403);
+        $this->assertEditable($research);
 
         $data = $request->validate([
             'type' => ['required', Rule::in(['chapter', 'section'])],

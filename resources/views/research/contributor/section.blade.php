@@ -1,6 +1,6 @@
 <x-layouts.app :title="'Edit section — ' . $research->title">
 
-    @php($locked = ! $research->isEditableByAuthor())
+    @php($locked = ! $research->isEditableBy(auth()->user()))
 
     <nav class="text-sm text-gray-500">
         <a href="{{ route('research.contributor.index') }}" class="hover:text-gray-700">My Research</a>
@@ -27,7 +27,7 @@
             </div>
 
             <div x-show="tab==='write'" class="mt-3">
-                <textarea name="body" x-model="body" @disabled($locked) rows="22" maxlength="60000"
+                <textarea name="body" x-model="body" @disabled($locked) rows="22" maxlength="200000"
                           class="mbui-input font-mono text-sm leading-6"
                           placeholder="Write in Markdown.&#10;&#10;## A subsection heading&#10;&#10;Your paragraph text. **Bold**, *italic*, and [links](https://...).&#10;&#10;- bullet&#10;- points&#10;&#10;> A quote or key point."></textarea>
                 <p class="mt-2 text-xs text-gray-400">

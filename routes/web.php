@@ -123,6 +123,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/my-research/{research}', [\App\Http\Controllers\Research\ContributorController::class, 'update'])->name('research.contributor.update');
         Route::delete('/my-research/{research}', [\App\Http\Controllers\Research\ContributorController::class, 'destroy'])->name('research.contributor.destroy');
         Route::post('/my-research/{research}/submit', [\App\Http\Controllers\Research\ContributorController::class, 'submit'])->name('research.contributor.submit');
+        Route::post('/my-research/{research}/import', [\App\Http\Controllers\Research\ContributorController::class, 'import'])->name('research.contributor.import');
         Route::post('/my-research/{research}/reorder', [\App\Http\Controllers\Research\ContributorController::class, 'reorder'])->name('research.contributor.reorder');
 
         Route::post('/my-research/{research}/chapters', [\App\Http\Controllers\Research\ContributorController::class, 'storeChapter'])->name('research.contributor.chapter.store');

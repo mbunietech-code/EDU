@@ -33,8 +33,15 @@ class Research extends Model
         'approved', 'published', 'archived',
     ];
 
-    /** Statuses an author may still edit the content in. */
-    public const EDITABLE = ['draft', 'changes_requested'];
+    /**
+     * Statuses an author may still edit in. Everything except while it is
+     * actively queued for review — a published paper stays editable by its
+     * author (contributors are vetted; the admin can unpublish anytime).
+     */
+    public const EDITABLE = ['draft', 'changes_requested', 'published', 'approved', 'archived'];
+
+    /** While in these, the content is frozen for the reviewer. */
+    public const LOCKED = ['submitted', 'under_review'];
 
     protected static function booted(): void
     {
@@ -121,6 +128,25 @@ class Research extends Model
     public function isEditableByAuthor(): bool
     {
         return in_array($this->status, self::EDITABLE, true);
+    }
+
+    /** Editable now by this user (admins bypass the status lock). */
+    public function isEditableBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->is_admin) {
+            return true;
+        }
+
+        return $user->id === $this->user_id && $this->isEditableByAuthor();
+    }
+
+    public function isUnderReview(): bool
+    {
+        return in_array($this->status, self::LOCKED, true);
     }
 
     public function canBeSubmitted(): bool
