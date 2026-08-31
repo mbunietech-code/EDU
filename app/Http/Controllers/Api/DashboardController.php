@@ -21,7 +21,6 @@ class DashboardController extends Controller
         $activeSubs = $user->subscriptions()->where('status', 'active')->count();
         $pendingOrders = $user->orders()->where('status', 'pending')->count();
         $totalOrders = $user->orders()->count();
-        $totalSpent = $user->payments()->where('status', 'approved')->sum('amount');
 
         $recent = $user->orders()
             ->with(['product:id,name', 'tool:id,name', 'plan:id,name'])
@@ -39,7 +38,6 @@ class DashboardController extends Controller
                 ['label' => 'Active subscriptions', 'value' => $activeSubs],
                 ['label' => 'Pending orders', 'value' => $pendingOrders],
                 ['label' => 'Total orders', 'value' => $totalOrders],
-                ['label' => 'Total spent', 'value' => $this->money($totalSpent)],
             ],
             'recent' => $recent,
         ]);

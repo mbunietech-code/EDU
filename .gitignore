@@ -22,3 +22,15 @@ yarn-error.log
 /storage/app/firebase/*.json
 mhub/android/app/google-services.json
 mhub/lib/firebase_options.dart
+
+# Compiled app builds + signing material — NEVER commit these
+/productions APP/
+/prod/productions APP/
+mhub/build/
+mhub/installer/Output/
+mhub/android/app/*.jks
+mhub/android/key.properties
+*.jks
+*.keystore
+*.aab
+*.apk

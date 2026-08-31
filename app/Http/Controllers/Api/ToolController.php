@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\ConvertsCurrency;
 use App\Models\Tool;
 use Illuminate\Http\JsonResponse;
 
 class ToolController extends Controller
 {
+    use ConvertsCurrency;
+
     public function index(): JsonResponse
     {
         $tools = Tool::query()
@@ -19,6 +22,7 @@ class ToolController extends Controller
 
         return response()->json([
             'data' => $tools->map(fn (Tool $t) => $this->card($t))->all(),
+            'meta' => ['rates' => $this->currencyRates()],
         ]);
     }
 
@@ -27,6 +31,7 @@ class ToolController extends Controller
         $t = Tool::where('slug', $slug)->where('status', 'published')->firstOrFail();
 
         return response()->json([
+            'meta' => ['rates' => $this->currencyRates()],
             'data' => array_merge($this->card($t), [
                 'description' => $t->description,
             ]),
@@ -43,6 +48,7 @@ class ToolController extends Controller
             'is_featured' => (bool) $t->is_featured,
             'image_url' => $t->image ? asset('storage/'.$t->image) : null,
             'short_description' => \Illuminate\Support\Str::limit(strip_tags((string) $t->description), 120),
+            'price' => (float) $t->price,
             'price_label' => $t->price > 0 ? 'TZS '.number_format((float) $t->price) : 'Free',
         ];
     }

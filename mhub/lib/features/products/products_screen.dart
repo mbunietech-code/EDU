@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/currency_repository.dart';
 import '../../models/product.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
+import '../../widgets/price_label.dart';
 import 'product_detail_screen.dart';
 import 'products_repository.dart';
 
@@ -37,13 +39,14 @@ class ProductsScreen extends ConsumerWidget {
   }
 }
 
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends ConsumerWidget {
   const _ProductCard({required this.product});
 
   final Product product;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(currencyRatesValueProvider);
     return MbuiCard(
       padding: const EdgeInsets.all(14),
       onTap: () => Navigator.of(context).push(
@@ -81,14 +84,21 @@ class _ProductCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 12.5, color: AppColors.gray500)),
                 ],
                 const SizedBox(height: 8),
-                Text(
-                  product.fromPriceLabel ?? '${product.plansCount} plan(s)',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.indigo600,
+                if (product.fromPrice != null)
+                  PriceLabel(
+                    amountTzs: product.fromPrice,
+                    rates: rates,
+                    prefix: 'From ',
+                  )
+                else
+                  Text(
+                    '${product.plansCount} plan(s)',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.indigo600,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

@@ -36,6 +36,7 @@ class Product {
     this.shortDescription,
     this.description,
     this.plansCount = 0,
+    this.fromPrice,
     this.fromPriceLabel,
     this.features = const [],
     this.plans = const [],
@@ -50,6 +51,7 @@ class Product {
   final String? shortDescription;
   final String? description;
   final int plansCount;
+  final double? fromPrice;
   final String? fromPriceLabel;
   final List<String> features;
   final List<ProductPlan> plans;
@@ -64,6 +66,7 @@ class Product {
         shortDescription: j['short_description'] as String?,
         description: j['description'] as String?,
         plansCount: (j['plans_count'] as num?)?.toInt() ?? 0,
+        fromPrice: (j['from_price'] as num?)?.toDouble(),
         fromPriceLabel: j['from_price_label'] as String?,
         features: (j['features'] as List?)?.map((e) => e.toString()).toList() ?? const [],
         plans: (j['plans'] as List?)

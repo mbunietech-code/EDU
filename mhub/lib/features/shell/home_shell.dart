@@ -19,6 +19,8 @@ import '../orders/orders_screen.dart';
 import '../payments/payments_screen.dart';
 import '../products/products_screen.dart';
 import '../profile/profile_screen.dart';
+import '../research/my_research_screen.dart';
+import '../research/research_screen.dart';
 import '../scholarships/scholarships_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../tools/tools_screen.dart';
@@ -41,7 +43,10 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
 
-  List<_Destination> _destinationsFor({required bool isAdmin}) {
+  List<_Destination> _destinationsFor({
+    required bool isAdmin,
+    bool canWriteResearch = false,
+  }) {
     if (isAdmin) {
       return const [
         _Destination('Overview', Icons.dashboard_outlined, AdminDashboardScreen(), primary: true),
@@ -57,17 +62,20 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
       ];
     }
-    return const [
-      _Destination('Home', Icons.home_outlined, UserDashboardScreen(), primary: true),
-      _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen(), primary: true),
-      _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
-      _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
-      _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
-      _Destination('Subscriptions', Icons.autorenew, SubscriptionsScreen()),
-      _Destination('Research Tools', Icons.science_outlined, ToolsScreen()),
-      _Destination('Scholarships', Icons.school_outlined, ScholarshipsScreen()),
-      _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
-      _Destination('Profile', Icons.person_outline, ProfileScreen()),
+    return [
+      const _Destination('Home', Icons.home_outlined, UserDashboardScreen(), primary: true),
+      const _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen(), primary: true),
+      const _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
+      const _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
+      const _Destination('Research', Icons.menu_book_outlined, ResearchScreen()),
+      if (canWriteResearch)
+        const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
+      const _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
+      const _Destination('Subscriptions', Icons.autorenew, SubscriptionsScreen()),
+      const _Destination('Research Tools', Icons.science_outlined, ToolsScreen()),
+      const _Destination('Scholarships', Icons.school_outlined, ScholarshipsScreen()),
+      const _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
+      const _Destination('Profile', Icons.person_outline, ProfileScreen()),
     ];
   }
 
@@ -103,7 +111,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;
     final isAdmin = user?.isAdmin ?? false;
-    final all = _destinationsFor(isAdmin: isAdmin);
+    final all = _destinationsFor(
+      isAdmin: isAdmin,
+      canWriteResearch: user?.canWriteResearch ?? false,
+    );
     final safeIndex = _index.clamp(0, all.length - 1);
 
     final body = IndexedStack(

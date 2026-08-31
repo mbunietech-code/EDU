@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             '2fa' => TwoFactorMiddleware::class,
             'finance.unlocked' => EnsureFinanceUnlocked::class,
+            'research.contribute' => \App\Http\Middleware\EnsureCanWriteResearch::class,
         ]);
 
         $middleware->web(append: [UpdateLastSeen::class]);

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\ConvertsCurrency;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
+    use ConvertsCurrency;
+
     public function index(): JsonResponse
     {
         $products = Product::query()
@@ -20,6 +23,7 @@ class ProductController extends Controller
 
         return response()->json([
             'data' => $products->map(fn (Product $p) => $this->card($p))->all(),
+            'meta' => ['rates' => $this->currencyRates()],
         ]);
     }
 
@@ -32,6 +36,7 @@ class ProductController extends Controller
             ->firstOrFail();
 
         return response()->json([
+            'meta' => ['rates' => $this->currencyRates()],
             'data' => array_merge($this->card($product), [
                 'description' => $product->description,
                 'features' => $product->features ?? [],

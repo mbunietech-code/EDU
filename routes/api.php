@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/dashboard', [DashboardController::class, 'user']);
+    Route::get('/currency-rates', [\App\Http\Controllers\Api\CurrencyController::class, 'rates']);
 
     // Catalogue
     Route::get('/products', [ProductController::class, 'index']);
@@ -35,6 +36,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tools/{slug}', [ToolController::class, 'show']);
     Route::get('/scholarships', [ScholarshipController::class, 'index']);
     Route::get('/scholarships/{slug}', [ScholarshipController::class, 'show']);
+
+    // Research & Consultancy library (reader)
+    Route::get('/research', [\App\Http\Controllers\Api\ResearchController::class, 'index']);
+    Route::get('/research/mine', [\App\Http\Controllers\Api\ResearchController::class, 'mine']);
+    Route::get('/research/category/{slug}', [\App\Http\Controllers\Api\ResearchController::class, 'category']);
+    Route::get('/research/{slug}', [\App\Http\Controllers\Api\ResearchController::class, 'show']);
+    Route::get('/research/{slug}/chapters/{chapter}', [\App\Http\Controllers\Api\ResearchController::class, 'chapter']);
+    Route::post('/research/{slug}/progress', [\App\Http\Controllers\Api\ResearchController::class, 'markSection']);
 
     // Orders
     Route::get('/orders', [OrderController::class, 'index']);

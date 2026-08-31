@@ -8,6 +8,7 @@ class Tool {
     this.imageUrl,
     this.shortDescription,
     this.description,
+    this.price = 0,
     required this.priceLabel,
   });
 
@@ -19,6 +20,7 @@ class Tool {
   final String? imageUrl;
   final String? shortDescription;
   final String? description;
+  final double price;
   final String priceLabel;
 
   factory Tool.fromJson(Map<String, dynamic> j) => Tool(
@@ -30,6 +32,7 @@ class Tool {
         imageUrl: j['image_url'] as String?,
         shortDescription: j['short_description'] as String?,
         description: j['description'] as String?,
+        price: (j['price'] as num?)?.toDouble() ?? 0,
         priceLabel: j['price_label'] as String? ?? '',
       );
 }

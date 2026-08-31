@@ -68,6 +68,7 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'is_admin' => (bool) $user->is_admin,
+            'can_write_research' => $user->canWriteResearch(),
             'status' => $user->status,
             'email_verified_at' => optional($user->email_verified_at)->toIso8601String(),
         ];

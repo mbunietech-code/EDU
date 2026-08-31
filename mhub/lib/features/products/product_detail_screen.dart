@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../data/currency_repository.dart';
 import '../../models/product.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
+import '../../widgets/price_label.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/orders_repository.dart';
 import 'products_repository.dart';
@@ -52,6 +54,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(productDetailProvider(widget.slug));
+    final rates = ref.watch(currencyRatesValueProvider);
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
@@ -157,11 +160,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(plan.priceLabel,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.gray900)),
+                          PriceLabel(
+                            amountTzs: plan.price,
+                            rates: rates,
+                            tzsSize: 14,
+                          ),
                         ],
                       ),
                     ),

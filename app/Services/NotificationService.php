@@ -20,6 +20,8 @@ use App\Notifications\Admin\NewContactMessage;
 use App\Notifications\Admin\ExpiringSubscription;
 use App\Notifications\Admin\AccountUnavailable;
 use App\Notifications\ChatMessageReceived;
+use App\Notifications\Admin\ResearchSubmitted;
+use App\Notifications\User\ResearchReviewed;
 use Illuminate\Support\Facades\Notification;
 
 class NotificationService
@@ -92,6 +94,19 @@ class NotificationService
     {
         $admins = User::where('is_admin', true)->get();
         Notification::send($admins, new NewContactMessage($contactMessage));
+    }
+
+    public function notifyAdminsResearchSubmitted(\App\Models\Research $research): void
+    {
+        $admins = User::where('is_admin', true)->get();
+        Notification::send($admins, new ResearchSubmitted($research));
+    }
+
+    public function notifyAuthorResearchReviewed(\App\Models\Research $research, string $action, ?string $comment = null): void
+    {
+        if ($research->author) {
+            Notification::send($research->author, new ResearchReviewed($research, $action, $comment));
+        }
     }
 
     public function notifyAdminExpiringSubscription($subscription): void

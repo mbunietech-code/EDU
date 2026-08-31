@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/currency_repository.dart';
 import '../../data/member_api.dart';
 import '../../models/tool.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
+import '../../widgets/price_label.dart';
 
 class ToolsScreen extends ConsumerWidget {
   const ToolsScreen({super.key});
@@ -35,12 +37,13 @@ class ToolsScreen extends ConsumerWidget {
   }
 }
 
-class _ToolCard extends StatelessWidget {
+class _ToolCard extends ConsumerWidget {
   const _ToolCard({required this.tool});
   final Tool tool;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(currencyRatesValueProvider);
     return MbuiCard(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ToolDetailScreen(slug: tool.slug, name: tool.name)),
@@ -73,9 +76,7 @@ class _ToolCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 12.5, color: AppColors.gray500)),
                 ],
                 const SizedBox(height: 6),
-                Text(tool.priceLabel,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.indigo600)),
+                PriceLabel(amountTzs: tool.price, rates: rates),
               ],
             ),
           ),
@@ -94,6 +95,7 @@ class ToolDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(toolDetailProvider(slug));
+    final rates = ref.watch(currencyRatesValueProvider);
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
       appBar: AppBar(title: Text(name)),
@@ -112,7 +114,7 @@ class ToolDetailScreen extends ConsumerWidget {
                   style: const TextStyle(color: AppColors.gray500)),
             ],
             const SizedBox(height: 12),
-            MbuiBadge(t.priceLabel, appearance: MbuiAppearance.neutral),
+            PriceLabel(amountTzs: t.price, rates: rates, tzsSize: 15),
             const SizedBox(height: 16),
             if (t.description != null)
               Text(t.description!,

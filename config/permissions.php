@@ -58,6 +58,11 @@ return [
             'error_logs.manage'     => 'Resolve / clear error logs',
         ],
 
+        'Research library' => [
+            'research.view'    => 'View all research (incl. drafts & submissions)',
+            'research.manage'  => 'Review, approve/reject, publish & manage categories',
+        ],
+
         'System' => [
             'settings.manage'  => 'Change site settings',
             'finance.access'   => 'Open the Finance area (PIN still required)',

@@ -101,6 +101,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('user.profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
     Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('user.profile.password');
+
+    // --- Research & Consultancy — reader ------------------------------
+    Route::get('/research', [\App\Http\Controllers\Research\LibraryController::class, 'index'])->name('research.index');
+    Route::get('/research/c/{category:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'category'])->name('research.category');
+    Route::get('/research/{research:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'show'])->name('research.show');
+    Route::get('/research/{research:slug}/read/{chapter}', [\App\Http\Controllers\Research\LibraryController::class, 'read'])->name('research.read');
+    Route::post('/research/{research:slug}/progress', [\App\Http\Controllers\Research\LibraryController::class, 'markSection'])->name('research.progress');
+
+    // --- Research & Consultancy — contributor portal -----------------
+    Route::middleware('research.contribute')->group(function () {
+        Route::get('/my-research', [\App\Http\Controllers\Research\ContributorController::class, 'index'])->name('research.contributor.index');
+        Route::get('/my-research/create', [\App\Http\Controllers\Research\ContributorController::class, 'create'])->name('research.contributor.create');
+        Route::post('/my-research', [\App\Http\Controllers\Research\ContributorController::class, 'store'])->name('research.contributor.store');
+        Route::get('/my-research/{research}/edit', [\App\Http\Controllers\Research\ContributorController::class, 'edit'])->name('research.contributor.edit');
+        Route::put('/my-research/{research}', [\App\Http\Controllers\Research\ContributorController::class, 'update'])->name('research.contributor.update');
+        Route::delete('/my-research/{research}', [\App\Http\Controllers\Research\ContributorController::class, 'destroy'])->name('research.contributor.destroy');
+        Route::post('/my-research/{research}/submit', [\App\Http\Controllers\Research\ContributorController::class, 'submit'])->name('research.contributor.submit');
+        Route::post('/my-research/{research}/reorder', [\App\Http\Controllers\Research\ContributorController::class, 'reorder'])->name('research.contributor.reorder');
+
+        Route::post('/my-research/{research}/chapters', [\App\Http\Controllers\Research\ContributorController::class, 'storeChapter'])->name('research.contributor.chapter.store');
+        Route::put('/my-research/chapters/{chapter}', [\App\Http\Controllers\Research\ContributorController::class, 'updateChapter'])->name('research.contributor.chapter.update');
+        Route::delete('/my-research/chapters/{chapter}', [\App\Http\Controllers\Research\ContributorController::class, 'destroyChapter'])->name('research.contributor.chapter.destroy');
+
+        Route::post('/my-research/chapters/{chapter}/sections', [\App\Http\Controllers\Research\ContributorController::class, 'createSection'])->name('research.contributor.section.create');
+        Route::get('/my-research/chapters/{chapter}/sections/{section}/edit', [\App\Http\Controllers\Research\ContributorController::class, 'editSection'])->name('research.contributor.section.edit');
+        Route::put('/my-research/chapters/{chapter}/sections/{section}', [\App\Http\Controllers\Research\ContributorController::class, 'storeSection'])->name('research.contributor.section.update');
+        Route::delete('/my-research/chapters/{chapter}/sections/{section}', [\App\Http\Controllers\Research\ContributorController::class, 'destroySection'])->name('research.contributor.section.destroy');
+    });
 });
 
 Route::prefix('admin')
@@ -299,6 +327,24 @@ Route::prefix('admin')
             Route::put('finance/expenses/{expense}', [FinanceController::class, 'expenseUpdate'])->name('finance.expenses.update');
             Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');
         });
+        });
+
+        // --- Research library -----------------------------------------
+        Route::middleware('can:research.view')->group(function () {
+            Route::get('research', [\App\Http\Controllers\Admin\ResearchController::class, 'index'])->name('research.index');
+            Route::get('research/categories', [\App\Http\Controllers\Admin\ResearchController::class, 'categories'])->name('research.categories');
+            Route::get('research/{research}', [\App\Http\Controllers\Admin\ResearchController::class, 'show'])->name('research.show');
+            Route::get('research/{research}/chapters/{chapter}', [\App\Http\Controllers\Admin\ResearchController::class, 'readChapter'])->name('research.read');
+        });
+        Route::middleware('can:research.manage')->group(function () {
+            Route::post('research/{research}/approve', [\App\Http\Controllers\Admin\ResearchController::class, 'approve'])->name('research.approve');
+            Route::post('research/{research}/request-changes', [\App\Http\Controllers\Admin\ResearchController::class, 'requestChanges'])->name('research.request-changes');
+            Route::post('research/{research}/reject', [\App\Http\Controllers\Admin\ResearchController::class, 'reject'])->name('research.reject');
+            Route::post('research/{research}/unpublish', [\App\Http\Controllers\Admin\ResearchController::class, 'unpublish'])->name('research.unpublish');
+            Route::delete('research/{research}', [\App\Http\Controllers\Admin\ResearchController::class, 'destroy'])->name('research.destroy');
+            Route::post('research-categories', [\App\Http\Controllers\Admin\ResearchController::class, 'storeCategory'])->name('research.categories.store');
+            Route::put('research-categories/{category}', [\App\Http\Controllers\Admin\ResearchController::class, 'updateCategory'])->name('research.categories.update');
+            Route::delete('research-categories/{category}', [\App\Http\Controllers\Admin\ResearchController::class, 'destroyCategory'])->name('research.categories.destroy');
         });
     });
 

@@ -22,6 +22,7 @@ class User extends Authenticatable
         'role',
         'permissions',
         'status',
+        'can_write_research',
     ];
 
     protected $hidden = [
@@ -39,6 +40,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'permissions' => 'array',
+            'can_write_research' => 'boolean',
         ];
     }
 
@@ -116,6 +118,17 @@ class User extends Authenticatable
     public function deviceTokens(): HasMany
     {
         return $this->hasMany(DeviceToken::class);
+    }
+
+    public function researches(): HasMany
+    {
+        return $this->hasMany(Research::class);
+    }
+
+    /** May this user author research content (admin-granted)? */
+    public function canWriteResearch(): bool
+    {
+        return (bool) $this->can_write_research || $this->is_admin;
     }
 
     public function payments(): HasMany
