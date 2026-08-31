@@ -50,12 +50,9 @@
     @if ($scholarships->isNotEmpty())
         <section class="border-y border-gray-200 bg-white">
             <div class="mbui-container py-16">
-                <div class="flex items-end justify-between">
-                    <div>
-                        <h2 class="text-2xl font-bold tracking-tight text-gray-900">Scholarships</h2>
-                        <p class="mt-1 text-sm text-gray-500">Open opportunities you can apply to right now</p>
-                    </div>
-                    <a href="{{ route('public.scholarships.index') }}" class="mbui-anchor text-sm">View all</a>
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold tracking-tight text-gray-900">Scholarships</h2>
+                    <p class="mt-1 text-sm text-gray-500">Open opportunities you can apply to right now</p>
                 </div>
                 <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($scholarships as $scholarship)
@@ -83,6 +80,9 @@
                             </div>
                         </a>
                     @endforeach
+                </div>
+                <div class="mt-8 text-center">
+                    <a href="{{ route('public.scholarships.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">View all scholarships &rarr;</a>
                 </div>
             </div>
         </section>

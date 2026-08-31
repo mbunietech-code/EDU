@@ -7,53 +7,48 @@
 
 @if ($items->isNotEmpty())
     <section aria-label="Published research" class="rs-marquee">
-        <div class="mbui-container">
-            <div class="flex items-end justify-between gap-4 pb-4">
-                <div>
-                    <h2 class="text-lg font-bold tracking-tight text-gray-900">From the research library</h2>
-                    <p class="text-sm text-gray-500">Work published by our contributors. Sign in to read in full.</p>
-                </div>
-                <a href="{{ route('research.index') }}" class="hidden shrink-0 text-sm font-semibold text-indigo-600 hover:text-indigo-800 sm:block">Browse all &rarr;</a>
-            </div>
+        <div class="mbui-container text-center">
+            <h2 class="text-2xl font-bold tracking-tight text-gray-900">From the research library</h2>
+            <p class="mt-1 text-sm text-gray-500">Work published by our contributors. Sign in to read in full.</p>
+        </div>
 
-            <div class="rs-marquee__viewport">
-                <div class="rs-marquee__track" style="--rs-duration: {{ $duration }}s;">
-                    @foreach ([1, 2] as $pass)
-                        <ul class="rs-marquee__group" @if ($pass === 2) aria-hidden="true" @endif>
-                            @foreach ($items as $item)
-                                <li class="rs-marquee__item">
-                                    <a href="{{ $item['url'] }}" class="rs-marquee__card">
-                                        @if (!empty($item['category']))
-                                            <span class="rs-marquee__chip">{{ $item['category'] }}</span>
-                                        @endif
-                                        <span class="rs-marquee__title">{{ $item['title'] }}</span>
-                                        <span class="rs-marquee__meta">{{ $item['author'] ?? 'Contributor' }} · {{ $item['chapters'] ?? 0 }} {{ \Illuminate\Support\Str::plural('chapter', $item['chapters'] ?? 0) }}</span>
-                                    </a>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endforeach
-                </div>
+        <div class="rs-marquee__viewport">
+            <div class="rs-marquee__track" style="--rs-duration: {{ $duration }}s;">
+                @foreach ([1, 2] as $pass)
+                    <ul class="rs-marquee__group" @if ($pass === 2) aria-hidden="true" @endif>
+                        @foreach ($items as $item)
+                            <li class="rs-marquee__item">
+                                <a href="{{ $item['url'] }}" class="rs-marquee__card">
+                                    @if (!empty($item['category']))
+                                        <span class="rs-marquee__chip">{{ $item['category'] }}</span>
+                                    @endif
+                                    <span class="rs-marquee__title">{{ $item['title'] }}</span>
+                                    <span class="rs-marquee__meta">{{ $item['author'] ?? 'Contributor' }} · {{ $item['chapters'] ?? 0 }} {{ \Illuminate\Support\Str::plural('chapter', $item['chapters'] ?? 0) }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endforeach
             </div>
+        </div>
 
-            <div class="pt-3 sm:hidden">
-                <a href="{{ route('research.index') }}" class="text-sm font-semibold text-indigo-600">Browse all research &rarr;</a>
-            </div>
+        <div class="mbui-container text-center">
+            <a href="{{ route('research.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">Browse all research &rarr;</a>
         </div>
     </section>
 
     @once
     <style>
-        .rs-marquee { background:#fff; border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; padding:1.75rem 0; overflow:hidden; }
-        .rs-marquee__viewport { position:relative; overflow:hidden; }
+        .rs-marquee { background:#fff; border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; padding:2.5rem 0; overflow:hidden; }
+        .rs-marquee__viewport { position:relative; overflow:hidden; margin:1.5rem 0; }
         .rs-marquee__viewport::before, .rs-marquee__viewport::after {
-            content:""; position:absolute; top:0; bottom:0; width:3rem; z-index:2; pointer-events:none;
+            content:""; position:absolute; top:0; bottom:0; width:6rem; z-index:2; pointer-events:none;
         }
         .rs-marquee__viewport::before { left:0;  background:linear-gradient(90deg,#fff,rgba(255,255,255,0)); }
         .rs-marquee__viewport::after  { right:0; background:linear-gradient(270deg,#fff,rgba(255,255,255,0)); }
         .rs-marquee__track { display:flex; width:max-content; animation:rs-marquee-scroll var(--rs-duration,40s) linear infinite; }
         .rs-marquee:hover .rs-marquee__track { animation-play-state:paused; }
-        .rs-marquee__group { display:flex; gap:1rem; margin:0; padding:0 1rem 0 0; list-style:none; }
+        .rs-marquee__group { display:flex; gap:1rem; margin:0; padding:0 .5rem 0 0; list-style:none; }
         .rs-marquee__item { flex:none; }
         .rs-marquee__card {
             display:flex; flex-direction:column; gap:.4rem; width:19rem; height:100%;
