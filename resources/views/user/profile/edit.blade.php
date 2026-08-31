@@ -29,7 +29,7 @@
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-gray-500">Member since</dt>
-                    <dd class="font-medium text-gray-900">{{ auth()->user()->created_at->format('d M Y') }}</dd>
+                    <dd class="font-medium text-gray-900">{{ \App\Support\Dates::human(auth()->user()->created_at) }}</dd>
                 </div>
             </dl>
         </div>
