@@ -95,6 +95,23 @@ class Research extends Model
         return $q->whereIn('status', ['submitted', 'under_review', 'changes_requested']);
     }
 
+    /**
+     * Count of research awaiting review — safe to call before the table exists
+     * (used for the admin sidebar badge, which renders on every admin page).
+     */
+    public static function pendingReviewCount(): int
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('researches')) {
+                return 0;
+            }
+
+            return static::inReview()->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     // --- Helpers -----------------------------------------------------
     public function isPublished(): bool
     {

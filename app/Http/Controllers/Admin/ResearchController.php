@@ -31,7 +31,7 @@ class ResearchController extends Controller
         };
 
         $researches = $query->paginate(20)->withQueryString();
-        $reviewCount = Research::inReview()->count();
+        $reviewCount = Research::pendingReviewCount();
 
         return view('admin.research.index', compact('researches', 'tab', 'reviewCount'));
     }
