@@ -1,16 +1,16 @@
-<x-layouts.user :title="$chapter->title . ' — ' . $research->title">
+<x-layouts.app :title="$chapter->title . ' — ' . $research->title">
 
     <div x-data="researchReader({{ $research->id }})" class="lg:grid lg:grid-cols-[16rem_1fr] lg:gap-8">
 
         {{-- Contents sidebar --}}
         <aside class="mb-6 lg:mb-0">
             <div class="lg:sticky lg:top-6">
-                <a href="{{ route('research.show', $research) }}" class="text-xs font-medium text-gray-500 hover:text-gray-700">&larr; {{ $research->title }}</a>
+                <a href="{{ route('library.show', $research) }}" class="text-xs font-medium text-gray-500 hover:text-gray-700">&larr; {{ $research->title }}</a>
                 <h2 class="mbui-section-label mt-3">Contents</h2>
                 <nav class="mt-3 space-y-3 text-sm">
                     @foreach ($research->chapters as $ch)
                         <div>
-                            <a href="{{ route('research.read', [$research, $ch]) }}"
+                            <a href="{{ route('library.read', [$research, $ch]) }}"
                                class="block font-semibold {{ $ch->id === $chapter->id ? 'text-indigo-600' : 'text-gray-800 hover:text-indigo-600' }}">
                                 {{ $ch->title }}
                             </a>
@@ -59,14 +59,14 @@
             {{-- Prev / Next --}}
             <div class="mt-12 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
                 @if ($prev)
-                    <a href="{{ route('research.read', [$research, $prev]) }}" class="inline-flex items-center gap-1.5 font-medium text-gray-700 hover:text-indigo-600">
+                    <a href="{{ route('library.read', [$research, $prev]) }}" class="inline-flex items-center gap-1.5 font-medium text-gray-700 hover:text-indigo-600">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                         <span class="max-w-[10rem] truncate">{{ $prev->title }}</span>
                     </a>
                 @else <span></span> @endif
 
                 @if ($next)
-                    <a href="{{ route('research.read', [$research, $next]) }}" class="inline-flex items-center gap-1.5 font-medium text-gray-700 hover:text-indigo-600">
+                    <a href="{{ route('library.read', [$research, $next]) }}" class="inline-flex items-center gap-1.5 font-medium text-gray-700 hover:text-indigo-600">
                         <span class="max-w-[10rem] truncate">{{ $next->title }}</span>
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                     </a>
@@ -83,7 +83,7 @@
                 toggle(sectionId, isDone) {
                     if (isDone) { if (!this.done.includes(sectionId)) this.done.push(sectionId); }
                     else { this.done = this.done.filter(id => id !== sectionId); }
-                    fetch(`{{ url('research') }}/{{ $research->slug }}/progress`, {
+                    fetch(`{{ route('library.progress', $research) }}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                         body: JSON.stringify({ section_id: sectionId, done: isDone }),
@@ -93,4 +93,4 @@
         }
     </script>
     @endpush
-</x-layouts.user>
+</x-layouts.app>

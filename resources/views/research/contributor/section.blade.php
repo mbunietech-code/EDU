@@ -1,4 +1,4 @@
-<x-layouts.user :title="'Edit section — ' . $research->title">
+<x-layouts.app :title="'Edit section — ' . $research->title">
 
     @php($locked = ! $research->isEditableByAuthor())
 
@@ -84,4 +84,4 @@
         }
     </script>
     @endpush
-</x-layouts.user>
+</x-layouts.app>

@@ -1,4 +1,4 @@
-<x-layouts.user title="My Research" header="My Research">
+<x-layouts.app title="My Research" header="My Research">
 
     <div class="mbui-page-header">
         <div>
@@ -37,4 +37,4 @@
             </x-mbui.card>
         @endforelse
     </div>
-</x-layouts.user>
+</x-layouts.app>

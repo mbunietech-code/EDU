@@ -107,9 +107,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
     Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('user.profile.password');
 
-    // --- Research & Consultancy — reader (sign-in required) -----------
-    Route::get('/research/{research:slug}/read/{chapter}', [\App\Http\Controllers\Research\LibraryController::class, 'read'])->name('research.read');
-    Route::post('/research/{research:slug}/progress', [\App\Http\Controllers\Research\LibraryController::class, 'markSection'])->name('research.progress');
+    // --- Research library — the signed-in reading experience ---------
+    Route::get('/library', [\App\Http\Controllers\Research\LibraryController::class, 'index'])->name('library.index');
+    Route::get('/library/c/{category:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'category'])->name('library.category');
+    Route::get('/library/{research:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'show'])->name('library.show');
+    Route::get('/library/{research:slug}/read/{chapter}', [\App\Http\Controllers\Research\LibraryController::class, 'read'])->name('library.read');
+    Route::post('/library/{research:slug}/progress', [\App\Http\Controllers\Research\LibraryController::class, 'markSection'])->name('library.progress');
 
     // --- Research & Consultancy — contributor portal -----------------
     Route::middleware('research.contribute')->group(function () {

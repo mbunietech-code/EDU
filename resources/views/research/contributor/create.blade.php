@@ -1,4 +1,4 @@
-<x-layouts.user title="New research" header="New research">
+<x-layouts.app title="New research" header="New research">
 
     <nav class="text-sm text-gray-500">
         <a href="{{ route('research.contributor.index') }}" class="hover:text-gray-700">My Research</a>
@@ -32,4 +32,4 @@
             </div>
         </form>
     </x-mbui.card>
-</x-layouts.user>
+</x-layouts.app>

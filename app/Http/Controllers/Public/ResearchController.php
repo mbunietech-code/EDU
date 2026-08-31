@@ -14,6 +14,10 @@ class ResearchController extends Controller
 {
     public function index()
     {
+        if (auth()->check()) {
+            return redirect()->route('library.index');
+        }
+
         $categories = ResearchCategory::query()
             ->withCount(['researches as published_count' => fn ($q) => $q->where('status', 'published')])
             ->orderBy('position')->orderBy('name')->get()
@@ -31,6 +35,10 @@ class ResearchController extends Controller
 
     public function category(ResearchCategory $category)
     {
+        if (auth()->check()) {
+            return redirect()->route('library.category', $category);
+        }
+
         $researches = $category->researches()
             ->where('status', 'published')
             ->with('author:id,name')->withCount('chapters')
@@ -43,6 +51,10 @@ class ResearchController extends Controller
     public function show(Research $research)
     {
         abort_unless($research->isPublished(), 404);
+
+        if (auth()->check()) {
+            return redirect()->route('library.show', $research);
+        }
 
         $research->load([
             'category', 'author:id,name',

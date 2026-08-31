@@ -29,25 +29,16 @@
                         Sign in to open every chapter, follow the outline, and track your reading progress.
                     </p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        @auth
-                            @if ($firstChapter)
-                                <a href="{{ route('research.read', [$research, $firstChapter]) }}"
-                                   class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                                    Start reading
-                                </a>
-                            @endif
-                        @else
-                            @if ($firstChapter)
-                                <a href="{{ route('research.read', [$research, $firstChapter]) }}"
-                                   class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                                    Sign in to read
-                                </a>
-                            @endif
-                            <a href="{{ route('register') }}"
-                               class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                                Create an account
+                        @if ($firstChapter)
+                            <a href="{{ route('library.read', [$research, $firstChapter]) }}"
+                               class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                                Sign in to read
                             </a>
-                        @endauth
+                        @endif
+                        <a href="{{ route('register') }}"
+                           class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            Create an account
+                        </a>
                     </div>
                 </div>
             </div>
