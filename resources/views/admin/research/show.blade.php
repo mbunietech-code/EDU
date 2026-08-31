@@ -5,7 +5,6 @@
         <span class="mx-1.5">/</span><span class="text-gray-700">{{ Str::limit($research->title, 50) }}</span>
     </nav>
 
-    @if (session('success')) <x-mbui.alert class="mt-4">{{ session('success') }}</x-mbui.alert> @endif
 
     <div class="mt-4 grid gap-6 lg:grid-cols-3">
         {{-- Content preview --}}

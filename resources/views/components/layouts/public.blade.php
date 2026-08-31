@@ -39,6 +39,7 @@
                     <a href="{{ route('public.home') }}" class="hover:text-gray-900">Home</a>
                     <a href="{{ route('public.products.index') }}" class="hover:text-gray-900">AI Tools</a>
                     <a href="{{ route('public.scholarships.index') }}" class="hover:text-gray-900">Scholarships</a>
+                    <a href="{{ route('research.index') }}" class="hover:text-gray-900">Research</a>
                     <a href="{{ route('public.about') }}" class="hover:text-gray-900">About</a>
                     <a href="{{ route('public.faq') }}" class="hover:text-gray-900">FAQ</a>
                     <a href="{{ route('public.contact') }}" class="hover:text-gray-900">Contact</a>
@@ -87,6 +88,7 @@
                     <h4 class="mbui-section-label">Explore</h4>
                     <ul class="mt-3 space-y-2 text-sm text-gray-600">
                         <li><a class="hover:text-gray-900" href="{{ route('public.products.index') }}">AI Tools</a></li>
+                        <li><a class="hover:text-gray-900" href="{{ route('research.index') }}">Research</a></li>
                         <li><a class="hover:text-gray-900" href="{{ route('public.about') }}">About</a></li>
                         <li><a class="hover:text-gray-900" href="{{ route('public.faq') }}">FAQ</a></li>
                         <li><a class="hover:text-gray-900" href="{{ route('public.contact') }}">Contact</a></li>

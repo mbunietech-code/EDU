@@ -5,7 +5,6 @@
         <span class="mx-1.5">/</span><span class="text-gray-700">Categories</span>
     </nav>
 
-    @if (session('success')) <x-mbui.alert class="mt-4">{{ session('success') }}</x-mbui.alert> @endif
 
     <div class="mt-4 grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2 space-y-3">

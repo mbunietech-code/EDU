@@ -21,8 +21,6 @@
         @endif
     </div>
 
-    @if (session('success')) <x-mbui.alert class="mt-4">{{ session('success') }}</x-mbui.alert> @endif
-    @if (session('error')) <x-mbui.alert type="error" class="mt-4">{{ session('error') }}</x-mbui.alert> @endif
 
     @if ($locked)
         <x-mbui.alert type="info" class="mt-4">

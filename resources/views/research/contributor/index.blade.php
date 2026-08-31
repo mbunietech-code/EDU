@@ -11,8 +11,6 @@
         </x-mbui.btn-link>
     </div>
 
-    @if (session('success')) <x-mbui.alert class="mt-4">{{ session('success') }}</x-mbui.alert> @endif
-    @if (session('error')) <x-mbui.alert type="error" class="mt-4">{{ session('error') }}</x-mbui.alert> @endif
 
     <div class="mt-6 space-y-3">
         @forelse ($researches as $research)

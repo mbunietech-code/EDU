@@ -5,12 +5,17 @@
             <h1 class="mbui-title">Research library</h1>
             <p class="mt-1 text-sm text-gray-500">Review submissions, publish approved work, and manage categories.</p>
         </div>
-        @can('research.manage')
-            <x-mbui.btn-link :href="route('admin.research.categories')" variant="secondary">Categories</x-mbui.btn-link>
-        @endcan
+        <div class="flex gap-2">
+            <x-mbui.btn-link :href="route('research.contributor.create')">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                New research
+            </x-mbui.btn-link>
+            @can('research.manage')
+                <x-mbui.btn-link :href="route('admin.research.categories')" variant="secondary">Categories</x-mbui.btn-link>
+            @endcan
+        </div>
     </div>
 
-    @if (session('success')) <x-mbui.alert class="mt-4">{{ session('success') }}</x-mbui.alert> @endif
 
     <div class="mt-6 flex flex-wrap gap-1 border-b border-gray-200 text-sm">
         @php($tabs = ['review' => 'In review', 'published' => 'Published', 'drafts' => 'Drafts', 'archived' => 'Archived', 'all' => 'All'])

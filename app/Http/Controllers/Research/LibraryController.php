@@ -4,55 +4,16 @@ namespace App\Http\Controllers\Research;
 
 use App\Http\Controllers\Controller;
 use App\Models\Research;
-use App\Models\ResearchCategory;
 use App\Models\ResearchChapter;
 use App\Models\ResearchReadingProgress;
 use Illuminate\Http\Request;
 
+/**
+ * The signed-in reading experience. The public teaser listing lives in
+ * App\Http\Controllers\Public\ResearchController.
+ */
 class LibraryController extends Controller
 {
-    public function index()
-    {
-        $categories = ResearchCategory::query()
-            ->withCount(['researches as published_count' => fn ($q) => $q->where('status', 'published')])
-            ->orderBy('position')->orderBy('name')->get();
-
-        $recent = Research::published()
-            ->with(['category', 'author:id,name'])
-            ->latest('published_at')->take(8)->get();
-
-        $continue = ResearchReadingProgress::where('user_id', auth()->id())
-            ->whereHas('research', fn ($q) => $q->where('status', 'published'))
-            ->with('research.category')
-            ->latest('last_read_at')->take(3)->get();
-
-        return view('research.index', compact('categories', 'recent', 'continue'));
-    }
-
-    public function category(ResearchCategory $category)
-    {
-        $researches = $category->researches()
-            ->where('status', 'published')
-            ->with('author:id,name')
-            ->latest('published_at')->paginate(12);
-
-        return view('research.category', compact('category', 'researches'));
-    }
-
-    public function show(Research $research)
-    {
-        abort_unless($research->isPublished(), 404);
-
-        $research->load(['category', 'author:id,name', 'chapters.sections:id,research_chapter_id,heading,position']);
-        $research->increment('views');
-
-        $progress = ResearchReadingProgress::firstWhere([
-            'user_id' => auth()->id(), 'research_id' => $research->id,
-        ]);
-
-        return view('research.show', compact('research', 'progress'));
-    }
-
     public function read(Research $research, ResearchChapter $chapter)
     {
         abort_unless($research->isPublished(), 404);

@@ -45,6 +45,8 @@
 
     <x-public.ticker :items="$tickerItems ?? []" />
 
+    <x-public.research-marquee :items="$researchMarquee ?? []" />
+
     @if ($scholarships->isNotEmpty())
         <section class="border-y border-gray-200 bg-white">
             <div class="mbui-container py-16">

@@ -57,6 +57,11 @@ Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
 Route::get('/scholarships', [PublicScholarshipController::class, 'index'])->name('public.scholarships.index');
 Route::get('/scholarships/{scholarship:slug}', [PublicScholarshipController::class, 'show'])->name('public.scholarships.show');
 
+// Research library — public teaser view (reading requires sign-in)
+Route::get('/research', [\App\Http\Controllers\Public\ResearchController::class, 'index'])->name('research.index');
+Route::get('/research/c/{category:slug}', [\App\Http\Controllers\Public\ResearchController::class, 'category'])->name('research.category');
+Route::get('/research/{research:slug}', [\App\Http\Controllers\Public\ResearchController::class, 'show'])->name('research.show');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -102,10 +107,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
     Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('user.profile.password');
 
-    // --- Research & Consultancy — reader ------------------------------
-    Route::get('/research', [\App\Http\Controllers\Research\LibraryController::class, 'index'])->name('research.index');
-    Route::get('/research/c/{category:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'category'])->name('research.category');
-    Route::get('/research/{research:slug}', [\App\Http\Controllers\Research\LibraryController::class, 'show'])->name('research.show');
+    // --- Research & Consultancy — reader (sign-in required) -----------
     Route::get('/research/{research:slug}/read/{chapter}', [\App\Http\Controllers\Research\LibraryController::class, 'read'])->name('research.read');
     Route::post('/research/{research:slug}/progress', [\App\Http\Controllers\Research\LibraryController::class, 'markSection'])->name('research.progress');
 
