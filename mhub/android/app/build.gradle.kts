@@ -28,7 +28,9 @@ android {
 
     defaultConfig {
         applicationId = "com.mbunie.mhub"
-        minSdk = maxOf(flutter.minSdkVersion, 23) // FCM / notifications
+        // API 24+: modern APK Signature Scheme v2/v3 (no legacy v1/JAR signing
+        // needed), and the floor every current FCM / notifications plugin wants.
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -42,6 +44,8 @@ android {
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }

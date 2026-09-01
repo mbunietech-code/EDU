@@ -9,11 +9,16 @@ use App\Models\ResearchChapter;
 use App\Models\ResearchReadingProgress;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ResearchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('researches')) {
+            return response()->json(['categories' => [], 'recent' => [], 'continue' => []]);
+        }
+
         $categories = ResearchCategory::query()
             ->withCount(['researches as published_count' => fn ($q) => $q->where('status', 'published')])
             ->orderBy('position')->orderBy('name')->get()
@@ -159,6 +164,10 @@ class ResearchController extends Controller
     public function mine(Request $request): JsonResponse
     {
         abort_unless($request->user()->canWriteResearch(), 403);
+
+        if (! Schema::hasTable('researches')) {
+            return response()->json(['data' => []]);
+        }
 
         $items = Research::where('user_id', $request->user()->id)
             ->with('category:id,name')->withCount('chapters')
