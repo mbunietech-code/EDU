@@ -86,6 +86,7 @@ class ChatController extends Controller
         abort_unless($conversation->user_id === auth()->id(), 403);
         abort_unless($message->conversation_id === $conversation->id, 403);
         abort_if(! $message->file_path, 404);
+        abort_unless(Storage::disk('private')->exists($message->file_path), 404, 'This attachment is no longer available on the server.');
 
         return Storage::disk('private')->download($message->file_path, $message->file_name ?: basename($message->file_path));
     }
