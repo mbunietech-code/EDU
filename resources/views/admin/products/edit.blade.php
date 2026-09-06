@@ -65,7 +65,7 @@
                             this.fileName = '';
                             const fd = new FormData();
                             fd.append('software_file', file);
-                            fd.append('_token', document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content'));
+                            fd.append('_token', '{{ csrf_token() }}');
                             const xhr = new XMLHttpRequest();
                             xhr.open('POST', '{{ route('admin.software-files.store') }}');
                             xhr.setRequestHeader('Accept', 'application/json');
