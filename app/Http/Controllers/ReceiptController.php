@@ -19,6 +19,18 @@ class ReceiptController extends Controller
         return $this->render($order);
     }
 
+    /**
+     * Signed, session-independent download — used by the mobile app, which
+     * opens this URL directly in the device's browser (no bearer-token
+     * header support there). The signature itself proves authorization,
+     * since it's only ever generated server-side after the API layer has
+     * already checked the caller may see this order.
+     */
+    public function signedShow(Order $order)
+    {
+        return $this->render($order);
+    }
+
     protected function render(Order $order)
     {
         abort_unless($order->isConfirmed(), 404);

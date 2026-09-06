@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../data/admin_api.dart';
@@ -114,13 +115,80 @@ class AdminOrderDetailScreen extends ConsumerWidget {
   const AdminOrderDetailScreen({super.key, required this.orderId});
   final int orderId;
 
+  Future<void> _edit(BuildContext context, WidgetRef ref, AdminOrder o) async {
+    final controller = TextEditingController(text: o.paymentInstructions ?? '');
+    final newValue = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit payment instructions'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 6,
+          decoration: const InputDecoration(hintText: 'Shown to the customer'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newValue == null) return;
+
+    try {
+      await ref.read(adminRepositoryProvider).updateOrder(o.id, newValue);
+      ref.invalidate(adminOrderProvider(o.id));
+      ref.invalidate(adminOrdersProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Order updated.')));
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _downloadReceipt(BuildContext context, WidgetRef ref, int id) async {
+    try {
+      final url = await ref.read(adminRepositoryProvider).orderReceiptUrl(id);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(adminOrderProvider(orderId));
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
-      appBar: AppBar(title: const Text('Order')),
+      appBar: AppBar(
+        title: const Text('Order'),
+        actions: [
+          async.maybeWhen(
+            data: (o) => IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit payment instructions',
+              onPressed: () => _edit(context, ref, o),
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
+      ),
       body: AsyncValueView<AdminOrder>(
         value: async,
         onRefresh: () async => ref.refresh(adminOrderProvider(orderId).future),
@@ -191,6 +259,16 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                   ),
                 ),
             ],
+            if (o.isConfirmed) ...[
+              const SizedBox(height: 24),
+              MbuiButton(
+                label: 'Download receipt',
+                variant: MbuiVariant.secondary,
+                icon: Icons.receipt_long_outlined,
+                fullWidth: true,
+                onPressed: () => _downloadReceipt(context, ref, o.id),
+              ),
+            ],
             if (!o.isConfirmed && o.status != 'rejected' && o.status != 'cancelled') ...[
               const SizedBox(height: 24),
               _RejectOrderButton(orderId: o.id),
@@ -201,6 +279,8 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 12, color: AppColors.gray500),
               ),
             ],
+            const SizedBox(height: 12),
+            _DeleteOrderButton(orderId: o.id),
           ],
         ),
       ),
@@ -256,6 +336,58 @@ class _RejectOrderButtonState extends ConsumerState<_RejectOrderButton> {
       fullWidth: true,
       loading: _busy,
       onPressed: _reject,
+    );
+  }
+}
+
+class _DeleteOrderButton extends ConsumerStatefulWidget {
+  const _DeleteOrderButton({required this.orderId});
+  final int orderId;
+
+  @override
+  ConsumerState<_DeleteOrderButton> createState() => _DeleteOrderButtonState();
+}
+
+class _DeleteOrderButtonState extends ConsumerState<_DeleteOrderButton> {
+  bool _busy = false;
+
+  Future<void> _delete() async {
+    final reason = await promptReason(
+      context,
+      title: 'Delete order',
+      actionLabel: 'Delete',
+      hint: 'Why are you deleting this order? This cannot be undone.',
+    );
+    if (reason == null || reason.isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(adminRepositoryProvider).deleteOrder(widget.orderId, reason);
+      ref.invalidate(adminOrdersProvider);
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Order deleted.')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MbuiButton(
+      label: 'Delete order',
+      variant: MbuiVariant.danger,
+      icon: Icons.delete_outline,
+      fullWidth: true,
+      loading: _busy,
+      onPressed: _delete,
     );
   }
 }

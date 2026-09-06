@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../models/order.dart';
@@ -14,6 +15,18 @@ class OrderDetailScreen extends ConsumerWidget {
 
   final int orderId;
   final String title;
+
+  Future<void> _downloadReceipt(BuildContext context, WidgetRef ref, int id) async {
+    try {
+      final url = await ref.read(ordersRepositoryProvider).receiptUrl(id);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,6 +74,16 @@ class OrderDetailScreen extends ConsumerWidget {
                 textColor: const Color(0xFF854D0E),
                 icon: Icons.info_outline,
                 text: o.paymentInstructions!,
+              ),
+            ],
+            if (o.isConfirmed) ...[
+              const SizedBox(height: 16),
+              MbuiButton(
+                label: 'Download receipt',
+                variant: MbuiVariant.secondary,
+                icon: Icons.receipt_long_outlined,
+                fullWidth: true,
+                onPressed: () => _downloadReceipt(context, ref, o.id),
               ),
             ],
             if (o.payments.isNotEmpty) ...[

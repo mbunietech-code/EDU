@@ -23,6 +23,11 @@ class OrdersRepository {
     await _api.post('/orders/$id/cancel');
   }
 
+  Future<String> receiptUrl(int id) async {
+    final data = await _api.get('/orders/$id/receipt-url') as Map<String, dynamic>;
+    return data['url'] as String;
+  }
+
   /// Place a new order for a product plan. Returns the created order.
   Future<Order> create({required int productId, required int planId}) async {
     final data = await _api.post('/orders', data: {

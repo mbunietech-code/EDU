@@ -46,6 +46,13 @@ Route::get('/up', function () {
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('public.home');
+
+// Signed, session-independent receipt link — used by the mobile app (which
+// has no web session/cookie), generated server-side by the API layer only
+// after it has verified the caller may see the order.
+Route::get('/signed/orders/{order}/receipt', [ReceiptController::class, 'signedShow'])
+    ->middleware('signed')
+    ->name('signed.orders.receipt');
 Route::get('/ticker/feed', [\App\Http\Controllers\Public\TickerController::class, 'feed'])->name('public.ticker.feed');
 Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');

@@ -89,6 +89,34 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    state = state.copyWith(busy: true, clearError: true);
+    try {
+      final result = await _repo.register(
+        name: name,
+        email: email,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
+      );
+      await _tokens.write(result.token);
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: result.user,
+        busy: false,
+      );
+      unawaited(_ref.read(notificationCenterProvider).start());
+      return true;
+    } on ApiException catch (e) {
+      state = state.copyWith(busy: false, error: e.message);
+      return false;
+    }
+  }
+
   /// Re-fetch the current user (e.g. after editing the profile).
   Future<void> refreshUser() async {
     try {

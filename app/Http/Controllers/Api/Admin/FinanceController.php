@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceExpense;
+use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Tool;
+use App\Services\DeletionService;
 use App\Services\FinanceOverviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -160,6 +163,7 @@ class FinanceController extends Controller
             'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ]);
         $data['created_by'] = $request->user()->id;
+        $data['label'] = $this->resolveLabel($data);
 
         $receipt = $data['receipt'] ?? null;
         unset($data['receipt']);
@@ -174,6 +178,58 @@ class FinanceController extends Controller
         ]);
 
         return response()->json(['data' => ['id' => $expense->id], 'message' => 'Expense recorded.'], 201);
+    }
+
+    public function expenseShow(Request $request, FinanceExpense $expense): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        return response()->json(['data' => [
+            'id' => $expense->id,
+            'product_id' => $expense->product_id,
+            'tool_id' => $expense->tool_id,
+            'label' => $expense->label,
+            'amount' => (float) $expense->amount,
+            'category' => $expense->category,
+            'description' => $expense->description,
+            'spent_at' => optional($expense->spent_at)->toDateString(),
+        ]]);
+    }
+
+    public function expenseUpdate(Request $request, FinanceExpense $expense): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        $data = $request->validate([
+            'product_id' => ['nullable', 'exists:products,id'],
+            'tool_id' => ['nullable', 'exists:tools,id'],
+            'label' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'category' => ['nullable', Rule::in(self::CATEGORIES)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'spent_at' => ['required', 'date'],
+        ]);
+        $data['label'] = $this->resolveLabel($data);
+
+        $expense->update($data);
+        ActivityLog::log('finance_expense_updated', 'FinanceExpense', $expense->id, [
+            'label' => $expense->label, 'amount' => $expense->amount,
+        ]);
+
+        return response()->json(['data' => ['id' => $expense->id], 'message' => 'Expense updated.']);
+    }
+
+    public function expenseDestroy(Request $request, FinanceExpense $expense, DeletionService $deletions): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        $reason = $this->reason($request);
+        $deletions->delete($expense, $reason);
+
+        return response()->json(['message' => 'Expense removed.']);
     }
 
     public function receipt(Request $request, FinanceExpense $expense): StreamedResponse
@@ -226,6 +282,7 @@ class FinanceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
         $data['created_by'] = $request->user()->id;
+        $data['label'] = $this->resolveLabel($data);
 
         $entry = FinanceCapitalEntry::create($data);
         ActivityLog::log('finance_capital_added', 'FinanceCapitalEntry', $entry->id, [
@@ -233,6 +290,78 @@ class FinanceController extends Controller
         ]);
 
         return response()->json(['data' => ['id' => $entry->id], 'message' => 'Capital entry recorded.'], 201);
+    }
+
+    public function capitalShow(Request $request, FinanceCapitalEntry $capitalEntry): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        return response()->json(['data' => [
+            'id' => $capitalEntry->id,
+            'product_id' => $capitalEntry->product_id,
+            'tool_id' => $capitalEntry->tool_id,
+            'label' => $capitalEntry->label,
+            'amount' => (float) $capitalEntry->amount,
+            'source' => $capitalEntry->source,
+            'is_loan' => (bool) $capitalEntry->is_loan,
+            'notes' => $capitalEntry->notes,
+        ]]);
+    }
+
+    public function capitalUpdate(Request $request, FinanceCapitalEntry $capitalEntry): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        $data = $request->validate([
+            'product_id' => ['nullable', 'exists:products,id'],
+            'tool_id' => ['nullable', 'exists:tools,id'],
+            'label' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'source' => ['required', 'string', 'max:255'],
+            'is_loan' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $data['label'] = $this->resolveLabel($data);
+
+        $capitalEntry->update($data);
+        ActivityLog::log('finance_capital_updated', 'FinanceCapitalEntry', $capitalEntry->id, [
+            'label' => $capitalEntry->label, 'amount' => $capitalEntry->amount,
+        ]);
+
+        return response()->json(['data' => ['id' => $capitalEntry->id], 'message' => 'Capital entry updated.']);
+    }
+
+    public function capitalDestroy(Request $request, FinanceCapitalEntry $capitalEntry, DeletionService $deletions): JsonResponse
+    {
+        $this->gate($request);
+        $this->assertUnlocked($request);
+
+        $reason = $this->reason($request);
+        $deletions->delete($capitalEntry, $reason);
+
+        return response()->json(['message' => 'Capital entry removed.']);
+    }
+
+    private function resolveLabel(array $data): string
+    {
+        if (! empty($data['product_id'])) {
+            return Product::find($data['product_id'])->name;
+        }
+
+        if (! empty($data['tool_id'])) {
+            return Tool::find($data['tool_id'])->name;
+        }
+
+        return $data['label'];
+    }
+
+    private function reason(Request $request): string
+    {
+        return $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ])['reason'];
     }
 
     public function targets(Request $request): JsonResponse

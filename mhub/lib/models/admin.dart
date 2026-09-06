@@ -13,6 +13,7 @@ class AdminOrder {
     this.rejectionReason,
     this.customerEmail,
     this.confirmedAt,
+    this.paymentInstructions,
     this.payments = const [],
   });
 
@@ -27,6 +28,7 @@ class AdminOrder {
   final String? rejectionReason;
   final String? customerEmail;
   final String? confirmedAt;
+  final String? paymentInstructions;
   final List<AdminOrderPayment> payments;
 
   bool get isPending => status == 'pending';
@@ -44,6 +46,7 @@ class AdminOrder {
         rejectionReason: j['rejection_reason'] as String?,
         customerEmail: (j['customer'] as Map<String, dynamic>?)?['email'] as String?,
         confirmedAt: j['confirmed_at'] as String?,
+        paymentInstructions: j['payment_instructions'] as String?,
         payments: (j['payments'] as List?)
                 ?.map((e) => AdminOrderPayment.fromJson(e as Map<String, dynamic>))
                 .toList() ??

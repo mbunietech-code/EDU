@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::get('/orders/{order}/receipt-url', [OrderController::class, 'receiptUrl']);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
 
     // Payments
@@ -85,7 +86,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
         Route::get('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
+        Route::put('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'update']);
         Route::post('/orders/{order}/reject', [\App\Http\Controllers\Api\Admin\OrderController::class, 'reject']);
+        Route::delete('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'destroy']);
+        Route::get('/orders/{order}/receipt-url', [\App\Http\Controllers\Api\Admin\OrderController::class, 'receiptUrl']);
 
         Route::get('/payments', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'index']);
         Route::get('/payments/{payment}', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'show']);
@@ -171,9 +175,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/overview', 'overview');
             Route::get('/expenses', 'expenses');
             Route::post('/expenses', 'storeExpense');
+            Route::get('/expenses/{expense}', 'expenseShow');
+            Route::put('/expenses/{expense}', 'expenseUpdate');
+            Route::delete('/expenses/{expense}', 'expenseDestroy');
             Route::get('/expenses/{expense}/receipt', 'receipt');
             Route::get('/capital', 'capital');
             Route::post('/capital', 'storeCapital');
+            Route::get('/capital/{capitalEntry}', 'capitalShow');
+            Route::put('/capital/{capitalEntry}', 'capitalUpdate');
+            Route::delete('/capital/{capitalEntry}', 'capitalDestroy');
         });
 
         // Catalogue management

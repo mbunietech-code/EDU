@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Order;
+use App\Services\DeletionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -91,6 +92,43 @@ class OrderController extends Controller
         ]);
 
         return response()->json(['data' => $this->row($order->fresh()), 'message' => 'Order disapproved.']);
+    }
+
+    public function update(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate([
+            'payment_instructions' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $order->update($data);
+
+        ActivityLog::log('order_updated', 'Order', $order->id, ['order_number' => $order->order_number]);
+
+        return response()->json(['data' => $this->row($order->fresh()), 'message' => 'Order updated.']);
+    }
+
+    public function receiptUrl(Order $order): JsonResponse
+    {
+        abort_unless($order->isConfirmed(), 404);
+
+        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'signed.orders.receipt',
+            now()->addMinutes(5),
+            ['order' => $order->id]
+        );
+
+        return response()->json(['url' => $url]);
+    }
+
+    public function destroy(Request $request, Order $order, DeletionService $deletionService): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($order, $data['reason']);
+
+        return response()->json(['message' => 'Order deleted.']);
     }
 
     private function row(Order $o): array

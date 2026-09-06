@@ -41,6 +41,17 @@ class AdminRepository {
   Future<void> rejectOrder(int id, String reason) =>
       _api.post('/admin/orders/$id/reject', data: {'reason': reason});
 
+  Future<void> updateOrder(int id, String? paymentInstructions) =>
+      _api.put('/admin/orders/$id', data: {'payment_instructions': paymentInstructions});
+
+  Future<void> deleteOrder(int id, String reason) =>
+      _api.delete('/admin/orders/$id', data: {'reason': reason});
+
+  Future<String> orderReceiptUrl(int id) async {
+    final data = await _api.get('/admin/orders/$id/receipt-url') as Map<String, dynamic>;
+    return data['url'] as String;
+  }
+
   // --- Payments ---
   Future<AdminList<AdminPayment>> payments({String? status}) async {
     final data = await _api.get('/admin/payments', query: {

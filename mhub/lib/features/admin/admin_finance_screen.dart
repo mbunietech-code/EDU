@@ -9,6 +9,7 @@ import '../../data/admin_finance_api.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
+import 'admin_common.dart';
 import 'admin_form_kit.dart';
 
 class AdminFinanceScreen extends ConsumerWidget {
@@ -296,6 +297,9 @@ class _ExpensesTab extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: MbuiCard(
                 padding: const EdgeInsets.all(14),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => FinanceEntryForm(isExpense: true, existingExpense: e),
+                )),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -311,6 +315,16 @@ class _ExpensesTab extends ConsumerWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.red600)),
+                        const SizedBox(width: 4),
+                        _DeleteIconButton(
+                          onDelete: (reason) => ref
+                              .read(adminFinanceRepositoryProvider)
+                              .deleteExpense(e.id, reason),
+                          onDeleted: () {
+                            ref.invalidate(financeExpensesProvider);
+                            ref.invalidate(financeOverviewProvider);
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -362,6 +376,9 @@ class _CapitalTab extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: MbuiCard(
                 padding: const EdgeInsets.all(14),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => FinanceEntryForm(isExpense: false, existingCapital: c),
+                )),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -377,6 +394,16 @@ class _CapitalTab extends ConsumerWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.emerald700)),
+                        const SizedBox(width: 4),
+                        _DeleteIconButton(
+                          onDelete: (reason) => ref
+                              .read(adminFinanceRepositoryProvider)
+                              .deleteCapital(c.id, reason),
+                          onDeleted: () {
+                            ref.invalidate(financeCapitalProvider);
+                            ref.invalidate(financeOverviewProvider);
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -400,9 +427,72 @@ class _CapitalTab extends ConsumerWidget {
   }
 }
 
+class _DeleteIconButton extends ConsumerStatefulWidget {
+  const _DeleteIconButton({required this.onDelete, required this.onDeleted});
+  final Future<void> Function(String reason) onDelete;
+  final VoidCallback onDeleted;
+
+  @override
+  ConsumerState<_DeleteIconButton> createState() => _DeleteIconButtonState();
+}
+
+class _DeleteIconButtonState extends ConsumerState<_DeleteIconButton> {
+  bool _busy = false;
+
+  Future<void> _delete() async {
+    final reason = await promptReason(
+      context,
+      title: 'Delete entry',
+      actionLabel: 'Delete',
+      hint: 'Why are you deleting this? This cannot be undone.',
+    );
+    if (reason == null || reason.isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      await widget.onDelete(reason);
+      widget.onDeleted();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Deleted.')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _busy
+        ? const SizedBox(
+            height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+        : IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.red600),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+            onPressed: _delete,
+          );
+  }
+}
+
 class FinanceEntryForm extends ConsumerStatefulWidget {
-  const FinanceEntryForm({super.key, required this.isExpense});
+  const FinanceEntryForm({
+    super.key,
+    required this.isExpense,
+    this.existingExpense,
+    this.existingCapital,
+  });
   final bool isExpense;
+  final FinanceExpenseRow? existingExpense;
+  final FinanceCapitalRow? existingCapital;
+
+  bool get isEditing => existingExpense != null || existingCapital != null;
 
   @override
   ConsumerState<FinanceEntryForm> createState() => _FinanceEntryFormState();
@@ -418,6 +508,89 @@ class _FinanceEntryFormState extends ConsumerState<FinanceEntryForm> {
   DateTime _spentAt = DateTime.now();
   XFile? _receipt;
   bool _saving = false;
+  bool _loadingDetail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingExpense != null) {
+      _loadingDetail = true;
+      ref
+          .read(adminFinanceRepositoryProvider)
+          .expenseDetail(widget.existingExpense!.id)
+          .then((d) {
+        if (!mounted) return;
+        setState(() {
+          _label.text = d.label;
+          _amount.text = d.amount.toStringAsFixed(0);
+          _category = d.category;
+          _notes.text = d.description ?? '';
+          if (d.spentAt != null) {
+            _spentAt = DateTime.tryParse(d.spentAt!) ?? _spentAt;
+          }
+          _loadingDetail = false;
+        });
+      }).catchError((_) {
+        if (mounted) setState(() => _loadingDetail = false);
+      });
+    } else if (widget.existingCapital != null) {
+      _loadingDetail = true;
+      ref
+          .read(adminFinanceRepositoryProvider)
+          .capitalDetail(widget.existingCapital!.id)
+          .then((d) {
+        if (!mounted) return;
+        setState(() {
+          _label.text = d.label;
+          _amount.text = d.amount.toStringAsFixed(0);
+          _source.text = d.source ?? '';
+          _isLoan = d.isLoan;
+          _notes.text = d.notes ?? '';
+          _loadingDetail = false;
+        });
+      }).catchError((_) {
+        if (mounted) setState(() => _loadingDetail = false);
+      });
+    }
+  }
+
+  Future<void> _delete() async {
+    final id = widget.existingExpense?.id ?? widget.existingCapital?.id;
+    if (id == null) return;
+
+    final reason = await promptReason(
+      context,
+      title: 'Delete entry',
+      actionLabel: 'Delete',
+      hint: 'Why are you deleting this? This cannot be undone.',
+    );
+    if (reason == null || reason.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(adminFinanceRepositoryProvider);
+      if (widget.isExpense) {
+        await repo.deleteExpense(id, reason);
+        ref.invalidate(financeExpensesProvider);
+      } else {
+        await repo.deleteCapital(id, reason);
+        ref.invalidate(financeCapitalProvider);
+      }
+      ref.invalidate(financeOverviewProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Deleted.')));
+        Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -432,29 +605,39 @@ class _FinanceEntryFormState extends ConsumerState<FinanceEntryForm> {
     try {
       final repo = ref.read(adminFinanceRepositoryProvider);
       if (widget.isExpense) {
-        await repo.addExpense({
+        final body = {
           'label': _label.text.trim(),
           'amount': double.tryParse(_amount.text.trim()) ?? 0,
           if (_category != null) 'category': _category,
           'description': _notes.text.trim(),
           'spent_at':
               '${_spentAt.year}-${_spentAt.month.toString().padLeft(2, '0')}-${_spentAt.day.toString().padLeft(2, '0')}',
-        }, receiptPath: _receipt?.path);
+        };
+        if (widget.existingExpense != null) {
+          await repo.updateExpense(widget.existingExpense!.id, body);
+        } else {
+          await repo.addExpense(body, receiptPath: _receipt?.path);
+        }
         ref.invalidate(financeExpensesProvider);
       } else {
-        await repo.addCapital({
+        final body = {
           'label': _label.text.trim(),
           'amount': double.tryParse(_amount.text.trim()) ?? 0,
           'source': _source.text.trim(),
           'is_loan': _isLoan,
           'notes': _notes.text.trim(),
-        });
+        };
+        if (widget.existingCapital != null) {
+          await repo.updateCapital(widget.existingCapital!.id, body);
+        } else {
+          await repo.addCapital(body);
+        }
         ref.invalidate(financeCapitalProvider);
       }
       ref.invalidate(financeOverviewProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Recorded.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(widget.isEditing ? 'Updated.' : 'Recorded.')));
         Navigator.pop(context);
       }
     } on ApiException catch (e) {
@@ -470,11 +653,21 @@ class _FinanceEntryFormState extends ConsumerState<FinanceEntryForm> {
   @override
   Widget build(BuildContext context) {
     final targets = ref.watch(financeTargetsProvider);
+    if (_loadingDetail) {
+      return Scaffold(
+        backgroundColor: AppColors.pageBackground,
+        appBar: AppBar(title: const Text('Loading…')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     return AdminFormScaffold(
-      title: widget.isExpense ? 'New expense' : 'New capital entry',
-      saveLabel: 'Record',
+      title: widget.isEditing
+          ? 'Edit ${widget.isExpense ? 'expense' : 'capital entry'}'
+          : (widget.isExpense ? 'New expense' : 'New capital entry'),
+      saveLabel: widget.isEditing ? 'Save changes' : 'Record',
       saving: _saving,
       onSave: _save,
+      onDelete: widget.isEditing ? _delete : null,
       children: [
         LabeledInput(label: 'Label', child: TextField(controller: _label)),
         LabeledInput(

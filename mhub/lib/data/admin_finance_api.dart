@@ -128,6 +128,72 @@ class FinanceCapitalRow {
       );
 }
 
+class FinanceExpenseDetail {
+  const FinanceExpenseDetail({
+    required this.id,
+    this.productId,
+    this.toolId,
+    required this.label,
+    required this.amount,
+    this.category,
+    this.description,
+    this.spentAt,
+  });
+
+  final int id;
+  final int? productId;
+  final int? toolId;
+  final String label;
+  final double amount;
+  final String? category;
+  final String? description;
+  final String? spentAt;
+
+  factory FinanceExpenseDetail.fromJson(Map<String, dynamic> j) => FinanceExpenseDetail(
+        id: (j['id'] as num).toInt(),
+        productId: (j['product_id'] as num?)?.toInt(),
+        toolId: (j['tool_id'] as num?)?.toInt(),
+        label: j['label'] as String? ?? '',
+        amount: (j['amount'] as num?)?.toDouble() ?? 0,
+        category: j['category'] as String?,
+        description: j['description'] as String?,
+        spentAt: j['spent_at'] as String?,
+      );
+}
+
+class FinanceCapitalDetail {
+  const FinanceCapitalDetail({
+    required this.id,
+    this.productId,
+    this.toolId,
+    required this.label,
+    required this.amount,
+    this.source,
+    this.isLoan = false,
+    this.notes,
+  });
+
+  final int id;
+  final int? productId;
+  final int? toolId;
+  final String label;
+  final double amount;
+  final String? source;
+  final bool isLoan;
+  final String? notes;
+
+  factory FinanceCapitalDetail.fromJson(Map<String, dynamic> j) => FinanceCapitalDetail(
+        id: (j['id'] as num).toInt(),
+        productId: (j['product_id'] as num?)?.toInt(),
+        toolId: (j['tool_id'] as num?)?.toInt(),
+        label: j['label'] as String? ?? '',
+        amount: (j['amount'] as num?)?.toDouble() ?? 0,
+        source: j['source'] as String?,
+        isLoan: j['is_loan'] == true,
+        notes: j['notes'] as String?,
+      );
+}
+
 class FinanceTargets {
   const FinanceTargets({required this.products, required this.tools, required this.categories});
   final List<({int id, String name})> products;
@@ -195,6 +261,26 @@ class AdminFinanceRepository {
 
   Future<void> addCapital(Map<String, dynamic> body) =>
       _api.post('/admin/finance/capital', data: body);
+
+  Future<FinanceExpenseDetail> expenseDetail(int id) async => FinanceExpenseDetail.fromJson(
+      (await _api.get('/admin/finance/expenses/$id') as Map<String, dynamic>)['data']
+          as Map<String, dynamic>);
+
+  Future<void> updateExpense(int id, Map<String, dynamic> body) =>
+      _api.put('/admin/finance/expenses/$id', data: body);
+
+  Future<void> deleteExpense(int id, String reason) =>
+      _api.delete('/admin/finance/expenses/$id', data: {'reason': reason});
+
+  Future<FinanceCapitalDetail> capitalDetail(int id) async => FinanceCapitalDetail.fromJson(
+      (await _api.get('/admin/finance/capital/$id') as Map<String, dynamic>)['data']
+          as Map<String, dynamic>);
+
+  Future<void> updateCapital(int id, Map<String, dynamic> body) =>
+      _api.put('/admin/finance/capital/$id', data: body);
+
+  Future<void> deleteCapital(int id, String reason) =>
+      _api.delete('/admin/finance/capital/$id', data: {'reason': reason});
 }
 
 final adminFinanceRepositoryProvider =

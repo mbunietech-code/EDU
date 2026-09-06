@@ -87,6 +87,20 @@ class OrderController extends Controller
         ]);
     }
 
+    public function receiptUrl(Request $request, Order $order): JsonResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+        abort_unless($order->isConfirmed(), 404);
+
+        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'signed.orders.receipt',
+            now()->addMinutes(5),
+            ['order' => $order->id]
+        );
+
+        return response()->json(['url' => $url]);
+    }
+
     public function cancel(Request $request, Order $order): JsonResponse
     {
         abort_unless($order->user_id === $request->user()->id, 404);
