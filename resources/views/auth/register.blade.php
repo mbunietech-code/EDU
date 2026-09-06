@@ -10,8 +10,8 @@
                     @csrf
 
                     <div>
-                        <x-input-label for="name" value="Full Name" />
-                        <x-text-input id="name" class="mbui-input mt-1" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+                        <x-input-label for="name" value="Preferred Name" />
+                        <x-text-input id="name" class="mbui-input mt-1" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" placeholder="What should we call you?" />
                         <x-input-error :messages="$errors->get('name')" class="mt-2" />
                     </div>
 
