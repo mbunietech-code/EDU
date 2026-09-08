@@ -52,7 +52,7 @@
                                 <span class="text-sm text-gray-400">—</span>
                             @else
                                 <div class="flex items-center gap-3">
-                                    <a href="{{ route('admin.team.edit', $admin) }}" class="mbui-anchor text-sm">Edit</a>
+                                    <x-mbui.icon-link :href="route('admin.team.edit', $admin)" />
                                     <form method="POST" action="{{ route('admin.team.destroy', $admin) }}"
                                           onsubmit="return confirm('Remove admin access for {{ $admin->name }}? They become a normal member.');">
                                         @csrf

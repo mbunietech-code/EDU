@@ -121,8 +121,8 @@
                         <td class="mbui-td text-gray-500">{{ $expense->creator?->name ?? '-' }}</td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.finance.expenses.edit', $expense) }}" class="mbui-anchor text-sm">Edit</a>
-                                <x-mbui.reasoned-action :action="route('admin.finance.expenses.destroy', $expense)" method="DELETE" label="Remove" prompt-text="Why are you removing this expense?" class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.icon-link :href="route('admin.finance.expenses.edit', $expense)" />
+                                <x-mbui.reasoned-action :action="route('admin.finance.expenses.destroy', $expense)" method="DELETE" label="Remove" prompt-text="Why are you removing this expense?" />
                             </div>
                         </td>
                     </tr>

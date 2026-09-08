@@ -39,7 +39,7 @@
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('admin.contact-messages.show', $message) }}" class="mbui-anchor text-sm">View</a>
-                                <x-mbui.reasoned-action :action="route('admin.contact-messages.destroy', $message)" method="DELETE" label="Delete" prompt-text="Why are you deleting this message?" class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.reasoned-action :action="route('admin.contact-messages.destroy', $message)" method="DELETE" label="Delete" prompt-text="Why are you deleting this message?" />
                             </div>
                         </td>
                     </tr>

@@ -31,9 +31,9 @@
                         <td class="mbui-td"><x-mbui.status-badge :status="$plan->status" /></td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.plans.edit', $plan) }}" class="mbui-anchor text-sm">Edit</a>
+                                <x-mbui.icon-link :href="route('admin.plans.edit', $plan)" />
                                 @if ($plan->status === 'active')
-                                    <x-mbui.reasoned-action :action="route('admin.plans.destroy', $plan)" method="DELETE" label="Delete" prompt-text="Why are you deleting this plan? This also removes any linked orders." class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                    <x-mbui.reasoned-action :action="route('admin.plans.destroy', $plan)" method="DELETE" label="Delete" prompt-text="Why are you deleting this plan? This also removes any linked orders." />
                                 @endif
                             </div>
                         </td>

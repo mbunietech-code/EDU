@@ -56,8 +56,8 @@
                         </td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.products.edit', $product) }}" class="mbui-anchor text-sm">Edit</a>
-                                <x-mbui.reasoned-action :action="route('admin.products.destroy', $product)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $product->name }}? This permanently removes the product and its related plans, accounts and orders." class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.icon-link :href="route('admin.products.edit', $product)" />
+                                <x-mbui.reasoned-action :action="route('admin.products.destroy', $product)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $product->name }}? This permanently removes the product and its related plans, accounts and orders." />
                             </div>
                         </td>
                     </tr>

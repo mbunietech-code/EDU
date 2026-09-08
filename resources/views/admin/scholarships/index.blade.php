@@ -48,8 +48,8 @@
                         <td class="mbui-td"><x-mbui.status-badge :status="$scholarship->status" /></td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.scholarships.edit', $scholarship) }}" class="mbui-anchor text-sm">Edit</a>
-                                <x-mbui.reasoned-action :action="route('admin.scholarships.destroy', $scholarship)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $scholarship->title }}?" class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.icon-link :href="route('admin.scholarships.edit', $scholarship)" />
+                                <x-mbui.reasoned-action :action="route('admin.scholarships.destroy', $scholarship)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $scholarship->title }}?" />
                             </div>
                         </td>
                     </tr>

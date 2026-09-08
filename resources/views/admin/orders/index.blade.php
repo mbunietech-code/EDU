@@ -56,11 +56,11 @@
                         <td class="mbui-td text-gray-500">{{ $order->created_at->format('d M Y') }}</td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('admin.orders.edit', $order) }}" class="mbui-anchor text-xs">Edit</a>
+                                <x-mbui.icon-link :href="route('admin.orders.edit', $order)" />
                                 @if (! $order->isConfirmed() && $order->status !== 'rejected')
-                                    <x-mbui.reasoned-action :action="route('admin.orders.reject', $order)" method="POST" label="Disapprove" prompt-text="Why are you disapproving this order?" class="text-xs font-medium text-amber-600 hover:text-amber-800" />
+                                    <x-mbui.reasoned-action :action="route('admin.orders.reject', $order)" method="POST" label="Disapprove" prompt-text="Why are you disapproving this order?" icon="x-circle" class="rounded p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600" />
                                 @endif
-                                <x-mbui.reasoned-action :action="route('admin.orders.destroy', $order)" method="DELETE" label="Delete" prompt-text="Why are you deleting this order? This cannot be undone." class="text-xs font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.reasoned-action :action="route('admin.orders.destroy', $order)" method="DELETE" label="Delete" prompt-text="Why are you deleting this order? This cannot be undone." />
                             </div>
                         </td>
                     </tr>

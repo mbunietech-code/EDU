@@ -47,8 +47,8 @@
                         <td class="mbui-td"><x-mbui.status-badge :status="$tool->status" /></td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.tools.edit', $tool) }}" class="mbui-anchor text-sm">Edit</a>
-                                <x-mbui.reasoned-action :action="route('admin.tools.destroy', $tool)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $tool->name }}? This permanently removes the tool." class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.icon-link :href="route('admin.tools.edit', $tool)" />
+                                <x-mbui.reasoned-action :action="route('admin.tools.destroy', $tool)" method="DELETE" label="Delete" prompt-text="Why are you deleting {{ $tool->name }}? This permanently removes the tool." />
                             </div>
                         </td>
                     </tr>

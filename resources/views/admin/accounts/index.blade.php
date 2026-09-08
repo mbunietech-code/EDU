@@ -45,7 +45,7 @@
                         <td class="mbui-td"><x-mbui.status-badge :status="$account->status" /></td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.accounts.edit', $account) }}" class="mbui-anchor text-sm">Edit</a>
+                                <x-mbui.icon-link :href="route('admin.accounts.edit', $account)" />
                                 @if ($account->status !== 'archived')
                                     <form method="POST" action="{{ route('admin.accounts.destroy', $account) }}">
                                         @csrf

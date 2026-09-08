@@ -96,8 +96,8 @@
                         <td class="mbui-td text-gray-500">{{ $entry->created_at->format('d M Y') }} @if($entry->creator) &middot; {{ $entry->creator->name }} @endif</td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.finance.capital.edit', $entry) }}" class="mbui-anchor text-sm">Edit</a>
-                                <x-mbui.reasoned-action :action="route('admin.finance.capital.destroy', $entry)" method="DELETE" label="Remove" prompt-text="Why are you removing this capital entry?" class="text-sm font-medium text-red-600 hover:text-red-800" />
+                                <x-mbui.icon-link :href="route('admin.finance.capital.edit', $entry)" />
+                                <x-mbui.reasoned-action :action="route('admin.finance.capital.destroy', $entry)" method="DELETE" label="Remove" prompt-text="Why are you removing this capital entry?" />
                             </div>
                         </td>
                     </tr>
