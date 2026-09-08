@@ -176,6 +176,7 @@ Route::prefix('admin')
         Route::middleware('can:database.access')->group(function () {
             Route::get('database', [DatabaseController::class, 'index'])->name('database.index');
             Route::post('database/apply', [DatabaseController::class, 'apply'])->name('database.apply');
+            Route::post('database/clear-caches', [DatabaseController::class, 'clearCaches'])->name('database.clear-caches');
             Route::get('database/backup', [DatabaseController::class, 'backup'])->name('database.backup');
         });
 

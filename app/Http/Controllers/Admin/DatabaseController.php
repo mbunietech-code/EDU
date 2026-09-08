@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Services\DatabaseBackupService;
 use App\Services\DatabaseHealthService;
 use App\Services\SchemaAlterService;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -61,6 +62,22 @@ class DatabaseController extends Controller
         $count = count($results);
 
         return back()->with('success', "Applied {$count} schema change(s) successfully.");
+    }
+
+    /**
+     * Clear compiled views/config/routes without needing shell access — for
+     * shared hosting where a deploy can leave stale compiled Blade views
+     * (or cached config/routes) served even though the source files updated.
+     */
+    public function clearCaches()
+    {
+        foreach (['view:clear', 'cache:clear', 'config:clear', 'route:clear'] as $command) {
+            Artisan::call($command);
+        }
+
+        ActivityLog::log('database_caches_cleared', 'Database', null, []);
+
+        return back()->with('success', 'Caches cleared. Reload the page you were looking at.');
     }
 
     public function backup(DatabaseBackupService $backup)
