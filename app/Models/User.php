@@ -166,16 +166,24 @@ class User extends Authenticatable
             return 0;
         }
 
-        if ($this->isSuperAdmin()) {
-            return AdminMessage::where('sender_id', '!=', $this->id)
+        // Guards against the admin panel going down on a server where the
+        // code was deployed before the team-chat migration/alter has run —
+        // a missing-table error here must never take out every admin page,
+        // since this is called from the shared admin sidebar on all of them.
+        try {
+            if ($this->isSuperAdmin()) {
+                return AdminMessage::where('sender_id', '!=', $this->id)
+                    ->where('is_read', false)
+                    ->count();
+            }
+
+            return AdminMessage::whereHas('conversation', fn ($query) => $query->where('admin_id', $this->id))
+                ->where('sender_id', '!=', $this->id)
                 ->where('is_read', false)
                 ->count();
+        } catch (\Throwable $e) {
+            return 0;
         }
-
-        return AdminMessage::whereHas('conversation', fn ($query) => $query->where('admin_id', $this->id))
-            ->where('sender_id', '!=', $this->id)
-            ->where('is_read', false)
-            ->count();
     }
 
     public function unreadChatMessagesCount(): int
