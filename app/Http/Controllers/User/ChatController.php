@@ -36,7 +36,7 @@ class ChatController extends Controller
             ->reverse();
 
         $payload = $messages->map(
-            fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment')
+            fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment', false)
         )->values();
 
         $supportOnline = User::anyAdminOnline();
@@ -52,7 +52,7 @@ class ChatController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => $this->chatService->payload($conversation, $message, 'user.chat.attachment'),
+                'message' => $this->chatService->payload($conversation, $message, 'user.chat.attachment', false),
             ]);
         }
 
@@ -75,9 +75,35 @@ class ChatController extends Controller
 
         return response()->json([
             'messages' => $messages->map(
-                fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment')
+                fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'user.chat.attachment', false)
             ),
             'otherOnline' => User::anyAdminOnline(),
+        ]);
+    }
+
+    public function update(Conversation $conversation, ChatMessage $message, Request $request)
+    {
+        abort_unless($conversation->user_id === auth()->id(), 403);
+        abort_unless($message->conversation_id === $conversation->id, 403);
+
+        $data = $request->validate(['body' => ['required', 'string', 'max:4000']]);
+
+        $this->chatService->edit($message, false, $data['body']);
+
+        return response()->json([
+            'message' => $this->chatService->payload($conversation, $message, 'user.chat.attachment', false),
+        ]);
+    }
+
+    public function destroy(Conversation $conversation, ChatMessage $message)
+    {
+        abort_unless($conversation->user_id === auth()->id(), 403);
+        abort_unless($message->conversation_id === $conversation->id, 403);
+
+        $this->chatService->delete($message, false);
+
+        return response()->json([
+            'message' => $this->chatService->payload($conversation, $message, 'user.chat.attachment', false),
         ]);
     }
 

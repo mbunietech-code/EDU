@@ -63,7 +63,7 @@ class ChatController extends Controller
             ->reverse();
 
         $payload = $messages->map(
-            fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment')
+            fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment', true)
         )->values();
 
         $customerOnline = $conversation->user->isOnline();
@@ -77,7 +77,7 @@ class ChatController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => $this->chatService->payload($conversation, $message, 'admin.chat.attachment'),
+                'message' => $this->chatService->payload($conversation, $message, 'admin.chat.attachment', true),
             ]);
         }
 
@@ -98,9 +98,33 @@ class ChatController extends Controller
 
         return response()->json([
             'messages' => $messages->map(
-                fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment')
+                fn (ChatMessage $message) => $this->chatService->payload($conversation, $message, 'admin.chat.attachment', true)
             ),
             'otherOnline' => $conversation->user->isOnline(),
+        ]);
+    }
+
+    public function update(Conversation $conversation, ChatMessage $message, Request $request)
+    {
+        abort_unless($message->conversation_id === $conversation->id, 403);
+
+        $data = $request->validate(['body' => ['required', 'string', 'max:4000']]);
+
+        $this->chatService->edit($message, true, $data['body']);
+
+        return response()->json([
+            'message' => $this->chatService->payload($conversation, $message, 'admin.chat.attachment', true),
+        ]);
+    }
+
+    public function destroy(Conversation $conversation, ChatMessage $message)
+    {
+        abort_unless($message->conversation_id === $conversation->id, 403);
+
+        $this->chatService->delete($message, true);
+
+        return response()->json([
+            'message' => $this->chatService->payload($conversation, $message, 'admin.chat.attachment', true),
         ]);
     }
 

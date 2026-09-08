@@ -151,6 +151,33 @@ class User extends Authenticatable
         return $this->hasOne(Conversation::class);
     }
 
+    /**
+     * This user's own internal team-chat thread — only meaningful for a
+     * non-super-admin user (see AdminConversation).
+     */
+    public function adminConversation(): HasOne
+    {
+        return $this->hasOne(AdminConversation::class, 'admin_id');
+    }
+
+    public function unreadTeamChatMessagesCount(): int
+    {
+        if (! $this->is_admin) {
+            return 0;
+        }
+
+        if ($this->isSuperAdmin()) {
+            return AdminMessage::where('sender_id', '!=', $this->id)
+                ->where('is_read', false)
+                ->count();
+        }
+
+        return AdminMessage::whereHas('conversation', fn ($query) => $query->where('admin_id', $this->id))
+            ->where('sender_id', '!=', $this->id)
+            ->where('is_read', false)
+            ->count();
+    }
+
     public function unreadChatMessagesCount(): int
     {
         if ($this->is_admin) {

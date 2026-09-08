@@ -101,6 +101,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');
     Route::get('/messages/{conversation}/fetch', [UserChatController::class, 'fetch'])->name('user.chat.fetch');
     Route::post('/messages/{conversation}', [UserChatController::class, 'store'])->name('user.chat.store');
+    Route::put('/messages/{conversation}/{message}', [UserChatController::class, 'update'])->name('user.chat.update');
+    Route::delete('/messages/{conversation}/{message}', [UserChatController::class, 'destroy'])->name('user.chat.destroy');
     Route::get('/messages/{conversation}/file/{message}', [UserChatController::class, 'attachment'])->name('user.chat.attachment');
 
     Route::get('/my-subscriptions', [SubscriptionController::class, 'index'])->name('user.subscriptions.index');
@@ -265,7 +267,19 @@ Route::prefix('admin')
         Route::middleware('can:chat.manage')->group(function () {
             Route::post('messages/create', [AdminChatController::class, 'start'])->name('chat.start');
             Route::post('messages/{conversation}', [AdminChatController::class, 'store'])->name('chat.store');
+            Route::put('messages/{conversation}/{message}', [AdminChatController::class, 'update'])->name('chat.update');
+            Route::delete('messages/{conversation}/{message}', [AdminChatController::class, 'destroy'])->name('chat.destroy');
         });
+
+        // --- Internal team chat (admin <-> super admin) -------------
+        Route::get('team-chat', [\App\Http\Controllers\Admin\TeamChatController::class, 'index'])->name('team-chat.index');
+        Route::post('team-chat/start/{admin}', [\App\Http\Controllers\Admin\TeamChatController::class, 'start'])->name('team-chat.start');
+        Route::get('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'show'])->name('team-chat.show');
+        Route::get('team-chat/{conversation}/fetch', [\App\Http\Controllers\Admin\TeamChatController::class, 'fetch'])->name('team-chat.fetch');
+        Route::post('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'store'])->name('team-chat.store');
+        Route::put('team-chat/{conversation}/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'update'])->name('team-chat.update');
+        Route::delete('team-chat/{conversation}/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'destroy'])->name('team-chat.destroy');
+        Route::get('team-chat/{conversation}/file/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'attachment'])->name('team-chat.attachment');
 
         // --- Subscriptions ----------------------------------------
         Route::middleware('can:subscriptions.view')->group(function () {

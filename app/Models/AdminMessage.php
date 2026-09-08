@@ -2,17 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ChatMessage extends Model
+class AdminMessage extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'conversation_id',
-        'is_from_admin',
+        'admin_conversation_id',
+        'sender_id',
         'type',
         'body',
         'file_path',
@@ -24,7 +21,6 @@ class ChatMessage extends Model
     ];
 
     protected $casts = [
-        'is_from_admin' => 'boolean',
         'is_read' => 'boolean',
         'read_at' => 'datetime',
         'edited_at' => 'datetime',
@@ -33,6 +29,11 @@ class ChatMessage extends Model
 
     public function conversation(): BelongsTo
     {
-        return $this->belongsTo(Conversation::class);
+        return $this->belongsTo(AdminConversation::class, 'admin_conversation_id');
+    }
+
+    public function sender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sender_id');
     }
 }

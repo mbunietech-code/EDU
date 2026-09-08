@@ -1,4 +1,4 @@
-@props(['conversation', 'payload', 'isAdmin', 'sendUrl', 'fetchUrl', 'otherOnline' => false])
+@props(['conversation', 'payload', 'isAdmin', 'sendUrl', 'fetchUrl', 'otherOnline' => false, 'placeholder' => null])
 
 <script>
     document.addEventListener('alpine:init', () => {
@@ -12,6 +12,50 @@
             sendUrl: sendUrl,
             fetchUrl: fetchUrl,
             otherOnline: otherOnline,
+            editingId: null,
+            editDraft: '',
+            startEdit(m) {
+                this.editingId = m.id;
+                this.editDraft = m.body;
+            },
+            cancelEdit() {
+                this.editingId = null;
+                this.editDraft = '';
+            },
+            async saveEdit(m) {
+                const body = (this.editDraft || '').trim();
+                if (!body) return;
+                try {
+                    const res = await fetch(this.sendUrl + '/' + m.id, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json' },
+                        body: new URLSearchParams({ _token: '{{ csrf_token() }}', body }).toString(),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.message) {
+                        const i = this.messages.findIndex((x) => x.id === m.id);
+                        if (i !== -1) this.messages[i] = data.message;
+                    } else if (!res.ok) {
+                        alert(data.message || 'Could not edit this message.');
+                    }
+                } catch (e) {}
+                this.cancelEdit();
+            },
+            async deleteMessage(m) {
+                if (!confirm('Delete this message?')) return;
+                try {
+                    const res = await fetch(this.sendUrl + '/' + m.id, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json' },
+                        body: new URLSearchParams({ _token: '{{ csrf_token() }}' }).toString(),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.message) {
+                        const i = this.messages.findIndex((x) => x.id === m.id);
+                        if (i !== -1) this.messages[i] = data.message;
+                    }
+                } catch (e) {}
+            },
             init() {
                 this.scrollBottom();
                 setInterval(() => this.poll(), 5000);
@@ -110,26 +154,48 @@
 <div class="flex min-h-0 flex-1 flex-col">
         <div x-ref="scroller" class="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-3">
         <template x-for="m in messages" :key="m.id">
-            <div class="flex" :class="m.fromAdmin === viewer ? 'justify-end' : 'justify-start'">
+            <div class="flex flex-col" :class="m.fromAdmin === viewer ? 'items-end' : 'items-start'">
                 <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm"
-                    :class="m.fromAdmin === viewer ? 'rounded-br-sm bg-indigo-600 text-white' : 'rounded-bl-sm border border-gray-200 bg-white text-gray-900'">
-                    <template x-if="m.type === 'text'">
-                        <p class="whitespace-pre-wrap break-words" x-text="m.body"></p>
+                    :class="[m.fromAdmin === viewer ? 'rounded-br-sm bg-indigo-600 text-white' : 'rounded-bl-sm border border-gray-200 bg-white text-gray-900', m.deleted ? 'opacity-70' : '']">
+                    <template x-if="m.deleted">
+                        <p class="italic" :class="m.fromAdmin === viewer ? 'text-indigo-100' : 'text-gray-400'">This message was deleted</p>
                     </template>
-                    <template x-if="m.type === 'image'">
-                        <a :href="m.file" target="_blank" class="block">
-                            <img :src="m.file" :alt="m.filename" class="max-h-64 rounded-lg object-cover">
-                        </a>
-                    </template>
-                    <template x-if="m.type === 'video'">
-                        <video :src="m.file" controls :title="m.filename" class="max-h-64 rounded-lg"></video>
-                    </template>
-                    <template x-if="m.type === 'audio'">
-                        <div class="flex items-center gap-2">
-                            <audio :src="m.file" controls class="h-9 w-56" :title="m.filename"></audio>
+                    <template x-if="!m.deleted && editingId === m.id">
+                        <div class="min-w-[14rem]">
+                            <textarea x-model="editDraft" rows="2" class="w-full rounded-md border-0 p-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-indigo-500" @keydown.enter.prevent="saveEdit(m)"></textarea>
+                            <div class="mt-1 flex justify-end gap-2 text-xs">
+                                <button type="button" class="opacity-80 hover:opacity-100" :class="m.fromAdmin === viewer ? 'text-white' : 'text-gray-500'" @click="cancelEdit()">Cancel</button>
+                                <button type="button" class="font-semibold opacity-90 hover:opacity-100" :class="m.fromAdmin === viewer ? 'text-white' : 'text-indigo-600'" @click="saveEdit(m)">Save</button>
+                            </div>
                         </div>
                     </template>
-                    <p class="mt-1 text-right text-[10px] leading-none opacity-60" x-text="m.time"></p>
+                    <template x-if="!m.deleted && editingId !== m.id">
+                        <div>
+                            <template x-if="m.type === 'text'">
+                                <p class="whitespace-pre-wrap break-words" x-text="m.body"></p>
+                            </template>
+                            <template x-if="m.type === 'image'">
+                                <a :href="m.file" target="_blank" class="block">
+                                    <img :src="m.file" :alt="m.filename" class="max-h-64 rounded-lg object-cover">
+                                </a>
+                            </template>
+                            <template x-if="m.type === 'video'">
+                                <video :src="m.file" controls :title="m.filename" class="max-h-64 rounded-lg"></video>
+                            </template>
+                            <template x-if="m.type === 'audio'">
+                                <div class="flex items-center gap-2">
+                                    <audio :src="m.file" controls class="h-9 w-56" :title="m.filename"></audio>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <p class="mt-1 text-right text-[10px] leading-none opacity-60">
+                        <span x-show="m.edited && !m.deleted">edited &middot; </span><span x-text="m.time"></span>
+                    </p>
+                </div>
+                <div class="mt-0.5 flex gap-2 px-1 text-[11px] text-gray-400" x-show="m.mine && !m.deleted && editingId !== m.id">
+                    <button type="button" class="hover:text-indigo-600" x-show="m.editable" @click="startEdit(m)">Edit</button>
+                    <button type="button" class="hover:text-red-600" @click="deleteMessage(m)">Delete</button>
                 </div>
             </div>
         </template>
@@ -160,7 +226,7 @@
                 <span class="text-xs font-semibold text-red-600">Stop</span>
             </template>
         </button>
-        <textarea x-model="draft" rows="1" class="mbui-input flex-1 resize-none" placeholder="{{ $isAdmin ? 'Reply to ' . $conversation->user->name . '...' : 'Type a message...' }}" @keydown.enter.prevent="sendText()"></textarea>
+        <textarea x-model="draft" rows="1" class="mbui-input flex-1 resize-none" placeholder="{{ $placeholder ?? ($isAdmin ? 'Reply to ' . $conversation->user->name . '...' : 'Type a message...') }}" @keydown.enter.prevent="sendText()"></textarea>
         <button type="button" @click="sendText()" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             Send
         </button>
