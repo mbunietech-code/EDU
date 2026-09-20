@@ -53,18 +53,13 @@
                         <td class="mbui-td whitespace-normal px-3 text-gray-500">{{ $order->device ?: '—' }}</td>
                         <td class="mbui-td whitespace-normal px-3">
                             <span class="whitespace-nowrap">TZS {{ number_format($order->amount) }}</span>
-                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
+                            <x-currency-conversion :amount="$order->amount" stacked class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td px-3">
                             <x-mbui.status-badge :status="$order->status" />
-                            <p class="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
-                                Payment:
-                                @if ($order->payment)
-                                    <x-mbui.status-badge :status="$order->payment->status" />
-                                @else
-                                    <span>-</span>
-                                @endif
-                            </p>
+                            @if ($order->payment)
+                                <div class="mt-1.5"><x-mbui.status-badge :status="$order->payment->status" /></div>
+                            @endif
                         </td>
                         <td class="mbui-td px-3">
                             <div class="flex items-center gap-2">

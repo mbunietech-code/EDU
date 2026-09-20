@@ -45,7 +45,7 @@
                         <td class="mbui-td px-3">{{ $product->accounts_count }}</td>
                         <td class="mbui-td whitespace-normal px-3">
                             <span class="whitespace-nowrap">TZS {{ number_format($product->price) }}</span>
-                            <x-currency-conversion :amount="$product->price" class="mt-1 text-xs font-semibold text-gray-600" />
+                            <x-currency-conversion :amount="$product->price" stacked class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td px-3"><x-mbui.status-badge :status="$product->status" /></td>
                         <td class="mbui-td px-3">
