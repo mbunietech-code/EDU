@@ -1,5 +1,19 @@
 <x-layouts.admin title="Dashboard" header="Dashboard">
 
+    <style>
+        .rev-mask, .rev-eye-off { display: none; }
+        html[data-hide-revenue="true"] .rev-real, html[data-hide-revenue="true"] .rev-eye { display: none; }
+        html[data-hide-revenue="true"] .rev-mask, html[data-hide-revenue="true"] .rev-eye-off { display: block; }
+    </style>
+    <script>
+        try { document.documentElement.dataset.hideRevenue = localStorage.getItem('admin.hideRevenue') === '1' ? 'true' : 'false'; } catch (e) {}
+        function toggleRevenueMask() {
+            const hide = document.documentElement.dataset.hideRevenue !== 'true';
+            document.documentElement.dataset.hideRevenue = hide ? 'true' : 'false';
+            try { localStorage.setItem('admin.hideRevenue', hide ? '1' : '0'); } catch (e) {}
+        }
+    </script>
+
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Operations Overview</h1>
@@ -15,8 +29,24 @@
         <x-mbui.stats-card title="Accounts (Avail / Total)" :value="$metrics['available_accounts'] . ' / ' . $metrics['total_accounts']" :trend="$metrics['assigned_accounts'] . ' assigned'" />
         <x-mbui.stats-card title="Expiring Soon" :value="number_format($metrics['expiring_soon'])" :trend="'Threshold: 3 days'" />
         <x-mbui.stats-card title="Expired" :value="number_format($metrics['expired_subscriptions'])" />
-        <x-mbui.stats-card title="Monthly Revenue" :value="'TZS ' . number_format($metrics['monthly_revenue'])"
-            :trend="'≈ $' . number_format($metrics['monthly_revenue'] * $rates['USD'], 2) . ' USD · ≈ ¥' . number_format($metrics['monthly_revenue'] * $rates['CNY'], 2) . ' CNY'" />
+        <div class="mbui-card p-6">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500">Monthly Revenue</p>
+                <button type="button" onclick="toggleRevenueMask()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Show / hide revenue" aria-label="Show or hide revenue">
+                    <svg class="rev-eye h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <svg class="rev-eye-off h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                </button>
+            </div>
+            <p class="rev-real mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS {{ number_format($metrics['monthly_revenue']) }}</p>
+            <p class="rev-real mt-1 text-xs text-gray-500">≈ ${{ number_format($metrics['monthly_revenue'] * $rates['USD'], 2) }} USD · ≈ ¥{{ number_format($metrics['monthly_revenue'] * $rates['CNY'], 2) }} CNY</p>
+            <p class="rev-mask mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS ••••••</p>
+            <p class="rev-mask mt-1 text-xs text-gray-500">≈ $•••• USD · ≈ ¥•••• CNY</p>
+        </div>
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
@@ -89,8 +119,11 @@
                 @foreach ($revenueReport as $row)
                     <div class="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 text-center">
                         <p class="text-xs font-medium text-gray-500">{{ Carbon\Carbon::create($row['year'], $row['month'])->format('M Y') }}</p>
-                        <p class="mt-1 text-sm font-bold text-gray-900">TZS {{ number_format((float) $row['total']) }}</p>
-                        <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
+                        <div class="rev-real">
+                            <p class="mt-1 text-sm font-bold text-gray-900">TZS {{ number_format((float) $row['total']) }}</p>
+                            <x-currency-conversion :amount="$row['total']" class="mt-1 text-xs font-semibold text-gray-600" />
+                        </div>
+                        <p class="rev-mask mt-1 text-sm font-bold text-gray-900">TZS ••••••</p>
                     </div>
                 @endforeach
             </div>

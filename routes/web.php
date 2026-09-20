@@ -300,6 +300,23 @@ Route::prefix('admin')
         });
 
         // --- Internal team chat (admin <-> super admin) -------------
+        // Group chats. Registered before the {conversation} routes below, which
+        // would otherwise swallow "groups/…" paths.
+        Route::prefix('team-chat/groups')->name('team-chat.groups.')->whereNumber('group')->group(function () {
+            $c = \App\Http\Controllers\Admin\AdminGroupChatController::class;
+            Route::get('new', [$c, 'create'])->name('create');
+            Route::post('/', [$c, 'store'])->name('store');
+            Route::get('{group}', [$c, 'show'])->name('show');
+            Route::get('{group}/fetch', [$c, 'fetch'])->name('fetch');
+            Route::post('{group}', [$c, 'send'])->name('send');
+            Route::get('{group}/settings', [$c, 'settings'])->name('settings');
+            Route::put('{group}/settings', [$c, 'update'])->name('update');
+            Route::delete('{group}/settings', [$c, 'destroy'])->name('destroy');
+            Route::put('{group}/{message}', [$c, 'updateMessage'])->whereNumber('message')->name('message.update');
+            Route::delete('{group}/{message}', [$c, 'destroyMessage'])->whereNumber('message')->name('message.destroy');
+            Route::get('{group}/file/{message}', [$c, 'attachment'])->whereNumber('message')->name('attachment');
+        });
+
         Route::get('team-chat', [\App\Http\Controllers\Admin\TeamChatController::class, 'index'])->name('team-chat.index');
         Route::post('team-chat/start/{admin}', [\App\Http\Controllers\Admin\TeamChatController::class, 'start'])->name('team-chat.start');
         Route::get('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'show'])->name('team-chat.show');

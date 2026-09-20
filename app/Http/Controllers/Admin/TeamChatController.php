@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminConversation;
+use App\Models\AdminGroup;
 use App\Models\AdminMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,8 +22,21 @@ class TeamChatController extends Controller
     {
         $user = $request->user();
 
+        $groups = $this->groupsFor($user);
+
         if (! $user->isSuperAdmin()) {
-            return redirect()->route('admin.team-chat.show', $this->conversationFor($user));
+            // A line admin with no groups goes straight to their thread with
+            // the super admins, as before.
+            if ($groups->isEmpty()) {
+                return redirect()->route('admin.team-chat.show', $this->conversationFor($user));
+            }
+
+            return view('admin.team-chat.index', [
+                'conversations' => collect(),
+                'missing' => collect(),
+                'groups' => $groups,
+                'ownThread' => $this->conversationFor($user),
+            ]);
         }
 
         $conversations = AdminConversation::with(['admin', 'latestMessage'])
@@ -46,7 +60,30 @@ class TeamChatController extends Controller
             ->whereDoesntHave('adminConversation')
             ->get();
 
-        return view('admin.team-chat.index', compact('conversations', 'missing'));
+        $ownThread = null;
+
+        return view('admin.team-chat.index', compact('conversations', 'missing', 'groups', 'ownThread'));
+    }
+
+    /**
+     * Groups this user belongs to, newest activity first, each with its
+     * unread count attached. Tolerates the group tables not existing yet
+     * (code deployed before the alter was applied).
+     *
+     * @return \Illuminate\Support\Collection<int,AdminGroup>
+     */
+    protected function groupsFor(User $user)
+    {
+        try {
+            return AdminGroup::with('latestMessage.sender')
+                ->whereHas('members', fn ($q) => $q->whereKey($user->id))
+                ->get()
+                ->each(fn (AdminGroup $g) => $g->unread = $g->unreadFor($user))
+                ->sortByDesc(fn ($g) => $g->latestMessage?->created_at ?? $g->created_at)
+                ->values();
+        } catch (\Throwable $e) {
+            return collect();
+        }
     }
 
     public function start(Request $request, User $admin)

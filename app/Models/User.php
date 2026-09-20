@@ -166,6 +166,26 @@ class User extends Authenticatable
             return 0;
         }
 
+        return $this->unreadDirectTeamChatCount() + $this->unreadGroupChatCount();
+    }
+
+    protected function unreadGroupChatCount(): int
+    {
+        // Same guard as the direct count: missing group tables must never break every admin page.
+        try {
+            return (int) \App\Models\AdminGroupMessage::query()
+                ->whereIn('admin_group_id', fn ($q) => $q->select('admin_group_id')->from('admin_group_members')->where('user_id', $this->id))
+                ->where('sender_id', '!=', $this->id)
+                ->where('is_deleted', false)
+                ->whereRaw('admin_group_messages.id > COALESCE((SELECT m.last_read_message_id FROM admin_group_members m WHERE m.admin_group_id = admin_group_messages.admin_group_id AND m.user_id = ?), 0)', [$this->id])
+                ->count();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    protected function unreadDirectTeamChatCount(): int
+    {
         // Guards against the admin panel going down on a server where the
         // code was deployed before the team-chat migration/alter has run —
         // a missing-table error here must never take out every admin page,

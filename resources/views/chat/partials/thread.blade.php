@@ -155,6 +155,7 @@
         <div x-ref="scroller" class="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-3">
         <template x-for="m in messages" :key="m.id">
             <div class="flex flex-col" :class="m.fromAdmin === viewer ? 'items-end' : 'items-start'">
+                <p x-show="m.sender" x-text="m.sender" class="mb-0.5 px-1 text-[11px] font-medium text-gray-500"></p>
                 <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm"
                     :class="[m.fromAdmin === viewer ? 'rounded-br-sm bg-indigo-600 text-white' : 'rounded-bl-sm border border-gray-200 bg-white text-gray-900', m.deleted ? 'opacity-70' : '']">
                     <template x-if="m.deleted">
