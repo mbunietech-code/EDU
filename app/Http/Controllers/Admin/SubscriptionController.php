@@ -21,6 +21,22 @@ class SubscriptionController extends Controller
     {
         $subscriptions = Subscription::with(['user', 'product', 'plan'])
             ->when($request->filled('status'), function ($query) use ($request) {
+                if ($request->input('status') === 'expiring_soon') {
+                    // Date-based, so it works even when the daily expiry job
+                    // (which flips status to expiring_soon) hasn't run — e.g.
+                    // no cron on shared hosting. Same window the job uses.
+                    $today = now(config('app.timezone'))->toDateString();
+                    $until = now(config('app.timezone'))
+                        ->addDays((int) config('app.expiry_warning_days', 3))
+                        ->toDateString();
+
+                    $query->whereIn('status', ['active', 'expiring_soon'])
+                        ->whereDate('expiry_date', '>=', $today)
+                        ->whereDate('expiry_date', '<=', $until);
+
+                    return;
+                }
+
                 $query->where('status', $request->input('status'));
             })
             ->when($request->filled('search'), function ($query) use ($request) {
