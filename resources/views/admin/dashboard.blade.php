@@ -6,7 +6,9 @@
         html[data-hide-revenue="true"] .rev-mask, html[data-hide-revenue="true"] .rev-eye-off { display: block; }
     </style>
     <script>
-        try { document.documentElement.dataset.hideRevenue = localStorage.getItem('admin.hideRevenue') === '1' ? 'true' : 'false'; } catch (e) {}
+        // Hidden unless this browser has explicitly chosen to show it.
+        document.documentElement.dataset.hideRevenue = 'true';
+        try { if (localStorage.getItem('admin.hideRevenue') === '0') document.documentElement.dataset.hideRevenue = 'false'; } catch (e) {}
         function toggleRevenueMask() {
             const hide = document.documentElement.dataset.hideRevenue !== 'true';
             document.documentElement.dataset.hideRevenue = hide ? 'true' : 'false';
