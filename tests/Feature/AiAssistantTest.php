@@ -135,6 +135,36 @@ class AiAssistantTest extends TestCase
         $this->postJson(route('admin.ai-assistant.send', $conversation), ['message' => 'hi'])->assertForbidden();
     }
 
+    public function test_admin_can_delete_own_conversation(): void
+    {
+        $admin = $this->superAdmin();
+        $this->actingAs($admin);
+        $this->get(route('admin.ai-assistant.index'));
+        $conversation = AiConversation::where('user_id', $admin->id)->first();
+        $this->postJson(route('admin.ai-assistant.send', $conversation), ['message' => 'health', 'question_id' => 'health']);
+
+        $this->deleteJson(route('admin.ai-assistant.destroy', $conversation))
+            ->assertOk()
+            ->assertJsonPath('deleted', true);
+
+        $this->assertDatabaseMissing('ai_conversations', ['id' => $conversation->id]);
+        $this->assertDatabaseMissing('ai_messages', ['conversation_id' => $conversation->id]); // cascade delete
+    }
+
+    public function test_admin_cannot_delete_another_admins_conversation(): void
+    {
+        $owner = $this->superAdmin();
+        $this->actingAs($owner);
+        $this->get(route('admin.ai-assistant.index'));
+        $conversation = AiConversation::where('user_id', $owner->id)->first();
+
+        $other = $this->superAdmin();
+        $this->actingAs($other);
+
+        $this->deleteJson(route('admin.ai-assistant.destroy', $conversation))->assertForbidden();
+        $this->assertDatabaseHas('ai_conversations', ['id' => $conversation->id]);
+    }
+
     public function test_messages_persist_within_a_conversation(): void
     {
         $admin = $this->superAdmin();

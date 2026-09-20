@@ -40,6 +40,19 @@ class AiAssistantController extends Controller
         return redirect()->route('admin.ai-assistant.show', $conversation);
     }
 
+    public function destroy(AiConversation $conversation)
+    {
+        abort_unless($conversation->user_id === auth()->id(), 403);
+
+        $conversation->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['deleted' => true]);
+        }
+
+        return redirect()->route('admin.ai-assistant.index');
+    }
+
     public function send(Request $request, AiConversation $conversation)
     {
         abort_unless($conversation->user_id === auth()->id(), 403);

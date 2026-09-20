@@ -14,17 +14,50 @@
     <div class="mt-6 grid gap-4 lg:grid-cols-[240px_1fr]">
 
         {{-- History ------------------------------------------------------ --}}
-        <div class="mbui-card overflow-hidden lg:h-[70vh]">
+        <div class="mbui-card overflow-hidden lg:h-[70vh]" x-data="{
+            deleting: false,
+            async deleteConversation(id, wasActive) {
+                if (! confirm('Futa mazungumzo haya? Hatua hii haiwezi kurudishwa.')) return;
+                this.deleting = true;
+                try {
+                    const res = await fetch('{{ url('admin/ai-assistant') }}/' + id, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json',
+                        },
+                    });
+                    if (res.ok) {
+                        if (wasActive) {
+                            window.location.href = '{{ route('admin.ai-assistant.index') }}';
+                        } else {
+                            document.getElementById('history-item-' + id)?.remove();
+                        }
+                    }
+                } finally {
+                    this.deleting = false;
+                }
+            },
+        }">
             <div class="border-b border-gray-200 px-4 py-3">
                 <h2 class="text-sm font-semibold text-gray-900">Historia</h2>
             </div>
             <div class="divide-y divide-gray-100 overflow-y-auto lg:max-h-[calc(70vh-2.75rem)]">
                 @forelse ($conversations as $conv)
-                    <a href="{{ route('admin.ai-assistant.show', $conv) }}"
-                       class="block px-4 py-3 text-sm hover:bg-gray-50 {{ $conv->id === $active->id ? 'bg-indigo-50' : '' }}">
-                        <p class="truncate font-medium text-gray-900">{{ $conv->displayTitle() }}</p>
-                        <p class="mt-0.5 text-xs text-gray-400">{{ $conv->updated_at->diffForHumans() }}</p>
-                    </a>
+                    <div id="history-item-{{ $conv->id }}" class="group flex items-center gap-1 px-2 py-1 {{ $conv->id === $active->id ? 'bg-indigo-50' : '' }}">
+                        <a href="{{ route('admin.ai-assistant.show', $conv) }}" class="min-w-0 flex-1 rounded px-2 py-2 text-sm hover:bg-gray-100">
+                            <p class="truncate font-medium text-gray-900">{{ $conv->displayTitle() }}</p>
+                            <p class="mt-0.5 text-xs text-gray-400">{{ $conv->updated_at->diffForHumans() }}</p>
+                        </a>
+                        <button type="button" title="Futa"
+                                class="rounded p-1 text-gray-400 opacity-0 hover:bg-gray-100 hover:text-red-600 group-hover:opacity-100"
+                                :disabled="deleting"
+                                @click="deleteConversation({{ $conv->id }}, {{ $conv->id === $active->id ? 'true' : 'false' }})">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </button>
+                    </div>
                 @empty
                     <p class="px-4 py-6 text-center text-xs text-gray-400">Bado hakuna mazungumzo.</p>
                 @endforelse

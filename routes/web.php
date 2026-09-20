@@ -197,6 +197,7 @@ Route::prefix('admin')
             Route::post('new', [AiAssistantController::class, 'newConversation'])->name('new');
             Route::get('{conversation}', [AiAssistantController::class, 'index'])->name('show');
             Route::post('{conversation}/send', [AiAssistantController::class, 'send'])->name('send');
+            Route::delete('{conversation}', [AiAssistantController::class, 'destroy'])->name('destroy');
         });
 
         // --- Catalogue --------------------------------------------------
