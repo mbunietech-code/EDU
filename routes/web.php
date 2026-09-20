@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccountController as AdminAccountController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AiAssistantController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
+use App\Http\Controllers\Admin\OptimizationController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\PaymentMethodController as AdminPaymentMethodController;
@@ -178,6 +180,23 @@ Route::prefix('admin')
             Route::post('database/apply', [DatabaseController::class, 'apply'])->name('database.apply');
             Route::post('database/clear-caches', [DatabaseController::class, 'clearCaches'])->name('database.clear-caches');
             Route::get('database/backup', [DatabaseController::class, 'backup'])->name('database.backup');
+        });
+
+        // --- AI Database Optimization Agent — super admin only ------------
+        Route::middleware('can:database.access')->prefix('optimization')->name('optimization.')->group(function () {
+            Route::get('/', [OptimizationController::class, 'index'])->name('index');
+            Route::post('scan', [OptimizationController::class, 'scan'])->name('scan');
+            Route::post('{recommendation}/approve', [OptimizationController::class, 'approve'])->name('approve');
+            Route::post('{recommendation}/reject', [OptimizationController::class, 'reject'])->name('reject');
+            Route::post('{recommendation}/execute', [OptimizationController::class, 'execute'])->name('execute');
+        });
+
+        // --- AI Assistant chat — super admin only --------------------------
+        Route::middleware('can:ai.access')->prefix('ai-assistant')->name('ai-assistant.')->group(function () {
+            Route::get('/', [AiAssistantController::class, 'index'])->name('index');
+            Route::post('new', [AiAssistantController::class, 'newConversation'])->name('new');
+            Route::get('{conversation}', [AiAssistantController::class, 'index'])->name('show');
+            Route::post('{conversation}/send', [AiAssistantController::class, 'send'])->name('send');
         });
 
         // --- Catalogue --------------------------------------------------

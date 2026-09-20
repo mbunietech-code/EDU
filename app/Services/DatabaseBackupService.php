@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -78,6 +79,74 @@ class DatabaseBackupService
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    /**
+     * Back up exactly the rows an optimization recommendation is about to
+     * change/delete — CREATE TABLE + matching rows only, so it can be
+     * restored on its own without touching the rest of the table. Stored
+     * under storage/app/optimization-backups/ (same disk as full backups)
+     * and the relative path is returned for the recommendation's audit
+     * record.
+     *
+     * @param  list<mixed>  $bindings
+     */
+    public function backupRows(string $table, string $whereSql, array $bindings, string $tag): string
+    {
+        $quoted = '`'.str_replace('`', '', $table).'`';
+        $pdo = DB::connection()->getPdo();
+
+        ob_start();
+        $this->line('-- Optimization backup for table: '.$table);
+        $this->line('-- Generated: '.now()->toDateTimeString());
+        $this->line('SET NAMES utf8mb4;');
+        $this->line('');
+
+        $create = DB::selectOne("SHOW CREATE TABLE {$quoted}");
+        $createSql = $create->{'Create Table'} ?? null;
+        if ($createSql) {
+            $this->line('-- DROP TABLE IF EXISTS '.$quoted.';');
+            $this->line($createSql.';');
+            $this->line('');
+        }
+
+        $rows = DB::select("SELECT * FROM {$quoted} WHERE {$whereSql}", $bindings);
+        $this->dumpRowValues($pdo, $quoted, $rows);
+        $content = (string) ob_get_clean();
+
+        $filename = 'optimization-backups/'.now()->format('Y-m-d_His').'_'.$tag.'_'.$table.'.sql';
+        Storage::disk('local')->put($filename, $content);
+
+        return $filename;
+    }
+
+    /**
+     * @param  list<object>  $rows
+     */
+    private function dumpRowValues(\PDO $pdo, string $quotedTable, array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        foreach (array_chunk($rows, $this->chunk) as $batch) {
+            $values = [];
+            foreach ($batch as $row) {
+                $cells = [];
+                foreach ((array) $row as $value) {
+                    if ($value === null) {
+                        $cells[] = 'NULL';
+                    } elseif (is_int($value) || is_float($value)) {
+                        $cells[] = (string) $value;
+                    } else {
+                        $cells[] = $pdo->quote((string) $value);
+                    }
+                }
+                $values[] = '('.implode(',', $cells).')';
+            }
+
+            $this->line("INSERT INTO {$quotedTable} VALUES ".implode(',', $values).';');
+        }
     }
 
     /**

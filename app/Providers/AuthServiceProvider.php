@@ -48,5 +48,6 @@ class AuthServiceProvider extends ServiceProvider
         // normal admin, not even via the "unrestricted" (null) fallback.
         Gate::define('database.access', fn (User $user) => $user->isSuperAdmin());
         Gate::define('team.manage', fn (User $user) => $user->isSuperAdmin());
+        Gate::define('ai.access', fn (User $user) => $user->isSuperAdmin());
     }
 }
