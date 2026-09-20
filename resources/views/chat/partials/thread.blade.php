@@ -191,7 +191,7 @@
                         </div>
                     </template>
                     <p class="mt-1 text-right text-[10px] leading-none opacity-60">
-                        <span x-show="m.edited && !m.deleted">edited &middot; </span><span x-text="m.time"></span>
+                        <span x-show="m.auto">auto-reply &middot; </span><span x-show="m.edited && !m.deleted">edited &middot; </span><span x-text="m.time"></span>
                     </p>
                 </div>
                 <div class="mt-0.5 flex gap-1 px-1" x-show="m.mine && !m.deleted && editingId !== m.id">

@@ -128,6 +128,7 @@ class ChatService
             'time' => $message->created_at->format('H:i'),
             'deleted' => (bool) $message->is_deleted,
             'edited' => (bool) $message->edited_at,
+            'auto' => (bool) $message->is_auto,
             'mine' => $mine,
             'editable' => $mine && $this->isEditable($message),
         ];

@@ -19,6 +19,8 @@ class ChatController extends Controller
     {
         $conversation = Conversation::firstOrCreate(['user_id' => $request->user()->id]);
 
+        app(\App\Services\AutoReplyService::class)->processConversation($conversation);
+
         // Mark incoming admin messages as read.
         $conversation->messages()
             ->where('is_from_admin', true)

@@ -21,6 +21,7 @@ class ChatMessage extends Model
         'read_at',
         'edited_at',
         'is_deleted',
+        'is_auto',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class ChatMessage extends Model
         'read_at' => 'datetime',
         'edited_at' => 'datetime',
         'is_deleted' => 'boolean',
+        'is_auto' => 'boolean',
     ];
 
     public function conversation(): BelongsTo

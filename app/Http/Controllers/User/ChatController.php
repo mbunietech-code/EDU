@@ -27,6 +27,8 @@ class ChatController extends Controller
     {
         abort_unless($conversation->user_id === auth()->id(), 403);
 
+        app(\App\Services\AutoReplyService::class)->processConversation($conversation);
+
         $this->markAdminMessagesRead($conversation);
 
         $messages = $conversation->messages()
@@ -64,6 +66,8 @@ class ChatController extends Controller
         abort_unless($conversation->user_id === auth()->id(), 403);
 
         $after = max(0, (int) $request->input('after', 0));
+
+        app(\App\Services\AutoReplyService::class)->processConversation($conversation);
 
         $messages = $conversation->messages()
             ->where('id', '>', $after)

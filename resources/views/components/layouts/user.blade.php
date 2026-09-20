@@ -183,6 +183,8 @@
         });
     </script>
 
+    <x-support-chat-button />
+
     @livewireScripts
     @stack('scripts')
 </body>

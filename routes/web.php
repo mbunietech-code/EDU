@@ -285,6 +285,11 @@ Route::prefix('admin')
         });
 
         // --- Support chat ------------------------------------------
+        // Registered first so "auto-reply" isn't taken for a {conversation} id.
+        Route::middleware('can:chat.manage')->group(function () {
+            Route::get('messages/auto-reply', [\App\Http\Controllers\Admin\AutoReplySettingsController::class, 'edit'])->name('chat.auto-reply.edit');
+            Route::put('messages/auto-reply', [\App\Http\Controllers\Admin\AutoReplySettingsController::class, 'update'])->name('chat.auto-reply.update');
+        });
         Route::middleware('can:chat.view')->group(function () {
             Route::get('messages', [AdminChatController::class, 'index'])->name('chat.index');
             Route::get('messages/create', [AdminChatController::class, 'create'])->name('chat.create');

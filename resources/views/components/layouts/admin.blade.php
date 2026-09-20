@@ -275,6 +275,10 @@
         </div>
     </div>
 
+    @can('ai.access')
+        <x-support-chat-button :href="route('admin.ai-assistant.index')" label="Uliza Mbunie AI" :hide-on="['admin.ai-assistant.*', 'admin.chat.*', 'admin.team-chat.*']" />
+    @endcan
+
     @livewireScripts
     @stack('scripts')
 </body>
