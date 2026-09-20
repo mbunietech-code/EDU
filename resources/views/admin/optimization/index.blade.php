@@ -5,10 +5,13 @@
             <h1 class="mbui-title">AI Database Optimization</h1>
             <p class="mt-1 text-sm text-gray-500">Read-only analysis of expired, inactive, duplicate and orphaned data. Nothing is ever changed without your explicit approval, and every change is backed up first.</p>
         </div>
-        <form method="POST" action="{{ route('admin.optimization.scan') }}">
-            @csrf
-            <x-mbui.button type="submit" variant="primary">Run new scan</x-mbui.button>
-        </form>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('admin.alerts.index') }}" class="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Alerts (Email/SMS)</a>
+            <form method="POST" action="{{ route('admin.optimization.scan') }}">
+                @csrf
+                <x-mbui.button type="submit" variant="primary">Run new scan</x-mbui.button>
+            </form>
+        </div>
     </div>
 
     @if (! $supported)

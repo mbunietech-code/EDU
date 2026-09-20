@@ -191,6 +191,13 @@ Route::prefix('admin')
             Route::post('{recommendation}/execute', [OptimizationController::class, 'execute'])->name('execute');
         });
 
+        // --- Alert settings (email + SMS) — super admin only ---------------
+        Route::middleware('can:database.access')->prefix('alerts')->name('alerts.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AlertSettingsController::class, 'index'])->name('index');
+            Route::put('/', [\App\Http\Controllers\Admin\AlertSettingsController::class, 'update'])->name('update');
+            Route::post('test', [\App\Http\Controllers\Admin\AlertSettingsController::class, 'test'])->name('test');
+        });
+
         // --- AI Assistant chat — super admin only --------------------------
         Route::middleware('can:ai.access')->prefix('ai-assistant')->name('ai-assistant.')->group(function () {
             Route::get('/', [AiAssistantController::class, 'index'])->name('index');
