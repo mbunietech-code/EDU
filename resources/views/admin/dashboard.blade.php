@@ -51,7 +51,9 @@
         </div>
     </div>
 
-    <div class="mt-8 grid gap-6 lg:grid-cols-2">
+    {{-- Full width, one under the other: side by side each table was only half the
+         page, and the "≈ $ USD · ≈ ¥ CNY" line under every amount forced a horizontal scrollbar. --}}
+    <div class="mt-8 grid gap-8">
         <x-mbui.table :title="'Recent Orders'">
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">

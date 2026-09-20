@@ -21,42 +21,52 @@
             </form>
         </div>
 
+        {{-- Compact so nothing needs a horizontal scrollbar: the date sits under the
+             order number, the payment status under the order status, and cells use
+             tighter side padding and are allowed to wrap. --}}
         <x-mbui.table>
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">
-                    <th class="mbui-th">Order</th>
-                    <th class="mbui-th">User</th>
-                    <th class="mbui-th">Product / Plan</th>
-                    <th class="mbui-th">Device</th>
-                    <th class="mbui-th">Amount</th>
-                    <th class="mbui-th">Payment</th>
-                    <th class="mbui-th">Status</th>
-                    <th class="mbui-th">Date</th>
-                    <th class="mbui-th">Actions</th>
+                    <th class="mbui-th px-4">Order</th>
+                    <th class="mbui-th px-3">User</th>
+                    <th class="mbui-th px-3">Product / Plan</th>
+                    <th class="mbui-th px-3">Device</th>
+                    <th class="mbui-th px-3">Amount</th>
+                    <th class="mbui-th px-3">Status</th>
+                    <th class="mbui-th px-3">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @forelse ($orders as $order)
                     <tr>
-                        <td class="mbui-td">
+                        <td class="mbui-td px-4">
                             <a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
+                            <p class="mt-0.5 text-xs text-gray-400">{{ $order->created_at->format('d M Y') }}</p>
                         </td>
-                        <td class="mbui-td">{{ $order->user->name }}</td>
-                        <td class="mbui-td">{{ $order->itemName() }}{{ $order->plan ? ' / ' . $order->plan->name : '' }}</td>
-                        <td class="mbui-td text-gray-500">{{ $order->device ?: '—' }}</td>
-                        <td class="mbui-td">TZS {{ number_format($order->amount) }}
-                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
-                        </td>
-                        <td class="mbui-td">
-                            @if ($order->payment)
-                                <x-mbui.status-badge :status="$order->payment->status" />
-                            @else
-                                <span class="text-gray-400">-</span>
+                        <td class="mbui-td whitespace-normal px-3">{{ $order->user->name }}</td>
+                        <td class="mbui-td whitespace-normal px-3">
+                            <span class="font-medium text-gray-900">{{ $order->itemName() }}</span>
+                            @if ($order->plan)
+                                <p class="mt-0.5 text-xs text-gray-500">{{ $order->plan->name }}</p>
                             @endif
                         </td>
-                        <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
-                        <td class="mbui-td text-gray-500">{{ $order->created_at->format('d M Y') }}</td>
-                        <td class="mbui-td">
+                        <td class="mbui-td whitespace-normal px-3 text-gray-500">{{ $order->device ?: '—' }}</td>
+                        <td class="mbui-td whitespace-normal px-3">
+                            <span class="whitespace-nowrap">TZS {{ number_format($order->amount) }}</span>
+                            <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
+                        </td>
+                        <td class="mbui-td px-3">
+                            <x-mbui.status-badge :status="$order->status" />
+                            <p class="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+                                Payment:
+                                @if ($order->payment)
+                                    <x-mbui.status-badge :status="$order->payment->status" />
+                                @else
+                                    <span>-</span>
+                                @endif
+                            </p>
+                        </td>
+                        <td class="mbui-td px-3">
                             <div class="flex items-center gap-2">
                                 <x-mbui.icon-link :href="route('admin.orders.edit', $order)" />
                                 @if (! $order->isConfirmed() && $order->status !== 'rejected')
@@ -67,7 +77,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="mbui-td text-center text-gray-400">No orders found</td></tr>
+                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No orders found</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

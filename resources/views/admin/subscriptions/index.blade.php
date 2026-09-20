@@ -21,28 +21,33 @@
             </form>
         </div>
 
+        {{-- Tighter side padding, and user / product / device may wrap onto a second
+             line, so all columns fit without a horizontal scrollbar. --}}
         <x-mbui.table>
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">
-                    <th class="mbui-th">User</th>
-                    <th class="mbui-th">Product / Plan</th>
-                    <th class="mbui-th">Device</th>
-                    <th class="mbui-th">Account</th>
-                    <th class="mbui-th">Expires</th>
-                    <th class="mbui-th">Status</th>
-                    <th class="mbui-th">Action</th>
+                    <th class="mbui-th px-4">User</th>
+                    <th class="mbui-th px-3">Product / Plan</th>
+                    <th class="mbui-th px-3">Device</th>
+                    <th class="mbui-th px-3">Account</th>
+                    <th class="mbui-th px-3">Expires</th>
+                    <th class="mbui-th px-3">Status</th>
+                    <th class="mbui-th px-3">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @forelse ($subscriptions as $subscription)
                     <tr>
-                        <td class="mbui-td font-medium text-gray-900">{{ $subscription->user->name }}</td>
-                        <td class="mbui-td">{{ $subscription->product->name }} / {{ $subscription->plan->name }}</td>
-                        <td class="mbui-td text-gray-500">{{ $subscription->order?->device ?: '—' }}</td>
-                        <td class="mbui-td">{{ $subscription->account_id ? '#' . $subscription->account_id : '-' }}</td>
-                        <td class="mbui-td">{{ $subscription->expiry_date->format('d M Y') }}</td>
-                        <td class="mbui-td"><x-mbui.status-badge :status="$subscription->status" /></td>
-                        <td class="mbui-td">
+                        <td class="mbui-td whitespace-normal px-4 font-medium text-gray-900">{{ $subscription->user->name }}</td>
+                        <td class="mbui-td whitespace-normal px-3">
+                            <span class="font-medium text-gray-900">{{ $subscription->product->name }}</span>
+                            <p class="mt-0.5 text-xs text-gray-500">{{ $subscription->plan->name }}</p>
+                        </td>
+                        <td class="mbui-td whitespace-normal px-3 text-gray-500">{{ $subscription->order?->device ?: '—' }}</td>
+                        <td class="mbui-td px-3">{{ $subscription->account_id ? '#' . $subscription->account_id : '-' }}</td>
+                        <td class="mbui-td px-3">{{ $subscription->expiry_date->format('d M Y') }}</td>
+                        <td class="mbui-td px-3"><x-mbui.status-badge :status="$subscription->status" /></td>
+                        <td class="mbui-td px-3">
                             <a href="{{ route('admin.subscriptions.show', $subscription) }}" class="mbui-anchor text-sm">Manage</a>
                         </td>
                     </tr>
