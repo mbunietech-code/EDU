@@ -26,6 +26,7 @@
                 <tr class="bg-gray-50 border-b border-gray-200">
                     <th class="mbui-th">User</th>
                     <th class="mbui-th">Product / Plan</th>
+                    <th class="mbui-th">Device</th>
                     <th class="mbui-th">Account</th>
                     <th class="mbui-th">Expires</th>
                     <th class="mbui-th">Status</th>
@@ -37,6 +38,7 @@
                     <tr>
                         <td class="mbui-td font-medium text-gray-900">{{ $subscription->user->name }}</td>
                         <td class="mbui-td">{{ $subscription->product->name }} / {{ $subscription->plan->name }}</td>
+                        <td class="mbui-td text-gray-500">{{ $subscription->order?->device ?: '—' }}</td>
                         <td class="mbui-td">{{ $subscription->account_id ? '#' . $subscription->account_id : '-' }}</td>
                         <td class="mbui-td">{{ $subscription->expiry_date->format('d M Y') }}</td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$subscription->status" /></td>
@@ -45,7 +47,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="mbui-td text-center text-gray-400">No subscriptions found</td></tr>
+                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No subscriptions found</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

@@ -19,6 +19,7 @@ class Order extends Model
         'plan_id',
         'tool_id',
         'amount',
+        'device',
         'status',
         'payment_instructions',
         'rejection_reason',

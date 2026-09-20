@@ -43,6 +43,10 @@
                         <dd class="mt-1 text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '—' }}</dd>
                     </div>
                     <div>
+                        <dt class="mbui-section-label">Device</dt>
+                        <dd class="mt-1 text-gray-900">{{ $order->device ?: 'Not set' }}</dd>
+                    </div>
+                    <div>
                         <dt class="mbui-section-label">Amount</dt>
                         <dd class="mt-1 font-bold text-gray-900">TZS {{ number_format($order->amount) }}</dd>
                         <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />

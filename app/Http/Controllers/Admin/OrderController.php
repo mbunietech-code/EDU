@@ -48,6 +48,7 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'payment_instructions' => ['nullable', 'string', 'max:2000'],
+            'device' => ['nullable', 'string', 'max:100'],
         ]);
 
         $order->update($validated);

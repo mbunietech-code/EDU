@@ -21,6 +21,15 @@
                 <textarea id="payment_instructions" name="payment_instructions" rows="4" class="mbui-input mt-1">{{ old('payment_instructions', $order->payment_instructions) }}</textarea>
                 <x-input-error :messages="$errors->get('payment_instructions')" class="mt-2" />
             </div>
+            <div>
+                <x-input-label for="device" value="Device the customer uses" />
+                <input id="device" name="device" type="text" maxlength="100" list="device-suggestions" value="{{ old('device', $order->device) }}" class="mbui-input mt-1" placeholder="e.g. Windows laptop, iPhone 13, MacBook Air">
+                <datalist id="device-suggestions">
+                    <option value="Windows"><option value="Mac"><option value="Android"><option value="iPhone"><option value="iPad">
+                </datalist>
+                <p class="mt-1 text-xs text-gray-400">Only admins see and edit this — it tells you which device to remove the customer from when the subscription ends.</p>
+                <x-input-error :messages="$errors->get('device')" class="mt-2" />
+            </div>
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
                 <a href="{{ route('admin.orders.show', $order) }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                 <x-mbui.button type="submit">Save changes</x-mbui.button>

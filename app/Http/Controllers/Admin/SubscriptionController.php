@@ -19,7 +19,7 @@ class SubscriptionController extends Controller
 
     public function index(Request $request)
     {
-        $subscriptions = Subscription::with(['user', 'product', 'plan'])
+        $subscriptions = Subscription::with(['user', 'product', 'plan', 'order:id,device'])
             ->when($request->filled('status'), function ($query) use ($request) {
                 if ($request->input('status') === 'expiring_soon') {
                     // Date-based, so it works even when the daily expiry job

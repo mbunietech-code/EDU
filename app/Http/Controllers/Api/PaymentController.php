@@ -88,7 +88,7 @@ class PaymentController extends Controller
             'status' => 'pending',
         ]);
 
-        $path = $request->file('payment_proof')->store('payment-proofs', 'private');
+        $path = app(\App\Services\PaymentProofImageService::class)->store($request->file('payment_proof'));
         $payment->paymentProofs()->create(['image_path' => $path, 'caption' => $data['note'] ?? null]);
 
         $notifications->notifyPaymentSubmitted($request->user(), $payment);

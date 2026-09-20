@@ -41,6 +41,10 @@
                         </dd>
                     </div>
                     <div>
+                        <dt class="mbui-section-label">Device</dt>
+                        <dd class="mt-1 text-gray-900">{{ $subscription->order->device ?: 'Not set' }} <a href="{{ route('admin.orders.edit', $subscription->order) }}" class="mbui-anchor ml-2 text-xs">Edit</a></dd>
+                    </div>
+                    <div>
                         <dt class="mbui-section-label">Order</dt>
                         <dd class="mt-1">
                             <a href="{{ route('admin.orders.show', $subscription->order) }}" class="mbui-anchor">{{ $subscription->order->order_number }}</a>

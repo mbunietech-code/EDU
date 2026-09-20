@@ -27,6 +27,7 @@
                     <th class="mbui-th">Order</th>
                     <th class="mbui-th">User</th>
                     <th class="mbui-th">Product / Plan</th>
+                    <th class="mbui-th">Device</th>
                     <th class="mbui-th">Amount</th>
                     <th class="mbui-th">Payment</th>
                     <th class="mbui-th">Status</th>
@@ -42,6 +43,7 @@
                         </td>
                         <td class="mbui-td">{{ $order->user->name }}</td>
                         <td class="mbui-td">{{ $order->itemName() }}{{ $order->plan ? ' / ' . $order->plan->name : '' }}</td>
+                        <td class="mbui-td text-gray-500">{{ $order->device ?: '—' }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
                             <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
@@ -65,7 +67,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="mbui-td text-center text-gray-400">No orders found</td></tr>
+                    <tr><td colspan="9" class="mbui-td text-center text-gray-400">No orders found</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>
