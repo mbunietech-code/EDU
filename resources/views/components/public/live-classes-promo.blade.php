@@ -26,15 +26,7 @@
         <div class="grid items-center gap-12 lg:grid-cols-2">
             {{-- Pitch --}}
             <div>
-                <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200 ring-1 ring-inset ring-white/15">
-                    <span class="relative flex h-2 w-2" aria-hidden="true">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75 motion-reduce:hidden"></span>
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
-                    </span>
-                    New · Live classes & meetings
-                </span>
-
-                <h2 id="live-classes-title" class="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                <h2 id="live-classes-title" class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
                     Learn live. Meet online.<br>
                     <span class="text-indigo-300">All in one place.</span>
                 </h2>
