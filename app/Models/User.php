@@ -23,6 +23,7 @@ class User extends Authenticatable
         'permissions',
         'status',
         'can_write_research',
+        'can_teach',
     ];
 
     protected $hidden = [
@@ -41,6 +42,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'permissions' => 'array',
             'can_write_research' => 'boolean',
+            'can_teach' => 'boolean',
         ];
     }
 
@@ -129,6 +131,57 @@ class User extends Authenticatable
     public function canWriteResearch(): bool
     {
         return (bool) $this->can_write_research || $this->is_admin;
+    }
+
+    // --- Learning (ROOM) ------------------------------------------------
+    /** Admin-granted instructor flag (users.can_teach). */
+    public function isInstructor(): bool
+    {
+        return (bool) $this->can_teach;
+    }
+
+    public function canHostRooms(): bool
+    {
+        return $this->isInstructor() || $this->hasPermission('rooms.manage');
+    }
+
+    public function canUploadLessons(): bool
+    {
+        return $this->isInstructor() || $this->hasPermission('learning.manage');
+    }
+
+    /** May open the Teaching Studio (hosting, uploading, or staff oversight). */
+    public function canAccessStudio(): bool
+    {
+        return $this->canHostRooms()
+            || $this->canUploadLessons()
+            || $this->hasPermission('rooms.view')
+            || $this->hasPermission('learning.view');
+    }
+
+    public function learningEnrollments(): HasMany
+    {
+        return $this->hasMany(LearningEnrollment::class);
+    }
+
+    public function learningProgress(): HasMany
+    {
+        return $this->hasMany(LearningVideoProgress::class);
+    }
+
+    public function hostedRooms(): HasMany
+    {
+        return $this->hasMany(LearningRoom::class, 'host_id');
+    }
+
+    public function teachingVideos(): HasMany
+    {
+        return $this->hasMany(LearningVideo::class, 'instructor_id');
+    }
+
+    public function taughtCourses(): HasMany
+    {
+        return $this->hasMany(LearningCourse::class, 'instructor_id');
     }
 
     public function payments(): HasMany

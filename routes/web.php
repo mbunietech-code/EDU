@@ -425,5 +425,8 @@ Route::prefix('admin')
         });
     });
 
+// ROOM — live classroom & video learning (learn.*, studio.*, admin.learning.*)
+require __DIR__.'/learning.php';
+
 require __DIR__.'/auth.php';
 

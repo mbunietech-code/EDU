@@ -23,6 +23,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 
+// JaaS (8x8) webhooks — authenticated by the X-Jaas-Signature HMAC, not a session.
+Route::post('/webhooks/jaas', \App\Http\Controllers\Api\JaasWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('api.webhooks.jaas');
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -45,6 +50,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/research/{slug}', [\App\Http\Controllers\Api\ResearchController::class, 'show']);
     Route::get('/research/{slug}/chapters/{chapter}', [\App\Http\Controllers\Api\ResearchController::class, 'chapter']);
     Route::post('/research/{slug}/progress', [\App\Http\Controllers\Api\ResearchController::class, 'markSection']);
+
+    // Learning (ROOM) — lessons, courses and live rooms; media streams via signed URLs
+    Route::controller(\App\Http\Controllers\Api\LearningController::class)
+        ->prefix('learning')
+        ->name('api.learning.')
+        ->group(function () {
+            Route::get('/', 'home')->name('home');
+            Route::get('/categories', 'categories')->name('categories');
+            Route::get('/courses', 'courses')->name('courses');
+            Route::get('/courses/{slug}', 'course')->name('courses.show');
+            Route::post('/courses/{slug}/enroll', 'enroll')->name('courses.enroll');
+            Route::get('/videos', 'videos')->name('videos');
+            Route::get('/videos/{slug}', 'video')->name('videos.show');
+            Route::post('/videos/{slug}/progress', 'progress')->middleware('throttle:120,1')->name('videos.progress');
+            Route::post('/videos/{slug}/complete', 'complete')->name('videos.complete');
+            Route::get('/rooms', 'rooms')->name('rooms');
+            Route::get('/rooms/{slug}', 'room')->name('rooms.show');
+            Route::post('/rooms/{slug}/join', 'join')->middleware('throttle:30,1')->name('rooms.join');
+        });
 
     // Orders
     Route::get('/orders', [OrderController::class, 'index']);

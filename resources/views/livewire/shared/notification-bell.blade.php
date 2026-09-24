@@ -20,9 +20,13 @@
             @forelse ($recentNotifications as $notification)
                 @php
                     $isError = ($notification->data['type'] ?? null) === 'error';
-                    $link = $isError && auth()->user()->is_admin && !empty($notification->data['error_log_id'])
+                    // Deep link only to our own site — never to a URL on another host.
+                    $url = $notification->data['url'] ?? null;
+                    $home = url('/');
+                    $sameHost = is_string($url) && ($url === $home || str_starts_with($url, $home.'/'));
+                    $link = $sameHost ? $url : ($isError && auth()->user()->is_admin && !empty($notification->data['error_log_id'])
                         ? route('admin.error-logs.show', $notification->data['error_log_id'])
-                        : (auth()->user()->is_admin ? route('admin.notifications.index') : route('user.notifications.index'));
+                        : (auth()->user()->is_admin ? route('admin.notifications.index') : route('user.notifications.index')));
                 @endphp
                 <a href="{{ $link }}" class="block px-4 py-3 hover:bg-gray-50">
                     <p class="text-sm {{ $notification->read_at ? 'text-gray-600' : 'font-medium text-gray-900' }}">

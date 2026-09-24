@@ -63,6 +63,13 @@ return [
             'research.manage'  => 'Review, approve/reject, publish & manage categories',
         ],
 
+        'Learning & live rooms' => [
+            'learning.view'   => 'View learning content, analytics, learner progress',
+            'learning.manage' => 'Manage categories, courses, topics, videos, enrolments & instructors',
+            'rooms.view'      => 'View all live rooms, participants & attendance',
+            'rooms.manage'    => 'Create / start / end / delete any live room',
+        ],
+
         'System' => [
             'settings.manage'  => 'Change site settings',
             'finance.access'   => 'Open the Finance area (PIN still required)',

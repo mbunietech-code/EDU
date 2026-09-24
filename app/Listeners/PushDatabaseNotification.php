@@ -31,7 +31,7 @@ class PushDatabaseNotification
         $title = (string) ($data['title'] ?? config('app.name', 'MbunieEduHub'));
 
         $extra = ['type' => (string) ($data['type'] ?? class_basename($event->notification))];
-        foreach (['order_id', 'payment_id', 'subscription_id', 'error_log_id', 'conversation_id'] as $k) {
+        foreach (['order_id', 'payment_id', 'subscription_id', 'error_log_id', 'conversation_id', 'room_id', 'video_id', 'course_id', 'url'] as $k) {
             if (isset($data[$k])) {
                 $extra[$k] = (string) $data[$k];
             }

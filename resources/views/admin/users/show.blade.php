@@ -23,6 +23,41 @@
         </div>
     </div>
 
+    @can('learning.manage')
+        <x-mbui.card class="mt-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900">Instructor access</h2>
+                    <p class="mt-1 text-sm text-gray-500">
+                        @if ($user->isInstructor())
+                            {{ $user->name }} can host live rooms and upload lessons in the Teaching Studio.
+                        @else
+                            Instructors can host live rooms and upload lessons in the Teaching Studio.
+                        @endif
+                    </p>
+                </div>
+                @if ($user->isInstructor())
+                    <x-learning.confirm-delete :action="route('admin.learning.instructors.destroy', $user)"
+                        :title="'Remove instructor access from '.$user->name.'?'"
+                        :impact="['Their rooms, lessons and courses stay in place', 'They can no longer host new rooms or upload lessons']"
+                        button-label="Remove access">
+                        <x-slot:trigger>
+                            <x-mbui.button variant="secondary" class="text-red-700">Revoke access</x-mbui.button>
+                        </x-slot:trigger>
+                    </x-learning.confirm-delete>
+                @elseif ($user->isActive())
+                    <form method="POST" action="{{ route('admin.learning.instructors.store') }}">
+                        @csrf
+                        <input type="hidden" name="user_id" value="{{ $user->id }}">
+                        <x-mbui.button type="submit">Grant instructor access</x-mbui.button>
+                    </form>
+                @else
+                    <p class="text-sm text-amber-700">Activate the account to grant instructor access.</p>
+                @endif
+            </div>
+        </x-mbui.card>
+    @endcan
+
     <div class="mt-6 grid gap-6 lg:grid-cols-2">
         <x-mbui.table :title="'Orders (' . $user->orders->count() . ')'">
             <thead>

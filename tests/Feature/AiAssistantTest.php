@@ -177,4 +177,55 @@ class AiAssistantTest extends TestCase
 
         $this->assertSame(4, AiMessage::where('conversation_id', $conversation->id)->count()); // 2 user + 2 assistant
     }
+
+    private function freshConversation(): array
+    {
+        $admin = $this->superAdmin();
+        $this->actingAs($admin);
+        $this->get(route('admin.ai-assistant.index'));
+
+        return [$admin, AiConversation::where('user_id', $admin->id)->first()];
+    }
+
+    public function test_replies_in_english_when_asked_in_english(): void
+    {
+        [, $c] = $this->freshConversation();
+
+        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'how many users do we have today'])->assertOk();
+
+        $this->assertStringContainsString('Total users:', $reply->json('content'));
+        $this->assertStringNotContainsString('Jumla ya users', $reply->json('content'));
+    }
+
+    public function test_replies_in_swahili_when_asked_in_swahili(): void
+    {
+        [, $c] = $this->freshConversation();
+
+        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'ni users ngapi tulionao leo'])->assertOk();
+
+        $this->assertStringContainsString('Jumla ya users:', $reply->json('content'));
+    }
+
+    public function test_a_quick_question_button_follows_the_language_last_typed(): void
+    {
+        [, $c] = $this->freshConversation();
+
+        // No typed language yet: defaults to Swahili.
+        $first = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'Orders summary', 'question_id' => 'orders']);
+        $this->assertStringContainsString('Orders kwa hali:', $first->json('content'));
+
+        // Admin types English, then clicks a button: still English.
+        $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'what is the total of the payments please']);
+        $second = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'Orders summary', 'question_id' => 'orders']);
+        $this->assertStringContainsString('Orders by status:', $second->json('content'));
+    }
+
+    public function test_help_text_is_in_the_language_asked(): void
+    {
+        [, $c] = $this->freshConversation();
+
+        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'can you tell me a joke about the weather'])->assertOk();
+
+        $this->assertStringContainsString("I couldn't recognise", $reply->json('content'));
+    }
 }

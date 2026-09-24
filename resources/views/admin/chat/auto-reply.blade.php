@@ -25,10 +25,16 @@
             </div>
 
             <div>
-                <x-input-label for="message" value="Ujumbe" />
+                <x-input-label for="message" value="Ujumbe (Kiswahili)" />
                 <textarea id="message" name="message" rows="4" maxlength="1000" required class="mbui-input mt-1">{{ old('message', $message) }}</textarea>
                 <p class="mt-1 text-xs text-gray-400">Andika <span class="font-mono">{name}</span> mahali ambapo jina la mteja litawekwa.</p>
                 <x-input-error :messages="$errors->get('message')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label for="message_en" value="Message (English)" />
+                <textarea id="message_en" name="message_en" rows="4" maxlength="1000" class="mbui-input mt-1">{{ old('message_en', $messageEn) }}</textarea>
+                <p class="mt-1 text-xs text-gray-400">Mteja akiandika kwa Kiingereza anapata huu; akiandika Kiswahili (au picha/sauti) anapata wa Kiswahili.</p>
             </div>
 
             <div class="flex items-center justify-end border-t border-gray-100 pt-4">

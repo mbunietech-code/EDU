@@ -10,6 +10,81 @@
         </a>
     </div>
 
+    {{-- My Learning (hidden when the learning feature is unavailable) --}}
+    @if (! empty($learning))
+        <section class="mt-8" aria-labelledby="dashboard-learning">
+            <div class="flex items-end justify-between gap-3">
+                <h2 id="dashboard-learning" class="mbui-section-label">My Learning</h2>
+                <a href="{{ route('learn.dashboard') }}" class="mbui-anchor text-sm">Open My Learning</a>
+            </div>
+
+            @if ($learning['live']->isEmpty() && $learning['continue']->isEmpty() && $learning['upcoming']->isEmpty())
+                <div class="mbui-card mt-3 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-gray-600">You haven't started any lessons yet. Explore courses, video lessons and live classes.</p>
+                    <x-mbui.btn-link :href="route('learn.courses.index')" variant="secondary" class="shrink-0">Browse courses</x-mbui.btn-link>
+                </div>
+            @else
+                <div class="mt-3 grid gap-4 lg:grid-cols-3">
+                    {{-- Live now --}}
+                    <div class="mbui-card p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Live now</h3>
+                        @if ($learning['live']->isEmpty())
+                            <p class="mt-2 text-sm text-gray-500">No live classes right now.</p>
+                        @else
+                            <ul class="mt-2 divide-y divide-gray-100">
+                                @foreach ($learning['live'] as $room)
+                                    <li class="flex items-center justify-between gap-3 py-2">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-medium text-gray-900">{{ $room->title }}</p>
+                                            @if ($room->host)<p class="truncate text-xs text-gray-500">{{ $room->host->name }}</p>@endif
+                                        </div>
+                                        <x-mbui.btn-link :href="route('learn.rooms.live', $room)" variant="danger" class="shrink-0 px-3 py-1.5 text-xs">Join</x-mbui.btn-link>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+
+                    {{-- Continue learning --}}
+                    <div class="mbui-card p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Continue learning</h3>
+                        @if ($learning['continue']->isEmpty())
+                            <p class="mt-2 text-sm text-gray-500">You haven't started any lessons yet.</p>
+                        @else
+                            <ul class="mt-2 divide-y divide-gray-100">
+                                @foreach ($learning['continue'] as $row)
+                                    <li class="py-2">
+                                        <a href="{{ route('learn.videos.show', $row->video) }}" class="block truncate text-sm font-medium text-gray-900 hover:text-indigo-600">{{ $row->video->title }}</a>
+                                        <x-learning.progress-bar class="mt-1.5" :percent="$row->percent" :label="$row->video->course?->title ?? $row->video->category?->name" />
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+
+                    {{-- Upcoming sessions --}}
+                    <div class="mbui-card p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Upcoming sessions</h3>
+                        @if ($learning['upcoming']->isEmpty())
+                            <p class="mt-2 text-sm text-gray-500">No upcoming classes.</p>
+                        @else
+                            <ul class="mt-2 divide-y divide-gray-100">
+                                @foreach ($learning['upcoming'] as $room)
+                                    <li class="py-2">
+                                        <a href="{{ route('learn.rooms.show', $room) }}" class="block truncate text-sm font-medium text-gray-900 hover:text-indigo-600">{{ $room->title }}</a>
+                                        <p class="text-xs text-gray-500">
+                                            {{ $room->scheduled_at?->format('D, d M · H:i') }}@if ($room->host) · {{ $room->host->name }}@endif
+                                        </p>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                </div>
+            @endif
+        </section>
+    @endif
+
     @if ($activeSubscriptions->isNotEmpty())
         <div class="mt-8">
             <h2 class="mbui-section-label">Your Active Access</h2>

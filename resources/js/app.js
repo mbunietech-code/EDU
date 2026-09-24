@@ -4,6 +4,9 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+// Learning (ROOM) Alpine factories must exist before Alpine boots.
+import './learning';
+
 Alpine.start();
 
 window.submitWithReason = function (form, promptText) {

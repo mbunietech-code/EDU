@@ -94,6 +94,58 @@
                 </x-admin.sidebar-link>
                 @endif
 
+                @php($me = auth()->user())
+                @if ($me->can('learning.view') || $me->can('rooms.view') || $me->canAccessStudio())
+                <div class="pt-2">
+                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Learning</p>
+                </div>
+                @endif
+
+                @can('learning.view')
+                <x-admin.sidebar-link :route="route('admin.learning.dashboard')" :active="request()->routeIs('admin.learning.dashboard')" label="Learning Overview">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                </x-admin.sidebar-link>
+                @endcan
+
+                @if ($me->can('rooms.view') || $me->canHostRooms())
+                <x-admin.sidebar-link :route="route('studio.rooms.index')" :active="request()->routeIs('studio.rooms.*')" label="Live Rooms"
+                    :badge="\App\Models\LearningRoom::liveCountFor($me)">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                </x-admin.sidebar-link>
+                @endif
+
+                @if ($me->can('learning.view') || $me->canUploadLessons())
+                <x-admin.sidebar-link :route="route('studio.videos.index')" :active="request()->routeIs('studio.videos.*')" label="Video Lessons">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
+                </x-admin.sidebar-link>
+                @endif
+
+                @can('learning.view')
+                <x-admin.sidebar-link :route="route('admin.learning.courses.index')" :active="request()->routeIs('admin.learning.courses.*', 'admin.learning.categories.*', 'admin.learning.topics.*', 'admin.learning.enrollments.*')" label="Courses">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+                </x-admin.sidebar-link>
+
+                <x-admin.sidebar-link :route="route('admin.learning.instructors.index')" :active="request()->routeIs('admin.learning.instructors.*')" label="Instructors">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+                </x-admin.sidebar-link>
+
+                <x-admin.sidebar-link :route="route('admin.learning.progress.index')" :active="request()->routeIs('admin.learning.progress.*')" label="Learner Progress">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                </x-admin.sidebar-link>
+                @endcan
+
+                @can('rooms.view')
+                <x-admin.sidebar-link :route="route('admin.learning.attendance.index')" :active="request()->routeIs('admin.learning.attendance.*')" label="Attendance">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
+                </x-admin.sidebar-link>
+                @endcan
+
+                <x-admin.sidebar-link :route="route('learn.dashboard')" :active="request()->routeIs('learn.*')" label="Learning Library">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v-5.25l4.5 2.625L9 11.25z" />
+                </x-admin.sidebar-link>
+
                 @if ($canAny('orders.view','payments.view','payment_methods.manage','chat.view','contact_messages.view','subscriptions.view'))
                 <div class="pt-2">
                     <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Operations</p>

@@ -28,7 +28,16 @@
                     @foreach ($notifications as $notification)
                         <tr class="{{ $notification->read_at ? '' : 'bg-indigo-50/50' }}">
                             <td class="mbui-td {{ $notification->read_at ? 'text-gray-600' : 'font-medium text-gray-900' }}">
-                                {{ $notification->data['message'] ?? 'Notification' }}
+                                @php
+                                    $url = $notification->data['url'] ?? null;
+                                    $home = url('/');
+                                    $sameHost = is_string($url) && ($url === $home || str_starts_with($url, $home.'/'));
+                                @endphp
+                                @if ($sameHost)
+                                    <a href="{{ $url }}" class="hover:text-indigo-600 hover:underline">{{ $notification->data['message'] ?? 'Notification' }}</a>
+                                @else
+                                    {{ $notification->data['message'] ?? 'Notification' }}
+                                @endif
                             </td>
                             <td class="mbui-td text-gray-500 whitespace-nowrap">{{ $notification->created_at->diffForHumans() }}</td>
                             <td class="mbui-td">

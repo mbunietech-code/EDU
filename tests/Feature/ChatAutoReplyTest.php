@@ -23,14 +23,14 @@ class ChatAutoReplyTest extends TestCase
         return [$user, Conversation::create(['user_id' => $user->id])];
     }
 
-    private function say(Conversation $c, bool $fromAdmin, int $minutesAgo, bool $auto = false, bool $deleted = false)
+    private function say(Conversation $c, bool $fromAdmin, int $minutesAgo, bool $auto = false, bool $deleted = false, string $body = 'ujumbe')
     {
         $m = $c->messages()->create([
             'is_from_admin' => $fromAdmin,
             'is_auto' => $auto,
             'is_deleted' => $deleted,
             'type' => 'text',
-            'body' => 'hello',
+            'body' => $body,
         ]);
         $m->forceFill(['created_at' => now()->subMinutes($minutesAgo)])->save();
 
@@ -196,5 +196,47 @@ class ChatAutoReplyTest extends TestCase
         $this->assertSame('Subiri kidogo {name}', $service->messageTemplate());
 
         $this->actingAs($super)->put(route('admin.chat.auto-reply.update'), ['minutes' => 0, 'message' => 'x'])->assertSessionHasErrors('minutes');
+    }
+
+    public function test_reply_is_in_the_language_the_customer_wrote_in(): void
+    {
+        Notification::fake();
+        Setting::set('autoreply_message_en', 'Hi {name}, we will be with you shortly.', 'string', 'autoreply');
+        $service = app(AutoReplyService::class);
+
+        [, $english] = $this->customerChat();
+        $this->say($english, false, 12, body: 'Hello, I am still waiting for a reply please');
+        $this->assertTrue($service->processConversation($english));
+        $this->assertSame('Hi Juma, we will be with you shortly.', $this->autoMessages($english)[0]->body);
+
+        [, $swahili] = $this->customerChat();
+        $this->say($swahili, false, 12, body: 'Habari, naomba msaada wenu tafadhali');
+        $this->assertTrue($service->processConversation($swahili));
+        $this->assertStringStartsWith('Habari Juma', $this->autoMessages($swahili)[0]->body);
+    }
+
+    public function test_falls_back_to_swahili_when_the_language_cannot_be_told(): void
+    {
+        Notification::fake();
+        [, $c] = $this->customerChat();
+        $this->say($c, false, 12, body: '');
+
+        $this->assertTrue(app(AutoReplyService::class)->processConversation($c));
+        $this->assertStringStartsWith('Habari Juma', $this->autoMessages($c)[0]->body);
+    }
+
+    public function test_english_message_can_be_edited_in_settings(): void
+    {
+        $super = User::factory()->create(['is_admin' => true, 'role' => Permissions::ROLE_SUPER_ADMIN, 'permissions' => null]);
+
+        $this->actingAs($super)->put(route('admin.chat.auto-reply.update'), [
+            'enabled' => 1,
+            'minutes' => 10,
+            'message' => 'Subiri kidogo {name}',
+            'message_en' => 'Please wait {name}',
+        ])->assertRedirect();
+
+        $this->assertSame('Please wait {name}', app(AutoReplyService::class)->messageTemplate('en'));
+        $this->actingAs($super)->get(route('admin.chat.auto-reply.edit'))->assertOk()->assertSee('Please wait {name}');
     }
 }

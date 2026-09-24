@@ -12,7 +12,7 @@
     @livewireStyles
 </head>
 <body class="min-h-screen bg-gray-100">
-    <div class="min-h-full" x-data="{ sidebarOpen: false, consultationOpen: false, consultationSub: null }">
+    <div class="min-h-full" x-data="{ sidebarOpen: false, consultationOpen: false, consultationSub: null, learningOpen: @js(request()->routeIs('learn.*')) }">
         <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 transform transition-transform lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
             <div class="flex h-16 items-center justify-between gap-2 border-b border-gray-800 px-6">
@@ -52,6 +52,51 @@
                 @if (auth()->user()?->canWriteResearch())
                     <x-user.sidebar-link :route="route('research.contributor.index')" :active="request()->routeIs('research.contributor.*')" label="My Research">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                    </x-user.sidebar-link>
+                @endif
+
+                @php($learningLinks = [
+                    ['route' => 'learn.dashboard', 'active' => 'learn.dashboard', 'label' => 'My Learning'],
+                    ['route' => 'learn.categories.index', 'active' => 'learn.categories.*', 'label' => 'Categories'],
+                    ['route' => 'learn.courses.index', 'active' => 'learn.courses.*', 'label' => 'Courses'],
+                    ['route' => 'learn.videos.index', 'active' => 'learn.videos.*', 'label' => 'Video Lessons'],
+                    ['route' => 'learn.rooms.index', 'active' => 'learn.rooms.*', 'label' => 'Live Rooms', 'badge' => \App\Models\LearningRoom::liveCountFor(auth()->user())],
+                    ['route' => 'learn.calendar', 'active' => 'learn.calendar', 'label' => 'Calendar'],
+                    ['route' => 'learn.progress', 'active' => 'learn.progress', 'label' => 'Progress'],
+                ])
+
+                <div>
+                    <button type="button" @click="learningOpen = !learningOpen" :aria-expanded="learningOpen.toString()"
+                        class="group flex w-full items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                        <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+                        </svg>
+                        <span class="flex-1 text-left">Learning</span>
+                        <svg class="h-4 w-4 shrink-0 transition-transform"
+                            :class="learningOpen ? 'transform rotate-180' : ''" fill="none"
+                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="learningOpen" x-cloak x-transition class="mt-1 ml-6 space-y-1">
+                        @foreach ($learningLinks as $link)
+                            @php($isActive = request()->routeIs($link['active']))
+                            <a href="{{ route($link['route']) }}" @if ($isActive) aria-current="page" @endif
+                                class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium {{ $isActive ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white' }}">
+                                <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ $isActive ? 'bg-indigo-400' : 'bg-gray-400' }}"></span>
+                                <span class="flex-1 text-left">{{ $link['label'] }}</span>
+                                @if (($link['badge'] ?? 0) > 0)
+                                    <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold text-white">{{ $link['badge'] > 99 ? '99+' : $link['badge'] }}</span>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
+                @if (auth()->user()?->canAccessStudio())
+                    <x-user.sidebar-link :route="route('studio.rooms.index')" :active="request()->routeIs('studio.*')" label="Teaching Studio">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
                     </x-user.sidebar-link>
                 @endif
 

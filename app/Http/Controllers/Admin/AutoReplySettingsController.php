@@ -20,6 +20,7 @@ class AutoReplySettingsController extends Controller
             'enabled' => $this->autoReply->enabled(),
             'minutes' => $this->autoReply->minutes(),
             'message' => $this->autoReply->messageTemplate(),
+            'messageEn' => $this->autoReply->messageTemplate('en'),
         ]);
     }
 
@@ -28,11 +29,13 @@ class AutoReplySettingsController extends Controller
         $data = $request->validate([
             'minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'message' => ['required', 'string', 'max:1000'],
+            'message_en' => ['nullable', 'string', 'max:1000'],
         ]);
 
         Setting::set('autoreply_enabled', $request->boolean('enabled') ? '1' : '0', 'string', 'autoreply');
         Setting::set('autoreply_minutes', (string) $data['minutes'], 'integer', 'autoreply');
         Setting::set('autoreply_message', $data['message'], 'string', 'autoreply');
+        Setting::set('autoreply_message_en', $data['message_en'] ?? '', 'string', 'autoreply');
 
         ActivityLog::log('chat_auto_reply_updated', 'Setting', null, [
             'enabled' => $request->boolean('enabled'),

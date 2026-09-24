@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
 use App\Models\Setting;
+use App\Support\Language;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -20,6 +21,9 @@ use Throwable;
  *  - only ONE automatic reply per waiting stretch: after an auto-reply, the
  *    customer writing again does not trigger another until a person answers.
  *
+ * The message goes out in the language the customer wrote in (Swahili or
+ * English; Swahili when it can't tell, e.g. a photo or voice note).
+ *
  * Runs from the scheduler, and also when the customer's chat is opened or
  * polled, because shared hosting may have no cron. It must never break chat,
  * so every failure is swallowed.
@@ -28,6 +32,7 @@ class AutoReplyService
 {
     public const DEFAULT_MINUTES = 10;
     public const DEFAULT_MESSAGE = "Habari {name}, asante kwa ujumbe wako. Timu yetu imechelewa kidogo kujibu — tutakujibu mapema iwezekanavyo. Tunaomba uvumilivu wako.";
+    public const DEFAULT_MESSAGE_EN = "Hello {name}, thank you for your message. Our team is running a little late in replying — we'll get back to you as soon as possible. Thank you for your patience.";
     private const MAX_AGE_HOURS = 24;
 
     public function __construct(private NotificationService $notifications)
@@ -44,8 +49,14 @@ class AutoReplyService
         return max(1, (int) Setting::get('autoreply_minutes', self::DEFAULT_MINUTES));
     }
 
-    public function messageTemplate(): string
+    public function messageTemplate(string $lang = Language::SWAHILI): string
     {
+        if ($lang === Language::ENGLISH) {
+            $english = trim((string) Setting::get('autoreply_message_en', ''));
+
+            return $english !== '' ? $english : self::DEFAULT_MESSAGE_EN;
+        }
+
         $message = trim((string) Setting::get('autoreply_message', ''));
 
         return $message !== '' ? $message : self::DEFAULT_MESSAGE;
@@ -85,12 +96,14 @@ class AutoReplyService
             $message = DB::transaction(function () use ($conversation) {
                 // Lock the row so the scheduler and a polling customer can't both send.
                 $locked = Conversation::whereKey($conversation->id)->lockForUpdate()->first();
-                if (! $locked || ! $this->isWaiting($locked)) {
+                $waitingOn = $locked ? $this->waitingOn($locked) : null;
+                if (! $waitingOn) {
                     return null;
                 }
 
                 $locked->loadMissing('user');
-                $body = str_replace('{name}', $locked->user?->name ?? '', $this->messageTemplate());
+                $lang = Language::detect((string) $waitingOn->body) ?? Language::SWAHILI;
+                $body = str_replace('{name}', $locked->user?->name ?? '', $this->messageTemplate($lang));
 
                 $message = $locked->messages()->create([
                     'is_from_admin' => true,
@@ -117,7 +130,11 @@ class AutoReplyService
         }
     }
 
-    private function isWaiting(Conversation $conversation): bool
+    /**
+     * The customer message still waiting for an answer, or null when no
+     * auto-reply is due.
+     */
+    private function waitingOn(Conversation $conversation): ?\App\Models\ChatMessage
     {
         $lastCustomer = $conversation->messages()
             ->where('is_from_admin', false)
@@ -128,17 +145,19 @@ class AutoReplyService
         if (! $lastCustomer
             || $lastCustomer->created_at->gt(now()->subMinutes($this->minutes()))
             || $lastCustomer->created_at->lt(now()->subHours(self::MAX_AGE_HOURS))) {
-            return false;
+            return null;
         }
 
         // Someone (a person or an earlier auto-reply) already answered it.
         if ($conversation->messages()->where('is_from_admin', true)->where('id', '>', $lastCustomer->id)->exists()) {
-            return false;
+            return null;
         }
 
         // Only one auto-reply until a person actually responds.
         $lastHuman = (int) $conversation->messages()->where('is_from_admin', true)->where('is_auto', false)->max('id');
 
-        return ! $conversation->messages()->where('is_auto', true)->where('id', '>', $lastHuman)->exists();
+        return $conversation->messages()->where('is_auto', true)->where('id', '>', $lastHuman)->exists()
+            ? null
+            : $lastCustomer;
     }
 }
