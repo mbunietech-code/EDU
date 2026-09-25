@@ -4,11 +4,6 @@
         <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-gray-900 to-gray-900"></div>
         <div class="relative mbui-container py-20 sm:py-28">
             <div class="max-w-3xl">
-                <a href="#live-classes" class="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3 text-sm text-gray-200 ring-1 ring-inset ring-white/15 hover:bg-white/15">
-                    <span class="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">New</span>
-                    Live classes, online meetings &amp; conferences
-                    <span aria-hidden="true">&rarr;</span>
-                </a>
                 <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">
                     Premium AI tools,<br>
                     <span class="text-indigo-400">managed for you.</span>
@@ -24,6 +19,9 @@
                         Learn more
                     </a>
                 </div>
+                <p class="mt-6 text-sm text-gray-400">
+                    Also new: <a href="#live-classes" class="font-medium text-gray-200 underline decoration-gray-500 underline-offset-4 hover:text-white">live classes and online meetings</a>
+                </p>
             </div>
         </div>
     </section>

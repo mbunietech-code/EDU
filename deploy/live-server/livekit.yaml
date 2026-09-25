@@ -33,9 +33,11 @@ webhook:
   urls:
     - https://example.com/api/webhooks/livekit
 
-# Needed only when recording (Egress) is enabled.
-redis:
-  address: 127.0.0.1:6379
+# Needed only when recording (Egress) is enabled — uncomment together with
+# `docker compose --profile recording up -d`. Without Redis running, LiveKit
+# refuses to start if this section is active.
+# redis:
+#   address: 127.0.0.1:6379
 
 logging:
   level: info

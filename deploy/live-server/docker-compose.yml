@@ -30,7 +30,7 @@ services:
       - caddy_config:/config
 
   livekit:
-    image: livekit/livekit-server:${LIVEKIT_VERSION:-v1.8}
+    image: livekit/livekit-server:${LIVEKIT_VERSION:-latest}
     restart: unless-stopped
     network_mode: host
     command: --config /etc/livekit.yaml
@@ -43,9 +43,11 @@ services:
       - caddy
 
   coturn:
-    image: coturn/coturn:${COTURN_VERSION:-4.6}
+    image: coturn/coturn:${COTURN_VERSION:-latest}
     restart: unless-stopped
     network_mode: host
+    # Caddy writes certificate keys readable by root only; coturn must read the turn.<domain> key.
+    user: "0:0"
     # Secrets and addresses come from .env, so turnserver.conf holds no credentials.
     command:
       - -c
@@ -54,8 +56,8 @@ services:
       - --realm=${TURN_DOMAIN}
       - --server-name=${TURN_DOMAIN}
       - --external-ip=${PUBLIC_IP}
-      - --cert=/certs/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.crt
-      - --pkey=/certs/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.key
+      - --cert=/certs/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.crt
+      - --pkey=/certs/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.key
     volumes:
       - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
       # Caddy's certificate store (read-only) — TLS for turns: without a second ACME client.
@@ -71,7 +73,7 @@ services:
     profiles: ["recording"]
 
   egress:
-    image: livekit/egress:${EGRESS_VERSION:-v1.9}
+    image: livekit/egress:${EGRESS_VERSION:-latest}
     restart: unless-stopped
     network_mode: host
     # Headless Chrome renders the room layout for composite recordings.

@@ -31,11 +31,14 @@ class HomeLiveClassesPromoTest extends TestCase
     public function test_guests_see_the_promo_even_without_sessions(): void
     {
         $this->get(route('public.home'))->assertOk()
-            ->assertSee('Live classes, online meetings &amp; conferences', false)
-            ->assertSee('Learn live. Meet online.')
+            ->assertSee('live classes and online meetings')
+            ->assertSee('Join live classes and hold online meetings')
             ->assertSee('Book a meeting or conference')
             ->assertSee(route('register'))
-            ->assertDontSee('Upcoming live classes');
+            ->assertSee('No class is scheduled right now.')
+            // No invented people or numbers on the page.
+            ->assertDontSee('participants')
+            ->assertDontSee('Amina');
     }
 
     public function test_only_public_live_or_upcoming_rooms_are_listed(): void
@@ -60,7 +63,7 @@ class HomeLiveClassesPromoTest extends TestCase
     public function test_signed_in_members_are_sent_to_the_rooms_list(): void
     {
         $this->actingAs(User::factory()->create())->get(route('public.home'))->assertOk()
-            ->assertSee('Browse live classes')
+            ->assertSee('See live classes')
             ->assertSee(route('learn.rooms.index'));
     }
 }
