@@ -246,6 +246,29 @@ window.learnClassroom = (cfg = {}) => {
         return this.messages.filter((m) => m.type === 'chat');
     },
 
+    /** My own chat message (shown on the right). */
+    isMine(m) {
+        return !!(m && m.user && Number(m.user.id) === Number(this.viewer.id));
+    },
+
+    /** Same sender within 3 minutes → one visual group (name/avatar shown once). */
+    sameGroup(a, b) {
+        if (!a || !b || !a.user || !b.user || Number(a.user.id) !== Number(b.user.id)) return false;
+        const gap = Math.abs(Date.parse(b.created_at) - Date.parse(a.created_at));
+
+        return Number.isNaN(gap) || gap <= 3 * 60 * 1000;
+    },
+
+    startsGroup(i) {
+        const list = this.chatMessages;
+        return i === 0 || !this.sameGroup(list[i - 1], list[i]);
+    },
+
+    endsGroup(i) {
+        const list = this.chatMessages;
+        return i === list.length - 1 || !this.sameGroup(list[i], list[i + 1]);
+    },
+
     get questions() {
         const list = this.messages.filter((m) => m.type === 'question');
         if (this.qaFilter === 'open') return list.filter((m) => !m.is_answered && !m.is_deleted);

@@ -55,7 +55,7 @@
             </div>
         </template>
 
-        <div x-ref="chatList" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3" aria-live="polite" aria-relevant="additions">
+        <div x-ref="chatList" class="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-live="polite" aria-relevant="additions">
             <template x-if="feedLoaded && chatMessages.length === 0">
                 <div class="py-10 text-center text-sm text-gray-400">
                     <p class="font-medium text-gray-300">No messages yet.</p>
@@ -65,21 +65,36 @@
             <template x-if="!feedLoaded">
                 <p class="py-10 text-center text-sm text-gray-400">Loading messages…</p>
             </template>
-            <template x-for="m in chatMessages" :key="m.id">
-                <div class="group flex gap-2">
-                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-semibold text-gray-200" aria-hidden="true"
-                        x-text="(m.user.name || '?').trim().charAt(0).toUpperCase()"></div>
-                    <div class="min-w-0 flex-1">
-                        <p class="flex flex-wrap items-baseline gap-x-1.5 text-xs">
-                            <span class="font-semibold text-gray-100" x-text="m.user.name"></span>
-                            <span x-show="m.is_host" class="rounded bg-indigo-600 px-1 text-[10px] font-semibold uppercase text-white">Host</span>
-                            <span class="text-gray-500" x-text="formatTime(m.created_at)"></span>
-                        </p>
-                        <p x-show="!m.is_deleted" class="whitespace-pre-wrap break-words text-sm text-gray-200" x-text="m.body"></p>
-                        <p x-show="m.is_deleted" class="text-sm italic text-gray-500">Message removed</p>
+            {{-- Chat bubbles: mine on the right, everyone else on the left (consecutive messages grouped). --}}
+            <template x-for="(m, i) in chatMessages" :key="m.id">
+                <div class="group flex items-end gap-2"
+                    :class="[isMine(m) ? 'flex-row-reverse' : '', startsGroup(i) ? 'mt-3' : 'mt-0.5']">
+                    {{-- Avatar (others only, on the first message of a group) --}}
+                    <div class="h-7 w-7 shrink-0" x-show="!isMine(m)" aria-hidden="true">
+                        <div x-show="endsGroup(i)" class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-700 text-xs font-semibold text-gray-200"
+                            x-text="(m.user.name || '?').trim().charAt(0).toUpperCase()"></div>
                     </div>
+
+                    <div class="flex min-w-0 max-w-[80%] flex-col" :class="isMine(m) ? 'items-end' : 'items-start'">
+                        <p x-show="startsGroup(i) && !isMine(m)" class="mb-0.5 flex items-center gap-1.5 px-1 text-xs">
+                            <span class="font-semibold text-gray-200" x-text="m.user.name"></span>
+                            <span x-show="m.is_host" class="rounded bg-indigo-600 px-1 text-[10px] font-semibold uppercase text-white">Host</span>
+                        </p>
+                        <div class="rounded-2xl px-3 py-1.5 text-sm"
+                            :class="[
+                                isMine(m) ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-100',
+                                isMine(m) && endsGroup(i) ? 'rounded-br-sm' : '',
+                                !isMine(m) && endsGroup(i) ? 'rounded-bl-sm' : '',
+                                m.is_deleted ? 'opacity-70' : '',
+                            ]">
+                            <p x-show="!m.is_deleted" class="whitespace-pre-wrap break-words" x-text="m.body"></p>
+                            <p x-show="m.is_deleted" class="italic" :class="isMine(m) ? 'text-indigo-100' : 'text-gray-400'">Message removed</p>
+                            <p class="mt-0.5 text-right text-[10px] leading-none" :class="isMine(m) ? 'text-indigo-200' : 'text-gray-500'" x-text="formatTime(m.created_at)"></p>
+                        </div>
+                    </div>
+
                     <button type="button" x-show="m.can_delete" @click="askDelete(m)" :disabled="busy.message === m.id"
-                        class="shrink-0 self-start rounded p-1 text-gray-500 opacity-100 hover:bg-gray-800 hover:text-red-400 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                        class="mb-1 shrink-0 rounded p-1 text-gray-500 opacity-100 hover:bg-gray-800 hover:text-red-400 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                         aria-label="Delete message">
                         @include('learn.rooms.partials.icon', ['name' => 'trash', 'class' => 'h-4 w-4'])
                     </button>
