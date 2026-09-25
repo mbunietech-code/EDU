@@ -83,6 +83,8 @@ function formatBytes(bytes) {
 window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
     const lk = { mod: null, room: null, intentional: false, refreshFrame: null };
+    // Browser recording internals (MediaRecorder, captured streams, audio mixer).
+    const recorder = { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() };
 
     return {
     cfg,
@@ -110,6 +112,8 @@ window.learnClassroom = (cfg = {}) => {
     media: { mic: false, cam: false, screen: false },
     mediaBusy: { mic: false, cam: false, screen: false },
     recordingBusy: false,
+    // Browser recording by the host (used when the server has no Egress).
+    rec: { active: false, starting: false, elapsed: '', startedAt: 0, seconds: 0, uploading: false, progress: 0, error: '', downloadUrl: '', fileName: '' },
     audioBlocked: false,
     myQuality: 'unknown',
     tiles: [],
@@ -186,6 +190,13 @@ window.learnClassroom = (cfg = {}) => {
             this.pollNow();
         });
         document.addEventListener('fullscreenchange', () => { this.isFullscreen = !!document.fullscreenElement; });
+        // Do not lose a recording that is running or still uploading.
+        window.addEventListener('beforeunload', (e) => {
+            if (this.rec.active || this.rec.uploading) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         this.poll();
     },
@@ -363,6 +374,9 @@ window.learnClassroom = (cfg = {}) => {
 
     // --- Clock ----------------------------------------------------------
     tick() {
+        if (this.rec.active && this.rec.startedAt) {
+            this.rec.elapsed = this.clock(Math.floor((Date.now() - this.rec.startedAt) / 1000));
+        }
         if (this.room.status !== 'live' || !this.room.started_at) {
             this.elapsed = '';
             return;
@@ -378,6 +392,15 @@ window.learnClassroom = (cfg = {}) => {
         const s = total % 60;
         const pad = (n) => String(n).padStart(2, '0');
         this.elapsed = (h > 0 ? h + ':' + pad(m) : pad(m)) + ':' + pad(s);
+    },
+
+    clock(total) {
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+
+        return (h > 0 ? h + ':' + pad(m) : pad(m)) + ':' + pad(s);
     },
 
     formatTime(iso) {
@@ -791,7 +814,7 @@ window.learnClassroom = (cfg = {}) => {
             .on(E.TrackSubscriptionFailed, () => this.flash('A participant’s video could not be received. It will retry automatically.'))
             .on(E.TrackMuted, refresh)
             .on(E.TrackUnmuted, refresh)
-            .on(E.LocalTrackPublished, refresh)
+            .on(E.LocalTrackPublished, () => { this.recAttachMic(); refresh(); })
             .on(E.LocalTrackUnpublished, refresh)
             .on(E.ActiveSpeakersChanged, refresh)
             .on(E.ConnectionQualityChanged, refresh)
@@ -1306,6 +1329,8 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     leaveCall() {
+        // A running browser recording is stopped and uploaded (the page stays open).
+        this.stopBrowserRecording();
         clearTimeout(this.rejoinTimer);
         this.disconnect(true);
         this.stopPresence();
@@ -1357,6 +1382,7 @@ window.learnClassroom = (cfg = {}) => {
 
     async endSession() {
         if (!this.isManager || !this.urls.studio || this.busy.end) return;
+        this.stopBrowserRecording();
         this.busy.end = true;
         try {
             const { ok, data } = await this.post(this.urls.studio.end);
@@ -1432,6 +1458,226 @@ window.learnClassroom = (cfg = {}) => {
         const url = this.urls.studio && this.urls.studio.permissions.replace('__ID__', p.user_id);
         return this.moderate('rights-' + p.user_id, url, { audio: null, video: null, screen: null },
             p.name + ' now follows the room settings.');
+    },
+
+    // --- Recording ---------------------------------------------------------------
+    /**
+     * The Record button: server recording (LiveKit Egress) when the platform
+     * has it, otherwise the host's browser records the class tab.
+     */
+    toggleRecord() {
+        if (!this.isManager || !this.inCall) return;
+        if (this.provider.supportsRecording) return this.toggleRecording();
+        if (this.rec.active) return this.stopBrowserRecording();
+
+        return this.startBrowserRecording();
+    },
+
+    get recordLabel() {
+        if (this.rec.uploading) return 'Saving recording… ' + this.rec.progress + '%';
+        if (this.rec.active) return 'Stop recording (' + this.rec.elapsed + ')';
+        if (this.provider.supportsRecording && this.room.is_recording) return 'Stop recording';
+
+        return 'Record the class';
+    },
+
+    get browserRecordingSupported() {
+        return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && typeof window.MediaRecorder !== 'undefined');
+    },
+
+    async startBrowserRecording() {
+        if (this.rec.active || this.rec.starting || this.rec.uploading) return;
+        if (!this.browserRecordingSupported) {
+            this.flash('This browser cannot record. Use Chrome or Edge on a computer.', 8000);
+            return;
+        }
+
+        this.rec.starting = true;
+        this.rec.error = '';
+        let display;
+        try {
+            // "This tab" is offered first; tick "Also share tab audio" to record everyone's voices.
+            display = await navigator.mediaDevices.getDisplayMedia({
+                video: { frameRate: 24, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: true,
+                preferCurrentTab: true,
+                selfBrowserSurface: 'include',
+                surfaceSwitching: 'exclude',
+                systemAudio: 'include',
+            });
+        } catch (e) {
+            this.rec.starting = false;
+            if (!/NotAllowed|AbortError/i.test(String(e && (e.name || e.message)))) {
+                this.flash('Recording could not start: ' + ((e && e.message) || 'the screen could not be captured.'), 8000);
+            }
+            return;
+        }
+
+        // Mix the tab's sound (the class) with my microphone into one audio track.
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const dest = ctx.createMediaStreamDestination();
+        display.getAudioTracks().forEach((t) => ctx.createMediaStreamSource(new MediaStream([t])).connect(dest));
+        Object.assign(recorder, { display, ctx, dest, chunks: [], mics: new WeakSet() });
+        this.recAttachMic();
+
+        const stream = new MediaStream([...display.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+        const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+            .find((t) => window.MediaRecorder.isTypeSupported(t)) || '';
+
+        try {
+            recorder.mr = new window.MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1500000, audioBitsPerSecond: 96000 });
+        } catch (e) {
+            this.cleanupRecorder();
+            this.rec.starting = false;
+            this.flash('This browser cannot record this kind of video. Use Chrome or Edge.', 8000);
+            return;
+        }
+
+        recorder.mr.ondataavailable = (e) => { if (e.data && e.data.size) recorder.chunks.push(e.data); };
+        recorder.mr.onstop = () => this.onRecorderStopped();
+        // The browser's own "Stop sharing" button ends the recording too.
+        display.getVideoTracks().forEach((t) => { t.onended = () => this.stopBrowserRecording(); });
+        recorder.mr.start(5000);
+
+        this.rec.active = true;
+        this.rec.starting = false;
+        this.rec.startedAt = Date.now();
+        this.rec.elapsed = '00:00';
+        if (this.rec.downloadUrl) URL.revokeObjectURL(this.rec.downloadUrl);
+        this.rec.downloadUrl = '';
+
+        if (!display.getAudioTracks().length) {
+            this.flash('Recording without the class sound: choose "This tab" and tick "Also share tab audio" next time.', 9000);
+        } else {
+            this.flash('Recording started. Everyone in the class can see that it is being recorded.');
+        }
+
+        this.room.is_recording = true;
+        await this.post(this.urls.studio.recordingBrowser, { recording: true }).catch(() => {});
+        this.nudge('feed');
+    },
+
+    /** Add my microphone to the recording mix (also when I turn it on later). */
+    recAttachMic() {
+        if (!this.rec.active && !recorder.ctx) return;
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod || !recorder.ctx) return;
+
+        const pub = room.localParticipant.getTrackPublication(mod.Track.Source.Microphone);
+        const track = pub && pub.track && pub.track.mediaStreamTrack;
+        if (!track || recorder.mics.has(track)) return;
+
+        recorder.mics.add(track);
+        recorder.ctx.createMediaStreamSource(new MediaStream([track])).connect(recorder.dest);
+    },
+
+    stopBrowserRecording() {
+        if (!this.rec.active) return;
+        this.rec.active = false;
+        if (recorder.mr && recorder.mr.state !== 'inactive') recorder.mr.stop(); // → onRecorderStopped
+        else this.onRecorderStopped();
+    },
+
+    async onRecorderStopped() {
+        const chunks = recorder.chunks;
+        const seconds = Math.max(1, Math.round((Date.now() - this.rec.startedAt) / 1000));
+        this.cleanupRecorder();
+        this.room.is_recording = false;
+        this.post(this.urls.studio.recordingBrowser, { recording: false }).catch(() => {});
+        this.nudge('feed');
+
+        if (!chunks.length) {
+            this.flash('The recording was empty and was not saved.');
+            return;
+        }
+
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+        this.rec.fileName = (String(this.room.title || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'class')
+            + '-' + stamp + '.webm';
+        // Kept until the upload succeeds, so nothing is lost if it fails.
+        this.rec.downloadUrl = URL.createObjectURL(blob);
+        this.rec.seconds = seconds;
+        await this.uploadRecording(blob, seconds);
+    },
+
+    /** Upload failed: try again from the copy kept in the browser. */
+    async retryRecordingUpload() {
+        if (!this.rec.downloadUrl || this.rec.uploading) return;
+        const blob = await (await fetch(this.rec.downloadUrl)).blob();
+        await this.uploadRecording(blob, this.rec.seconds || 0);
+    },
+
+    dismissRecordingError() {
+        if (this.rec.downloadUrl) URL.revokeObjectURL(this.rec.downloadUrl);
+        this.rec.downloadUrl = '';
+        this.rec.error = '';
+    },
+
+    cleanupRecorder() {
+        if (recorder.display) recorder.display.getTracks().forEach((t) => { t.onended = null; t.stop(); });
+        if (recorder.ctx) recorder.ctx.close().catch(() => {});
+        Object.assign(recorder, { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() });
+    },
+
+    /** Chunked upload (same endpoints as the studio uploader), then saved as a room recording. */
+    async uploadRecording(blob, seconds) {
+        const s = this.urls.studio;
+        this.rec.uploading = true;
+        this.rec.progress = 0;
+        this.rec.error = '';
+        let token = null;
+
+        try {
+            const init = await this.post(s.uploadInit, { purpose: 'recording', filename: this.rec.fileName, size: blob.size });
+            if (!init.ok || !init.data || !init.data.token) throw new Error(errorMessage(init.data, 'The upload could not start.'));
+            token = init.data.token;
+            const size = Math.max(256 * 1024, Number(init.data.chunk_bytes) || 5 * 1024 * 1024);
+
+            for (let index = 0, offset = 0; offset < blob.size; index += 1, offset += size) {
+                const part = blob.slice(offset, Math.min(offset + size, blob.size));
+                let sent = false;
+                for (let attempt = 0; attempt < 3 && !sent; attempt += 1) {
+                    const form = new FormData();
+                    form.append('index', String(index));
+                    form.append('chunk', part, 'chunk.bin');
+                    try {
+                        const res = await fetch(s.uploadChunk.replace('__TOKEN__', token), {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                            body: form,
+                        });
+                        sent = res.ok;
+                        if (!sent && res.status === 422) throw new Error(errorMessage(await readJson(res), 'A part of the recording was refused.'));
+                    } catch (e) {
+                        if (attempt === 2) throw e;
+                    }
+                    if (!sent) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+                }
+                if (!sent) throw new Error('The recording could not be uploaded. Check your connection.');
+                this.rec.progress = Math.min(99, Math.round(((offset + part.size) / blob.size) * 100));
+            }
+
+            const done = await this.post(s.uploadComplete.replace('__TOKEN__', token), {});
+            if (!done.ok) throw new Error(errorMessage(done.data, 'The recording could not be finished.'));
+
+            const saved = await this.post(s.recordingStore, { upload_token: token, duration_seconds: seconds, is_shared: false });
+            if (!saved.ok) throw new Error(errorMessage(saved.data, 'The recording could not be saved.'));
+
+            this.rec.progress = 100;
+            URL.revokeObjectURL(this.rec.downloadUrl);
+            this.rec.downloadUrl = '';
+            this.flash('Recording saved. Find it in Studio → your room → Recordings (share it with learners from there).', 10000);
+        } catch (e) {
+            if (token) {
+                fetch(s.uploadAbort.replace('__TOKEN__', token), { method: 'DELETE', headers: jsonHeaders(), credentials: 'same-origin' }).catch(() => {});
+            }
+            this.rec.error = (e && e.message) || 'The recording could not be saved.';
+        } finally {
+            this.rec.uploading = false;
+        }
     },
 
     async toggleRecording() {

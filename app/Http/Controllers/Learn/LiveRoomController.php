@@ -160,6 +160,13 @@ class LiveRoomController extends Controller
                 'muteAll' => route('studio.rooms.mute-all', $room->id),
                 'recordingStart' => route('studio.rooms.recording.start', $room->id),
                 'recordingStop' => route('studio.rooms.recording.stop', $room->id),
+                // Browser recording (no Egress): flag + chunked upload + save as a room recording.
+                'recordingBrowser' => route('studio.rooms.recording.browser', $room->id),
+                'recordingStore' => route('studio.rooms.recordings.store', $room->id),
+                'uploadInit' => route('studio.uploads.init'),
+                'uploadChunk' => route('studio.uploads.chunk', ['token' => '__TOKEN__']),
+                'uploadComplete' => route('studio.uploads.complete', ['token' => '__TOKEN__']),
+                'uploadAbort' => route('studio.uploads.abort', ['token' => '__TOKEN__']),
                 'materials' => route('studio.rooms.materials.store', $room->id),
                 'materialDestroy' => route('studio.rooms.materials.destroy', ['room' => $room->id, 'material' => '__ID__']),
                 'remove' => $userTemplate('studio.rooms.participants.remove'),

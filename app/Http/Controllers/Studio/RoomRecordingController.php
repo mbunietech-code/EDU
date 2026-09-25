@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  */
 class RoomRecordingController extends Controller
 {
-    public function store(Request $request, LearningRoom $room, LearningStorage $storage): RedirectResponse
+    public function store(Request $request, LearningRoom $room, LearningStorage $storage): JsonResponse|RedirectResponse
     {
         $this->authorize('manage', $room);
         $user = $request->user();
@@ -60,6 +60,15 @@ class RoomRecordingController extends Controller
             'session_id' => $recording->learning_room_session_id,
             'size_bytes' => $recording->size_bytes,
         ]);
+
+        // The live classroom uploads the host's browser recording in the background.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Recording saved.',
+                'recording' => ['id' => $recording->id, 'size_bytes' => $recording->size_bytes, 'is_shared' => $recording->is_shared],
+                'studio_url' => route('studio.rooms.show', $room).'#recordings',
+            ], 201);
+        }
 
         return redirect()->to(route('studio.rooms.show', $room).'#recordings')
             ->with('success', 'Recording uploaded.'.($recording->is_shared ? ' Learners who can see the room can watch it.' : ' Only you and room staff can watch it until you share it.'));

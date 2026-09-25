@@ -4,8 +4,8 @@
     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
     @mouseenter="panelHover = true; showPanel()" @mouseleave="onPanelLeave()"
-    class="fixed inset-0 z-40 flex flex-col bg-gray-900 lg:w-[22rem] lg:shrink-0 lg:border-l lg:border-gray-800"
-    :class="autoHide ? 'lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:z-40 lg:shadow-2xl' : 'lg:static lg:inset-auto lg:z-auto'"
+    class="fixed inset-0 z-40 flex flex-col bg-gray-900 sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[22rem] sm:border-l sm:border-gray-800 sm:shadow-2xl lg:shrink-0"
+    :class="autoHide ? 'lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:z-40 lg:shadow-2xl' : 'lg:static lg:inset-auto lg:z-auto lg:shadow-none'"
     aria-label="Class chat, questions and people"
     :role="isLg ? null : 'dialog'" :aria-modal="isLg ? null : 'true'">
 
@@ -34,7 +34,7 @@
                 </button>
             @endforeach
         </div>
-        <button type="button" @click="closePanel()" x-show="!isLg"
+        <button type="button" @click="closePanel()" x-show="!isLg || autoHide"
             class="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white"
             aria-label="Close panel">
             @include('learn.rooms.partials.icon', ['name' => 'x'])

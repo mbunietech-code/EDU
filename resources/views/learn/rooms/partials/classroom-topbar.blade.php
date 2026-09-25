@@ -24,7 +24,7 @@
             class="inline-flex items-center gap-1 rounded-full bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 ring-1 ring-inset ring-red-500/40"
             role="status" aria-label="This class is being recorded">
             <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" aria-hidden="true"></span>
-            <span class="hidden sm:inline">Recording</span>
+            <span class="hidden tabular-nums sm:inline" x-text="rec.active ? 'REC ' + rec.elapsed : 'Recording'">Recording</span>
         </span>
         <span x-show="room.is_locked && room.status === 'live'" x-cloak title="Locked: no new people can join"
             class="inline-flex items-center gap-1 rounded-full bg-gray-800 px-2 py-1 text-xs font-medium text-gray-300 ring-1 ring-inset ring-gray-700"

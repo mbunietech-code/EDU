@@ -272,6 +272,7 @@ class RoomService
 
         // Disconnect everyone (this also stops a running recording).
         $this->server->deleteRoom($this->live->roomName($room));
+        Cache::forget(self::browserRecordingKey($room));
     }
 
     /**
@@ -748,6 +749,44 @@ class RoomService
         ]);
     }
 
+    /**
+     * The host records the class in their own browser (no Egress on the
+     * server). Only a flag is kept, so every participant sees "Recording";
+     * the file itself is uploaded as a normal recording when it stops.
+     */
+    public function setBrowserRecording(LearningRoom $room, bool $recording, User $actor): void
+    {
+        if ($recording && ! $room->isLive()) {
+            throw ValidationException::withMessages(['recording' => 'Recording can only start while the room is live.']);
+        }
+
+        $key = self::browserRecordingKey($room);
+        $was = Cache::has($key);
+
+        if ($recording) {
+            Cache::put($key, $actor->id, now()->addHours(8)); // expires on its own if the tab crashes
+        } else {
+            Cache::forget($key);
+        }
+
+        if ($was !== $recording) {
+            ActivityLog::log($recording ? 'learning_room_recording_started' : 'learning_room_recording_stopped', 'LearningRoom', $room->id, [
+                'title' => $room->title,
+                'mode' => 'browser',
+            ]);
+        }
+    }
+
+    public function isBrowserRecording(LearningRoom $room): bool
+    {
+        return Cache::has(self::browserRecordingKey($room));
+    }
+
+    private static function browserRecordingKey(LearningRoom $room): string
+    {
+        return 'learning.room.'.$room->id.'.browser_recording';
+    }
+
     /** SFU webhook: the participant left (closed the tab, lost the network, was removed). */
     public function participantDisconnected(LearningRoom $room, User $user): void
     {
@@ -993,7 +1032,7 @@ class RoomService
                 'allow_participant_media' => (bool) $room->allow_participant_media,
                 'allow_screen_share' => (bool) $room->allow_screen_share,
                 'is_locked' => (bool) $room->is_locked,
-                'is_recording' => (bool) $session?->isRecording(),
+                'is_recording' => (bool) $session?->isRecording() || ($session !== null && $this->isBrowserRecording($room)),
                 'title' => $room->title,
             ],
             'me' => [

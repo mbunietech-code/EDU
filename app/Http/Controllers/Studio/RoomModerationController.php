@@ -145,6 +145,24 @@ class RoomModerationController extends Controller
         return $this->done($request, 'Recording stopped — it will appear under Recordings when the file is ready.', ['is_recording' => false]);
     }
 
+    /** The host's browser started / stopped recording the class (shown to everyone). */
+    public function browserRecording(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
+    {
+        $this->authorize('moderate', $room);
+
+        $data = $request->validate(['recording' => ['required', 'boolean']]);
+
+        try {
+            $this->rooms->setBrowserRecording($room, (bool) $data['recording'], $request->user());
+        } catch (ValidationException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, $data['recording'] ? 'Recording started.' : 'Recording stopped.', [
+            'is_recording' => (bool) $data['recording'],
+        ]);
+    }
+
     /** @param  array<string,mixed>  $data */
     private function done(Request $request, string $message, array $data = []): JsonResponse|RedirectResponse
     {

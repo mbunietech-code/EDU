@@ -52,6 +52,21 @@
             <span x-show="layout === 'grid'" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'speaker-view'])</span>
         </button>
 
+        {{-- Record (host): server recording when available, otherwise recorded by this browser --}}
+        <template x-if="isManager">
+            <button type="button" @click="toggleRecord()" class="{{ $btn }}"
+                :disabled="rec.starting || rec.uploading || recordingBusy"
+                :class="(rec.active || (provider.supportsRecording && room.is_recording)) ? 'bg-red-600 hover:bg-red-500'
+                    : (!inCall || rec.uploading ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600')"
+                :aria-pressed="(rec.active || (provider.supportsRecording && room.is_recording)).toString()"
+                :aria-label="recordLabel" :title="recordLabel">
+                @include('learn.rooms.partials.icon', ['name' => 'record'])
+                <span x-show="rec.active || (provider.supportsRecording && room.is_recording)" x-cloak
+                    class="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full bg-white ring-2 ring-red-600" aria-hidden="true"></span>
+                <span x-show="rec.uploading" x-cloak class="absolute -bottom-1 rounded bg-gray-900 px-1 text-[9px] font-semibold tabular-nums text-white" x-text="rec.progress + '%'"></span>
+            </button>
+        </template>
+
         {{-- Chat --}}
         <button type="button" @click="togglePanel('chat')" class="{{ $btn }}"
             :class="panelVisible && tab === 'chat' ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
@@ -109,12 +124,10 @@
                 </button>
                 <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="Host tools"
                     class="absolute bottom-full right-0 z-30 mb-2 w-72 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
-                    <template x-if="provider.supportsRecording">
-                        <button type="button" role="menuitem" @click="toggleRecording(); open = false" :disabled="room.status !== 'live' || recordingBusy" class="{{ $menuItem }}">
-                            @include('learn.rooms.partials.icon', ['name' => 'record', 'class' => 'h-5 w-5 text-red-400'])
-                            <span x-text="room.is_recording ? 'Stop recording' : 'Start recording'"></span>
-                        </button>
-                    </template>
+                    <button type="button" role="menuitem" @click="toggleRecord(); open = false" :disabled="!inCall || rec.starting || rec.uploading || recordingBusy" class="{{ $menuItem }}">
+                        @include('learn.rooms.partials.icon', ['name' => 'record', 'class' => 'h-5 w-5 text-red-400'])
+                        <span x-text="recordLabel"></span>
+                    </button>
                     <button type="button" role="menuitem" @click="muteEveryone('audio'); open = false" :disabled="room.status !== 'live' || busy.mod" class="{{ $menuItem }}">
                         @include('learn.rooms.partials.icon', ['name' => 'speaker-off'])
                         Mute everyone

@@ -217,6 +217,31 @@
         </button>
     </div>
 
+    {{-- Host: browser recording being saved / could not be saved --}}
+    <div x-show="rec.uploading || rec.error" x-cloak x-transition.opacity
+        class="absolute left-3 top-3 z-20 w-72 max-w-[calc(100%-1.5rem)] rounded-lg bg-gray-800 p-3 text-sm text-gray-100 shadow-lg ring-1 ring-gray-700" role="status" aria-live="polite">
+        <template x-if="rec.uploading">
+            <div>
+                <p class="font-medium">Saving the recording…</p>
+                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-700">
+                    <div class="h-full rounded-full bg-indigo-500 transition-all" :style="'width:' + rec.progress + '%'"></div>
+                </div>
+                <p class="mt-1 text-xs text-gray-400"><span x-text="rec.progress"></span>% · keep this page open until it finishes.</p>
+            </div>
+        </template>
+        <template x-if="!rec.uploading && rec.error">
+            <div>
+                <p class="font-medium text-amber-300">The recording was not saved</p>
+                <p class="mt-1 break-words text-xs text-gray-300" x-text="rec.error"></p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <button type="button" @click="retryRecordingUpload()" class="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-500">Try again</button>
+                    <a x-show="rec.downloadUrl" :href="rec.downloadUrl" :download="rec.fileName" class="rounded-md px-2.5 py-1 text-xs font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-700">Download it</a>
+                    <button type="button" @click="dismissRecordingError()" class="ml-auto text-xs text-gray-400 hover:text-gray-200">Discard</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
     {{-- Toast --}}
     <div class="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex justify-center" aria-live="polite" role="status">
         <p x-show="notice" x-transition.opacity x-cloak
