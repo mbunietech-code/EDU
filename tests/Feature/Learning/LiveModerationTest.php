@@ -214,7 +214,7 @@ class LiveModerationTest extends TestCase
         // The recorded WebM goes through the chunked upload and is saved as a room recording (JSON for the classroom).
         $bytes = "\x1A\x45\xDF\xA3".str_repeat('webm', 256);
         $token = $this->actingAs($host)->postJson(route('studio.uploads.init'), ['purpose' => 'recording', 'filename' => 'physics-live.webm', 'size' => strlen($bytes)])
-            ->assertOk()->json('token');
+            ->assertSuccessful()->json('token');
         $this->actingAs($host)->post(route('studio.uploads.chunk', $token), [
             'index' => 0,
             'chunk' => UploadedFile::fake()->createWithContent('chunk.bin', $bytes),
