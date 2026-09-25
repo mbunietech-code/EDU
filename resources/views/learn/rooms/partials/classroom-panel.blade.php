@@ -244,17 +244,40 @@
                             <p class="text-xs" :class="p.role === 'host' ? 'text-indigo-300' : 'text-gray-500'"
                                 x-text="p.role === 'host' ? 'Host' : (tileState(p.identity) ? 'In the video call' : 'Watching the class page')"></p>
                         </div>
-                        {{-- Live state from the SFU --}}
-                        <div class="flex shrink-0 items-center gap-1 text-gray-400">
-                            <span x-show="tileState(p.identity) && tileState(p.identity).screen" class="text-indigo-300" title="Sharing the screen">
+                        {{-- Live state from the SFU. Hosts can tap the mic / camera to turn it off for that person. --}}
+                        <div class="flex shrink-0 items-center gap-0.5 text-gray-400">
+                            <span x-show="tileState(p.identity) && tileState(p.identity).screen" class="p-1 text-indigo-300" title="Sharing the screen">
                                 @include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => 'h-4 w-4'])<span class="sr-only">Sharing the screen</span>
                             </span>
-                            <span :class="tileState(p.identity) && tileState(p.identity).cam ? 'text-gray-200' : 'text-gray-600'"
+
+                            {{-- Camera --}}
+                            <button type="button" x-show="canMute(p)" @click="muteParticipant(p, 'video')"
+                                :disabled="busy.mod || !(tileState(p.identity) && tileState(p.identity).cam)"
+                                class="rounded p-1 enabled:hover:bg-red-500/20 enabled:hover:text-red-300 disabled:cursor-default"
+                                :class="tileState(p.identity) && tileState(p.identity).cam ? 'text-gray-100' : 'text-gray-600'"
+                                :title="tileState(p.identity) && tileState(p.identity).cam ? 'Turn off ' + p.name + '’s camera' : 'Camera off'"
+                                :aria-label="tileState(p.identity) && tileState(p.identity).cam ? 'Turn off ' + p.name + '’s camera' : p.name + '’s camera is off'">
+                                <span x-show="tileState(p.identity) && tileState(p.identity).cam">@include('learn.rooms.partials.icon', ['name' => 'camera', 'class' => 'h-4 w-4'])</span>
+                                <span x-show="!(tileState(p.identity) && tileState(p.identity).cam)">@include('learn.rooms.partials.icon', ['name' => 'camera-off', 'class' => 'h-4 w-4'])</span>
+                            </button>
+                            <span x-show="!canMute(p)" class="p-1" :class="tileState(p.identity) && tileState(p.identity).cam ? 'text-gray-200' : 'text-gray-600'"
                                 :title="tileState(p.identity) && tileState(p.identity).cam ? 'Camera on' : 'Camera off'">
-                                @include('learn.rooms.partials.icon', ['name' => 'camera', 'class' => 'h-4 w-4'])
+                                <span x-show="tileState(p.identity) && tileState(p.identity).cam">@include('learn.rooms.partials.icon', ['name' => 'camera', 'class' => 'h-4 w-4'])</span>
+                                <span x-show="!(tileState(p.identity) && tileState(p.identity).cam)">@include('learn.rooms.partials.icon', ['name' => 'camera-off', 'class' => 'h-4 w-4'])</span>
                                 <span class="sr-only" x-text="tileState(p.identity) && tileState(p.identity).cam ? 'Camera on' : 'Camera off'"></span>
                             </span>
-                            <span :class="tileState(p.identity) && tileState(p.identity).mic ? 'text-gray-200' : 'text-red-400'"
+
+                            {{-- Microphone --}}
+                            <button type="button" x-show="canMute(p)" @click="muteParticipant(p, 'audio')"
+                                :disabled="busy.mod || !(tileState(p.identity) && tileState(p.identity).mic)"
+                                class="rounded p-1 enabled:hover:bg-red-500/20 enabled:hover:text-red-300 disabled:cursor-default"
+                                :class="tileState(p.identity) && tileState(p.identity).mic ? 'text-gray-100' : 'text-red-400'"
+                                :title="tileState(p.identity) && tileState(p.identity).mic ? 'Mute ' + p.name : 'Microphone off'"
+                                :aria-label="tileState(p.identity) && tileState(p.identity).mic ? 'Mute ' + p.name : p.name + '’s microphone is off'">
+                                <span x-show="tileState(p.identity) && tileState(p.identity).mic">@include('learn.rooms.partials.icon', ['name' => 'mic', 'class' => 'h-4 w-4'])</span>
+                                <span x-show="!(tileState(p.identity) && tileState(p.identity).mic)">@include('learn.rooms.partials.icon', ['name' => 'mic-off', 'class' => 'h-4 w-4'])</span>
+                            </button>
+                            <span x-show="!canMute(p)" class="p-1" :class="tileState(p.identity) && tileState(p.identity).mic ? 'text-gray-200' : 'text-red-400'"
                                 :title="tileState(p.identity) && tileState(p.identity).mic ? 'Microphone on' : 'Microphone off'">
                                 <span x-show="tileState(p.identity) && tileState(p.identity).mic">@include('learn.rooms.partials.icon', ['name' => 'mic', 'class' => 'h-4 w-4'])</span>
                                 <span x-show="!(tileState(p.identity) && tileState(p.identity).mic)">@include('learn.rooms.partials.icon', ['name' => 'mic-off', 'class' => 'h-4 w-4'])</span>
@@ -274,12 +297,8 @@
                     {{-- Host controls for this person --}}
                     <template x-if="canModerate(p)">
                         <div x-show="open" x-cloak class="mt-2 space-y-2 rounded-lg bg-gray-800/70 p-2 text-xs">
-                            <div class="flex flex-wrap gap-1">
-                                <button type="button" @click="muteParticipant(p, 'audio')" :disabled="busy.mod"
-                                    class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Mute mic</button>
-                                <button type="button" @click="muteParticipant(p, 'video')" :disabled="busy.mod"
-                                    class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Stop camera</button>
-                                <button type="button" @click="muteParticipant(p, 'screen')" :disabled="busy.mod" x-show="tileState(p.identity) && tileState(p.identity).screen"
+                            <div class="flex flex-wrap gap-1" x-show="tileState(p.identity) && tileState(p.identity).screen">
+                                <button type="button" @click="muteParticipant(p, 'screen')" :disabled="busy.mod"
                                     class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Stop screen share</button>
                             </div>
                             <template x-if="p.permissions">

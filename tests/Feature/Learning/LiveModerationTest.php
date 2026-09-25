@@ -200,6 +200,41 @@ class LiveModerationTest extends TestCase
         $this->assertSame('completed', $again->fresh()->status);
     }
 
+    public function test_browser_recording_flag_and_upload_as_a_room_recording(): void
+    {
+        [$host, $learner, $room] = $this->classInProgress();
+        Storage::fake('local');
+
+        // Learners cannot flip the flag; the host can, and everyone sees it in the feed.
+        $this->actingAs($learner)->postJson(route('studio.rooms.recording.browser', $room->id), ['recording' => true])->assertForbidden();
+        $this->actingAs($host)->postJson(route('studio.rooms.recording.browser', $room->id), ['recording' => true])
+            ->assertOk()->assertJson(['is_recording' => true]);
+        $this->assertTrue($this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->json('room.is_recording'));
+
+        // The recorded WebM goes through the chunked upload and is saved as a room recording (JSON for the classroom).
+        $bytes = "\x1A\x45\xDF\xA3".str_repeat('webm', 256);
+        $token = $this->actingAs($host)->postJson(route('studio.uploads.init'), ['purpose' => 'recording', 'filename' => 'physics-live.webm', 'size' => strlen($bytes)])
+            ->assertOk()->json('token');
+        $this->actingAs($host)->post(route('studio.uploads.chunk', $token), [
+            'index' => 0,
+            'chunk' => UploadedFile::fake()->createWithContent('chunk.bin', $bytes),
+        ], ['Accept' => 'application/json'])->assertOk();
+        $this->actingAs($host)->postJson(route('studio.uploads.complete', $token))->assertOk();
+        $this->actingAs($host)->postJson(route('studio.rooms.recordings.store', $room->id), ['upload_token' => $token, 'duration_seconds' => 95])
+            ->assertCreated()->assertJsonPath('recording.is_shared', false);
+
+        $recording = LearningRoomRecording::firstOrFail();
+        $this->assertSame(['upload', 'ready', 95], [$recording->source, $recording->status, $recording->duration_seconds]);
+
+        $this->actingAs($host)->postJson(route('studio.rooms.recording.browser', $room->id), ['recording' => false])->assertOk();
+        $this->assertFalse($this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->json('room.is_recording'));
+
+        // Ending the class clears a flag left behind by a crashed tab.
+        $this->actingAs($host)->postJson(route('studio.rooms.recording.browser', $room->id), ['recording' => true])->assertOk();
+        $this->actingAs($host)->postJson(route('studio.rooms.end', $room->id))->assertOk();
+        $this->assertFalse(app(RoomService::class)->isBrowserRecording($room));
+    }
+
     public function test_server_recording_start_and_stop(): void
     {
         [$host, , $room] = $this->classInProgress();
