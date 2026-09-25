@@ -342,6 +342,9 @@ class RoomService
             throw new RoomAccessException('inactive');
         }
 
+        // Time is up: the class ends now instead of letting someone in.
+        $this->endIfOverdue($room);
+
         $moderator = $room->isManageableBy($user);
 
         $attendance = DB::transaction(function () use ($room, $user, $moderator) {
@@ -433,6 +436,8 @@ class RoomService
      */
     public function presence(LearningRoom $room, User $user): array
     {
+        $this->endIfOverdue($room);
+
         return DB::transaction(function () use ($room, $user) {
             $session = $this->lockLiveSession($room);
 
@@ -749,6 +754,96 @@ class RoomService
         ]);
     }
 
+    // --- Planned length: a live class ends for everyone when its time is up ------
+    /** When a live session runs out: started_at + duration_minutes (null when not live). */
+    public function endsAt(LearningRoom $room): ?Carbon
+    {
+        if (! $room->isLive() || ! $room->started_at) {
+            return null;
+        }
+
+        return $room->started_at->copy()->addMinutes(max(1, (int) $room->duration_minutes));
+    }
+
+    /**
+     * End the class for everyone once its planned time is over. Called from
+     * the scheduler every minute and lazily from feed / presence / join, so it
+     * still happens on time when cron runs late. Returns true when it ended it.
+     */
+    public function endIfOverdue(LearningRoom $room): bool
+    {
+        $endsAt = $this->endsAt($room);
+        if (! $endsAt || $endsAt->isFuture()) {
+            return false;
+        }
+
+        $session = DB::transaction(function () use ($room) {
+            $locked = $this->lockRoom($room);
+            $ends = $this->endsAt($locked);
+
+            return $ends && ! $ends->isFuture() ? $this->closeLiveRoom($locked, null) : false;
+        });
+
+        if ($session === false) {
+            return false; // someone ended or extended it meanwhile
+        }
+
+        $room->refresh();
+        Cache::forget('learning.live_count.'.$room->host_id);
+        Cache::forget(self::browserRecordingKey($room));
+
+        ActivityLog::log('learning_room_ended', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'session_id' => $session?->id,
+            'auto' => 'time_up',
+        ]);
+
+        // Disconnect everyone from the video server right away.
+        $this->server->deleteRoom($this->live->roomName($room));
+
+        return true;
+    }
+
+    /** @return int rooms ended because their time was up */
+    public function endOverdueRooms(): int
+    {
+        $ended = 0;
+
+        LearningRoom::query()->live()->whereNotNull('started_at')->chunkById(100, function ($rooms) use (&$ended) {
+            foreach ($rooms as $room) {
+                try {
+                    $ended += $this->endIfOverdue($room) ? 1 : 0;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        return $ended;
+    }
+
+    /** The host needs more time: add minutes to the running class. */
+    public function extend(LearningRoom $room, int $minutes, User $actor): Carbon
+    {
+        if (! $room->isLive()) {
+            throw ValidationException::withMessages(['status' => 'Only a live class can be extended.']);
+        }
+
+        $minutes = max(1, min(240, $minutes));
+        $room->forceFill([
+            'duration_minutes' => min(self::MAX_DURATION_MINUTES, (int) $room->duration_minutes + $minutes),
+            'updated_by' => $actor->id,
+        ])->save();
+
+        ActivityLog::log('learning_room_extended', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'minutes' => $minutes,
+            'duration_minutes' => $room->duration_minutes,
+        ]);
+
+        return $this->endsAt($room);
+    }
+
     /**
      * The host records the class in their own browser (no Egress on the
      * server). Only a flag is kept, so every participant sees "Recording";
@@ -996,6 +1091,7 @@ class RoomService
      */
     public function feed(LearningRoom $room, User $viewer, int $afterId = 0, ?string $since = null): array
     {
+        $this->endIfOverdue($room);
         $cursor = now()->toIso8601String();
         $manager = $room->isManageableBy($viewer);
         $afterId = max(0, $afterId);
@@ -1033,6 +1129,8 @@ class RoomService
                 'allow_screen_share' => (bool) $room->allow_screen_share,
                 'is_locked' => (bool) $room->is_locked,
                 'is_recording' => (bool) $session?->isRecording() || ($session !== null && $this->isBrowserRecording($room)),
+                'duration_minutes' => (int) $room->duration_minutes,
+                'ends_at' => $this->endsAt($room)?->toIso8601String(),
                 'title' => $room->title,
             ],
             'me' => [

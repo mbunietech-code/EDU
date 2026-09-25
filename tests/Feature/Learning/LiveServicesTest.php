@@ -688,22 +688,30 @@ class LiveServicesTest extends TestCase
         Notification::assertSentToTimes($learner, LiveSessionStartingSoon::class, 1);
     }
 
-    public function test_close_stale_rooms_only_ends_overdue_empty_rooms(): void
+    public function test_rooms_past_their_planned_time_are_ended_not_joined(): void
     {
         Notification::fake();
         $host = $this->instructor();
         $service = $this->service();
         $stale = $this->room($host, ['duration_minutes' => 60]);
-        $busy = $this->room($host, ['duration_minutes' => 60]);
+        $late = $this->room($host, ['duration_minutes' => 60]);
         $service->start($stale, $host);
-        $service->start($busy, $host);
+        $service->start($late, $host);
 
         $this->travel(60 + (int) config('learning.stale_room_grace_minutes') + 1)->minutes();
-        $service->join($busy, $this->learner());
 
+        // Time is up: joining ends the class for everyone instead of letting someone in.
+        try {
+            $service->join($late, $this->learner());
+            $this->fail('Joining a class whose time is up must be refused.');
+        } catch (RoomAccessException $e) {
+            $this->assertSame('not_live', $e->reason);
+        }
+        $this->assertSame('completed', $late->fresh()->status);
+
+        // The stale-room sweep still closes anything left over.
         $this->assertSame(1, $service->closeStaleRooms());
         $this->assertSame('completed', $stale->fresh()->status);
-        $this->assertSame('live', $busy->fresh()->status);
     }
 
     // --- Notifier audiences --------------------------------------------------

@@ -20,6 +20,19 @@
     </div>
 
     <div class="flex shrink-0 items-center gap-2">
+        {{-- Last 10 minutes: when the class ends for everyone (the host can add time) --}}
+        <span x-show="showTimeLeft" x-cloak class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold tabular-nums ring-1 ring-inset"
+            :class="remaining <= 60 ? 'bg-red-600/20 text-red-300 ring-red-500/40' : 'bg-amber-500/15 text-amber-300 ring-amber-500/30'"
+            role="timer" :aria-label="'The class ends in ' + timeLeftLabel">
+            @include('learn.rooms.partials.icon', ['name' => 'clock', 'class' => 'h-3.5 w-3.5'])
+            <span class="hidden sm:inline">Ends in</span>
+            <span x-text="timeLeftLabel"></span>
+        </span>
+        <template x-if="isManager && showTimeLeft">
+            <button type="button" @click="extendClass(15)" :disabled="busy.mod"
+                class="rounded-full bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-100 ring-1 ring-inset ring-gray-700 hover:bg-gray-700 disabled:opacity-50"
+                title="Add 15 minutes to this class">+15 min</button>
+        </template>
         <span x-show="room.is_recording && room.status === 'live'" x-cloak
             class="inline-flex items-center gap-1 rounded-full bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 ring-1 ring-inset ring-red-500/40"
             role="status" aria-label="This class is being recorded">

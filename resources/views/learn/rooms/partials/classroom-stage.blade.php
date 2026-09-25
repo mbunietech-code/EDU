@@ -5,20 +5,13 @@
 
     {{-- In the call --}}
     <div x-show="inCall" class="absolute inset-0">
-        {{-- Speaker layout: one big tile + a filmstrip --}}
+        {{-- Speaker layout: the speaker fills the stage. Everyone else's camera is in the side panel → Cameras. --}}
         <template x-if="layout === 'speaker'">
-        <div class="absolute inset-0 flex flex-col gap-2 p-2 sm:p-3">
-            <div class="relative min-h-0 flex-1">
+        <div class="absolute inset-0 p-2 sm:p-3">
+            <div class="relative h-full w-full">
                 <template x-for="t in (stageTile ? [stageTile] : [])" :key="t.id">
                     <div class="absolute inset-0">
                         @include('learn.rooms.partials.classroom-tile', ['big' => true])
-                    </div>
-                </template>
-            </div>
-            <div x-show="filmstripTiles.length" class="flex h-20 shrink-0 gap-2 overflow-x-auto sm:h-28" role="list" aria-label="Other participants">
-                <template x-for="t in filmstripTiles" :key="t.id">
-                    <div class="aspect-video h-full shrink-0" role="listitem">
-                        @include('learn.rooms.partials.classroom-tile', ['big' => false])
                     </div>
                 </template>
             </div>

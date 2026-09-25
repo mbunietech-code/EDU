@@ -145,6 +145,25 @@ class RoomModerationController extends Controller
         return $this->done($request, 'Recording stopped — it will appear under Recordings when the file is ready.', ['is_recording' => false]);
     }
 
+    /** Give the running class more time (it otherwise ends for everyone at its planned end). */
+    public function extend(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
+    {
+        $this->authorize('moderate', $room);
+
+        $data = $request->validate(['minutes' => ['required', 'integer', 'min:5', 'max:120']]);
+
+        try {
+            $endsAt = $this->rooms->extend($room, (int) $data['minutes'], $request->user());
+        } catch (ValidationException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, 'Class extended by '.$data['minutes'].' minutes (now ends at '.$endsAt->format('H:i').').', [
+            'ends_at' => $endsAt->toIso8601String(),
+            'duration_minutes' => (int) $room->duration_minutes,
+        ]);
+    }
+
     /** The host's browser started / stopped recording the class (shown to everyone). */
     public function browserRecording(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
     {

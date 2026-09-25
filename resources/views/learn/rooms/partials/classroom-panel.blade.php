@@ -10,18 +10,18 @@
     :role="isLg ? null : 'dialog'" :aria-modal="isLg ? null : 'true'">
 
     <div class="flex h-12 shrink-0 items-center border-b border-gray-800 px-2">
-        <div class="flex min-w-0 flex-1 items-center gap-1" role="tablist" aria-label="Panel sections">
-            @php($tabOrder = ['chat', 'qa', 'people', 'info'])
-            @foreach (['chat' => 'Chat', 'qa' => 'Q&A', 'people' => 'People', 'info' => 'Info'] as $key => $label)
+        <div class="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Panel sections">
+            @php($tabOrder = ['chat', 'cameras', 'qa', 'people', 'info'])
+            @foreach (['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'people' => 'People', 'info' => 'Info'] as $key => $label)
                 @php($tabIndex = array_search($key, $tabOrder, true))
-                @php($nextTab = $tabOrder[($tabIndex + 1) % 4])
-                @php($prevTab = $tabOrder[($tabIndex + 3) % 4])
+                @php($nextTab = $tabOrder[($tabIndex + 1) % 5])
+                @php($prevTab = $tabOrder[($tabIndex + 4) % 5])
                 <button type="button" role="tab" id="panel-tab-{{ $key }}" aria-controls="panel-{{ $key }}"
                     :aria-selected="(tab === '{{ $key }}').toString()" :tabindex="tab === '{{ $key }}' ? 0 : -1"
                     @click="openTab('{{ $key }}')"
                     @keydown.arrow-right.prevent="openTab('{{ $nextTab }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
                     @keydown.arrow-left.prevent="openTab('{{ $prevTab }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
-                    class="relative inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                    class="relative inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                     :class="tab === '{{ $key }}' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-200'">
                     {{ $label }}
                     @if ($key === 'chat')
@@ -30,6 +30,8 @@
                         <span x-show="unread.qa > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.qa > 99 ? '99+' : unread.qa"></span>
                     @elseif ($key === 'people')
                         <span class="text-xs tabular-nums text-gray-500" x-text="counts.participants"></span>
+                    @elseif ($key === 'cameras')
+                        <span x-show="cameraTiles.length" class="text-xs tabular-nums text-gray-500" x-text="cameraTiles.length"></span>
                     @endif
                 </button>
             @endforeach
@@ -136,6 +138,26 @@
                 <p class="text-center text-xs text-gray-400" x-text="chatDisabledText"></p>
             </template>
         </form>
+    </section>
+
+    {{-- Cameras: everyone's video (the stage keeps the speaker full size). Click a face to put it on the stage. --}}
+    <section id="panel-cameras" role="tabpanel" aria-labelledby="panel-tab-cameras" x-show="tab === 'cameras'" x-cloak class="min-h-0 flex-1 overflow-y-auto p-2">
+        <template x-if="!inCall">
+            <p class="px-2 py-10 text-center text-sm text-gray-400">Join the class to see everyone’s camera here.</p>
+        </template>
+        <template x-if="inCall && cameraTiles.length <= 1">
+            <p class="px-2 pb-3 pt-1 text-center text-xs text-gray-400">Only you are in the video call so far.</p>
+        </template>
+        <div x-show="inCall" class="grid grid-cols-2 gap-2" role="list" aria-label="Participants' cameras">
+            <template x-for="t in cameraTiles" :key="'cam-' + t.id">
+                <div class="aspect-video cursor-pointer" role="listitem" @click="pin(t)" :title="'Show ' + t.name + ' on the main screen'">
+                    @include('learn.rooms.partials.classroom-tile', ['big' => false])
+                </div>
+            </template>
+        </div>
+        <p x-show="inCall && pinnedId" x-cloak class="mt-3 text-center text-xs text-gray-400">
+            <button type="button" @click="pinnedId = null; $nextTick(() => attachVideos())" class="font-medium text-indigo-300 hover:text-indigo-200">Back to the active speaker</button>
+        </p>
     </section>
 
     {{-- Q&A --}}

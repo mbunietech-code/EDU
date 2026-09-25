@@ -143,6 +143,7 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
             Route::post('/rooms/{room}/recording/start', [Studio\RoomModerationController::class, 'startRecording'])->name('rooms.recording.start');
             Route::post('/rooms/{room}/recording/stop', [Studio\RoomModerationController::class, 'stopRecording'])->name('rooms.recording.stop');
             Route::post('/rooms/{room}/recording/browser', [Studio\RoomModerationController::class, 'browserRecording'])->name('rooms.recording.browser');
+            Route::post('/rooms/{room}/extend', [Studio\RoomModerationController::class, 'extend'])->name('rooms.extend');
             Route::post('/rooms/{room}/materials', [Studio\RoomMaterialController::class, 'store'])->name('rooms.materials.store');
             Route::delete('/rooms/{room}/materials/{material}', [Studio\RoomMaterialController::class, 'destroy'])
                 ->scopeBindings()->name('rooms.materials.destroy');

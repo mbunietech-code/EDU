@@ -128,6 +128,21 @@
                         @include('learn.rooms.partials.icon', ['name' => 'record', 'class' => 'h-5 w-5 text-red-400'])
                         <span x-text="recordLabel"></span>
                     </button>
+                    {{-- Recording size (browser recording): smaller files for long classes --}}
+                    <template x-if="!provider.supportsRecording">
+                        <div class="px-3 pb-2 pt-1">
+                            <p class="text-[11px] uppercase tracking-wide text-gray-500">Recording quality</p>
+                            <template x-for="p in recPresets" :key="p.key">
+                                <button type="button" role="menuitemradio" :aria-checked="(recQuality === p.key).toString()"
+                                    @click="setRecQuality(p.key)" :disabled="rec.active"
+                                    class="mt-1 flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-gray-700 disabled:opacity-50"
+                                    :class="recQuality === p.key ? 'bg-gray-700 text-white' : 'text-gray-300'">
+                                    <span x-text="p.label"></span>
+                                    <span class="text-gray-400" x-text="'≈ ' + p.mbPerHour + ' MB / hour'"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
                     <button type="button" role="menuitem" @click="muteEveryone('audio'); open = false" :disabled="room.status !== 'live' || busy.mod" class="{{ $menuItem }}">
                         @include('learn.rooms.partials.icon', ['name' => 'speaker-off'])
                         Mute everyone

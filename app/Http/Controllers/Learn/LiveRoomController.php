@@ -162,6 +162,7 @@ class LiveRoomController extends Controller
                 'recordingStop' => route('studio.rooms.recording.stop', $room->id),
                 // Browser recording (no Egress): flag + chunked upload + save as a room recording.
                 'recordingBrowser' => route('studio.rooms.recording.browser', $room->id),
+                'extend' => route('studio.rooms.extend', $room->id),
                 'recordingStore' => route('studio.rooms.recordings.store', $room->id),
                 'uploadInit' => route('studio.uploads.init'),
                 'uploadChunk' => route('studio.uploads.chunk', ['token' => '__TOKEN__']),
@@ -186,6 +187,7 @@ class LiveRoomController extends Controller
                 'scheduled_at' => $room->scheduled_at?->toIso8601String(),
                 'scheduled_label' => $room->scheduled_at?->format('D, d M Y · H:i'),
                 'duration_minutes' => (int) $room->duration_minutes,
+                'ends_at' => app(RoomService::class)->endsAt($room)?->toIso8601String(),
                 'allow_participant_media' => (bool) $room->allow_participant_media,
                 'allow_screen_share' => (bool) $room->allow_screen_share,
                 'is_locked' => (bool) $room->is_locked,

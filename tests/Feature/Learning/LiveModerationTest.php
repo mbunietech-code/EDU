@@ -200,6 +200,37 @@ class LiveModerationTest extends TestCase
         $this->assertSame('completed', $again->fresh()->status);
     }
 
+    public function test_class_ends_for_everyone_when_its_time_is_up_and_can_be_extended(): void
+    {
+        [$host, $learner, $room] = $this->classInProgress(['duration_minutes' => 30]);
+
+        $feed = $this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->assertOk();
+        $this->assertSame($room->started_at->copy()->addMinutes(30)->toIso8601String(), $feed->json('room.ends_at'));
+
+        // The host adds 15 minutes; learners cannot.
+        $this->actingAs($learner)->postJson(route('studio.rooms.extend', $room->id), ['minutes' => 15])->assertForbidden();
+        $this->actingAs($host)->postJson(route('studio.rooms.extend', $room->id), ['minutes' => 15])
+            ->assertOk()->assertJsonPath('duration_minutes', 45);
+        $this->actingAs($host)->postJson(route('studio.rooms.extend', $room->id), ['minutes' => 500])->assertStatus(422);
+
+        // Still running at 44 minutes…
+        $this->travel(44)->minutes();
+        $this->assertSame('live', $this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->json('room.status'));
+
+        // …and ended for everyone on the first poll after 45 minutes, even without cron.
+        $this->travel(2)->minutes();
+        $this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->assertOk()->assertJsonPath('room.status', 'completed');
+        $this->sfuCalled('RoomService/DeleteRoom', fn ($r) => $r['room'] === $room->provider_room);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'learning_room_ended', 'entity_id' => $room->id]);
+        $this->actingAs($learner)->postJson(route('learn.rooms.token', $room))->assertStatus(409);
+
+        // The scheduler does the same for rooms nobody is polling.
+        $other = $this->liveRoom($host, ['duration_minutes' => 10]);
+        $this->travel(11)->minutes();
+        $this->artisan('learning:end-overdue-rooms')->assertSuccessful();
+        $this->assertSame('completed', $other->fresh()->status);
+    }
+
     public function test_browser_recording_flag_and_upload_as_a_room_recording(): void
     {
         [$host, $learner, $room] = $this->classInProgress();
@@ -212,7 +243,8 @@ class LiveModerationTest extends TestCase
         $this->assertTrue($this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->json('room.is_recording'));
 
         // The recorded WebM goes through the chunked upload and is saved as a room recording (JSON for the classroom).
-        $bytes = "\x1A\x45\xDF\xA3".str_repeat('webm', 256);
+        // Minimal EBML header with DocType "webm" (what MediaRecorder produces) + an empty Segment.
+        $bytes = hex2bin('1A45DFA39F4286810142F7810142F2810442F381084282847765626D4287810442858102'.'18538067').str_repeat("\0", 1024);
         $token = $this->actingAs($host)->postJson(route('studio.uploads.init'), ['purpose' => 'recording', 'filename' => 'physics-live.webm', 'size' => strlen($bytes)])
             ->assertSuccessful()->json('token');
         $this->actingAs($host)->post(route('studio.uploads.chunk', $token), [

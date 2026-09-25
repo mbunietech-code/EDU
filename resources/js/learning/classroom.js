@@ -26,6 +26,12 @@
 
 const MAX_BACKOFF_MS = 60000;
 const MAX_REJOIN_ATTEMPTS = 5;
+/** Browser recording presets: size per hour ≈ (video + audio) bits/s × 3600 / 8. */
+const REC_PRESETS = {
+    standard: { label: 'Standard (720p)', width: 1280, height: 720, fps: 24, video: 800000, audio: 64000 },
+    small: { label: 'Small (480p)', width: 854, height: 480, fps: 15, video: 400000, audio: 48000 },
+};
+const recMbPerHour = (p) => Math.round(((p.video + p.audio) * 3600) / 8 / 1e6);
 const CONNECT_TIMEOUT_MS = 20000;
 const DATA_TOPIC = 'classroom';
 
@@ -113,7 +119,13 @@ window.learnClassroom = (cfg = {}) => {
     mediaBusy: { mic: false, cam: false, screen: false },
     recordingBusy: false,
     // Browser recording by the host (used when the server has no Egress).
-    rec: { active: false, starting: false, elapsed: '', startedAt: 0, seconds: 0, uploading: false, progress: 0, error: '', downloadUrl: '', fileName: '' },
+    rec: { active: false, starting: false, elapsed: '', startedAt: 0, seconds: 0, bytes: 0, uploading: false, progress: 0, error: '', downloadUrl: '', fileName: '' },
+    recQuality: 'standard',
+    recPresets: Object.entries(REC_PRESETS).map(([key, p]) => ({ key, label: p.label, mbPerHour: recMbPerHour(p) })),
+    // Planned end of the live class (it ends for everyone then; the host can extend).
+    remaining: null,
+    endWarned: false,
+    timeUpPolledAt: 0,
     audioBlocked: false,
     myQuality: 'unknown',
     tiles: [],
@@ -174,6 +186,12 @@ window.learnClassroom = (cfg = {}) => {
         hover.addEventListener ? hover.addEventListener('change', onHover) : hover.addListener(onHover);
 
         this.state = this.initialState();
+        // Long classes default to the small recording preset; the host's choice is remembered.
+        this.recQuality = (this.room.duration_minutes || 0) > 90 ? 'small' : 'standard';
+        try {
+            const saved = window.localStorage.getItem('classroom.recQuality');
+            if (saved && REC_PRESETS[saved]) this.recQuality = saved;
+        } catch (e) { /* storage unavailable */ }
         this.tick();
         this.clockTimer = setInterval(() => this.tick(), 1000);
 
@@ -377,6 +395,27 @@ window.learnClassroom = (cfg = {}) => {
         if (this.rec.active && this.rec.startedAt) {
             this.rec.elapsed = this.clock(Math.floor((Date.now() - this.rec.startedAt) / 1000));
         }
+
+        // Time left before the class ends for everyone.
+        const endsAt = this.room.status === 'live' && this.room.ends_at ? Date.parse(this.room.ends_at) : NaN;
+        if (Number.isNaN(endsAt)) {
+            this.remaining = null;
+        } else {
+            this.remaining = Math.floor((endsAt - Date.now()) / 1000);
+            if (this.remaining <= 300 && this.remaining > 0 && !this.endWarned) {
+                this.endWarned = true;
+                this.flash(this.isManager
+                    ? 'The class ends in 5 minutes. Use “+15 min” in the top bar if you need more time.'
+                    : 'The class ends in 5 minutes.', 9000);
+            }
+            if (this.remaining > 300) this.endWarned = false; // extended
+            // Time is up: the server ends it on the next poll — ask now (at most every 5 s).
+            if (this.remaining <= 0 && Date.now() - this.timeUpPolledAt > 5000) {
+                this.timeUpPolledAt = Date.now();
+                this.pollNow();
+            }
+        }
+
         if (this.room.status !== 'live' || !this.room.started_at) {
             this.elapsed = '';
             return;
@@ -575,7 +614,15 @@ window.learnClassroom = (cfg = {}) => {
         }
         if (name === 'chat') this.unread.chat = 0;
         if (name === 'qa') this.unread.qa = 0;
-        this.$nextTick(() => this.scrollToBottom(true));
+        this.$nextTick(() => {
+            this.scrollToBottom(true);
+            if (name === 'cameras') this.attachVideos();
+        });
+    },
+
+    /** Everyone with a camera tile, for the Cameras tab (the stage shows only the speaker). */
+    get cameraTiles() {
+        return this.tiles.filter((t) => t.source === 'camera');
     },
 
     togglePanel(name) {
@@ -1460,6 +1507,30 @@ window.learnClassroom = (cfg = {}) => {
             p.name + ' now follows the room settings.');
     },
 
+    get showTimeLeft() {
+        return this.room.status === 'live' && this.remaining !== null && this.remaining <= 600;
+    },
+
+    get timeLeftLabel() {
+        return this.clock(Math.max(0, this.remaining || 0));
+    },
+
+    async extendClass(minutes = 15) {
+        const data = await this.moderate('extend', this.urls.studio && this.urls.studio.extend, { minutes }, (d) => d.message || '');
+        if (data && data.ends_at) {
+            this.room.ends_at = data.ends_at;
+            this.room.duration_minutes = data.duration_minutes;
+            this.endWarned = false;
+            this.tick();
+        }
+    },
+
+    setRecQuality(key) {
+        if (!REC_PRESETS[key] || this.rec.active) return;
+        this.recQuality = key;
+        try { window.localStorage.setItem('classroom.recQuality', key); } catch (e) { /* ignore */ }
+    },
+
     // --- Recording ---------------------------------------------------------------
     /**
      * The Record button: server recording (LiveKit Egress) when the platform
@@ -1475,7 +1546,7 @@ window.learnClassroom = (cfg = {}) => {
 
     get recordLabel() {
         if (this.rec.uploading) return 'Saving recording… ' + this.rec.progress + '%';
-        if (this.rec.active) return 'Stop recording (' + this.rec.elapsed + ')';
+        if (this.rec.active) return 'Stop recording (' + this.rec.elapsed + ' · ' + formatBytes(this.rec.bytes) + ')';
         if (this.provider.supportsRecording && this.room.is_recording) return 'Stop recording';
 
         return 'Record the class';
@@ -1497,8 +1568,10 @@ window.learnClassroom = (cfg = {}) => {
         let display;
         try {
             // "This tab" is offered first; tick "Also share tab audio" to record everyone's voices.
+            const preset = REC_PRESETS[this.recQuality] || REC_PRESETS.standard;
             display = await navigator.mediaDevices.getDisplayMedia({
-                video: { frameRate: 24, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                // Captured at the preset size: the recording is compressed as it is made.
+                video: { frameRate: { max: preset.fps }, width: { max: preset.width }, height: { max: preset.height } },
                 audio: true,
                 preferCurrentTab: true,
                 selfBrowserSurface: 'include',
@@ -1524,8 +1597,9 @@ window.learnClassroom = (cfg = {}) => {
         const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
             .find((t) => window.MediaRecorder.isTypeSupported(t)) || '';
 
+        const preset = REC_PRESETS[this.recQuality] || REC_PRESETS.standard;
         try {
-            recorder.mr = new window.MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1500000, audioBitsPerSecond: 96000 });
+            recorder.mr = new window.MediaRecorder(stream, { mimeType, videoBitsPerSecond: preset.video, audioBitsPerSecond: preset.audio });
         } catch (e) {
             this.cleanupRecorder();
             this.rec.starting = false;
@@ -1533,7 +1607,12 @@ window.learnClassroom = (cfg = {}) => {
             return;
         }
 
-        recorder.mr.ondataavailable = (e) => { if (e.data && e.data.size) recorder.chunks.push(e.data); };
+        recorder.mr.ondataavailable = (e) => {
+            if (e.data && e.data.size) {
+                recorder.chunks.push(e.data);
+                this.rec.bytes += e.data.size;
+            }
+        };
         recorder.mr.onstop = () => this.onRecorderStopped();
         // The browser's own "Stop sharing" button ends the recording too.
         display.getVideoTracks().forEach((t) => { t.onended = () => this.stopBrowserRecording(); });
@@ -1541,6 +1620,7 @@ window.learnClassroom = (cfg = {}) => {
 
         this.rec.active = true;
         this.rec.starting = false;
+        this.rec.bytes = 0;
         this.rec.startedAt = Date.now();
         this.rec.elapsed = '00:00';
         if (this.rec.downloadUrl) URL.revokeObjectURL(this.rec.downloadUrl);
