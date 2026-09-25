@@ -135,7 +135,16 @@ window.learnClassroom = (cfg = {}) => {
 
     // UI
     isLg: false,
+    canHover: false, // mouse / trackpad (auto-hiding bars only make sense there)
     panelOpen: false,
+    // Immersive mode on desktop during a call: the control bar and the side
+    // panel hide and slide back in when the mouse reaches the bottom / right edge.
+    chrome: { bar: true, panel: false },
+    barHover: false,
+    panelHover: false,
+    panelPinned: false,
+    barTimer: null,
+    panelTimer: null,
     tab: 'chat',
     unread: { chat: 0, qa: 0 },
     qaFilter: 'all',
@@ -154,6 +163,11 @@ window.learnClassroom = (cfg = {}) => {
         this.isLg = lg.matches;
         const onLg = (e) => { this.isLg = e.matches; if (e.matches) this.panelOpen = false; };
         lg.addEventListener ? lg.addEventListener('change', onLg) : lg.addListener(onLg);
+
+        const hover = window.matchMedia('(hover: hover) and (pointer: fine)');
+        this.canHover = hover.matches;
+        const onHover = (e) => { this.canHover = e.matches; };
+        hover.addEventListener ? hover.addEventListener('change', onHover) : hover.addListener(onHover);
 
         this.state = this.initialState();
         this.tick();
@@ -235,7 +249,14 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     get panelVisible() {
+        if (this.autoHide) return this.chrome.panel;
+
         return this.isLg || this.panelOpen;
+    },
+
+    /** Desktop with a mouse, in the call: bars hide until the mouse reaches the edge. */
+    get autoHide() {
+        return this.canHover && this.isLg && (this.state === 'in_call' || this.state === 'reconnecting');
     },
 
     get announcements() {
@@ -522,14 +543,24 @@ window.learnClassroom = (cfg = {}) => {
     // --- Panel -------------------------------------------------------------
     openTab(name) {
         this.tab = name;
-        if (!this.isLg) this.panelOpen = true;
+        if (this.autoHide) {
+            // Opened on purpose (button / keyboard): stays until closed.
+            this.chrome.panel = true;
+            this.panelPinned = true;
+        } else if (!this.isLg) {
+            this.panelOpen = true;
+        }
         if (name === 'chat') this.unread.chat = 0;
         if (name === 'qa') this.unread.qa = 0;
         this.$nextTick(() => this.scrollToBottom(true));
     },
 
     togglePanel(name) {
-        if (!this.isLg && this.panelOpen && this.tab === name) {
+        if (this.autoHide && this.chrome.panel && this.tab === name) {
+            this.closePanel();
+            return;
+        }
+        if (!this.autoHide && !this.isLg && this.panelOpen && this.tab === name) {
             this.panelOpen = false;
             return;
         }
@@ -538,6 +569,54 @@ window.learnClassroom = (cfg = {}) => {
 
     closePanel() {
         this.panelOpen = false;
+        this.chrome.panel = false;
+        this.panelPinned = false;
+    },
+
+    // --- Auto-hiding control bar & side panel (desktop, in the call) ------------
+    onPointerMove(e) {
+        if (!this.autoHide) return;
+        if (e.clientY >= window.innerHeight - 110) this.showBar();
+        else this.scheduleBarHide();
+        if (e.clientX >= window.innerWidth - 28) this.showPanel();
+    },
+
+    showBar() {
+        clearTimeout(this.barTimer);
+        this.barTimer = null;
+        this.chrome.bar = true;
+    },
+
+    scheduleBarHide(delay = 2000) {
+        if (!this.autoHide || this.barHover || this.barTimer) return;
+        this.barTimer = setTimeout(() => {
+            this.barTimer = null;
+            // Keep it while the mouse is on it or a control inside it has keyboard focus.
+            const focusInside = this.$refs.controlBar && this.$refs.controlBar.contains(document.activeElement);
+            if (this.autoHide && !this.barHover && !focusInside) this.chrome.bar = false;
+        }, delay);
+    },
+
+    showPanel() {
+        clearTimeout(this.panelTimer);
+        this.chrome.panel = true;
+    },
+
+    onPanelLeave() {
+        this.panelHover = false;
+        if (!this.autoHide || this.panelPinned) return;
+        clearTimeout(this.panelTimer);
+        this.panelTimer = setTimeout(() => {
+            const typing = this.$refs.panel && this.$refs.panel.contains(document.activeElement)
+                && ['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName);
+            if (!this.panelHover && !this.panelPinned && !typing && !this.confirm.open) this.chrome.panel = false;
+        }, 600);
+    },
+
+    /** Show both bars briefly (entering the call), then let them tuck away. */
+    revealChrome() {
+        this.showBar();
+        this.$nextTick(() => this.scheduleBarHide(3500));
     },
 
     // --- Joining -----------------------------------------------------------
@@ -674,6 +753,7 @@ window.learnClassroom = (cfg = {}) => {
         this.lkState = 'connected';
         this.state = 'in_call';
         this.rejoinAttempts = 0;
+        this.revealChrome();
         this.startPresence();
         this.pollNow();
         this.refreshTiles();
@@ -1527,8 +1607,14 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     // --- People ----------------------------------------------------------
+    /** Rights and removal: participants only (hosts and room managers keep full control). */
     canModerate(p) {
-        return this.isManager && !!this.urls.studio && !p.is_me && p.role !== 'host' && this.room.status === 'live';
+        return this.canMute(p) && p.role !== 'host';
+    },
+
+    /** Server-side mute of someone's mic / camera / screen: anyone but yourself, co-hosts included. */
+    canMute(p) {
+        return this.isManager && !!this.urls.studio && !p.is_me && this.room.status === 'live';
     },
 
     askRemove(p) {

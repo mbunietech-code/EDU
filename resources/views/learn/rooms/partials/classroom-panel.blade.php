@@ -1,6 +1,11 @@
-{{-- Side panel: lg = fixed 22rem right column; below lg = full-screen sheet. Tabs Chat | Q&A | People | Info. --}}
-<aside x-show="panelVisible" x-cloak
-    class="fixed inset-0 z-40 flex flex-col bg-gray-900 lg:static lg:inset-auto lg:z-auto lg:w-[22rem] lg:shrink-0 lg:border-l lg:border-gray-800"
+{{-- Side panel: lg = 22rem right column (during a call on desktop it slides in over the
+     video from the right edge); below lg = full-screen sheet. Tabs Chat | Q&A | People | Info. --}}
+<aside x-show="panelVisible" x-cloak x-ref="panel"
+    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+    @mouseenter="panelHover = true; showPanel()" @mouseleave="onPanelLeave()"
+    class="fixed inset-0 z-40 flex flex-col bg-gray-900 lg:w-[22rem] lg:shrink-0 lg:border-l lg:border-gray-800"
+    :class="autoHide ? 'lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:z-40 lg:shadow-2xl' : 'lg:static lg:inset-auto lg:z-auto'"
     aria-label="Class chat, questions and people"
     :role="isLg ? null : 'dialog'" :aria-modal="isLg ? null : 'true'">
 

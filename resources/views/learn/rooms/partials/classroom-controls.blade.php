@@ -3,7 +3,11 @@
     $btn = 'relative inline-flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:h-12 sm:w-12';
     $menuItem = 'flex w-full items-center gap-2 px-3 py-2 text-left text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-500';
 @endphp
-<nav class="shrink-0 border-t border-gray-800 bg-gray-900 px-2 py-2 sm:py-3" aria-label="Call controls"
+{{-- Desktop in a call: floats over the video and slides away; the mouse at the bottom edge brings it back. --}}
+<nav x-ref="controlBar" class="shrink-0 border-t border-gray-800 px-2 py-2 transition-transform duration-300 ease-out sm:py-3" aria-label="Call controls"
+    :class="autoHide ? ('absolute inset-x-0 bottom-0 z-30 bg-gray-900/90 backdrop-blur ' + (chrome.bar ? 'translate-y-0' : 'translate-y-full')) : 'bg-gray-900'"
+    @mouseenter="barHover = true; showBar()" @mouseleave="barHover = false; scheduleBarHide()"
+    @focusin="showBar()" @focusout="scheduleBarHide()"
     style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
     <div class="mx-auto flex max-w-4xl items-center justify-center gap-1.5 sm:gap-3">
         {{-- Microphone --}}
