@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LearningRoomSession extends Model
 {
-    protected $fillable = ['learning_room_id', 'started_by', 'ended_by', 'started_at', 'ended_at', 'peak_participants'];
+    protected $fillable = [
+        'learning_room_id', 'started_by', 'ended_by', 'started_at', 'ended_at', 'peak_participants',
+        'egress_id', 'recording_started_at',
+    ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
     protected $attributes = ['peak_participants' => 0];
@@ -17,6 +20,7 @@ class LearningRoomSession extends Model
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
         'peak_participants' => 'integer',
+        'recording_started_at' => 'datetime',
     ];
 
     public function room(): BelongsTo
@@ -42,6 +46,12 @@ class LearningRoomSession extends Model
     public function recordings(): HasMany
     {
         return $this->hasMany(LearningRoomRecording::class)->latest();
+    }
+
+    /** A server recording (Egress) is running for this session. */
+    public function isRecording(): bool
+    {
+        return $this->egress_id !== null && $this->ended_at === null;
     }
 
     public function isOpen(): bool

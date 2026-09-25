@@ -495,6 +495,42 @@ class LearningController extends Controller
         ]);
     }
 
+    /** The app closed the call (the SFU webhook also reports it). */
+    public function leave(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+        app(RoomService::class)->leave($room, $user);
+
+        return response()->json(['left' => true]);
+    }
+
+    /** Host / room manager goes live (returns the running session when already live). */
+    public function start(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'start', $room);
+        $session = app(RoomService::class)->start($room, $user);
+
+        return response()->json(['data' => $this->roomCard($room->refresh()) + ['session_id' => $session->id]]);
+    }
+
+    /** End the class for everyone: closes the session and the SFU room. */
+    public function end(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'end', $room);
+        app(RoomService::class)->end($room, $user);
+
+        return response()->json(['data' => $this->roomCard($room->refresh())]);
+    }
+
     // --- Cards & helpers ----------------------------------------------------
     protected function videoCard(LearningVideo $v, ?LearningVideoProgress $p = null): array
     {

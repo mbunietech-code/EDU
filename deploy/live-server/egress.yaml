@@ -1,0 +1,13 @@
+# LiveKit Egress (server-side recording) — self-hosted. API key/secret come from
+# LIVEKIT_API_KEY / LIVEKIT_API_SECRET (docker-compose.yml → .env).
+
+ws_url: ws://127.0.0.1:7880      # the SFU on the same machine
+redis:
+  address: 127.0.0.1:6379
+health_port: 9090
+log_level: info
+# Composite recordings are written to /out inside the container
+# (mounted from RECORDINGS_DIR, e.g. /opt/live-server/recordings).
+# Laravel starts recordings with filepath "/out/<room>-{time}.mp4".
+cpu_cost:
+  room_composite_cpu_cost: 3.0   # reserve ~3 cores per recording (headless Chrome + encoder)

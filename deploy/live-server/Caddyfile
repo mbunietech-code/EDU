@@ -1,0 +1,20 @@
+# TLS in front of the SFU + certificates for the TURN server. Caddy obtains and
+# renews Let's Encrypt certificates automatically (ports 80 and 443 must be open).
+{
+	email {$ACME_EMAIL}
+}
+
+# Browsers connect here: wss://live.example.com (signalling) and https (server API from Laravel).
+{$LIVE_DOMAIN} {
+	encode gzip
+	reverse_proxy 127.0.0.1:7880
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
+# Only here so Caddy keeps a valid certificate for coturn's turns: listener.
+{$TURN_DOMAIN} {
+	respond "ok" 200
+}

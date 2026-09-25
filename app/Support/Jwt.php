@@ -5,49 +5,98 @@ namespace App\Support;
 use InvalidArgumentException;
 
 /**
- * Minimal JSON Web Token encoder for the live-classroom providers — no
- * external dependency. Supports HS256 (self-hosted Jitsi token auth) and
- * RS256 (JaaS / 8x8.vc).
+ * Minimal HS256 JSON Web Token encoder / verifier — no external dependency.
+ * Used for the self-hosted live classroom: LiveKit access tokens and server
+ * API tokens are signed with the API secret, and LiveKit webhooks arrive with
+ * an HS256 token in the Authorization header.
  */
 class Jwt
 {
-    public const ALGORITHMS = ['HS256', 'RS256'];
+    public const ALGORITHM = 'HS256';
+
+    /** Accepted clock drift when checking exp / nbf, in seconds. */
+    public const LEEWAY_SECONDS = 30;
 
     /**
-     * Encode and sign a token.
-     *
-     * HS256 signs with hash_hmac('sha256') using $key as the shared secret;
-     * RS256 signs with openssl_sign(OPENSSL_ALGO_SHA256) using $key as a PEM
-     * private key. Header defaults to {alg, typ:"JWT"}; $header entries (e.g.
-     * "kid") are merged on top. Every segment is base64url without padding.
+     * Encode and sign a token with HMAC-SHA256. Header defaults to
+     * {alg, typ:"JWT"}; $header entries are merged on top ("alg" is always
+     * HS256). Every segment is base64url without padding.
      *
      * @param  array<string,mixed>  $payload
      * @param  array<string,mixed>  $header
      *
-     * @throws \InvalidArgumentException on an unsupported algorithm, an empty key or an unusable private key
+     * @throws \InvalidArgumentException on an empty key or a payload that cannot be encoded
      */
-    public static function encode(array $payload, string $key, string $alg = 'HS256', array $header = []): string
+    public static function encode(array $payload, string $key, array $header = []): string
     {
-        if (! in_array($alg, self::ALGORITHMS, true)) {
-            throw new InvalidArgumentException('Unsupported JWT algorithm ['.$alg.']; use '.implode(' or ', self::ALGORITHMS).'.');
-        }
-
         if (trim($key) === '') {
             throw new InvalidArgumentException('The JWT signing key is empty.');
         }
 
         // "alg" always reflects how the token is really signed — a caller's header cannot override it.
-        $header = array_merge(['alg' => $alg, 'typ' => 'JWT'], $header, ['alg' => $alg]);
+        $header = array_merge(['alg' => self::ALGORITHM, 'typ' => 'JWT'], $header, ['alg' => self::ALGORITHM]);
 
         $signingInput = self::base64UrlEncode(self::json($header)).'.'.self::base64UrlEncode(self::json($payload));
 
-        return $signingInput.'.'.self::base64UrlEncode(self::sign($signingInput, $key, $alg));
+        return $signingInput.'.'.self::base64UrlEncode(hash_hmac('sha256', $signingInput, $key, true));
+    }
+
+    /**
+     * Verify an HS256 token and return its payload, or null when the token is
+     * malformed, uses another algorithm, has a bad signature, or is expired /
+     * not yet valid (± LEEWAY_SECONDS).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function decode(string $token, string $key, ?int $now = null): ?array
+    {
+        if (trim($key) === '') {
+            return null;
+        }
+
+        $parts = explode('.', trim($token));
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        [$head, $body, $signature] = $parts;
+        $header = json_decode((string) self::base64UrlDecode($head), true);
+        $payload = json_decode((string) self::base64UrlDecode($body), true);
+
+        // Only HS256 — never "none" or an algorithm chosen by the sender.
+        if (! is_array($header) || ($header['alg'] ?? null) !== self::ALGORITHM || ! is_array($payload)) {
+            return null;
+        }
+
+        $expected = self::base64UrlEncode(hash_hmac('sha256', $head.'.'.$body, $key, true));
+        if (! hash_equals($expected, $signature)) {
+            return null;
+        }
+
+        $now ??= time();
+        if (isset($payload['exp']) && (! is_numeric($payload['exp']) || $now - self::LEEWAY_SECONDS >= (int) $payload['exp'])) {
+            return null;
+        }
+        if (isset($payload['nbf']) && (! is_numeric($payload['nbf']) || $now + self::LEEWAY_SECONDS < (int) $payload['nbf'])) {
+            return null;
+        }
+
+        return $payload;
     }
 
     /** RFC 7515 base64url: URL-safe alphabet, no padding. */
     public static function base64UrlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    public static function base64UrlDecode(string $data): string|false
+    {
+        if (preg_match('/^[A-Za-z0-9_-]*$/', $data) !== 1) {
+            return false;
+        }
+
+        return base64_decode(strtr($data, '-_', '+/').str_repeat('=', (4 - strlen($data) % 4) % 4), true);
     }
 
     /** @param  array<string,mixed>  $segment */
@@ -58,45 +107,6 @@ class Jwt
             return json_encode($segment === [] ? new \stdClass : $segment, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             throw new InvalidArgumentException('The JWT segment cannot be JSON-encoded: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    private static function sign(string $input, string $key, string $alg): string
-    {
-        if ($alg === 'HS256') {
-            return hash_hmac('sha256', $input, $key, true);
-        }
-
-        $privateKey = openssl_pkey_get_private($key);
-
-        if ($privateKey === false) {
-            self::clearOpensslErrors();
-
-            throw new InvalidArgumentException('RS256 needs a readable PEM private key.');
-        }
-
-        $details = openssl_pkey_get_details($privateKey);
-
-        if (($details['type'] ?? null) !== OPENSSL_KEYTYPE_RSA) {
-            throw new InvalidArgumentException('RS256 needs an RSA private key.');
-        }
-
-        $signature = '';
-
-        if (! openssl_sign($input, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
-            self::clearOpensslErrors();
-
-            throw new InvalidArgumentException('The token could not be signed with the RS256 key.');
-        }
-
-        return $signature;
-    }
-
-    /** OpenSSL keeps an error queue per process; drain it so later calls are not misreported. */
-    private static function clearOpensslErrors(): void
-    {
-        while (openssl_error_string() !== false) {
-            // drain
         }
     }
 }

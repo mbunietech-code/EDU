@@ -22,6 +22,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Tests\Feature\Learning\Concerns\UsesLiveServer;
 use Tests\TestCase;
 
 /**
@@ -34,6 +35,7 @@ use Tests\TestCase;
 class StudioRoomsTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesLiveServer;
 
     private const DISKS = ['private', 'public', 'local'];
 
@@ -54,7 +56,7 @@ class StudioRoomsTest extends TestCase
             )));
         }
 
-        config(['learning.live.provider' => 'jitsi', 'learning.live.jitsi.domain' => 'meet.jit.si']);
+        $this->useLiveServer();
         Notification::fake();
     }
 
@@ -602,7 +604,7 @@ class StudioRoomsTest extends TestCase
         $this->actingAs($teacher)->post(route('studio.rooms.members.store', $public), ['user_ids' => [$a->id]])->assertSessionHasErrors('user_ids');
     }
 
-    public function test_remove_participant_returns_the_jitsi_id_as_json(): void
+    public function test_remove_participant_disconnects_them_on_the_video_server(): void
     {
         $teacher = $this->instructor();
         $learner = User::factory()->create(['name' => 'Neema Learner']);
@@ -610,13 +612,16 @@ class StudioRoomsTest extends TestCase
         $service = app(RoomService::class);
 
         $service->join($room, $learner);
-        $service->presence($room, $learner, 'abc123');
+        $service->presence($room, $learner);
 
         $this->actingAs($teacher)->get(route('studio.rooms.participants', $room))->assertOk()->assertSee('Neema Learner')->assertSee('1 present');
 
         $this->actingAs($teacher)->postJson(route('studio.rooms.participants.remove', [$room, $learner]))
             ->assertOk()
-            ->assertJson(['removed' => true, 'user_id' => $learner->id, 'jitsi_id' => 'abc123']);
+            ->assertExactJson(['removed' => true, 'user_id' => $learner->id]);
+
+        \Illuminate\Support\Facades\Http::assertSent(fn ($request) => str_ends_with($request->url(), '/twirp/livekit.RoomService/RemoveParticipant')
+            && $request['room'] === $room->provider_room && $request['identity'] === 'user-'.$learner->id);
 
         $attendance = LearningRoomAttendance::where('learning_room_id', $room->id)->where('user_id', $learner->id)->firstOrFail();
         $this->assertNotNull($attendance->removed_at);

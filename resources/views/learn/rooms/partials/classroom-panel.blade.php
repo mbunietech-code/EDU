@@ -190,38 +190,107 @@
     {{-- People --}}
     <section id="panel-people" role="tabpanel" aria-labelledby="panel-tab-people" x-show="tab === 'people'" x-cloak class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-800 px-3 py-2 text-xs text-gray-400">
-            <span><span class="tabular-nums" x-text="counts.participants"></span> in the call</span>
-            <template x-if="isManager && hasApi">
-                <button type="button" @click="openAdvanced()" class="inline-flex items-center gap-1 font-medium text-indigo-300 hover:text-indigo-200">
-                    @include('learn.rooms.partials.icon', ['name' => 'adjustments', 'class' => 'h-4 w-4'])
-                    Advanced controls
-                </button>
+            <span><span class="tabular-nums" x-text="counts.participants"></span> in the class</span>
+            <template x-if="isManager && room.status === 'live'">
+                <div class="flex items-center gap-1">
+                    <button type="button" @click="muteEveryone('audio')" :disabled="busy.mod"
+                        class="rounded-md px-2 py-1 font-medium text-indigo-300 hover:bg-gray-800 hover:text-indigo-200 disabled:opacity-50">Mute all</button>
+                    <button type="button" @click="toggleLock()" :disabled="busy.mod"
+                        class="inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium text-indigo-300 hover:bg-gray-800 hover:text-indigo-200 disabled:opacity-50"
+                        :aria-label="room.is_locked ? 'Unlock the room' : 'Lock the room'">
+                        <span x-show="!room.is_locked">@include('learn.rooms.partials.icon', ['name' => 'lock', 'class' => 'h-3.5 w-3.5'])</span>
+                        <span x-show="room.is_locked" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'unlock', 'class' => 'h-3.5 w-3.5'])</span>
+                        <span x-text="room.is_locked ? 'Unlock' : 'Lock'"></span>
+                    </button>
+                </div>
             </template>
         </div>
         <ul class="min-h-0 flex-1 divide-y divide-gray-800 overflow-y-auto" role="list">
             <template x-if="feedLoaded && participants.length === 0">
-                <li class="px-3 py-10 text-center text-sm text-gray-400">No one is in the call yet.</li>
+                <li class="px-3 py-10 text-center text-sm text-gray-400">No one is in the class yet.</li>
             </template>
             <template x-for="p in sortedParticipants" :key="p.user_id">
-                <li class="flex items-center gap-3 px-3 py-2.5">
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-gray-200" aria-hidden="true"
-                        x-text="(p.name || '?').trim().charAt(0).toUpperCase()"></div>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-gray-100">
-                            <span x-text="p.name"></span>
-                            <span x-show="p.is_me" class="font-normal text-gray-400">(you)</span>
-                        </p>
-                        <p x-show="p.role === 'host'" class="text-xs text-indigo-300">Host</p>
+                <li class="px-3 py-2.5" x-data="{ open: false }">
+                    <div class="flex items-center gap-3">
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-gray-200" aria-hidden="true">
+                            <span x-text="(p.name || '?').trim().charAt(0).toUpperCase()"></span>
+                            <span x-show="tileState(p.identity) && tileState(p.identity).speaking" class="absolute inset-0 rounded-full ring-2 ring-emerald-400"></span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium text-gray-100">
+                                <span x-text="p.name"></span>
+                                <span x-show="p.is_me" class="font-normal text-gray-400">(you)</span>
+                            </p>
+                            <p class="text-xs" :class="p.role === 'host' ? 'text-indigo-300' : 'text-gray-500'"
+                                x-text="p.role === 'host' ? 'Host' : (tileState(p.identity) ? 'In the video call' : 'Watching the class page')"></p>
+                        </div>
+                        {{-- Live state from the SFU --}}
+                        <div class="flex shrink-0 items-center gap-1 text-gray-400">
+                            <span x-show="tileState(p.identity) && tileState(p.identity).screen" class="text-indigo-300" title="Sharing the screen">
+                                @include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => 'h-4 w-4'])<span class="sr-only">Sharing the screen</span>
+                            </span>
+                            <span :class="tileState(p.identity) && tileState(p.identity).cam ? 'text-gray-200' : 'text-gray-600'"
+                                :title="tileState(p.identity) && tileState(p.identity).cam ? 'Camera on' : 'Camera off'">
+                                @include('learn.rooms.partials.icon', ['name' => 'camera', 'class' => 'h-4 w-4'])
+                                <span class="sr-only" x-text="tileState(p.identity) && tileState(p.identity).cam ? 'Camera on' : 'Camera off'"></span>
+                            </span>
+                            <span :class="tileState(p.identity) && tileState(p.identity).mic ? 'text-gray-200' : 'text-red-400'"
+                                :title="tileState(p.identity) && tileState(p.identity).mic ? 'Microphone on' : 'Microphone off'">
+                                <span x-show="tileState(p.identity) && tileState(p.identity).mic">@include('learn.rooms.partials.icon', ['name' => 'mic', 'class' => 'h-4 w-4'])</span>
+                                <span x-show="!(tileState(p.identity) && tileState(p.identity).mic)">@include('learn.rooms.partials.icon', ['name' => 'mic-off', 'class' => 'h-4 w-4'])</span>
+                                <span class="sr-only" x-text="tileState(p.identity) && tileState(p.identity).mic ? 'Microphone on' : 'Microphone off'"></span>
+                            </span>
+                        </div>
+                        <button type="button" x-show="inCall && tileState(p.identity)" @click="pinParticipant(p)"
+                            class="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-white" :aria-label="'Pin ' + p.name" title="Pin to the main view">
+                            @include('learn.rooms.partials.icon', ['name' => 'pin', 'class' => 'h-4 w-4'])
+                        </button>
+                        <button type="button" x-show="canModerate(p)" @click="open = !open" :aria-expanded="open.toString()"
+                            class="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-white" :aria-label="'Host controls for ' + p.name" title="Host controls">
+                            @include('learn.rooms.partials.icon', ['name' => 'dots', 'class' => 'h-4 w-4'])
+                        </button>
                     </div>
-                    <button type="button" x-show="canRemove(p)" @click="askRemove(p)" :disabled="busy.remove === p.user_id"
-                        class="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/40 hover:bg-red-500/10 disabled:opacity-60"
-                        :aria-label="'Remove ' + p.name + ' from the session'">Remove</button>
+
+                    {{-- Host controls for this person --}}
+                    <template x-if="canModerate(p)">
+                        <div x-show="open" x-cloak class="mt-2 space-y-2 rounded-lg bg-gray-800/70 p-2 text-xs">
+                            <div class="flex flex-wrap gap-1">
+                                <button type="button" @click="muteParticipant(p, 'audio')" :disabled="busy.mod"
+                                    class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Mute mic</button>
+                                <button type="button" @click="muteParticipant(p, 'video')" :disabled="busy.mod"
+                                    class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Stop camera</button>
+                                <button type="button" @click="muteParticipant(p, 'screen')" :disabled="busy.mod" x-show="tileState(p.identity) && tileState(p.identity).screen"
+                                    class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Stop screen share</button>
+                            </div>
+                            <template x-if="p.permissions">
+                                <div class="space-y-1">
+                                    <p class="text-[11px] uppercase tracking-wide text-gray-500">May use</p>
+                                    @foreach (['audio' => 'Microphone', 'video' => 'Camera', 'screen' => 'Screen share'] as $key => $label)
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-gray-300">{{ $label }}</span>
+                                            <button type="button" role="switch" :aria-checked="(!!p.permissions.{{ $key }}).toString()" :disabled="busy.mod"
+                                                @click="setParticipantRight(p, '{{ $key }}', !p.permissions.{{ $key }})"
+                                                :aria-label="'{{ $label }} for ' + p.name"
+                                                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition disabled:opacity-50"
+                                                :class="p.permissions.{{ $key }} ? 'bg-emerald-500' : 'bg-gray-600'">
+                                                <span class="inline-block h-4 w-4 rounded-full bg-white shadow transition" :class="p.permissions.{{ $key }} ? 'translate-x-4' : 'translate-x-0.5'"></span>
+                                            </button>
+                                        </div>
+                                    @endforeach
+                                    <button type="button" @click="resetParticipantRights(p)" :disabled="busy.mod"
+                                        class="text-[11px] font-medium text-indigo-300 hover:text-indigo-200">Reset to the room settings</button>
+                                </div>
+                            </template>
+                            <button type="button" @click="askRemove(p)" :disabled="busy.remove === p.user_id"
+                                class="w-full rounded-md px-2 py-1 text-left font-medium text-red-300 ring-1 ring-inset ring-red-500/40 hover:bg-red-500/10 disabled:opacity-60">Remove from class</button>
+                        </div>
+                    </template>
                 </li>
             </template>
         </ul>
     </section>
 
-    {{-- Info (server-rendered) --}}
+    {{-- Info + materials --}}
     <section id="panel-info" role="tabpanel" aria-labelledby="panel-tab-info" x-show="tab === 'info'" x-cloak class="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm text-gray-300">
         <h2 class="text-base font-semibold text-white">{{ $room->title }}</h2>
         <dl class="mt-3 space-y-2">
@@ -241,8 +310,50 @@
             @if ($room->course)
                 <div><dt class="text-xs text-gray-500">Course</dt><dd class="text-gray-100">{{ $room->course->title }}</dd></div>
             @endif
-            <div><dt class="text-xs text-gray-500">Video service</dt><dd class="text-gray-100" x-text="provider.label"></dd></div>
+            <div><dt class="text-xs text-gray-500">Video</dt><dd class="text-gray-100">Our own secure video server</dd></div>
         </dl>
+
+        {{-- Materials --}}
+        <div class="mt-4 border-t border-gray-800 pt-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Class materials</h3>
+            <template x-if="materials.length === 0">
+                <p class="mt-2 text-xs text-gray-500" x-text="isManager ? 'Share slides or worksheets with the class below.' : 'The host has not shared any files yet.'"></p>
+            </template>
+            <ul class="mt-2 space-y-1.5" role="list">
+                <template x-for="m in materials" :key="m.id">
+                    <li class="flex items-center gap-2 rounded-lg bg-gray-800/70 px-2 py-1.5">
+                        @include('learn.rooms.partials.icon', ['name' => 'document', 'class' => 'h-4 w-4 shrink-0 text-indigo-300'])
+                        <a :href="m.url" class="min-w-0 flex-1 truncate text-sm text-gray-100 hover:text-white hover:underline" x-text="m.title" :title="m.name"></a>
+                        <span class="shrink-0 text-[11px] text-gray-500" x-text="formatBytes(m.size)"></span>
+                        <button type="button" x-show="isManager" @click="openConfirm('material', 'Remove “' + m.title + '”?', 'Learners will no longer be able to download it.', 'Remove', m)"
+                            class="shrink-0 rounded p-0.5 text-gray-500 hover:text-red-300" :aria-label="'Remove ' + m.title">
+                            @include('learn.rooms.partials.icon', ['name' => 'trash', 'class' => 'h-4 w-4'])
+                        </button>
+                    </li>
+                </template>
+            </ul>
+            <template x-if="isManager">
+                <form class="mt-3 space-y-2" @submit.prevent="uploadMaterial($event)">
+                    <label class="block">
+                        <span class="sr-only">Title (optional)</span>
+                        <input type="text" x-model="upload.title" maxlength="255" placeholder="Title (optional)"
+                            class="w-full rounded-lg border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500">
+                    </label>
+                    <label class="block">
+                        <span class="sr-only">File</span>
+                        <input type="file" required :accept="(cfg.materialExtensions || []).map((e) => '.' + e).join(',')"
+                            class="block w-full text-xs text-gray-300 file:mr-2 file:rounded-md file:border-0 file:bg-gray-700 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-gray-600">
+                    </label>
+                    <p class="text-[11px] text-gray-500" x-text="'Up to ' + (cfg.maxMaterialMb || 50) + ' MB · ' + (cfg.materialExtensions || []).join(', ').toUpperCase()"></p>
+                    <p x-show="upload.error" class="text-xs text-red-300" x-text="upload.error" role="alert"></p>
+                    <button type="submit" :disabled="busy.upload"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+                        @include('learn.rooms.partials.icon', ['name' => 'upload', 'class' => 'h-4 w-4'])
+                        <span x-text="busy.upload ? 'Uploading…' : 'Share file'"></span>
+                    </button>
+                </form>
+            </template>
+        </div>
 
         @if ($descriptionHtml)
             <div class="research-prose mt-4 break-words border-t border-gray-800 pt-4 text-sm text-gray-300">{!! $descriptionHtml !!}</div>
@@ -252,8 +363,9 @@
             <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Tips</h3>
             <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-gray-400">
                 <li>Press Enter to send, Shift+Enter for a new line.</li>
-                <li>Use the arrow keys to move between these tabs; Escape closes the panel on small screens.</li>
-                <li>If your camera or microphone does not start, check the browser’s site permissions.</li>
+                <li>Pin a person to keep them in the main view; switch between speaker and grid view with the layout button.</li>
+                <li>If your camera or microphone does not start, check the browser’s site permissions (the lock icon in the address bar).</li>
+                <li>If your connection drops, the class reconnects automatically.</li>
             </ul>
         </div>
 

@@ -14,6 +14,7 @@ use App\Services\Learning\RoomService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Tests\Feature\Learning\Concerns\UsesLiveServer;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,7 @@ use Tests\TestCase;
 class LearnerRoomsTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesLiveServer;
 
     protected function setUp(): void
     {
@@ -34,12 +36,7 @@ class LearnerRoomsTest extends TestCase
         Storage::fake('local');
         Notification::fake();
 
-        config([
-            'learning.live.provider' => 'jitsi',
-            'learning.live.jitsi.domain' => 'meet.jit.si',
-            'learning.live.jitsi.app_id' => null,
-            'learning.live.jitsi.app_secret' => null,
-        ]);
+        $this->useLiveServer();
     }
 
     // --- Fixtures --------------------------------------------------------
@@ -305,7 +302,10 @@ class LearnerRoomsTest extends TestCase
         $this->assertFalse($config['viewer']['is_manager']);
         $this->assertFalse($config['room']['allow_participant_media']);
         $this->assertSame('live', $config['room']['status']);
-        $this->assertNull($config['provider']['demoWarning']);
+        $this->assertSame('user-'.$learner->id, $config['viewer']['identity']);
+        $this->assertSame(route('learn.rooms.token', $room), $config['urls']['token']);
+        $this->assertNull($config['provider']['setupWarning']);
+        $this->assertFalse($config['provider']['supportsRecording']);
         $this->assertSame(config('learning.poll_interval_ms'), $config['pollMs']);
         $this->assertSame(config('learning.presence_interval_ms'), $config['presenceMs']);
 
@@ -315,8 +315,19 @@ class LearnerRoomsTest extends TestCase
         $this->assertSame(route('studio.rooms.end', $room->id), $hostConfig['urls']['studio']['end']);
         $this->assertSame(route('studio.rooms.announce', $room->id), $hostConfig['urls']['studio']['announce']);
         $this->assertStringEndsWith('/participants/__ID__/remove', $hostConfig['urls']['studio']['remove']);
-        $this->assertTrue($hostConfig['provider']['isDemo']);
-        $this->assertNotEmpty($hostConfig['provider']['demoWarning']);
+        $this->assertStringEndsWith('/participants/__ID__/permissions', $hostConfig['urls']['studio']['permissions']);
+        $this->assertStringEndsWith('/participants/__ID__/mute', $hostConfig['urls']['studio']['mute']);
+        $this->assertSame(route('studio.rooms.lock', $room->id), $hostConfig['urls']['studio']['lock']);
+        $this->assertTrue($hostConfig['provider']['configured']);
+
+        // Nothing from the old hosted provider is left on the page.
+        $this->actingAs($host)->get(route('learn.rooms.live', $room))
+            ->assertDontSee('jitsi', false)->assertDontSee('JitsiMeetExternalAPI', false)->assertDontSee('meet.jit.si', false);
+
+        // The host sees setup problems; learners never do.
+        $this->withoutLiveServer();
+        $this->assertNotEmpty($this->actingAs($host)->get(route('learn.rooms.live', $room))->viewData('config')['provider']['setupWarning']);
+        $this->assertNull($this->actingAs($learner)->get(route('learn.rooms.live', $room))->viewData('config')['provider']['setupWarning']);
 
         $private = $this->room($host, ['access' => 'private']);
         $this->actingAs($learner)->get(route('learn.rooms.live', $private))->assertForbidden();
@@ -332,11 +343,26 @@ class LearnerRoomsTest extends TestCase
         $response = $this->actingAs($learner)->postJson(route('learn.rooms.join', $room))->assertOk()
             ->assertJsonStructure([
                 'attendance_id',
-                'config' => ['provider', 'domain', 'scriptUrl', 'roomName', 'jwt', 'isDemo', 'supportsRecording',
-                    'moderator', 'user' => ['id', 'name', 'email'], 'configOverwrite', 'interfaceConfigOverwrite'],
+                'config' => ['provider', 'server_url', 'token', 'identity', 'room_name', 'ice_servers', 'ice_transport_policy',
+                    'permissions' => ['audio', 'video', 'screen'], 'moderator', 'supports_recording', 'user' => ['id', 'name']],
             ]);
-        $this->assertSame($room->provider_room, $response->json('config.roomName'));
+        $this->assertSame('livekit', $response->json('config.provider'));
+        $this->assertSame('wss://live.example.test', $response->json('config.server_url'));
+        $this->assertSame($room->provider_room, $response->json('config.room_name'));
         $this->assertFalse($response->json('config.moderator'));
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => false], $response->json('config.permissions'));
+
+        // The token is short-lived, bound to this room and user, and carries only the allowed sources.
+        $claims = $this->liveClaims($response->json('config.token'));
+        $this->assertSame('user-'.$learner->id, $claims['sub']);
+        $this->assertSame($room->provider_room, $claims['video']['room']);
+        $this->assertTrue($claims['video']['roomJoin']);
+        $this->assertSame(['microphone', 'camera'], $claims['video']['canPublishSources']);
+        $this->assertArrayNotHasKey('roomAdmin', $claims['video']);
+        $this->assertLessThanOrEqual(now()->addMinutes(10)->getTimestamp(), $claims['exp']);
+
+        // The token endpoint (reconnects) runs the same checks.
+        $this->actingAs($learner)->postJson(route('learn.rooms.token', $room))->assertOk()->assertJsonPath('config.room_name', $room->provider_room);
         $this->assertSame(
             LearningRoomAttendance::where('user_id', $learner->id)->value('id'),
             $response->json('attendance_id'),
@@ -366,18 +392,22 @@ class LearnerRoomsTest extends TestCase
         $private = $this->liveRoom($host, ['access' => 'private']);
         $this->actingAs($learner)->postJson(route('learn.rooms.join', $private))->assertForbidden();
 
-        // JaaS selected without keys → 503; learners get a generic message, the host the details.
-        config([
-            'learning.live.provider' => 'jaas',
-            'learning.live.jaas.app_id' => null,
-            'learning.live.jaas.api_key_id' => null,
-            'learning.live.jaas.private_key' => null,
-            'learning.live.jaas.private_key_path' => null,
-        ]);
+        // A locked room keeps newcomers out, but not people already in this session.
+        $insider = $this->member();
+        $this->actingAs($insider)->postJson(route('learn.rooms.join', $room))->assertOk();
+        $room->forceFill(['is_locked' => true])->save();
+        $newcomer = $this->member();
+        $this->actingAs($newcomer)->postJson(route('learn.rooms.join', $room))->assertForbidden()->assertJsonPath('reason', 'locked');
+        $this->actingAs($insider)->postJson(route('learn.rooms.token', $room))->assertOk();
+        $this->actingAs($host)->postJson(route('learn.rooms.join', $room))->assertOk();
+        $room->forceFill(['is_locked' => false])->save();
+
+        // No video server configured → 503; learners get a generic message, the host the details.
+        $this->withoutLiveServer();
         $other = $this->member();
         $response = $this->actingAs($other)->postJson(route('learn.rooms.join', $room))
             ->assertStatus(503)->assertJsonPath('reason', 'provider_unavailable');
-        $this->assertStringNotContainsString('LEARNING_JAAS', $response->json('message'));
+        $this->assertStringNotContainsString('LIVE_SERVER', $response->json('message'));
         $this->assertSame(0, LearningRoomAttendance::where('user_id', $other->id)->count());
 
         $this->actingAs($host)->postJson(route('learn.rooms.join', $room))
@@ -392,16 +422,9 @@ class LearnerRoomsTest extends TestCase
         $room = $this->liveRoom($host);
         $this->actingAs($learner)->postJson(route('learn.rooms.join', $room))->assertOk();
 
-        $this->actingAs($learner)->postJson(route('learn.rooms.presence', $room), ['jitsi_id' => 'a1b2-c3_d4'])
+        $this->actingAs($learner)->postJson(route('learn.rooms.presence', $room))
             ->assertOk()->assertExactJson(['status' => 'live', 'removed' => false]);
         $attendance = LearningRoomAttendance::where('user_id', $learner->id)->firstOrFail();
-        $this->assertSame('a1b2-c3_d4', $attendance->jitsi_participant_id);
-
-        $this->actingAs($learner)->postJson(route('learn.rooms.presence', $room), ['jitsi_id' => 'bad id!'])
-            ->assertStatus(422)->assertJsonValidationErrors('jitsi_id');
-        $this->actingAs($learner)->postJson(route('learn.rooms.presence', $room), ['jitsi_id' => str_repeat('a', 65)])
-            ->assertStatus(422);
-        $this->actingAs($learner)->postJson(route('learn.rooms.presence', $room))->assertOk();
 
         // sendBeacon posts multipart FormData with _token (no JSON headers).
         $this->actingAs($learner)
@@ -427,27 +450,32 @@ class LearnerRoomsTest extends TestCase
         $service = $this->service();
         $service->join($room, $host);
         $service->join($room, $learner);
-        $service->presence($room, $learner, 'learnerJitsi1');
+        $service->presence($room, $learner);
         $first = $service->postMessage($room, $learner, 'chat', 'Hello class');
 
         $feed = $this->actingAs($learner)->getJson(route('learn.rooms.feed', $room))->assertOk()
             ->assertJsonStructure([
                 'cursor',
-                'room' => ['status', 'status_label', 'started_at', 'chat_enabled', 'questions_enabled', 'allow_participant_media', 'title'],
-                'me' => ['removed', 'is_host'],
+                'room' => ['status', 'status_label', 'started_at', 'chat_enabled', 'questions_enabled', 'allow_participant_media',
+                    'allow_screen_share', 'is_locked', 'is_recording', 'title'],
+                'me' => ['removed', 'is_host', 'permissions' => ['audio', 'video', 'screen']],
                 'messages' => [['id', 'type', 'body', 'user' => ['id', 'name'], 'is_host', 'is_answered', 'is_deleted', 'created_at', 'can_delete', 'can_answer']],
                 'updates',
-                'participants' => [['user_id', 'name', 'role', 'jitsi_id', 'is_me']],
+                'participants' => [['user_id', 'identity', 'name', 'role', 'is_me']],
+                'materials',
                 'counts' => ['participants', 'questions_open'],
             ])
             ->assertJsonPath('room.status', 'live')
             ->assertJsonPath('me.is_host', false)
             ->assertJsonPath('counts.participants', 2)
             ->assertJsonPath('messages.0.body', 'Hello class');
-        $this->assertSame([null, null], array_column($feed->json('participants'), 'jitsi_id'));
+        // Other people's publish rights are for managers only.
+        $this->assertSame([], array_filter(array_column($feed->json('participants'), 'permissions')));
 
         $hostFeed = $this->actingAs($host)->getJson(route('learn.rooms.feed', $room))->assertOk()->assertJsonPath('me.is_host', true);
-        $this->assertContains('learnerJitsi1', array_column($hostFeed->json('participants'), 'jitsi_id'));
+        $learnerRow = collect($hostFeed->json('participants'))->firstWhere('user_id', $learner->id);
+        $this->assertSame('user-'.$learner->id, $learnerRow['identity']);
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => false], $learnerRow['permissions']);
 
         $second = $service->postMessage($room, $host, 'chat', 'Welcome!');
         $this->actingAs($learner)->getJson(route('learn.rooms.feed', ['room' => $room, 'after' => $first->id, 'since' => $feed->json('cursor')]))

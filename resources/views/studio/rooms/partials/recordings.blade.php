@@ -15,12 +15,10 @@
     </div>
 
     <p class="mt-2 text-sm text-gray-600">
-        @if ($supportsRecording && $providerName === 'jaas')
-            Recordings you start in the live room are imported here automatically a few minutes after they stop.
-        @elseif ($supportsRecording)
-            Recordings made on the video server can be uploaded here when the file is ready.
+        @if ($supportsRecording)
+            Recordings you start in the live room (Host tools → Start recording) are made on our own video server and appear here automatically a few minutes after they stop.
         @else
-            The live provider does not record on the server. Record with your own software (e.g. OBS) and upload the file below.
+            Server recording is not enabled on this platform yet. Record with your own software (e.g. OBS) and upload the file below.
         @endif
         Shared recordings can be watched by everyone who can see the room.
     </p>
@@ -43,7 +41,7 @@
                             @endif
                         </div>
                         <p class="mt-1 text-xs text-gray-500">
-                            {{ $recording->source === 'jaas' ? 'Cloud recording' : 'Uploaded' }}{{ $recording->uploader ? ' by '.$recording->uploader->name : '' }}
+                            {{ $recording->source === 'livekit' ? 'Server recording' : 'Uploaded' }}{{ $recording->uploader ? ' by '.$recording->uploader->name : '' }}
                             · {{ $recording->created_at?->copy()->setTimezone($tz)->format('d M Y H:i') }}
                             @if ($recording->session?->started_at) · session of {{ $recording->session->started_at->copy()->setTimezone($tz)->format('d M Y H:i') }}@endif
                             @if ($recording->path) · {{ $recording->sizeLabel() }}@endif

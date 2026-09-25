@@ -10,6 +10,7 @@ use App\Models\LearningRoom;
 use App\Models\LearningRoomAttendance;
 use App\Models\LearningRoomMember;
 use App\Models\LearningRoomMessage;
+use App\Models\LearningRoomRecording;
 use App\Models\LearningRoomSession;
 use App\Models\LearningTopic;
 use App\Models\User;
@@ -52,10 +53,13 @@ class RoomService
     /** SMALLINT UNSIGNED ceiling of join_count / peak_participants. */
     private const SMALLINT_MAX = 65535;
 
-    private const TOGGLES = ['chat_enabled', 'questions_enabled', 'allow_participant_media'];
+    private const TOGGLES = ['chat_enabled', 'questions_enabled', 'allow_participant_media', 'allow_screen_share'];
 
-    public function __construct(protected LiveProvider $live, protected LearningNotifier $notifier)
-    {
+    public function __construct(
+        protected LiveProvider $live,
+        protected LearningNotifier $notifier,
+        protected LiveServerClient $server,
+    ) {
     }
 
     /**
@@ -149,7 +153,14 @@ class RoomService
             'changed' => array_values(array_diff($changed, ['reminder_sent_at'])),
         ]);
 
-        return $room->refresh();
+        $room->refresh();
+
+        // Media switches changed from the studio form while live: apply them on the SFU now.
+        if (array_intersect($changed, ['allow_participant_media', 'allow_screen_share']) !== []) {
+            $this->pushPermissionsToPresent($room);
+        }
+
+        return $room;
     }
 
     /** draft | cancelled → scheduled (requires scheduled_at); notifies the audience. */
@@ -258,6 +269,9 @@ class RoomService
             'session_id' => $session?->id,
             'duration_seconds' => $session?->durationSeconds(),
         ]);
+
+        // Disconnect everyone (this also stops a running recording).
+        $this->server->deleteRoom($this->live->roomName($room));
     }
 
     /**
@@ -315,7 +329,11 @@ class RoomService
      *
      * @return array{attendance:\App\Models\LearningRoomAttendance,config:array<string,mixed>}
      *
-     * @throws \App\Exceptions\Learning\RoomAccessException reason not_live | removed | inactive
+     * Calling it again while in the call (e.g. to reconnect with a fresh
+     * token) is safe: the attendance row is reused.
+     *
+     * @throws \App\Exceptions\Learning\RoomAccessException reason not_live | removed | inactive | locked
+     * @throws \RuntimeException when the live server is not configured
      */
     public function join(LearningRoom $room, User $user): array
     {
@@ -339,6 +357,11 @@ class RoomService
 
             if ($attendance->removed_at !== null) {
                 throw new RoomAccessException('removed');
+            }
+
+            // A locked room keeps out newcomers; people already in this session may reconnect.
+            if (! $attendance->exists && ! $moderator && $room->fresh()?->is_locked) {
+                throw new RoomAccessException('locked');
             }
 
             $now = now();
@@ -365,9 +388,40 @@ class RoomService
             return $attendance;
         });
 
+        $room->refresh();
+
         return [
             'attendance' => $attendance,
-            'config' => $this->live->clientConfig($user, $room, $moderator),
+            'config' => $this->live->clientConfig($user, $room, $this->permissionsFor($room, $user, $attendance), $moderator),
+        ];
+    }
+
+    /**
+     * What this user may publish in the room right now. Room managers may
+     * publish everything; everyone else follows the room switches
+     * (allow_participant_media for mic + camera, allow_screen_share) unless
+     * the host set a personal override on their attendance row.
+     *
+     * @return array{audio:bool,video:bool,screen:bool}
+     */
+    public function permissionsFor(LearningRoom $room, User $user, ?LearningRoomAttendance $attendance = null): array
+    {
+        if ($room->isManageableBy($user)) {
+            return ['audio' => true, 'video' => true, 'screen' => true];
+        }
+
+        if ($attendance === null && ($session = $this->openSession($room))) {
+            $attendance = $this->attendanceFor($session, $user);
+        }
+
+        if ($attendance?->removed_at !== null) {
+            return ['audio' => false, 'video' => false, 'screen' => false];
+        }
+
+        return [
+            'audio' => $attendance?->can_publish_audio ?? (bool) $room->allow_participant_media,
+            'video' => $attendance?->can_publish_video ?? (bool) $room->allow_participant_media,
+            'screen' => $attendance?->can_share_screen ?? (bool) $room->allow_screen_share,
         ];
     }
 
@@ -376,9 +430,9 @@ class RoomService
      *
      * @return array{status:string,removed:bool}
      */
-    public function presence(LearningRoom $room, User $user, ?string $jitsiParticipantId = null): array
+    public function presence(LearningRoom $room, User $user): array
     {
-        return DB::transaction(function () use ($room, $user, $jitsiParticipantId) {
+        return DB::transaction(function () use ($room, $user) {
             $session = $this->lockLiveSession($room);
 
             if (! $session) {
@@ -399,11 +453,6 @@ class RoomService
             // A ping after leave() (page restored from the back/forward cache)
             // resumes presence without crediting the time away.
             $this->credit($attendance, now());
-
-            if ($participantId = $this->cleanParticipantId($jitsiParticipantId)) {
-                $attendance->jitsi_participant_id = $participantId;
-            }
-
             $attendance->save();
             $this->recordPeak($session);
 
@@ -429,11 +478,10 @@ class RoomService
     }
 
     /**
-     * Remove a participant from the current session (they cannot rejoin it).
-     *
-     * @return string|null their Jitsi participant id, so the host's client can kick them
+     * Remove a participant from the current session (they cannot rejoin it)
+     * and disconnect them from the SFU.
      */
-    public function removeParticipant(LearningRoom $room, User $target, User $actor): ?string
+    public function removeParticipant(LearningRoom $room, User $target, User $actor): void
     {
         if ((int) $target->id === (int) $actor->id) {
             throw ValidationException::withMessages(['user' => 'You cannot remove yourself — leave the session instead.']);
@@ -486,7 +534,253 @@ class RoomService
             ]);
         }
 
-        return $attendance->jitsi_participant_id;
+        // Refused a new token from now on; this closes the connection they already have.
+        $this->server->removeParticipant($this->live->roomName($room), $this->live->identityFor($target));
+    }
+
+    // --- Moderation (always through Laravel; the SFU only executes) -------
+    /** Lock / unlock the room: while locked, only people already in this session (and managers) may join. */
+    public function setLocked(LearningRoom $room, bool $locked, User $actor): void
+    {
+        if ((bool) $room->is_locked === $locked) {
+            return;
+        }
+
+        $room->forceFill(['is_locked' => $locked, 'updated_by' => $actor->id])->save();
+
+        ActivityLog::log($locked ? 'learning_room_locked' : 'learning_room_unlocked', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+        ]);
+    }
+
+    /**
+     * Room-wide publish switches for participants: allow_participant_media
+     * (microphone + camera) and allow_screen_share. Personal overrides stay.
+     * Connected participants get their new rights at once.
+     *
+     * @param  array{allow_participant_media?:bool,allow_screen_share?:bool}  $switches
+     */
+    public function setRoomMedia(LearningRoom $room, array $switches, User $actor): void
+    {
+        $changes = array_intersect_key($switches, array_flip(['allow_participant_media', 'allow_screen_share']));
+        $changes = array_map(fn ($v) => (bool) $v, $changes);
+
+        if ($changes === []) {
+            return;
+        }
+
+        $room->forceFill($changes + ['updated_by' => $actor->id])->save();
+
+        ActivityLog::log('learning_room_media_changed', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'changes' => $changes,
+        ]);
+
+        $this->pushPermissionsToPresent($room);
+    }
+
+    /**
+     * Personal publish rights for one participant. Each of audio / video /
+     * screen is true (allow), false (deny) or null (follow the room switch);
+     * keys that are missing stay as they are.
+     *
+     * @param  array{audio?:?bool,video?:?bool,screen?:?bool}  $rights
+     * @return array{audio:bool,video:bool,screen:bool} the effective rights afterwards
+     */
+    public function setParticipantPermissions(LearningRoom $room, User $target, array $rights, User $actor): array
+    {
+        if ($room->isManageableBy($target)) {
+            throw ValidationException::withMessages(['user' => 'Hosts and room managers always have full media rights.']);
+        }
+
+        $columns = ['audio' => 'can_publish_audio', 'video' => 'can_publish_video', 'screen' => 'can_share_screen'];
+
+        $attendance = DB::transaction(function () use ($room, $target, $rights, $columns) {
+            $session = $this->lockLiveSession($room);
+
+            if (! $session) {
+                throw ValidationException::withMessages(['status' => 'Media rights can only be changed while the room is live.']);
+            }
+
+            $attendance = $this->attendanceFor($session, $target);
+            if (! $attendance || $attendance->removed_at !== null) {
+                throw ValidationException::withMessages(['user' => 'This person is not in the session.']);
+            }
+
+            foreach ($columns as $key => $column) {
+                if (array_key_exists($key, $rights)) {
+                    $attendance->{$column} = $rights[$key] === null ? null : (bool) $rights[$key];
+                }
+            }
+
+            $attendance->save();
+
+            return $attendance;
+        });
+
+        $effective = $this->permissionsFor($room, $target, $attendance);
+
+        ActivityLog::log('learning_room_participant_rights', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'user_id' => $target->id,
+            'rights' => $effective,
+        ]);
+
+        $this->server->updatePermissions($this->live->roomName($room), $this->live->identityFor($target), $effective);
+
+        return $effective;
+    }
+
+    /**
+     * Server-side mute of one participant's microphone, camera or screen
+     * share. Returns false when the video server could not be reached.
+     */
+    public function muteParticipant(LearningRoom $room, User $target, string $kind, User $actor): bool
+    {
+        $this->assertMediaKind($kind);
+
+        if (! $room->isLive()) {
+            throw ValidationException::withMessages(['status' => 'The room is not live.']);
+        }
+
+        if ((int) $target->id === (int) $actor->id) {
+            throw ValidationException::withMessages(['user' => 'Use your own controls to mute yourself.']);
+        }
+
+        return $this->server->muteSource($this->live->roomName($room), $this->live->identityFor($target), $kind);
+    }
+
+    /**
+     * Mute everyone except the room managers.
+     *
+     * @return int|null participants muted, or null when the video server could not be reached
+     */
+    public function muteEveryone(LearningRoom $room, string $kind, User $actor): ?int
+    {
+        $this->assertMediaKind($kind);
+
+        if (! $room->isLive()) {
+            throw ValidationException::withMessages(['status' => 'The room is not live.']);
+        }
+
+        $hosts = $this->presentParticipants($room)
+            ->filter(fn (LearningRoomAttendance $a) => $a->role === 'host')
+            ->map(fn (LearningRoomAttendance $a) => $this->live->identityFor((int) $a->user_id))
+            ->push($this->live->identityFor($actor))
+            ->unique()->values()->all();
+
+        $count = $this->server->muteEveryone($this->live->roomName($room), $kind, $hosts);
+
+        ActivityLog::log('learning_room_mute_all', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'kind' => $kind,
+            'count' => $count,
+        ]);
+
+        return $this->server->lastError() === null ? $count : null;
+    }
+
+    /**
+     * Start a server recording (LiveKit Egress) of the running session. A
+     * "processing" recording row is created at once and completed by the
+     * egress_ended webhook.
+     */
+    public function startRecording(LearningRoom $room, User $actor): LearningRoomSession
+    {
+        if (! $this->live->supportsRecording()) {
+            throw ValidationException::withMessages(['recording' => 'Server recording is not enabled on this platform.']);
+        }
+
+        $session = $room->isLive() ? $this->openSession($room) : null;
+        if (! $session) {
+            throw ValidationException::withMessages(['recording' => 'Recording can only start while the room is live.']);
+        }
+
+        if ($session->isRecording()) {
+            return $session;
+        }
+
+        $egressId = $this->server->startRecording($this->live->roomName($room));
+        if ($egressId === null) {
+            throw ValidationException::withMessages(['recording' => $this->server->lastError() ?? 'The recording could not be started.']);
+        }
+
+        DB::transaction(function () use ($room, $session, $egressId, $actor) {
+            $session->forceFill(['egress_id' => $egressId, 'recording_started_at' => now()])->save();
+
+            LearningRoomRecording::query()->firstOrCreate(['external_id' => $egressId], [
+                'learning_room_id' => $room->id,
+                'learning_room_session_id' => $session->id,
+                'source' => 'livekit',
+                'status' => 'processing',
+                'uploaded_by' => $actor->id,
+            ]);
+        });
+
+        ActivityLog::log('learning_room_recording_started', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'session_id' => $session->id,
+            'egress_id' => $egressId,
+        ]);
+
+        return $session->refresh();
+    }
+
+    public function stopRecording(LearningRoom $room, User $actor): void
+    {
+        $session = $this->openSession($room);
+
+        if (! $session || ! $session->isRecording()) {
+            throw ValidationException::withMessages(['recording' => 'No recording is running.']);
+        }
+
+        $egressId = (string) $session->egress_id;
+        $stopped = $this->server->stopRecording($egressId);
+
+        // The file is finalised by Egress and imported from the egress_ended webhook.
+        $session->forceFill(['egress_id' => null])->save();
+
+        ActivityLog::log('learning_room_recording_stopped', 'LearningRoom', $room->id, [
+            'title' => $room->title,
+            'session_id' => $session->id,
+            'egress_id' => $egressId,
+            'server_confirmed' => $stopped,
+        ]);
+    }
+
+    /** SFU webhook: the participant left (closed the tab, lost the network, was removed). */
+    public function participantDisconnected(LearningRoom $room, User $user): void
+    {
+        $this->leave($room, $user);
+    }
+
+    /** Give every connected non-manager their current rights (after a room-wide switch changed). */
+    private function pushPermissionsToPresent(LearningRoom $room): void
+    {
+        if (! $room->isLive()) {
+            return;
+        }
+
+        foreach ($this->presentParticipants($room) as $attendance) {
+            $user = $attendance->user()->first();
+
+            if (! $user || $room->isManageableBy($user)) {
+                continue;
+            }
+
+            $this->server->updatePermissions(
+                $this->live->roomName($room),
+                $this->live->identityFor($user),
+                $this->permissionsFor($room, $user, $attendance),
+            );
+        }
+    }
+
+    private function assertMediaKind(string $kind): void
+    {
+        if (! in_array($kind, LiveProvider::SOURCES, true)) {
+            throw ValidationException::withMessages(['kind' => 'Choose audio, video or screen.']);
+        }
     }
 
     /**
@@ -651,11 +945,12 @@ class RoomService
     /**
      * Polling feed for the classroom page:
      * ['cursor' => ISO now,
-     *  'room' => ['status','status_label','started_at','chat_enabled','questions_enabled','allow_participant_media','title'],
-     *  'me' => ['removed','is_host'],
+     *  'room' => ['status','status_label','started_at','chat_enabled','questions_enabled','allow_participant_media',
+     *             'allow_screen_share','is_locked','is_recording','title'],
+     *  'me' => ['removed','is_host','permissions' => ['audio','video','screen']],
      *  'messages' => [...] (id > $afterId; $afterId = 0 → last 100; max 200; oldest first),
      *  'updates' => [...] (id <= $afterId AND updated_at >= $since),
-     *  'participants' => [['user_id','name','role','jitsi_id','is_me']],
+     *  'participants' => [['user_id','identity','name','role','is_me','permissions'?]] (permissions for managers only),
      *  'counts' => ['participants','questions_open']].
      *
      * @return array<string,mixed>
@@ -683,6 +978,7 @@ class RoomService
 
         $session = $this->openSession($room);
         $present = $this->presentParticipants($room);
+        $myAttendance = $session ? $this->attendanceFor($session, $viewer) : null;
 
         $payload = fn (LearningRoomMessage $m) => $this->messagePayload($m->setRelation('room', $room), $viewer);
 
@@ -695,21 +991,27 @@ class RoomService
                 'chat_enabled' => (bool) $room->chat_enabled,
                 'questions_enabled' => (bool) $room->questions_enabled,
                 'allow_participant_media' => (bool) $room->allow_participant_media,
+                'allow_screen_share' => (bool) $room->allow_screen_share,
+                'is_locked' => (bool) $room->is_locked,
+                'is_recording' => (bool) $session?->isRecording(),
                 'title' => $room->title,
             ],
             'me' => [
-                'removed' => $session !== null && $this->attendanceFor($session, $viewer)?->removed_at !== null,
+                'removed' => $myAttendance?->removed_at !== null,
                 'is_host' => $manager,
+                'permissions' => $this->permissionsFor($room, $viewer, $myAttendance),
             ],
             'messages' => $messages->map($payload)->values()->all(),
             'updates' => $updates->map($payload)->values()->all(),
-            'participants' => $present->map(fn (LearningRoomAttendance $a) => [
+            'participants' => $present->map(fn (LearningRoomAttendance $a) => array_filter([
                 'user_id' => $a->user_id,
+                'identity' => $this->live->identityFor((int) $a->user_id),
                 'name' => $a->user?->name ?? 'Member',
                 'role' => $a->role,
-                'jitsi_id' => $manager ? $a->jitsi_participant_id : null, // only moderators act on it
                 'is_me' => (int) $a->user_id === (int) $viewer->id,
-            ])->values()->all(),
+                // Only managers see (and change) other people's publish rights.
+                'permissions' => $manager && $a->user ? $this->permissionsFor($room, $a->user, $a) : null,
+            ], fn ($v) => $v !== null))->values()->all(),
             'counts' => [
                 'participants' => $present->count(),
                 'questions_open' => LearningRoomMessage::query()
@@ -769,6 +1071,7 @@ class RoomService
                         'auto' => true,
                     ]);
 
+                    $this->server->deleteRoom($this->live->roomName($room));
                     $closed++;
                 }
             });
@@ -1184,14 +1487,6 @@ class RoomService
         ])->save();
 
         return $sessions->first();
-    }
-
-    /** Jitsi endpoint ids are short hex/alphanumeric strings; anything else is dropped. */
-    private function cleanParticipantId(?string $id): ?string
-    {
-        $id = trim((string) $id);
-
-        return preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id) === 1 ? $id : null;
     }
 
     private function parseCursor(?string $since): ?Carbon

@@ -59,6 +59,11 @@ Route::middleware(['auth', 'verified'])
         Route::get('/rooms/{room:slug}/live', [Learn\LiveRoomController::class, 'show'])->name('rooms.live');
         Route::post('/rooms/{room:slug}/join', [Learn\LiveRoomController::class, 'join'])
             ->middleware('throttle:30,1')->name('rooms.join');
+        // Fresh short-lived media token after a network drop (same checks as join).
+        Route::post('/rooms/{room:slug}/token', [Learn\LiveRoomController::class, 'join'])
+            ->middleware('throttle:30,1')->name('rooms.token');
+        Route::get('/rooms/{room:slug}/materials/{material}', Learn\RoomMaterialController::class)
+            ->scopeBindings()->name('rooms.materials.download');
         Route::post('/rooms/{room:slug}/presence', [Learn\LiveRoomController::class, 'presence'])
             ->middleware('throttle:60,1')->name('rooms.presence');
         Route::post('/rooms/{room:slug}/leave', [Learn\LiveRoomController::class, 'leave'])->name('rooms.leave');
@@ -125,6 +130,22 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
             ->scopeBindings()->name('rooms.members.destroy');
         Route::post('/rooms/{room}/participants/{user}/remove', [Studio\RoomParticipantController::class, 'remove'])
             ->whereNumber('user')->name('rooms.participants.remove');
+
+        // Live moderation (self-hosted SFU): lock, publish rights, mute, recording, materials.
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::post('/rooms/{room}/lock', [Studio\RoomModerationController::class, 'lock'])->name('rooms.lock');
+            Route::post('/rooms/{room}/media', [Studio\RoomModerationController::class, 'media'])->name('rooms.media');
+            Route::post('/rooms/{room}/participants/{user}/permissions', [Studio\RoomModerationController::class, 'permissions'])
+                ->whereNumber('user')->name('rooms.participants.permissions');
+            Route::post('/rooms/{room}/participants/{user}/mute', [Studio\RoomModerationController::class, 'mute'])
+                ->whereNumber('user')->name('rooms.participants.mute');
+            Route::post('/rooms/{room}/mute-all', [Studio\RoomModerationController::class, 'muteAll'])->name('rooms.mute-all');
+            Route::post('/rooms/{room}/recording/start', [Studio\RoomModerationController::class, 'startRecording'])->name('rooms.recording.start');
+            Route::post('/rooms/{room}/recording/stop', [Studio\RoomModerationController::class, 'stopRecording'])->name('rooms.recording.stop');
+            Route::post('/rooms/{room}/materials', [Studio\RoomMaterialController::class, 'store'])->name('rooms.materials.store');
+            Route::delete('/rooms/{room}/materials/{material}', [Studio\RoomMaterialController::class, 'destroy'])
+                ->scopeBindings()->name('rooms.materials.destroy');
+        });
 
         Route::get('/rooms/{room}/attendance', [Studio\RoomAttendanceController::class, 'index'])->name('rooms.attendance');
         Route::get('/rooms/{room}/attendance/export', [Studio\RoomAttendanceController::class, 'export'])->name('rooms.attendance.export');
@@ -202,6 +223,14 @@ Route::middleware(['auth', 'verified', 'admin'])
 
         Route::get('/attendance', [AdminLearning\AttendanceController::class, 'index'])
             ->middleware('can:rooms.view')->name('attendance.index');
+
+        // Live sessions on our self-hosted video server (actions reuse the studio endpoints).
+        Route::middleware('can:rooms.view')->group(function () {
+            Route::get('/live', [AdminLearning\LiveSessionController::class, 'index'])->name('live.index');
+            Route::get('/live/{room}', [AdminLearning\LiveSessionController::class, 'show'])->whereNumber('room')->name('live.show');
+            Route::delete('/live/{room}/messages/{message}', [AdminLearning\LiveSessionController::class, 'destroyMessage'])
+                ->whereNumber(['room', 'message'])->name('live.messages.destroy');
+        });
 
         // Per-type permission (learning.manage vs rooms.manage) is checked in the controller.
         Route::middleware('can:learning.trash')->group(function () {

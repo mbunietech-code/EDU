@@ -5,435 +5,390 @@ namespace App\Services\Learning;
 use App\Models\LearningRoom;
 use App\Models\User;
 use App\Support\Jwt;
+use Illuminate\Support\Str;
 
 /**
- * The live video provider behind every classroom: Jitsi Meet (public
- * meet.jit.si demo or a self-hosted server with HS256 token auth) or JaaS
- * (8x8.vc, RS256 tokens). Chosen by config('learning.live.provider').
+ * Our self-hosted live video stack, seen from Laravel:
  *
- * The browser embeds the provider through the official IFrame API
- * (JitsiMeetExternalAPI) loaded from scriptUrl(); this class produces
- * everything the page needs to do so.
+ *   browser ──HTTPS──▶ Laravel (auth, permissions, chat, attendance, tokens)
+ *      │
+ *      └──WSS + WebRTC──▶ LiveKit SFU on our server ◀──TURN── coturn on our server
+ *
+ * Laravel never relays media. It signs a short-lived LiveKit access token
+ * for each join, carrying exactly the rights this user has (which sources
+ * they may publish; never room-admin rights — moderation always goes through
+ * Laravel and LiveServerClient). It also hands out STUN/TURN servers with
+ * expiring TURN credentials and verifies the SFU's webhooks.
+ *
+ * Configuration: config('learning.live'), documented in deploy/live-server/README.md.
  */
 class LiveProvider
 {
-    public const PUBLIC_JITSI_DOMAIN = 'meet.jit.si';
-
-    public const JAAS_DOMAIN = '8x8.vc';
-
-    public const DEMO_WARNING = 'Embedded meet.jit.si calls are limited to 5 minutes and require a moderator login — use JaaS or a self-hosted Jitsi in production';
-
-    /** Accepted clock drift between 8x8 and us when checking a webhook timestamp. */
-    private const WEBHOOK_TOLERANCE_SECONDS = 300;
+    /** Sources a participant may be allowed to publish. */
+    public const SOURCES = ['audio', 'video', 'screen'];
 
     /** Tokens become valid slightly in the past so a client clock running behind is not rejected. */
     private const TOKEN_LEEWAY_SECONDS = 10;
 
-    /** Configured provider key: 'jitsi' | 'jaas'. */
+    /** Server-API tokens only need to live for one request. */
+    private const SERVER_TOKEN_TTL_SECONDS = 60;
+
     public function name(): string
     {
-        return config('learning.live.provider') === 'jaas' ? 'jaas' : 'jitsi';
+        return 'livekit';
     }
 
-    /** Human label for the settings/status panel, e.g. "Jitsi Meet (meet.jit.si)". */
+    /** Human label for status panels, e.g. "Self-hosted LiveKit (live.example.com)". */
     public function label(): string
     {
-        if ($this->isJaas()) {
-            return 'Jitsi as a Service (8x8.vc)';
+        $host = parse_url((string) $this->serverUrl(), PHP_URL_HOST);
+
+        return 'Self-hosted LiveKit'.($host ? ' ('.$host.')' : '');
+    }
+
+    /** Browser-facing signalling URL: wss://live.example.com (ws:// only for local development). */
+    public function serverUrl(): ?string
+    {
+        $url = rtrim(trim((string) config('learning.live.server_url')), '/');
+
+        return $url !== '' ? $url : null;
+    }
+
+    /**
+     * The signalling URL as the current visitor must use it. Local development
+     * convenience: when LIVE_SERVER_URL points at this machine (127.0.0.1 /
+     * localhost) and the page was opened through a private LAN address (e.g.
+     * http://192.168.1.176:8000 from a phone), the same host is used for the
+     * SFU — "127.0.0.1" on another device would mean that device itself.
+     */
+    public function browserServerUrl(): ?string
+    {
+        $url = $this->serverUrl();
+        $host = strtolower((string) parse_url((string) $url, PHP_URL_HOST));
+
+        if (! $url || ! in_array($host, ['127.0.0.1', 'localhost', '[::1]', '::1'], true) || ! app()->bound('request')) {
+            return $url;
         }
 
-        return 'Jitsi Meet ('.$this->domain().')';
+        $visitorHost = strtolower((string) request()->getHost());
+        $isLan = preg_match('/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)\d{1,3}\.\d{1,3}$/', $visitorHost) === 1
+            || str_ends_with($visitorHost, '.local');
+
+        return $isLan ? (string) preg_replace('#^(wss?://)[^/:]+#i', '${1}'.$visitorHost, $url) : $url;
     }
 
-    /** Host the IFrame API connects to (jitsi domain, or '8x8.vc' for JaaS). */
-    public function domain(): string
+    /** Base URL of the SFU's server API (Twirp over HTTP(S)). */
+    public function apiUrl(): ?string
     {
-        if ($this->isJaas()) {
-            return self::JAAS_DOMAIN;
+        $url = rtrim(trim((string) config('learning.live.api_url')), '/');
+
+        if ($url === '' && ($server = $this->serverUrl())) {
+            $url = preg_replace('#^ws(s?)://#i', 'http$1://', $server);
         }
 
-        // Tolerate "https://meet.example.com/" in the env value.
-        $domain = trim((string) config('learning.live.jitsi.domain'));
-        $domain = preg_replace('#^[a-z][a-z0-9+.-]*://#i', '', $domain);
-        $domain = strtolower(rtrim((string) $domain, '/'));
-
-        return $domain !== '' ? $domain : self::PUBLIC_JITSI_DOMAIN;
+        return $url !== '' ? $url : null;
     }
 
-    /** https://{domain}/external_api.js, or https://8x8.vc/{appId}/external_api.js for JaaS. */
-    public function scriptUrl(): string
+    public function isConfigured(): bool
     {
-        if ($this->isJaas()) {
-            return 'https://'.self::JAAS_DOMAIN.'/'.rawurlencode($this->jaasAppId()).'/external_api.js';
-        }
-
-        return 'https://'.$this->domain().'/external_api.js';
+        return $this->configurationIssues() === [];
     }
 
-    /** Conference name: the room's provider_room, prefixed "{appId}/" for JaaS. */
-    public function roomName(LearningRoom $room): string
-    {
-        return $this->isJaas()
-            ? $this->jaasAppId().'/'.$room->provider_room
-            : (string) $room->provider_room;
-    }
-
-    /** True on the public meet.jit.si service (embedded calls are time-limited there). */
-    public function isDemo(): bool
-    {
-        return ! $this->isJaas() && $this->domain() === self::PUBLIC_JITSI_DOMAIN;
-    }
-
-    /** True when joins carry a signed JWT (JaaS, or self-hosted Jitsi with app_id + app_secret). */
-    public function usesJwt(): bool
-    {
-        if ($this->isJaas()) {
-            return true;
-        }
-
-        // meet.jit.si only accepts its own tokens, so app credentials are ignored there.
-        return ! $this->isDemo() && $this->jitsiAppId() !== '' && $this->jitsiAppSecret() !== '';
-    }
-
-    /** Server-side recording is available (JaaS, or self-hosted Jitsi with Jibri enabled in config). */
+    /** True when LiveKit Egress is enabled for server-side recording. */
     public function supportsRecording(): bool
     {
-        if ($this->isJaas()) {
-            return true;
-        }
+        return $this->isConfigured() && (bool) config('learning.live.recording.enabled');
+    }
 
-        return ! $this->isDemo() && (bool) config('learning.live.jitsi.recording');
+    /** The SFU room for a learning room (its random provider_room name). */
+    public function roomName(LearningRoom $room): string
+    {
+        return (string) $room->provider_room;
+    }
+
+    /** Stable participant identity for a user — the key the SFU uses for moderation. */
+    public function identityFor(User|int $user): string
+    {
+        return 'user-'.(is_int($user) ? $user : $user->id);
+    }
+
+    /** The user id behind an identity we issued, or null for anything else. */
+    public function userIdFromIdentity(?string $identity): ?int
+    {
+        return preg_match('/^user-([1-9]\d{0,18})$/', (string) $identity, $m) === 1 ? (int) $m[1] : null;
     }
 
     /**
-     * Signed join token for this user and room, or null when the provider
-     * does not use JWTs. Lifetime: config('learning.live.token_ttl_minutes').
+     * Signed join token for this user and room.
      *
-     * @throws \RuntimeException when JaaS is selected but its credentials are incomplete or unusable
+     * @param  array{audio:bool,video:bool,screen:bool}  $permissions  what the user may publish
+     *
+     * @throws \RuntimeException when the live server is not configured
      */
-    public function token(User $user, LearningRoom $room, bool $moderator): ?string
+    public function token(User $user, LearningRoom $room, array $permissions, bool $moderator): string
     {
-        if (! $this->usesJwt()) {
-            return null;
-        }
+        $this->assertConfigured();
 
         $now = now()->getTimestamp();
-        $times = [
-            'exp' => $now + max(1, (int) config('learning.live.token_ttl_minutes', 240)) * 60,
-            'nbf' => $now - self::TOKEN_LEEWAY_SECONDS,
-        ];
+        $ttl = max(1, (int) config('learning.live.token_ttl_minutes', 10)) * 60;
+        $sources = $this->publishSources($permissions);
 
-        if (! $this->isJaas()) {
-            $appId = $this->jitsiAppId();
-
-            return Jwt::encode([
-                'aud' => $appId,
-                'iss' => $appId,
-                'sub' => $this->domain(),
-                'room' => (string) $room->provider_room,
-                ...$times,
-                'context' => [
-                    'user' => [...$this->userClaims($user), 'moderator' => $moderator],
-                    'features' => ['recording' => $moderator && $this->supportsRecording()],
-                ],
-                'moderator' => $moderator,
-            ], $this->jitsiAppSecret(), 'HS256');
-        }
-
-        $issues = $this->jaasIssues();
-
-        if ($issues !== []) {
-            throw new \RuntimeException('JaaS live classes are not configured: '.implode(' ', $issues));
-        }
-
-        // JaaS expects the boolean-looking claims as strings.
         return Jwt::encode([
-            'aud' => 'jitsi',
-            'iss' => 'chat',
-            'sub' => $this->jaasAppId(),
-            'room' => (string) $room->provider_room,
-            ...$times,
-            'context' => [
-                'user' => [...$this->userClaims($user), 'moderator' => $moderator ? 'true' : 'false'],
-                'features' => [
-                    'livestreaming' => 'false',
-                    'recording' => $moderator ? 'true' : 'false',
-                    'transcription' => 'false',
-                    'outbound-call' => 'false',
-                ],
+            'iss' => (string) config('learning.live.api_key'),
+            'sub' => $this->identityFor($user),
+            'jti' => (string) Str::uuid(),
+            'nbf' => $now - self::TOKEN_LEEWAY_SECONDS,
+            'exp' => $now + $ttl,
+            'name' => Str::limit((string) $user->name, 100, ''),
+            'metadata' => json_encode([
+                'user_id' => $user->id,
+                'role' => $moderator ? 'host' : 'participant',
+            ]),
+            'video' => [
+                'room' => $this->roomName($room),
+                'roomJoin' => true,
+                'canSubscribe' => true,
+                'canPublish' => $sources !== [],
+                'canPublishSources' => $sources,
+                // Chat is stored by Laravel; data messages only nudge clients to refresh.
+                'canPublishData' => true,
+                'canUpdateOwnMetadata' => false,
             ],
-        ], (string) $this->jaasPrivateKey(), 'RS256', ['kid' => $this->jaasKeyId()]);
+        ], (string) config('learning.live.api_secret'));
     }
 
     /**
-     * Everything learnClassroom() needs to mount the IFrame:
-     * ['provider','domain','scriptUrl','roomName','jwt','isDemo','supportsRecording','moderator',
-     *  'user' => ['id','name','email'], 'configOverwrite' => [...], 'interfaceConfigOverwrite' => [...]].
+     * Short-lived token for Laravel's own calls to the SFU server API.
      *
+     * @param  array<string,mixed>  $video  grants, e.g. ['roomAdmin' => true, 'room' => 'x']
+     */
+    public function serverToken(array $video): string
+    {
+        $this->assertConfigured();
+
+        $now = now()->getTimestamp();
+
+        return Jwt::encode([
+            'iss' => (string) config('learning.live.api_key'),
+            'sub' => 'laravel',
+            'nbf' => $now - self::TOKEN_LEEWAY_SECONDS,
+            'exp' => $now + self::SERVER_TOKEN_TTL_SECONDS,
+            'video' => $video,
+        ], (string) config('learning.live.api_secret'));
+    }
+
+    /**
+     * RTCIceServer list for this user: our STUN server(s) and our coturn
+     * TURN server(s). With TURN_SERVER_SECRET set, credentials follow the
+     * TURN REST scheme (username "expiry:identity", HMAC-SHA1 password) so
+     * they expire and are never shared between users.
+     *
+     * @return list<array{urls:list<string>,username?:string,credential?:string}>
+     */
+    public function iceServers(User $user): array
+    {
+        $servers = [];
+        $stun = $this->urlList('learning.live.ice.stun_urls', ['stun:']);
+        $turn = $this->urlList('learning.live.ice.turn_urls', ['turn:', 'turns:']);
+
+        if ($stun !== []) {
+            $servers[] = ['urls' => $stun];
+        }
+
+        if ($turn !== []) {
+            $secret = (string) config('learning.live.ice.turn_secret');
+
+            if ($secret !== '') {
+                $expires = now()->addMinutes(max(1, (int) config('learning.live.ice.turn_ttl_minutes', 720)))->getTimestamp();
+                $username = $expires.':'.$this->identityFor($user);
+                $servers[] = [
+                    'urls' => $turn,
+                    'username' => $username,
+                    'credential' => base64_encode(hash_hmac('sha1', $username, $secret, true)),
+                ];
+            } elseif ((string) config('learning.live.ice.turn_username') !== '') {
+                $servers[] = [
+                    'urls' => $turn,
+                    'username' => (string) config('learning.live.ice.turn_username'),
+                    'credential' => (string) config('learning.live.ice.turn_credential'),
+                ];
+            }
+        }
+
+        return $servers;
+    }
+
+    public function iceTransportPolicy(): string
+    {
+        return config('learning.live.ice.transport_policy') === 'relay' ? 'relay' : 'all';
+    }
+
+    /**
+     * Everything the classroom needs to connect:
+     * ['provider','server_url','token','identity','room_name','ice_servers','ice_transport_policy',
+     *  'permissions' => ['audio','video','screen'],'moderator','supports_recording','user' => ['id','name']].
+     *
+     * @param  array{audio:bool,video:bool,screen:bool}  $permissions
      * @return array<string,mixed>
      */
-    public function clientConfig(User $user, LearningRoom $room, bool $moderator): array
+    public function clientConfig(User $user, LearningRoom $room, array $permissions, bool $moderator): array
     {
-        $toolbar = $this->toolbarButtons($room, $moderator);
-
         return [
             'provider' => $this->name(),
-            'domain' => $this->domain(),
-            'scriptUrl' => $this->scriptUrl(),
-            'roomName' => $this->roomName($room),
-            'jwt' => $this->token($user, $room, $moderator),
-            'isDemo' => $this->isDemo(),
-            'supportsRecording' => $this->supportsRecording(),
+            'server_url' => $this->browserServerUrl(),
+            'token' => $this->token($user, $room, $permissions, $moderator),
+            'identity' => $this->identityFor($user),
+            'room_name' => $this->roomName($room),
+            'ice_servers' => $this->iceServers($user),
+            'ice_transport_policy' => $this->iceTransportPolicy(),
+            'permissions' => [
+                'audio' => (bool) ($permissions['audio'] ?? false),
+                'video' => (bool) ($permissions['video'] ?? false),
+                'screen' => (bool) ($permissions['screen'] ?? false),
+            ],
             'moderator' => $moderator,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'configOverwrite' => [
-                'prejoinConfig' => ['enabled' => false],
-                'disableDeepLinking' => true,
-                'subject' => $room->title,
-                'startWithAudioMuted' => ! $moderator,
-                'startWithVideoMuted' => ! $moderator,
-                'disableInviteFunctions' => true,
-                'toolbarButtons' => $toolbar,
-            ],
-            // Older self-hosted deployments still read the toolbar from interfaceConfig.
-            'interfaceConfigOverwrite' => [
-                'TOOLBAR_BUTTONS' => $toolbar,
-                'MOBILE_APP_PROMO' => false,
-                'SHOW_CHROME_EXTENSION_BANNER' => false,
-                'HIDE_INVITE_MORE_HEADER' => true,
-            ],
+            'supports_recording' => $moderator && $this->supportsRecording(),
+            'user' => ['id' => $user->id, 'name' => $user->name],
         ];
     }
 
     /**
-     * Health summary for the admin/studio screens:
-     * ['provider','label','domain','configured'=>bool,'recording'=>bool,'demo'=>bool,'issues'=>list<string>].
+     * Health summary for the admin / studio screens:
+     * ['provider','label','server_url','configured'=>bool,'recording'=>bool,'turn'=>bool,'issues'=>list<string>,'warnings'=>list<string>].
      *
      * @return array<string,mixed>
      */
     public function status(): array
     {
-        $issues = [];
-        $configured = true;
+        $issues = $this->configurationIssues();
+        $warnings = [];
 
-        $raw = (string) config('learning.live.provider');
-        if (! in_array($raw, ['jitsi', 'jaas'], true)) {
-            $issues[] = 'Unknown live provider "'.$raw.'" (LEARNING_LIVE_PROVIDER) — falling back to Jitsi Meet.';
+        $server = (string) $this->serverUrl();
+        if ($server !== '' && str_starts_with(strtolower($server), 'ws://') && ! $this->isLocalUrl($server)) {
+            $warnings[] = 'LIVE_SERVER_URL uses ws:// — browsers need wss:// (TLS) for a public server.';
         }
 
-        if ($this->isJaas()) {
-            $jaasIssues = $this->jaasIssues();
-            $configured = $jaasIssues === [];
-            array_push($issues, ...$jaasIssues);
+        $hasTurn = $this->urlList('learning.live.ice.turn_urls', ['turn:', 'turns:']) !== [];
+        if (! $hasTurn) {
+            $warnings[] = 'No TURN server (TURN_SERVER_URL): learners behind strict firewalls or mobile networks may not connect.';
+        } elseif ((string) config('learning.live.ice.turn_secret') === '' && (string) config('learning.live.ice.turn_username') === '') {
+            $warnings[] = 'TURN_SERVER_URL is set but neither TURN_SERVER_SECRET nor TURN_SERVER_USERNAME — TURN will be skipped.';
+        }
 
-            if ((string) config('learning.live.jaas.webhook_secret') === '') {
-                $issues[] = 'LEARNING_JAAS_WEBHOOK_SECRET is not set — JaaS cloud recordings will not be imported.';
-            }
-        } elseif ($this->isDemo()) {
-            $issues[] = self::DEMO_WARNING;
-
-            if ($this->jitsiAppId() !== '' || $this->jitsiAppSecret() !== '') {
-                $issues[] = 'meet.jit.si does not accept your own tokens — LEARNING_JITSI_APP_ID / LEARNING_JITSI_APP_SECRET are ignored.';
-            }
-
-            if ((bool) config('learning.live.jitsi.recording')) {
-                $issues[] = 'Server recording is not available on meet.jit.si — LEARNING_JITSI_RECORDING is ignored.';
-            }
-        } elseif (($this->jitsiAppId() === '') !== ($this->jitsiAppSecret() === '')) {
-            $configured = false;
-            $issues[] = 'Token auth needs both LEARNING_JITSI_APP_ID and LEARNING_JITSI_APP_SECRET — only one is set.';
+        if ((bool) config('learning.live.recording.enabled') && (string) config('learning.live.recording.import_dir') === '') {
+            $warnings[] = 'Recording is enabled but LIVE_RECORDING_IMPORT_DIR is empty — finished recordings cannot be imported.';
         }
 
         return [
             'provider' => $this->name(),
             'label' => $this->label(),
-            'domain' => $this->domain(),
-            'configured' => $configured,
+            'server_url' => $this->serverUrl(),
+            'configured' => $issues === [],
             'recording' => $this->supportsRecording(),
-            'demo' => $this->isDemo(),
+            'turn' => $hasTurn,
             'issues' => $issues,
+            'warnings' => $warnings,
         ];
     }
 
     /**
-     * Verify an "X-Jaas-Signature: t=<unix>,v1=<base64 hmac>" header: HMAC-SHA256
-     * of "t.rawBody" with the webhook secret, constant-time compare, and a
-     * ±300 s timestamp window.
+     * Verify a LiveKit webhook: the Authorization header holds an HS256 token
+     * signed with our API secret, issued by our API key, whose "sha256" claim
+     * is the base64 SHA-256 of the exact request body.
      */
-    public function verifyJaasWebhook(string $rawBody, ?string $signatureHeader): bool
+    public function verifyWebhook(string $rawBody, ?string $authorization): bool
     {
-        $secret = (string) config('learning.live.jaas.webhook_secret');
-
-        if ($secret === '' || $signatureHeader === null || trim($signatureHeader) === '') {
+        if (! $this->isConfigured() || $authorization === null || trim($authorization) === '') {
             return false;
         }
 
-        $timestamp = null;
-        $signatures = [];
+        $token = trim(preg_replace('/^Bearer\s+/i', '', trim($authorization)));
+        $claims = Jwt::decode($token, (string) config('learning.live.api_secret'));
 
-        foreach (explode(',', $signatureHeader) as $part) {
-            // Split on the first "=" only — base64 values end in "=" padding.
-            [$name, $value] = array_pad(explode('=', trim($part), 2), 2, '');
-
-            if ($name === 't') {
-                $timestamp = $value;
-            } elseif ($name === 'v1' && $value !== '') {
-                $signatures[] = $value;
-            }
-        }
-
-        if ($timestamp === null || ! ctype_digit($timestamp) || $signatures === []) {
+        if ($claims === null || ($claims['iss'] ?? null) !== (string) config('learning.live.api_key')) {
             return false;
         }
 
-        if (abs(now()->getTimestamp() - (int) $timestamp) > self::WEBHOOK_TOLERANCE_SECONDS) {
-            return false;
-        }
+        $expected = base64_encode(hash('sha256', $rawBody, true));
 
-        $expected = base64_encode(hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret, true));
-
-        foreach ($signatures as $signature) {
-            if (hash_equals($expected, $signature)) {
-                return true;
-            }
-        }
-
-        return false;
+        return is_string($claims['sha256'] ?? null) && hash_equals($expected, $claims['sha256']);
     }
 
-    // --- Internals ---------------------------------------------------
-    private function isJaas(): bool
-    {
-        return $this->name() === 'jaas';
-    }
-
+    // --- Internals ------------------------------------------------------
     /** @return list<string> */
-    private function toolbarButtons(LearningRoom $room, bool $moderator): array
-    {
-        if ($moderator) {
-            $buttons = ['camera', 'microphone', 'desktop', 'participants-pane', 'raisehand', 'tileview', 'fullscreen', 'settings'];
-
-            if ($this->supportsRecording()) {
-                $buttons[] = 'recording';
-            }
-
-            return $buttons;
-        }
-
-        $media = $room->allow_participant_media ? ['camera', 'microphone', 'desktop'] : [];
-
-        return [...$media, 'raisehand', 'tileview', 'fullscreen', 'settings'];
-    }
-
-    /** @return array{id:string,name:string,email:string,avatar:string} */
-    private function userClaims(User $user): array
-    {
-        return [
-            'id' => (string) $user->id,
-            'name' => (string) $user->name,
-            'email' => (string) $user->email,
-            'avatar' => '',
-        ];
-    }
-
-    private function jitsiAppId(): string
-    {
-        return trim((string) config('learning.live.jitsi.app_id'));
-    }
-
-    private function jitsiAppSecret(): string
-    {
-        return (string) config('learning.live.jitsi.app_secret');
-    }
-
-    private function jaasAppId(): string
-    {
-        return trim((string) config('learning.live.jaas.app_id'));
-    }
-
-    private function jaasKeyId(): string
-    {
-        return trim((string) config('learning.live.jaas.api_key_id'));
-    }
-
-    /**
-     * The JaaS RSA private key: the env string (with literal "\n" sequences
-     * turned back into newlines) or, failing that, the contents of the
-     * configured file (relative paths resolve from the project root).
-     */
-    private function jaasPrivateKey(): ?string
-    {
-        $inline = trim((string) config('learning.live.jaas.private_key'));
-
-        if ($inline !== '') {
-            return str_replace(['\r\n', '\n'], "\n", trim($inline, "\"' \t\r\n"));
-        }
-
-        $path = $this->jaasPrivateKeyPath();
-
-        if ($path === null || ! is_file($path) || ! is_readable($path)) {
-            return null;
-        }
-
-        $contents = @file_get_contents($path);
-
-        return $contents === false || trim($contents) === '' ? null : $contents;
-    }
-
-    private function jaasPrivateKeyPath(): ?string
-    {
-        $path = trim((string) config('learning.live.jaas.private_key_path'));
-
-        if ($path === '') {
-            return null;
-        }
-
-        $absolute = preg_match('#^([a-z]:[\\\\/]|[\\\\/])#i', $path) === 1;
-
-        return $absolute ? $path : base_path($path);
-    }
-
-    /**
-     * Why a JaaS token cannot be issued right now (empty when it can).
-     *
-     * @return list<string>
-     */
-    private function jaasIssues(): array
+    private function configurationIssues(): array
     {
         $issues = [];
+        $server = (string) $this->serverUrl();
 
-        if ($this->jaasAppId() === '') {
-            $issues[] = 'LEARNING_JAAS_APP_ID is not set.';
+        if ($server === '') {
+            $issues[] = 'LIVE_SERVER_URL is not set (e.g. wss://live.example.com).';
+        } elseif (preg_match('#^wss?://[^\s/]+#i', $server) !== 1) {
+            $issues[] = 'LIVE_SERVER_URL must start with wss:// (or ws:// for local development).';
         }
 
-        if ($this->jaasKeyId() === '') {
-            $issues[] = 'LEARNING_JAAS_API_KEY_ID is not set.';
-        } elseif ($this->jaasAppId() !== '' && ! str_starts_with($this->jaasKeyId(), $this->jaasAppId().'/')) {
-            $issues[] = 'LEARNING_JAAS_API_KEY_ID must be the full key id ("'.$this->jaasAppId().'/…").';
+        if (trim((string) config('learning.live.api_key')) === '') {
+            $issues[] = 'LIVE_SERVER_API_KEY is not set.';
         }
 
-        $key = $this->jaasPrivateKey();
-
-        if ($key === null) {
-            $path = $this->jaasPrivateKeyPath();
-            $issues[] = $path === null
-                ? 'No JaaS private key: set LEARNING_JAAS_PRIVATE_KEY or LEARNING_JAAS_PRIVATE_KEY_PATH.'
-                : 'The JaaS private key file ('.$path.') is missing or not readable.';
-        } else {
-            $parsed = openssl_pkey_get_private($key);
-
-            if ($parsed === false || (openssl_pkey_get_details($parsed)['type'] ?? null) !== OPENSSL_KEYTYPE_RSA) {
-                while (openssl_error_string() !== false) {
-                    // drain OpenSSL's error queue
-                }
-                $issues[] = 'The JaaS private key is not a valid PEM RSA private key.';
-            }
+        if ((string) config('learning.live.api_secret') === '') {
+            $issues[] = 'LIVE_SERVER_API_SECRET is not set.';
+        } elseif (strlen((string) config('learning.live.api_secret')) < 32 && ! $this->isLocalUrl($server)) {
+            $issues[] = 'LIVE_SERVER_API_SECRET must be at least 32 characters.';
         }
 
         return $issues;
+    }
+
+    private function assertConfigured(): void
+    {
+        $issues = $this->configurationIssues();
+
+        if ($issues !== []) {
+            throw new \RuntimeException('The live video server is not configured: '.implode(' ', $issues));
+        }
+    }
+
+    /**
+     * @param  array{audio?:bool,video?:bool,screen?:bool}  $permissions
+     * @return list<string> LiveKit source names
+     */
+    private function publishSources(array $permissions): array
+    {
+        $sources = [];
+
+        if ($permissions['audio'] ?? false) {
+            $sources[] = 'microphone';
+        }
+        if ($permissions['video'] ?? false) {
+            $sources[] = 'camera';
+        }
+        if ($permissions['screen'] ?? false) {
+            $sources[] = 'screen_share';
+            $sources[] = 'screen_share_audio';
+        }
+
+        return $sources;
+    }
+
+    /**
+     * @param  list<string>  $schemes  accepted URL prefixes
+     * @return list<string>
+     */
+    private function urlList(string $key, array $schemes): array
+    {
+        return array_values(array_filter(
+            array_map('trim', explode(',', (string) config($key))),
+            fn (string $url) => $url !== '' && Str::startsWith(strtolower($url), $schemes),
+        ));
+    }
+
+    private function isLocalUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            || preg_match('/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/', $host) === 1
+            || str_ends_with($host, '.local') || str_ends_with($host, '.test');
     }
 }

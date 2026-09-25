@@ -55,7 +55,7 @@
         <x-mbui.stats-card title="Video views" :value="number_format($stats['video_views'])" :trend="number_format($stats['completed_lessons']).' lessons completed'" />
         <x-mbui.stats-card title="Average completion" :value="$stats['average_completion'].'%'" trend="Mean watched % across all lesson progress" />
         <x-mbui.stats-card title="Live attendance (30 days)" :value="number_format($stats['attendance_30d'])" :trend="number_format($stats['sessions_30d']).' sessions · '.$stats['attendance_per_session'].' per session'" />
-        <x-mbui.stats-card title="Live provider" :value="$provider['label']" :trend="$provider['configured'] ? 'Configured' : 'Needs attention'" />
+        <x-mbui.stats-card title="Live video server" :value="$provider['configured'] ? 'Self-hosted' : 'Not set up'" :trend="$provider['configured'] ? 'Configured' : 'Needs attention'" />
     </div>
 
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -88,31 +88,27 @@
             @endif
         </x-mbui.card>
 
-        {{-- Live provider health --}}
+        {{-- Live video server health (self-hosted LiveKit SFU + coturn) --}}
         <x-mbui.card>
             <div class="flex items-center justify-between gap-2">
-                <h2 class="text-base font-semibold text-gray-900">Live provider</h2>
-                @if ($provider['configured'] && ! $provider['demo'])
+                <h2 class="text-base font-semibold text-gray-900">Live video server</h2>
+                @if ($provider['configured'] && ! count($provider['warnings']))
                     <x-mbui.badge appearance="success">Ready</x-mbui.badge>
                 @elseif ($provider['configured'])
-                    <x-mbui.badge appearance="warning">Demo mode</x-mbui.badge>
+                    <x-mbui.badge appearance="warning">Check setup</x-mbui.badge>
                 @else
                     <x-mbui.badge appearance="danger">Not configured</x-mbui.badge>
                 @endif
             </div>
             <dl class="mt-4 space-y-2 text-sm">
-                <div class="flex justify-between gap-4"><dt class="text-gray-500">Provider</dt><dd class="text-right font-medium text-gray-900">{{ $provider['label'] }}</dd></div>
-                <div class="flex justify-between gap-4"><dt class="text-gray-500">Domain</dt><dd class="truncate text-right font-mono text-xs text-gray-900">{{ $provider['domain'] }}</dd></div>
-                <div class="flex justify-between gap-4"><dt class="text-gray-500">Server recording</dt><dd class="text-right text-gray-900">{{ $provider['recording'] ? 'Available' : 'Not available' }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Server</dt><dd class="text-right font-medium text-gray-900">{{ $provider['label'] }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Address</dt><dd class="truncate text-right font-mono text-xs text-gray-900">{{ $provider['server_url'] ?? '—' }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">TURN relay</dt><dd class="text-right text-gray-900">{{ $provider['turn'] ? 'Configured' : 'Not configured' }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Server recording</dt><dd class="text-right text-gray-900">{{ $provider['recording'] ? 'Available' : 'Not enabled' }}</dd></div>
             </dl>
-            @if ($provider['demo'])
-                <x-mbui.alert type="warning" class="mt-4">
-                    Demo server: embedded calls on meet.jit.si end after about 5 minutes and the moderator must sign in. Configure JaaS or a self-hosted Jitsi for real classes.
-                </x-mbui.alert>
-            @endif
-            @if (count($provider['issues']))
+            @if (count($provider['issues']) || count($provider['warnings']))
                 <ul class="mt-4 space-y-2 text-sm text-gray-700">
-                    @foreach ($provider['issues'] as $issue)
+                    @foreach ([...$provider['issues'], ...$provider['warnings']] as $issue)
                         <li class="flex gap-2">
                             <svg class="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
                             <span>{{ $issue }}</span>
@@ -122,6 +118,9 @@
             @else
                 <p class="mt-4 text-sm text-emerald-700">No configuration issues found.</p>
             @endif
+            @can('rooms.view')
+                <a href="{{ route('admin.learning.live.index') }}" class="mbui-anchor mt-4 inline-block text-sm">Live sessions &amp; server check &rarr;</a>
+            @endcan
         </x-mbui.card>
 
         {{-- Most active courses --}}

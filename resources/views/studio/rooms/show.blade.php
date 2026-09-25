@@ -56,15 +56,14 @@
     @endunless
 
     {{-- Provider health (managers) --}}
-    @if ($provider && ($provider['demo'] || ! $provider['configured'] || count($provider['issues'])))
+    @if ($provider && (! $provider['configured'] || count($provider['issues']) || count($provider['warnings'])))
         <x-mbui.alert :type="$provider['configured'] ? 'warning' : 'error'" class="mt-4">
             <p class="font-medium">
-                {{ $provider['configured'] ? 'Live video: '.$provider['label'] : 'The live video provider is not configured correctly' }}
-                @if ($provider['demo']) <span class="font-normal">(demo mode)</span>@endif
+                {{ $provider['configured'] ? 'Live video: '.$provider['label'] : 'The live video server is not configured yet' }}
             </p>
-            @if (count($provider['issues']))
+            @if (count($provider['issues']) || count($provider['warnings']))
                 <ul class="mt-1 list-disc space-y-0.5 pl-5">
-                    @foreach ($provider['issues'] as $issue)
+                    @foreach ([...$provider['issues'], ...$provider['warnings']] as $issue)
                         <li>{{ $issue }}</li>
                     @endforeach
                 </ul>

@@ -145,7 +145,8 @@ class RoomParticipantController extends Controller
         $this->authorize('moderate', $room);
 
         try {
-            $jitsiId = $this->rooms->removeParticipant($room, $user, $request->user());
+            // Also disconnects them from the self-hosted SFU.
+            $this->rooms->removeParticipant($room, $user, $request->user());
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
                 throw $e;
@@ -158,7 +159,6 @@ class RoomParticipantController extends Controller
             return response()->json([
                 'removed' => true,
                 'user_id' => $user->id,
-                'jitsi_id' => $jitsiId,
             ]);
         }
 

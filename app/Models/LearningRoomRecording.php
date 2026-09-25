@@ -25,7 +25,8 @@ class LearningRoomRecording extends Model
         'duration_seconds' => 'integer',
     ];
 
-    public const SOURCES = ['upload', 'jaas'];
+    /** upload = file added in the studio; livekit = recorded by our self-hosted SFU (Egress). */
+    public const SOURCES = ['upload', 'livekit'];
 
     public const STATUSES = ['processing', 'ready', 'failed'];
 

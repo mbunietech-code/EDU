@@ -9,6 +9,7 @@ namespace App\Exceptions\Learning;
  *   not_live — the session has not started or has already ended
  *   removed  — the host removed this user from the current session
  *   inactive — the account is suspended / not active
+ *   locked   — the host locked the room and this user was not in it yet
  */
 class RoomAccessException extends \RuntimeException
 {
@@ -23,6 +24,7 @@ class RoomAccessException extends \RuntimeException
             'not_live' => 'This live session is not running right now.',
             'removed' => 'The host removed you from this session.',
             'inactive' => 'Your account is not active.',
+            'locked' => 'The host has locked this class. Only people who were already in it can rejoin.',
             default => 'You cannot join this session.',
         };
     }

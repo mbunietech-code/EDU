@@ -1,0 +1,95 @@
+# Self-hosted live classroom infrastructure — runs on YOUR server (a VPS / dedicated
+# machine with a public IP). Nothing here uses a third-party video service.
+#
+#   caddy    TLS for live.<domain> (WSS signalling) and certificates for turn.<domain>
+#   livekit  WebRTC SFU (open source, Apache-2.0) — media + signalling
+#   coturn   STUN / TURN relay for learners behind strict NAT / firewalls
+#   redis    only needed for recording (Egress ↔ SFU coordination)
+#   egress   server-side recording to MP4 (profile "recording")
+#
+# Usage (see README.md):
+#   cp .env.example .env && nano .env
+#   docker compose up -d                          # SFU + TURN + TLS
+#   docker compose --profile recording up -d      # … plus recording
+#
+# Host networking is used on purpose: WebRTC needs thousands of UDP ports and
+# the real public IP; Docker's NAT would break both.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LIVE_DOMAIN: ${LIVE_DOMAIN}
+      TURN_DOMAIN: ${TURN_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  livekit:
+    image: livekit/livekit-server:${LIVEKIT_VERSION:-v1.8}
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    environment:
+      # "key: secret" — the same pair goes into Laravel's LIVE_SERVER_API_KEY / LIVE_SERVER_API_SECRET.
+      LIVEKIT_KEYS: "${LIVE_API_KEY}: ${LIVE_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      - caddy
+
+  coturn:
+    image: coturn/coturn:${COTURN_VERSION:-4.6}
+    restart: unless-stopped
+    network_mode: host
+    # Secrets and addresses come from .env, so turnserver.conf holds no credentials.
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --static-auth-secret=${TURN_SECRET}
+      - --realm=${TURN_DOMAIN}
+      - --server-name=${TURN_DOMAIN}
+      - --external-ip=${PUBLIC_IP}
+      - --cert=/certs/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.crt
+      - --pkey=/certs/certificates/acme-v02.api.letsencrypt.org-directory/${TURN_DOMAIN}/${TURN_DOMAIN}.key
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      # Caddy's certificate store (read-only) — TLS for turns: without a second ACME client.
+      - caddy_data:/certs:ro
+    depends_on:
+      - caddy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    network_mode: host
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6379", "--save", "", "--appendonly", "no"]
+    profiles: ["recording"]
+
+  egress:
+    image: livekit/egress:${EGRESS_VERSION:-v1.9}
+    restart: unless-stopped
+    network_mode: host
+    # Headless Chrome renders the room layout for composite recordings.
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+      LIVEKIT_API_KEY: ${LIVE_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVE_API_SECRET}
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml:ro
+      # Finished MP4s land here; Laravel imports them from LIVE_RECORDING_IMPORT_DIR.
+      - ${RECORDINGS_DIR:-/opt/live-server/recordings}:/out
+    depends_on:
+      - livekit
+      - redis
+    profiles: ["recording"]
+
+volumes:
+  caddy_data:
+  caddy_config:

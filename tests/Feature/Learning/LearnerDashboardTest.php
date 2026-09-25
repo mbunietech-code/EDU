@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Tests\Feature\Learning\Concerns\UsesLiveServer;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,7 @@ use Tests\TestCase;
 class LearnerDashboardTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesLiveServer;
 
     protected function setUp(): void
     {
@@ -35,7 +37,7 @@ class LearnerDashboardTest extends TestCase
 
         Storage::fake('private');
         Storage::fake('public');
-        config(['learning.live.provider' => 'jitsi', 'learning.live.jitsi.domain' => 'meet.jit.si']);
+        $this->useLiveServer();
         Notification::fake();
     }
 
@@ -252,7 +254,7 @@ class LearnerDashboardTest extends TestCase
         $this->postJson(route('api.learning.rooms.join', $w['public']->slug))->assertStatus(409)->assertJson(['reason' => 'not_live']);
 
         app(RoomService::class)->start($w['public'], $w['instructor']);
-        $this->postJson(route('api.learning.rooms.join', $w['public']->slug))->assertOk()->assertJsonStructure(['config' => ['domain', 'roomName']]);
+        $this->postJson(route('api.learning.rooms.join', $w['public']->slug))->assertOk()->assertJsonStructure(['config' => ['server_url', 'token', 'room_name', 'ice_servers', 'permissions']]);
 
         $this->getJson(route('api.learning.rooms.show', LearningRoom::where('title', 'Secret private class')->value('slug')))->assertForbidden();
     }

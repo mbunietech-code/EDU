@@ -185,7 +185,8 @@
                 @foreach ([
                     'chat_enabled' => ['Chat', 'Learners can send chat messages during the session.'],
                     'questions_enabled' => ['Questions', 'Learners can post questions for you to mark as answered.'],
-                    'allow_participant_media' => ['Learners’ microphone & camera', 'When off, learners join muted with cameras off and cannot turn them on (Jitsi audio/video moderation). You can still ask someone to unmute.'],
+                    'allow_participant_media' => ['Learners’ microphone & camera', 'When off, learners can watch and listen but the video server will not accept their microphone or camera. During the class you can allow a single person to speak.'],
+                    'allow_screen_share' => ['Learners may share their screen', 'Usually off: only you (and room managers) present. You can also allow one person during the class.'],
                 ] as $name => [$label, $hint])
                     <label class="flex items-start gap-3">
                         <input type="hidden" name="{{ $name }}" value="0">

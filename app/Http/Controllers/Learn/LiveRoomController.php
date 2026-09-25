@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Learn;
 
 use App\Exceptions\Learning\RoomAccessException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Studio\RoomMaterialController;
 use App\Models\LearningRoom;
+use App\Models\LearningRoomMaterial;
 use App\Models\User;
 use App\Services\Learning\LiveProvider;
 use App\Services\Learning\RoomService;
@@ -13,7 +15,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 /**
- * The live classroom page and its JSON endpoints (join, presence, leave, feed).
+ * The live classroom page and its JSON endpoints (join / token, presence,
+ * leave, feed). Media flows between the browser and our self-hosted SFU;
+ * this controller only authorises, issues short-lived tokens and serves the
+ * chat / people / materials feed.
  */
 class LiveRoomController extends Controller
 {
@@ -29,16 +34,20 @@ class LiveRoomController extends Controller
 
         $config = $this->classroomConfig($room, $request->user());
 
-        return view('learn.rooms.live', [
+        return response()->view('learn.rooms.live', [
             'room' => $room,
             'config' => $config,
             'isManager' => $config['viewer']['is_manager'],
             'descriptionHtml' => $room->description
                 ? Str::markdown($room->description, ['html_input' => 'escape', 'allow_unsafe_links' => false])
                 : null,
-        ]);
+        ])
+            // Our own origin may use the camera, microphone, screen capture and full screen — nobody else.
+            ->header('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self), fullscreen=(self), autoplay=(self)')
+            ->header('Cache-Control', 'no-store, private');
     }
 
+    /** Also serves learn.rooms.token: a reconnect simply joins again with a fresh token. */
     public function join(Request $request, LearningRoom $room): JsonResponse
     {
         $this->authorize('join', $room);
@@ -46,7 +55,7 @@ class LiveRoomController extends Controller
         $user = $request->user();
         $status = $this->live->status();
 
-        // Refuse before touching attendance when the provider cannot issue a call.
+        // Refuse before touching attendance when the video server is not set up.
         if (! $status['configured']) {
             return $this->providerUnavailable($room, $user, implode(' ', $status['issues']));
         }
@@ -78,11 +87,7 @@ class LiveRoomController extends Controller
     {
         $this->authorize('join', $room);
 
-        $data = $request->validate([
-            'jitsi_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
-        ]);
-
-        return response()->json($this->rooms->presence($room, $request->user(), $data['jitsi_id'] ?? null));
+        return response()->json($this->rooms->presence($room, $request->user()));
     }
 
     /** Also the sendBeacon target on pagehide (FormData with _token). */
@@ -104,12 +109,16 @@ class LiveRoomController extends Controller
             'since' => ['nullable', 'date'],
         ]);
 
-        return response()->json($this->rooms->feed(
+        $feed = $this->rooms->feed(
             $room,
             $request->user(),
             (int) ($data['after'] ?? 0),
             $data['since'] ?? null,
-        ));
+        );
+
+        $feed['materials'] = $this->materials($room);
+
+        return response()->json($feed);
     }
 
     /**
@@ -121,11 +130,15 @@ class LiveRoomController extends Controller
     protected function classroomConfig(LearningRoom $room, User $user): array
     {
         $isManager = $room->isManageableBy($user);
+        $status = $this->live->status();
+        $userTemplate = fn (string $name) => str_replace('999999999', '__ID__',
+            route($name, ['room' => $room->id, 'user' => 999999999]));
 
         $urls = [
             'room' => route('learn.rooms.show', $room),
             'rooms' => route('learn.rooms.index'),
             'join' => route('learn.rooms.join', $room),
+            'token' => route('learn.rooms.token', $room),
             'presence' => route('learn.rooms.presence', $room),
             'leave' => route('learn.rooms.leave', $room),
             'feed' => route('learn.rooms.feed', $room),
@@ -142,8 +155,16 @@ class LiveRoomController extends Controller
                 'start' => route('studio.rooms.start', $room->id),
                 'end' => route('studio.rooms.end', $room->id),
                 'announce' => route('studio.rooms.announce', $room->id),
-                'remove' => str_replace('999999999', '__ID__',
-                    route('studio.rooms.participants.remove', ['room' => $room->id, 'user' => 999999999])),
+                'lock' => route('studio.rooms.lock', $room->id),
+                'media' => route('studio.rooms.media', $room->id),
+                'muteAll' => route('studio.rooms.mute-all', $room->id),
+                'recordingStart' => route('studio.rooms.recording.start', $room->id),
+                'recordingStop' => route('studio.rooms.recording.stop', $room->id),
+                'materials' => route('studio.rooms.materials.store', $room->id),
+                'materialDestroy' => route('studio.rooms.materials.destroy', ['room' => $room->id, 'material' => '__ID__']),
+                'remove' => $userTemplate('studio.rooms.participants.remove'),
+                'permissions' => $userTemplate('studio.rooms.participants.permissions'),
+                'mute' => $userTemplate('studio.rooms.participants.mute'),
             ];
         }
 
@@ -159,6 +180,9 @@ class LiveRoomController extends Controller
                 'scheduled_label' => $room->scheduled_at?->format('D, d M Y · H:i'),
                 'duration_minutes' => (int) $room->duration_minutes,
                 'allow_participant_media' => (bool) $room->allow_participant_media,
+                'allow_screen_share' => (bool) $room->allow_screen_share,
+                'is_locked' => (bool) $room->is_locked,
+                'is_recording' => false,
                 'chat_enabled' => (bool) $room->chat_enabled,
                 'questions_enabled' => (bool) $room->questions_enabled,
                 'cancel_reason' => $room->isCancelled() ? $room->cancel_reason : null,
@@ -167,24 +191,40 @@ class LiveRoomController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'is_manager' => $isManager,
+                'identity' => $this->live->identityFor($user),
             ],
             'pollMs' => max(1000, (int) config('learning.poll_interval_ms', 4000)),
             'presenceMs' => max(5000, (int) config('learning.presence_interval_ms', 15000)),
             'provider' => [
                 'label' => $this->live->label(),
-                'supportsRecording' => $this->live->supportsRecording(),
-                'isDemo' => $this->live->isDemo(),
-                'demoWarning' => $isManager && $this->live->isDemo() ? LiveProvider::DEMO_WARNING.'.' : null,
+                'configured' => $status['configured'],
+                'supportsRecording' => $isManager && $this->live->supportsRecording(),
+                // Setup problems are for the people who can fix them.
+                'setupWarning' => $isManager && ! $status['configured']
+                    ? 'The live video server is not configured yet: '.implode(' ', $status['issues'])
+                    : null,
             ],
+            'materials' => $this->materials($room),
             'maxMessageLength' => RoomService::MAX_MESSAGE_LENGTH,
+            'maxMaterialMb' => max(1, (int) config('learning.max_resource_mb', 50)),
+            'materialExtensions' => array_values((array) config('learning.resource_extensions', [])),
         ];
+    }
+
+    /** @return list<array<string,mixed>> */
+    protected function materials(LearningRoom $room): array
+    {
+        return $room->materials()->limit(50)->get()
+            ->each(fn (LearningRoomMaterial $m) => $m->setRelation('room', $room))
+            ->map(fn (LearningRoomMaterial $m) => RoomMaterialController::payload($m))
+            ->values()->all();
     }
 
     protected function providerUnavailable(LearningRoom $room, User $user, string $details): JsonResponse
     {
         // Configuration details are for the people who can fix them.
         $message = $room->isManageableBy($user) || $user->hasPermission('rooms.manage')
-            ? 'The live class provider is not configured: '.$details
+            ? 'The live video server is not configured: '.$details
             : 'Live classes are temporarily unavailable. Please try again later or contact the host.';
 
         return response()->json([

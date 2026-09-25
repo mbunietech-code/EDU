@@ -3,7 +3,7 @@
 namespace Tests\Feature\Learning;
 
 use App\Exceptions\Learning\RoomAccessException;
-use App\Jobs\Learning\DownloadRoomRecording;
+use App\Jobs\Learning\ImportLiveRecording;
 use App\Models\LearningCategory;
 use App\Models\LearningCourse;
 use App\Models\LearningEnrollment;
@@ -21,6 +21,7 @@ use App\Notifications\Learning\RecordingReady;
 use App\Notifications\Learning\RoomAnnouncement;
 use App\Services\Learning\LearningNotifier;
 use App\Services\Learning\LiveProvider;
+use App\Services\Learning\LiveServerClient;
 use App\Services\Learning\RoomService;
 use App\Support\Jwt;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -30,20 +31,26 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Tests\Feature\Learning\Concerns\UsesLiveServer;
 use Tests\TestCase;
 
 /**
- * Live side of ROOM: JWT signing, the Jitsi / JaaS provider, the JaaS
- * webhook + recording import, RoomService (lifecycle, attendance, feed,
- * messages, reminders) and the notifier's audiences.
+ * Live side of ROOM: JWT signing / verification, our self-hosted video stack
+ * (LiveKit tokens, coturn TURN credentials, the SFU server API, webhooks and
+ * the recording import), RoomService (lifecycle, attendance, feed, messages,
+ * reminders) and the notifier's audiences.
  */
 class LiveServicesTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesLiveServer;
 
-    private const JAAS_APP = 'vpaas-magic-cookie-test123';
+    protected function setUp(): void
+    {
+        parent::setUp();
 
-    private const WEBHOOK_SECRET = 'whsec-test-secret';
+        $this->useLiveServer();
+    }
 
     // --- People & fixtures ---------------------------------------------
     private function learner(array $attributes = []): User
@@ -107,59 +114,32 @@ class LiveServicesTest extends TestCase
         ];
     }
 
-    /** @return array{0:string,1:string} private PEM, public PEM */
-    private function rsaKeyPair(): array
+    /** Authorization token the SFU sends with a webhook: HS256 over our API key with the body's SHA-256. */
+    private function webhookToken(string $body, string $key = self::LIVE_KEY, string $secret = self::LIVE_SECRET, int $expires = 300): string
     {
-        // Windows PHP builds ship without a default openssl.cnf; a minimal one is enough.
-        $cnf = tempnam(sys_get_temp_dir(), 'ossl');
-        file_put_contents($cnf, "[req]\ndistinguished_name=dn\n[dn]\n");
-        $options = ['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA, 'config' => $cnf];
-
-        $key = openssl_pkey_new($options);
-        $this->assertNotFalse($key, 'openssl_pkey_new failed');
-        openssl_pkey_export($key, $private, null, $options);
-        $public = openssl_pkey_get_details($key)['key'];
-        @unlink($cnf);
-
-        return [$private, $public];
+        return Jwt::encode([
+            'iss' => $key,
+            'nbf' => now()->getTimestamp() - 5,
+            'exp' => now()->getTimestamp() + $expires,
+            'sha256' => base64_encode(hash('sha256', $body, true)),
+        ], $secret);
     }
 
-    private function useJaas(string $privateKey, array $overrides = []): void
-    {
-        config([
-            'learning.live.provider' => 'jaas',
-            'learning.live.jaas.app_id' => self::JAAS_APP,
-            'learning.live.jaas.api_key_id' => self::JAAS_APP.'/key42',
-            // Stored the way .env holds it: one line with literal "\n".
-            'learning.live.jaas.private_key' => str_replace("\n", '\n', trim($privateKey)),
-            'learning.live.jaas.private_key_path' => null,
-            'learning.live.jaas.webhook_secret' => self::WEBHOOK_SECRET,
-            ...$overrides,
-        ]);
-    }
-
-    private function signature(string $body, ?int $timestamp = null, string $secret = self::WEBHOOK_SECRET): string
-    {
-        $t = $timestamp ?? now()->getTimestamp();
-
-        return 't='.$t.',v1='.base64_encode(hash_hmac('sha256', $t.'.'.$body, $secret, true));
-    }
-
-    private function postWebhook(array $event, ?string $signature = null)
+    private function postLiveWebhook(array $event)
     {
         $raw = json_encode($event);
 
-        return $this->call('POST', '/api/webhooks/jaas', [], [], [], [
-            'CONTENT_TYPE' => 'application/json',
+        return $this->call('POST', '/api/webhooks/livekit', [], [], [], [
+            'CONTENT_TYPE' => 'application/webhook+json',
             'HTTP_ACCEPT' => 'application/json',
-            'HTTP_X_JAAS_SIGNATURE' => $signature ?? $this->signature($raw),
+            'HTTP_AUTHORIZATION' => $this->webhookToken($raw),
         ], $raw);
     }
 
     // --- JWT -------------------------------------------------------------
     public function test_jwt_hs256_is_base64url_and_verifies_with_hash_hmac(): void
     {
-        $token = Jwt::encode(['room' => 'a/b+c', 'n' => 'Zoë'], 's3cret', 'HS256', ['kid' => 'k1', 'alg' => 'none']);
+        $token = Jwt::encode(['room' => 'a/b+c', 'n' => 'Zoë'], 's3cret', ['kid' => 'k1', 'alg' => 'none']);
 
         [$header, $payload, $input, $signature] = $this->decode($token);
 
@@ -167,182 +147,198 @@ class LiveServicesTest extends TestCase
         $this->assertSame(['room' => 'a/b+c', 'n' => 'Zoë'], $payload);
         $this->assertTrue(hash_equals(hash_hmac('sha256', $input, 's3cret', true), $signature));
         $this->assertDoesNotMatchRegularExpression('/[+\/=]/', $token);
+
+        $this->expectException(\InvalidArgumentException::class);
+        Jwt::encode(['a' => 1], '');
     }
 
-    public function test_jwt_rs256_verifies_with_the_public_key(): void
+    public function test_jwt_decode_rejects_tampering_other_algorithms_and_expiry(): void
     {
-        [$private, $public] = $this->rsaKeyPair();
+        $now = now()->getTimestamp();
+        $token = Jwt::encode(['sub' => 'x', 'exp' => $now + 60, 'nbf' => $now - 5], 'k');
 
-        $token = Jwt::encode(['sub' => 'x'], $private, 'RS256', ['kid' => 'app/key']);
-        [$header, $payload, $input, $signature] = $this->decode($token);
+        $this->assertSame('x', Jwt::decode($token, 'k')['sub']);
+        $this->assertNull(Jwt::decode($token, 'other-key'), 'wrong key');
+        $this->assertNull(Jwt::decode($token.'x', 'k'), 'tampered signature');
+        $this->assertNull(Jwt::decode('a.b', 'k'), 'malformed');
 
-        $this->assertSame('RS256', $header['alg']);
-        $this->assertSame('app/key', $header['kid']);
-        $this->assertSame(['sub' => 'x'], $payload);
-        $this->assertSame(1, openssl_verify($input, $signature, $public, OPENSSL_ALGO_SHA256));
+        [$head, $body] = explode('.', $token);
+        $none = Jwt::base64UrlEncode(json_encode(['alg' => 'none', 'typ' => 'JWT'])).'.'.$body.'.';
+        $this->assertNull(Jwt::decode($none, 'k'), 'alg none');
+
+        $expired = Jwt::encode(['exp' => $now - 120], 'k');
+        $this->assertNull(Jwt::decode($expired, 'k'), 'expired beyond the leeway');
+        $future = Jwt::encode(['nbf' => $now + 600], 'k');
+        $this->assertNull(Jwt::decode($future, 'k'), 'not valid yet');
     }
 
-    public function test_jwt_rejects_unsupported_algorithms_and_bad_keys(): void
+    // --- Self-hosted live server (LiveKit + coturn) ---------------------------
+    public function test_status_reports_what_is_missing(): void
     {
-        foreach ([['HS512', 'k'], ['HS256', ''], ['RS256', 'not a pem']] as [$alg, $key]) {
-            try {
-                Jwt::encode(['a' => 1], $key, $alg);
-                $this->fail("Expected InvalidArgumentException for {$alg}");
-            } catch (\InvalidArgumentException) {
-                $this->addToAssertionCount(1);
-            }
-        }
-    }
-
-    // --- Provider ----------------------------------------------------------
-    public function test_public_jitsi_demo_has_no_token_and_warns(): void
-    {
-        config(['learning.live.provider' => 'jitsi', 'learning.live.jitsi.domain' => 'meet.jit.si']);
-        $live = app(LiveProvider::class);
-        $host = $this->instructor();
-        $room = $this->room($host, ['allow_participant_media' => false]);
-
-        $this->assertTrue($live->isDemo());
-        $this->assertFalse($live->usesJwt());
-        $this->assertFalse($live->supportsRecording());
-
-        $moderator = $live->clientConfig($host, $room, true);
-        $this->assertSame('https://meet.jit.si/external_api.js', $moderator['scriptUrl']);
-        $this->assertSame($room->provider_room, $moderator['roomName']);
-        $this->assertNull($moderator['jwt']);
-        $this->assertFalse($moderator['configOverwrite']['prejoinConfig']['enabled']);
-        $this->assertFalse($moderator['configOverwrite']['startWithAudioMuted']);
-        $this->assertSame('Algebra live', $moderator['configOverwrite']['subject']);
-        $this->assertSame(
-            ['camera', 'microphone', 'desktop', 'participants-pane', 'raisehand', 'tileview', 'fullscreen', 'settings'],
-            $moderator['configOverwrite']['toolbarButtons']
-        );
-
-        $participant = $live->clientConfig($this->learner(), $room, false);
-        $this->assertTrue($participant['configOverwrite']['startWithVideoMuted']);
-        $this->assertSame(['raisehand', 'tileview', 'fullscreen', 'settings'], $participant['configOverwrite']['toolbarButtons']);
-
-        $room->allow_participant_media = true;
-        $withMedia = $live->clientConfig($this->learner(), $room, false)['configOverwrite']['toolbarButtons'];
-        $this->assertContains('camera', $withMedia);
-        $this->assertContains('desktop', $withMedia);
-        $this->assertNotContains('participants-pane', $withMedia);
-
-        $status = $live->status();
-        $this->assertTrue($status['demo']);
-        $this->assertTrue($status['configured']);
-        $this->assertContains(LiveProvider::DEMO_WARNING, $status['issues']);
-    }
-
-    public function test_self_hosted_jitsi_signs_hs256_tokens(): void
-    {
-        config([
-            'learning.live.provider' => 'jitsi',
-            'learning.live.jitsi.domain' => 'https://meet.example.org/',
-            'learning.live.jitsi.app_id' => 'eduhub',
-            'learning.live.jitsi.app_secret' => 'jitsi-secret',
-            'learning.live.jitsi.recording' => true,
-        ]);
-        $live = app(LiveProvider::class);
-        $host = $this->instructor();
-        $room = $this->room($host);
-
-        $this->assertSame('meet.example.org', $live->domain());
-        $this->assertFalse($live->isDemo());
-
-        $config = $live->clientConfig($host, $room, true);
-        [$header, $claims, $input, $signature] = $this->decode($config['jwt']);
-
-        $this->assertSame('HS256', $header['alg']);
-        $this->assertTrue(hash_equals(hash_hmac('sha256', $input, 'jitsi-secret', true), $signature));
-        $this->assertSame('eduhub', $claims['aud']);
-        $this->assertSame('eduhub', $claims['iss']);
-        $this->assertSame('meet.example.org', $claims['sub']);
-        $this->assertSame($room->provider_room, $claims['room']);
-        $this->assertTrue($claims['moderator']);
-        $this->assertTrue($claims['context']['user']['moderator']);
-        $this->assertTrue($claims['context']['features']['recording']);
-        $this->assertGreaterThan(now()->getTimestamp(), $claims['exp']);
-        $this->assertContains('recording', $config['configOverwrite']['toolbarButtons']);
-
-        config(['learning.live.jitsi.app_secret' => null]);
-        $this->assertFalse(app(LiveProvider::class)->status()['configured']);
-    }
-
-    public function test_jaas_tokens_use_string_claims_and_the_app_prefixed_room(): void
-    {
-        [$private, $public] = $this->rsaKeyPair();
-        $this->useJaas($private);
-        $live = app(LiveProvider::class);
-        $host = $this->instructor();
-        $learner = $this->learner();
-        $room = $this->room($host);
-
-        $this->assertSame('8x8.vc', $live->domain());
-        $this->assertSame('https://8x8.vc/'.self::JAAS_APP.'/external_api.js', $live->scriptUrl());
-        $this->assertSame(self::JAAS_APP.'/'.$room->provider_room, $live->roomName($room));
-        $this->assertTrue($live->status()['configured']);
-        $this->assertSame([], $live->status()['issues']);
-
-        $config = $live->clientConfig($host, $room, true);
-        [$header, $claims, $input, $signature] = $this->decode($config['jwt']);
-
-        $this->assertSame(['alg' => 'RS256', 'typ' => 'JWT', 'kid' => self::JAAS_APP.'/key42'], $header);
-        $this->assertSame(1, openssl_verify($input, $signature, $public, OPENSSL_ALGO_SHA256));
-        $this->assertSame('jitsi', $claims['aud']);
-        $this->assertSame('chat', $claims['iss']);
-        $this->assertSame(self::JAAS_APP, $claims['sub']);
-        $this->assertSame($room->provider_room, $claims['room']);
-        $this->assertSame((string) $host->id, $claims['context']['user']['id']);
-        $this->assertSame('true', $claims['context']['user']['moderator']);
-        $this->assertSame(
-            ['livestreaming' => 'false', 'recording' => 'true', 'transcription' => 'false', 'outbound-call' => 'false'],
-            $claims['context']['features']
-        );
-        $this->assertContains('recording', $config['configOverwrite']['toolbarButtons']);
-
-        [, $learnerClaims] = $this->decode($live->token($learner, $room, false));
-        $this->assertSame('false', $learnerClaims['context']['user']['moderator']);
-        $this->assertSame('false', $learnerClaims['context']['features']['recording']);
-
-        // The key may also come from a file.
-        $path = tempnam(sys_get_temp_dir(), 'jaas');
-        file_put_contents($path, $private);
-        config(['learning.live.jaas.private_key' => null, 'learning.live.jaas.private_key_path' => $path]);
-        [, , $input2, $signature2] = $this->decode(app(LiveProvider::class)->token($host, $room, true));
-        $this->assertSame(1, openssl_verify($input2, $signature2, $public, OPENSSL_ALGO_SHA256));
-        @unlink($path);
-    }
-
-    public function test_jaas_status_reports_a_missing_or_unreadable_key(): void
-    {
-        $this->useJaas('', ['learning.live.jaas.private_key' => null]);
+        $this->withoutLiveServer();
         $status = app(LiveProvider::class)->status();
+
         $this->assertFalse($status['configured']);
-        $this->assertStringContainsString('LEARNING_JAAS_PRIVATE_KEY', implode(' ', $status['issues']));
+        $this->assertStringContainsString('LIVE_SERVER_URL', implode(' ', $status['issues']));
+        $this->assertStringContainsString('LIVE_SERVER_API_KEY', implode(' ', $status['issues']));
+        $this->assertFalse(app(LiveProvider::class)->supportsRecording());
 
-        config(['learning.live.jaas.private_key_path' => '/definitely/missing/key.pem']);
-        $this->assertStringContainsString('not readable', implode(' ', app(LiveProvider::class)->status()['issues']));
+        $this->useLiveServer(['learning.live.server_url' => 'wss://live.example.com', 'learning.live.api_secret' => 'short']);
+        $this->assertStringContainsString('32 characters', implode(' ', app(LiveProvider::class)->status()['issues']));
 
-        $this->expectException(\RuntimeException::class);
-        app(LiveProvider::class)->token($this->learner(), $this->room($this->instructor()), false);
+        $this->useLiveServer(['learning.live.server_url' => 'ws://live.example.com', 'learning.live.ice.turn_urls' => null]);
+        $status = app(LiveProvider::class)->status();
+        $this->assertTrue($status['configured']);
+        $this->assertFalse($status['turn']);
+        $warnings = implode(' ', $status['warnings']);
+        $this->assertStringContainsString('wss://', $warnings);
+        $this->assertStringContainsString('TURN', $warnings);
+
+        // Local development may use ws:// and the dev key pair without warnings about TLS.
+        $this->useLiveServer(['learning.live.server_url' => 'ws://127.0.0.1:7880', 'learning.live.api_url' => null, 'learning.live.api_secret' => 'secret']);
+        $status = app(LiveProvider::class)->status();
+        $this->assertTrue($status['configured']);
+        $this->assertStringNotContainsString('wss://', implode(' ', $status['warnings']));
+        $this->assertSame('http://127.0.0.1:7880', app(LiveProvider::class)->apiUrl());
     }
 
-    public function test_jaas_webhook_signature_is_verified_strictly(): void
+    public function test_local_server_url_follows_the_lan_address_the_page_was_opened_with(): void
     {
-        config(['learning.live.jaas.webhook_secret' => self::WEBHOOK_SECRET]);
+        $this->useLiveServer(['learning.live.server_url' => 'ws://127.0.0.1:7880']);
         $live = app(LiveProvider::class);
-        $body = '{"eventType":"PING"}';
 
-        $this->assertTrue($live->verifyJaasWebhook($body, $this->signature($body)));
-        $this->assertFalse($live->verifyJaasWebhook($body.' ', $this->signature($body)), 'tampered body');
-        $this->assertFalse($live->verifyJaasWebhook($body, $this->signature($body, null, 'other-secret')));
-        $this->assertFalse($live->verifyJaasWebhook($body, $this->signature($body, now()->getTimestamp() - 301)), 'expired');
-        $this->assertFalse($live->verifyJaasWebhook($body, 'v1=abc'));
-        $this->assertFalse($live->verifyJaasWebhook($body, null));
+        $this->app->instance('request', \Illuminate\Http\Request::create('http://192.168.1.176:8000/learn/rooms/x/live'));
+        $this->assertSame('ws://192.168.1.176:7880', $live->browserServerUrl());
 
-        config(['learning.live.jaas.webhook_secret' => null]);
-        $this->assertFalse(app(LiveProvider::class)->verifyJaasWebhook($body, $this->signature($body)));
+        $this->app->instance('request', \Illuminate\Http\Request::create('http://127.0.0.1:8000/learn'));
+        $this->assertSame('ws://127.0.0.1:7880', $live->browserServerUrl());
+
+        // Public hosts never rewrite, and a real server URL is left alone.
+        $this->app->instance('request', \Illuminate\Http\Request::create('https://evil.example.com/learn'));
+        $this->assertSame('ws://127.0.0.1:7880', $live->browserServerUrl());
+        $this->useLiveServer(['learning.live.server_url' => 'wss://live.example.com']);
+        $this->app->instance('request', \Illuminate\Http\Request::create('http://192.168.1.176:8000/learn'));
+        $this->assertSame('wss://live.example.com', $live->browserServerUrl());
+    }
+
+    public function test_join_tokens_carry_exactly_the_allowed_sources(): void
+    {
+        $this->useLiveServer();
+        $live = app(LiveProvider::class);
+        $host = $this->instructor();
+        $learner = $this->learner(['name' => 'Asha Learner']);
+        $room = $this->room($host);
+
+        $claims = $this->liveClaims($live->token($learner, $room, ['audio' => true, 'video' => false, 'screen' => false], false));
+        $this->assertSame(self::LIVE_KEY, $claims['iss']);
+        $this->assertSame('user-'.$learner->id, $claims['sub']);
+        $this->assertSame('Asha Learner', $claims['name']);
+        $this->assertSame(['user_id' => $learner->id, 'role' => 'participant'], json_decode($claims['metadata'], true));
+        $this->assertSame($room->provider_room, $claims['video']['room']);
+        $this->assertTrue($claims['video']['canPublish']);
+        $this->assertSame(['microphone'], $claims['video']['canPublishSources']);
+        $this->assertTrue($claims['video']['canSubscribe']);
+        $this->assertFalse($claims['video']['canUpdateOwnMetadata']);
+        $this->assertArrayNotHasKey('roomAdmin', $claims['video'], 'clients never get admin rights on the SFU');
+        $this->assertSame(10 * 60 + 10, $claims['exp'] - $claims['nbf']);
+
+        $watcher = $this->liveClaims($live->token($learner, $room, ['audio' => false, 'video' => false, 'screen' => false], false));
+        $this->assertFalse($watcher['video']['canPublish']);
+        $this->assertSame([], $watcher['video']['canPublishSources']);
+
+        $hostClaims = $this->liveClaims($live->token($host, $room, ['audio' => true, 'video' => true, 'screen' => true], true));
+        $this->assertSame(['microphone', 'camera', 'screen_share', 'screen_share_audio'], $hostClaims['video']['canPublishSources']);
+        $this->assertSame('host', json_decode($hostClaims['metadata'], true)['role']);
+
+        $this->assertSame($learner->id, $live->userIdFromIdentity('user-'.$learner->id));
+        $this->assertNull($live->userIdFromIdentity('user-0'));
+        $this->assertNull($live->userIdFromIdentity('admin'));
+
+        $this->withoutLiveServer();
+        $this->expectException(\RuntimeException::class);
+        $live->token($learner, $room, ['audio' => true, 'video' => true, 'screen' => false], false);
+    }
+
+    public function test_ice_servers_use_expiring_turn_credentials(): void
+    {
+        $this->useLiveServer();
+        $learner = $this->learner();
+        $this->freezeTime();
+
+        $servers = app(LiveProvider::class)->iceServers($learner);
+
+        $this->assertSame(['stun:turn.example.test:3478'], $servers[0]['urls']);
+        $this->assertSame(['turn:turn.example.test:3478?transport=udp', 'turns:turn.example.test:5349?transport=tcp'], $servers[1]['urls']);
+        [$expires, $identity] = explode(':', $servers[1]['username'], 2);
+        $this->assertSame('user-'.$learner->id, $identity);
+        $this->assertSame(now()->addMinutes(720)->getTimestamp(), (int) $expires);
+        $this->assertSame(base64_encode(hash_hmac('sha1', $servers[1]['username'], self::TURN_SECRET, true)), $servers[1]['credential']);
+
+        // Static coturn user as a fallback; invalid URLs are dropped.
+        $this->useLiveServer([
+            'learning.live.ice.turn_secret' => null,
+            'learning.live.ice.turn_username' => 'classroom',
+            'learning.live.ice.turn_credential' => 'pa55',
+            'learning.live.ice.stun_urls' => 'stun:ok.test:3478, https://not-a-stun-server',
+        ]);
+        $servers = app(LiveProvider::class)->iceServers($learner);
+        $this->assertSame(['stun:ok.test:3478'], $servers[0]['urls']);
+        $this->assertSame(['classroom', 'pa55'], [$servers[1]['username'], $servers[1]['credential']]);
+
+        $this->useLiveServer(['learning.live.ice.transport_policy' => 'relay']);
+        $this->assertSame('relay', app(LiveProvider::class)->iceTransportPolicy());
+    }
+
+    public function test_webhook_signatures_are_verified_strictly(): void
+    {
+        $this->useLiveServer();
+        $live = app(LiveProvider::class);
+        $body = '{"event":"room_started"}';
+
+        $this->assertTrue($live->verifyWebhook($body, $this->webhookToken($body)));
+        $this->assertTrue($live->verifyWebhook($body, 'Bearer '.$this->webhookToken($body)));
+        $this->assertFalse($live->verifyWebhook($body.' ', $this->webhookToken($body)), 'tampered body');
+        $this->assertFalse($live->verifyWebhook($body, $this->webhookToken($body, secret: 'another-secret-another-secret-123')));
+        $this->assertFalse($live->verifyWebhook($body, $this->webhookToken($body, key: 'someone-else')), 'foreign API key');
+        $this->assertFalse($live->verifyWebhook($body, $this->webhookToken($body, expires: -120)), 'expired');
+        $this->assertFalse($live->verifyWebhook($body, null));
+        $this->assertFalse($live->verifyWebhook($body, ''));
+    }
+
+    public function test_server_api_calls_are_signed_and_failures_never_throw(): void
+    {
+        $this->liveApi['RoomService/ListParticipants'] = ['participants' => [[
+            'identity' => 'user-7',
+            'tracks' => [
+                ['sid' => 'TR_mic', 'source' => 'MICROPHONE', 'muted' => false],
+                ['sid' => 'TR_cam', 'source' => 'CAMERA', 'muted' => false],
+                ['sid' => 'TR_old', 'source' => 'MICROPHONE', 'muted' => true],
+            ],
+        ]]];
+        $client = app(LiveServerClient::class);
+
+        $this->assertTrue($client->muteSource('room-a', 'user-7', 'audio'));
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/MutePublishedTrack') && $r['track_sid'] === 'TR_mic' && $r['muted'] === true);
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/MutePublishedTrack') && in_array($r['track_sid'], ['TR_cam', 'TR_old'], true));
+
+        $this->assertTrue($client->updatePermissions('room-a', 'user-7', ['audio' => false, 'video' => true, 'screen' => false]));
+        Http::assertSent(function ($r) {
+            if (! str_ends_with($r->url(), '/UpdateParticipant')) {
+                return false;
+            }
+            $claims = \App\Support\Jwt::decode(substr($r->header('Authorization')[0], 7), self::LIVE_SECRET);
+
+            return $r['permission']['can_publish_sources'] === ['CAMERA'] && $r['permission']['can_publish'] === true
+                && $claims['iss'] === self::LIVE_KEY && $claims['video']['roomAdmin'] === true && $claims['video']['room'] === 'room-a';
+        });
+
+        $this->liveApi['RoomService/DeleteRoom'] = fn () => Http::response(['msg' => 'room not found'], 404);
+        $this->assertFalse($client->deleteRoom('missing'));
+        $this->assertStringContainsString('room not found', $client->lastError());
+
+        $this->withoutLiveServer();
+        $this->assertFalse($client->removeParticipant('room-a', 'user-7'));
+        $this->assertNotNull($client->lastError());
     }
 
     // --- RoomService: lifecycle ------------------------------------------
@@ -483,7 +479,8 @@ class LiveServicesTest extends TestCase
         $joined = $service->join($room, $host);
         $this->assertSame('host', $joined['attendance']->role);
         $this->assertTrue($joined['config']['moderator']);
-        $this->assertSame($room->provider_room, $joined['config']['roomName']);
+        $this->assertSame($room->provider_room, $joined['config']['room_name']);
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => true], $joined['config']['permissions']);
 
         $learner = $this->learner();
         $result = $service->join($room, $learner);
@@ -504,14 +501,13 @@ class LiveServicesTest extends TestCase
         $service->join($room, $learner);
 
         $this->travel(15)->seconds();
-        $this->assertSame(['status' => 'live', 'removed' => false], $service->presence($room, $learner, 'abc123'));
+        $this->assertSame(['status' => 'live', 'removed' => false], $service->presence($room, $learner));
 
         $this->travel(10)->minutes();
-        $service->presence($room, $learner, 'bad id!');
+        $service->presence($room, $learner);
 
         $attendance = LearningRoomAttendance::where('user_id', $learner->id)->first();
         $this->assertSame(15 + 60, $attendance->total_seconds);
-        $this->assertSame('abc123', $attendance->jitsi_participant_id, 'invalid ids are ignored');
 
         $this->travel(5)->seconds();
         $service->leave($room, $learner);
@@ -534,9 +530,10 @@ class LiveServicesTest extends TestCase
         $service->start($room, $host);
         $learner = $this->learner();
         $service->join($room, $learner);
-        $service->presence($room, $learner, 'jid42');
+        $service->presence($room, $learner);
 
-        $this->assertSame('jid42', $service->removeParticipant($room, $learner, $host));
+        $service->removeParticipant($room, $learner, $host);
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/RemoveParticipant') && $r['identity'] === 'user-'.$learner->id);
         $this->assertDatabaseHas('activity_logs', ['action' => 'learning_room_participant_removed', 'entity_id' => $room->id]);
         $this->assertSame(['status' => 'live', 'removed' => true], $service->presence($room, $learner));
         $this->assertTrue($service->feed($room, $learner)['me']['removed']);
@@ -632,7 +629,7 @@ class LiveServicesTest extends TestCase
         $service->start($room, $host);
         $service->join($room, $host);
         $service->join($room, $learner);
-        $service->presence($room, $learner, 'learnerJid');
+        $service->presence($room, $learner);
 
         $ids = [];
         foreach (range(1, 105) as $i) {
@@ -651,11 +648,15 @@ class LiveServicesTest extends TestCase
         $this->assertSame(21, $first['counts']['questions_open']);
         $mine = collect($first['participants'])->firstWhere('is_me', true);
         $this->assertSame((int) $learner->id, (int) $mine['user_id']);
-        $this->assertNull($mine['jitsi_id'], 'Jitsi ids are for moderators only');
+        $this->assertSame('user-'.$learner->id, $mine['identity']);
+        $this->assertArrayNotHasKey('permissions', $mine, 'publish rights of participants are for managers only');
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => false], $first['me']['permissions']);
 
         $hostFeed = $service->feed($room, $host);
         $this->assertTrue($hostFeed['me']['is_host']);
-        $this->assertSame('learnerJid', collect($hostFeed['participants'])->firstWhere('user_id', $learner->id)['jitsi_id']);
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => true], $hostFeed['me']['permissions']);
+        $this->assertSame(['audio' => true, 'video' => true, 'screen' => false],
+            collect($hostFeed['participants'])->firstWhere('user_id', $learner->id)['permissions']);
 
         $this->travel(2)->seconds();
         $service->deleteMessage(LearningRoomMessage::find($ids[50]), $host);
@@ -747,102 +748,126 @@ class LiveServicesTest extends TestCase
         $this->assertSame(0, $notifier->courseAudience($this->course(['status' => 'draft', 'access' => 'open']))->count());
     }
 
-    // --- JaaS webhook & recording import ------------------------------------
-    public function test_recording_uploaded_webhook_queues_the_download_once(): void
+    // --- LiveKit webhooks & recording import ------------------------------------
+    public function test_egress_ended_webhook_queues_the_import_once(): void
     {
         Queue::fake();
-        config([
-            'learning.live.jaas.app_id' => self::JAAS_APP,
-            'learning.live.jaas.webhook_secret' => self::WEBHOOK_SECRET,
+        $this->useLiveServer(['learning.live.recording.enabled' => true, 'learning.live.recording.import_dir' => '/srv/recordings']);
+        $host = $this->instructor();
+        $room = $this->room($host, ['status' => 'completed']);
+        $session = LearningRoomSession::create(['learning_room_id' => $room->id, 'started_at' => now()->subHour(), 'ended_at' => now(), 'egress_id' => 'EG_one']);
+        $recording = LearningRoomRecording::create([
+            'learning_room_id' => $room->id, 'learning_room_session_id' => $session->id,
+            'source' => 'livekit', 'status' => 'processing', 'external_id' => 'EG_one',
         ]);
-        $room = $this->room($this->instructor(), ['status' => 'completed']);
-        $session = LearningRoomSession::create(['learning_room_id' => $room->id, 'started_at' => now()->subHour(), 'ended_at' => now()]);
 
         $event = [
-            'eventType' => 'RECORDING_UPLOADED',
-            'idempotencyKey' => 'idem-1',
-            'fqn' => self::JAAS_APP.'/'.$room->provider_room,
-            'data' => [
-                'preAuthenticatedLink' => 'https://recordings.8x8.test/rec.mp4?sig=1',
-                'recordingSessionId' => 'rec-session-1',
-                'durationSec' => 1830,
+            'event' => 'egress_ended',
+            'egressInfo' => [
+                'egressId' => 'EG_one',
+                'roomName' => $room->provider_room,
+                'status' => 'EGRESS_COMPLETE',
+                'fileResults' => [['filename' => '/out/'.$room->provider_room.'-2026.mp4', 'duration' => '125000000000', 'size' => '1024']],
             ],
         ];
 
-        $this->postWebhook($event, 't='.now()->getTimestamp().',v1=forged')->assertStatus(401);
-        $this->assertSame(0, LearningRoomRecording::count());
+        $this->postLiveWebhook($event)->assertOk()->assertJson(['status' => 'queued', 'recording_id' => $recording->id]);
+        $recording->refresh();
+        $this->assertSame('/out/'.$room->provider_room.'-2026.mp4', $recording->external_url);
+        $this->assertSame(125, $recording->duration_seconds);
+        $this->assertNull($session->fresh()->egress_id);
+        Queue::assertPushed(ImportLiveRecording::class, fn ($job) => $job->recordingId === $recording->id);
 
-        $this->postWebhook($event)->assertOk()->assertJson(['status' => 'queued']);
-        $recording = LearningRoomRecording::sole();
-        $this->assertSame('jaas', $recording->source);
-        $this->assertSame('processing', $recording->status);
-        $this->assertSame('rec-session-1', $recording->external_id);
-        $this->assertSame(1830, $recording->duration_seconds);
-        $this->assertSame((int) $session->id, (int) $recording->learning_room_session_id);
-        Queue::assertPushed(DownloadRoomRecording::class, fn ($job) => $job->recordingId === $recording->id);
+        // Failed egress → recording marked failed; unknown rooms are ignored; bad signatures refused.
+        LearningRoomRecording::create(['learning_room_id' => $room->id, 'source' => 'livekit', 'status' => 'processing', 'external_id' => 'EG_bad']);
+        $this->postLiveWebhook(['event' => 'egress_ended', 'egressInfo' => ['egressId' => 'EG_bad', 'status' => 'EGRESS_FAILED', 'error' => 'out of disk']])
+            ->assertOk()->assertJson(['status' => 'failed']);
+        $this->assertSame('out of disk', LearningRoomRecording::where('external_id', 'EG_bad')->value('error'));
 
-        $this->postWebhook($event)->assertOk()->assertJson(['status' => 'duplicate']);
-        $this->assertSame(1, LearningRoomRecording::count());
-        Queue::assertPushed(DownloadRoomRecording::class, 1);
-
-        $this->postWebhook(['eventType' => 'PARTICIPANT_JOINED'])->assertOk()->assertJson(['status' => 'ignored']);
-        $this->postWebhook([...$event, 'fqn' => self::JAAS_APP.'/unknown-room', 'data' => [...$event['data'], 'recordingSessionId' => 'rec-2']])
+        $this->postLiveWebhook(['event' => 'egress_ended', 'egressInfo' => ['egressId' => 'EG_x', 'roomName' => 'not-ours', 'status' => 'EGRESS_COMPLETE']])
             ->assertOk()->assertJson(['status' => 'ignored']);
-        $this->assertSame(1, LearningRoomRecording::count());
+        $this->postLiveWebhook(['event' => 'room_started'])->assertOk()->assertJson(['status' => 'ignored']);
+
+        $raw = json_encode($event);
+        $this->call('POST', '/api/webhooks/livekit', [], [], [], [
+            'CONTENT_TYPE' => 'application/webhook+json',
+            'HTTP_AUTHORIZATION' => $this->webhookToken($raw.'tampered'),
+        ], $raw)->assertStatus(401);
+
+        Queue::assertPushed(ImportLiveRecording::class, 1);
     }
 
-    public function test_download_job_stores_the_file_and_notifies_the_host(): void
+    public function test_participant_left_webhook_closes_the_attendance(): void
+    {
+        Notification::fake();
+        $this->useLiveServer();
+        $host = $this->instructor();
+        $learner = $this->learner();
+        $room = $this->room($host);
+        $service = $this->service();
+        $service->start($room, $host);
+        $service->join($room, $learner);
+
+        $this->postLiveWebhook([
+            'event' => 'participant_left',
+            'room' => ['name' => $room->provider_room],
+            'participant' => ['identity' => 'user-'.$learner->id, 'sid' => 'PA_1'],
+        ])->assertOk()->assertJson(['status' => 'ok']);
+
+        $attendance = LearningRoomAttendance::where('user_id', $learner->id)->firstOrFail();
+        $this->assertNotNull($attendance->left_at);
+        $this->assertFalse($attendance->isPresent());
+
+        $this->postLiveWebhook(['event' => 'participant_left', 'room' => ['name' => $room->provider_room], 'participant' => ['identity' => 'hacker']])
+            ->assertOk()->assertJson(['status' => 'ignored']);
+    }
+
+    public function test_import_job_moves_the_egress_file_and_notifies_the_host(): void
     {
         Storage::fake('private');
         Notification::fake();
-        config(['learning.disk' => 'private']);
-        Http::fake([
-            'recordings.8x8.test/ok.mp4*' => Http::response('FAKE-MP4-BYTES', 200),
-            'recordings.8x8.test/gone.mp4*' => Http::response('expired', 403),
-        ]);
+        $dir = storage_path('framework/testing/egress-'.getmypid());
+        @mkdir($dir, 0777, true);
+        file_put_contents($dir.'/room-a-2026.mp4', 'FAKE-MP4-BYTES');
+        config(['learning.disk' => 'private', 'learning.live.recording.import_dir' => $dir]);
+
         $host = $this->instructor();
         $room = $this->room($host, ['status' => 'completed']);
-
         $recording = LearningRoomRecording::create([
-            'learning_room_id' => $room->id,
-            'source' => 'jaas',
-            'status' => 'processing',
-            'external_id' => 'rec-ok',
-            'external_url' => 'https://recordings.8x8.test/ok.mp4?sig=1',
+            'learning_room_id' => $room->id, 'source' => 'livekit', 'status' => 'processing',
+            'external_id' => 'EG_ok', 'external_url' => '/out/room-a-2026.mp4',
         ]);
-
-        app()->call([new DownloadRoomRecording($recording->id), 'handle']);
-
-        $recording->refresh();
-        $this->assertSame('ready', $recording->status);
-        $this->assertSame('private', $recording->disk);
-        $this->assertSame('video/mp4', $recording->mime);
-        $this->assertSame(strlen('FAKE-MP4-BYTES'), $recording->size_bytes);
-        $this->assertStringStartsWith('learning/recordings/', $recording->path);
-        Storage::disk('private')->assertExists($recording->path);
-        $this->assertSame('FAKE-MP4-BYTES', Storage::disk('private')->get($recording->path));
-        Notification::assertSentTo($host, RecordingReady::class);
-
-        $broken = LearningRoomRecording::create([
-            'learning_room_id' => $room->id,
-            'source' => 'jaas',
-            'status' => 'processing',
-            'external_id' => 'rec-gone',
-            'external_url' => 'https://recordings.8x8.test/gone.mp4',
-        ]);
-        $job = new DownloadRoomRecording($broken->id);
 
         try {
-            app()->call([$job, 'handle']);
-            $this->fail('A failed download must throw so the queue retries it.');
-        } catch (\RuntimeException $e) {
-            $job->failed($e);
-        }
+            app()->call([new ImportLiveRecording($recording->id), 'handle']);
 
-        $broken->refresh();
-        $this->assertSame('failed', $broken->status);
-        $this->assertStringContainsString('403', $broken->error);
-        $this->assertNull($broken->path);
+            $recording->refresh();
+            $this->assertSame('ready', $recording->status);
+            $this->assertSame('private', $recording->disk);
+            $this->assertSame(strlen('FAKE-MP4-BYTES'), $recording->size_bytes);
+            $this->assertStringStartsWith('learning/recordings/'.$room->id.'/', $recording->path);
+            $this->assertSame('FAKE-MP4-BYTES', Storage::disk('private')->get($recording->path));
+            $this->assertFileDoesNotExist($dir.'/room-a-2026.mp4', 'the source is removed after import');
+            Notification::assertSentTo($host, RecordingReady::class);
+
+            // A file name that tries to leave the import folder is refused.
+            $evil = LearningRoomRecording::create([
+                'learning_room_id' => $room->id, 'source' => 'livekit', 'status' => 'processing',
+                'external_id' => 'EG_evil', 'external_url' => '../../.env',
+            ]);
+            app()->call([new ImportLiveRecording($evil->id), 'handle']);
+            $this->assertSame('failed', $evil->fresh()->status);
+
+            // Not written yet → the job throws so the queue retries it.
+            $late = LearningRoomRecording::create([
+                'learning_room_id' => $room->id, 'source' => 'livekit', 'status' => 'processing',
+                'external_id' => 'EG_late', 'external_url' => '/out/not-there-yet.mp4',
+            ]);
+            $this->expectException(\RuntimeException::class);
+            app()->call([new ImportLiveRecording($late->id), 'handle']);
+        } finally {
+            (new \Illuminate\Filesystem\Filesystem)->deleteDirectory($dir);
+        }
     }
 
     private function assertMessageRejected(\Closure $post): void

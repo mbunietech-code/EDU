@@ -23,10 +23,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 
-// JaaS (8x8) webhooks — authenticated by the X-Jaas-Signature HMAC, not a session.
-Route::post('/webhooks/jaas', \App\Http\Controllers\Api\JaasWebhookController::class)
-    ->middleware('throttle:120,1')
-    ->name('api.webhooks.jaas');
+// Self-hosted LiveKit webhooks — authenticated by the signed Authorization token, not a session.
+Route::post('/webhooks/livekit', \App\Http\Controllers\Api\LiveKitWebhookController::class)
+    ->middleware('throttle:600,1')
+    ->name('api.webhooks.livekit');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -68,6 +68,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/rooms', 'rooms')->name('rooms');
             Route::get('/rooms/{slug}', 'room')->name('rooms.show');
             Route::post('/rooms/{slug}/join', 'join')->middleware('throttle:30,1')->name('rooms.join');
+            // Fresh short-lived media token for a reconnect (same checks as join).
+            Route::post('/rooms/{slug}/token', 'join')->middleware('throttle:30,1')->name('rooms.token');
+            Route::post('/rooms/{slug}/leave', 'leave')->middleware('throttle:30,1')->name('rooms.leave');
+            Route::post('/rooms/{slug}/start', 'start')->middleware('throttle:10,1')->name('rooms.start');
+            Route::post('/rooms/{slug}/end', 'end')->middleware('throttle:10,1')->name('rooms.end');
         });
 
     // Orders

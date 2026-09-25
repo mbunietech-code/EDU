@@ -1,0 +1,46 @@
+# LiveKit SFU configuration (self-hosted). Keys are NOT stored here: they come
+# from the LIVEKIT_KEYS environment variable set in docker-compose.yml (.env).
+#
+# Replace every "example.com" below with your own domains.
+
+port: 7880                 # signalling + server API; Caddy terminates TLS in front of it.
+                           # Keep 7880 CLOSED in the firewall — browsers use wss://live.example.com (443).
+                           # (Do not set bind_addresses to 127.0.0.1: it also applies to the media ports.)
+
+rtc:
+  tcp_port: 7881           # ICE over TCP fallback when UDP is blocked
+  port_range_start: 50000  # UDP media ports — open these in the firewall
+  port_range_end: 60000
+  use_external_ip: true    # discover the public IP (or set node_ip explicitly below)
+  # node_ip: 203.0.113.10
+  # TURN is served by our own coturn; Laravel hands clients short-lived TURN credentials.
+
+turn:
+  enabled: false
+
+room:
+  empty_timeout: 300       # close an empty SFU room after 5 minutes
+  departure_timeout: 20
+  max_participants: 100    # hard cap per room (Laravel: LIVE_MAX_PARTICIPANTS)
+  enabled_codecs:
+    - mime: audio/opus
+    - mime: video/vp8
+    - mime: video/h264
+
+# Laravel receives participant_left and egress_ended here (signed with the API secret).
+webhook:
+  api_key: CHANGE_ME_same_as_LIVE_API_KEY
+  urls:
+    - https://example.com/api/webhooks/livekit
+
+# Needed only when recording (Egress) is enabled.
+redis:
+  address: 127.0.0.1:6379
+
+logging:
+  level: info
+  json: true
+
+limit:
+  num_tracks: -1
+  bytes_per_sec: 0

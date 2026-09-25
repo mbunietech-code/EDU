@@ -1,71 +1,44 @@
 /**
- * Live classroom page (learn.rooms.live): Jitsi IFrame API stage, our own
- * control bar, feed/presence polling, chat, Q&A, people and host controls.
+ * Live classroom page (learn.rooms.live) — our own WebRTC classroom on the
+ * self-hosted LiveKit SFU. No third-party video service or iframe: the
+ * browser captures camera / microphone / screen with getUserMedia() and
+ * getDisplayMedia() (through livekit-client) and exchanges media with our
+ * SFU over WSS + WebRTC, with our coturn server as TURN fallback.
+ *
+ * Laravel stays the authority. It issues a short-lived token carrying this
+ * user's exact publish rights; host actions (mute, rights, remove, lock,
+ * record, end) are POSTed to Laravel, which executes them on the SFU. Chat /
+ * Q&A are stored by Laravel; data messages on the SFU only nudge clients to
+ * refresh the feed instantly (the feed is also polled as a fallback).
  *
  * Used as x-data="learnClassroom(@js($config))". Config (LiveRoomController::classroomConfig):
- *   urls: { room, rooms, join, presence, leave, feed,
+ *   urls: { room, rooms, join, token, presence, leave, feed,
  *           messages: { store, answer (__ID__), destroy (__ID__) },
- *           studio?: { show, start, end, announce, remove (__ID__) } }   // managers only
- *   room: { id, title, status, status_label, started_at, scheduled_at, scheduled_label, duration_minutes,
- *           allow_participant_media, chat_enabled, questions_enabled, cancel_reason }
- *   viewer: { id, name, is_manager }
- *   pollMs, presenceMs, maxMessageLength
- *   provider: { label, supportsRecording, isDemo, demoWarning }
+ *           studio?: { show, start, end, announce, lock, media, muteAll, recordingStart, recordingStop,
+ *                      materials, materialDestroy (__ID__), remove / permissions / mute (__ID__ = user id) } }
+ *   room: { id, title, status, …, allow_participant_media, allow_screen_share, is_locked, is_recording }
+ *   viewer: { id, name, is_manager, identity }
+ *   provider: { label, configured, supportsRecording, setupWarning }
+ *   materials: [...], pollMs, presenceMs, maxMessageLength, maxMaterialMb, materialExtensions
  *
- * Jitsi IFrame API names used here are the verified ones (commands: toggleAudio,
- * toggleVideo, toggleShareScreen, hangup, muteEveryone, kickParticipant,
- * startRecording, stopRecording, toggleParticipantsPane, toggleModeration,
- * endConference; events: videoConferenceJoined, videoConferenceLeft, readyToClose,
- * participantJoined, participantLeft, participantKickedOut, audioMuteStatusChanged,
- * videoMuteStatusChanged, screenSharingStatusChanged, recordingStatusChanged,
- * errorOccurred, cameraError, micError, suspendDetected, participantRoleChanged).
- *
- * All user-generated text is rendered with x-text by the template.
+ * All user-generated text is rendered with x-text by the templates.
  */
 
-const SCRIPT_TIMEOUT_MS = 20000;
 const MAX_BACKOFF_MS = 60000;
-const scriptLoads = {};
+const MAX_REJOIN_ATTEMPTS = 5;
+const CONNECT_TIMEOUT_MS = 20000;
+const DATA_TOPIC = 'classroom';
 
-function loadExternalApi(url) {
-    if (window.JitsiMeetExternalAPI) {
-        return Promise.resolve(window.JitsiMeetExternalAPI);
+/** livekit-client is only downloaded when someone actually joins a call. */
+let livekitModule = null;
+function loadLiveKit() {
+    if (!livekitModule) {
+        livekitModule = import('livekit-client').catch((e) => {
+            livekitModule = null;
+            throw e;
+        });
     }
-    if (scriptLoads[url]) {
-        return scriptLoads[url];
-    }
-
-    scriptLoads[url] = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        let settled = false;
-        const fail = (message) => {
-            if (settled) return;
-            settled = true;
-            script.remove();
-            delete scriptLoads[url];
-            reject(new Error(message));
-        };
-        const timer = setTimeout(() => fail('The video service took too long to load.'), SCRIPT_TIMEOUT_MS);
-
-        script.src = url;
-        script.async = true;
-        script.onload = () => {
-            clearTimeout(timer);
-            if (window.JitsiMeetExternalAPI) {
-                settled = true;
-                resolve(window.JitsiMeetExternalAPI);
-            } else {
-                fail('The video service did not start correctly.');
-            }
-        };
-        script.onerror = () => {
-            clearTimeout(timer);
-            fail('The video service could not be reached. Check your connection or any content blocker.');
-        };
-        document.head.appendChild(script);
-    });
-
-    return scriptLoads[url];
+    return livekitModule;
 }
 
 function csrfToken() {
@@ -100,9 +73,16 @@ async function readJson(response) {
     }
 }
 
+function formatBytes(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
 window.learnClassroom = (cfg = {}) => {
-    // The Jitsi API object stays outside Alpine's reactive proxy on purpose.
-    const jitsi = { api: null };
+    // LiveKit objects stay outside Alpine's reactive proxy on purpose.
+    const lk = { mod: null, room: null, intentional: false, refreshFrame: null };
 
     return {
     cfg,
@@ -111,8 +91,9 @@ window.learnClassroom = (cfg = {}) => {
     viewer: cfg.viewer || {},
     provider: cfg.provider || {},
     isManager: !!(cfg.viewer && cfg.viewer.is_manager),
+    materials: Array.isArray(cfg.materials) ? cfg.materials : [],
 
-    // waiting | prejoin | joining | in_call | ended | removed | error
+    // waiting | prejoin | joining | in_call | reconnecting | ended | removed | error
     state: 'waiting',
     hasLeft: false,
     errorTitle: '',
@@ -121,15 +102,22 @@ window.learnClassroom = (cfg = {}) => {
     noticeTimer: null,
     mediaError: '',
 
-    // Jitsi
-    hasApi: false,
-    joinConfig: null,
-    localJitsiId: null,
-    jitsiReconnecting: false,
-    intentionalHangup: false,
-    moderationApplied: false,
-    media: { audioMuted: true, videoMuted: true, sharing: false, recording: false },
+    // Call
+    lkState: 'disconnected', // disconnected | connecting | connected | reconnecting
+    rejoinAttempts: 0,
+    rejoinTimer: null,
+    permissions: { audio: false, video: false, screen: false },
+    media: { mic: false, cam: false, screen: false },
+    mediaBusy: { mic: false, cam: false, screen: false },
     recordingBusy: false,
+    audioBlocked: false,
+    myQuality: 'unknown',
+    tiles: [],
+    remoteState: {}, // identity → { mic, cam, screen, speaking, quality }
+    layout: 'speaker', // speaker | grid
+    pinnedId: null,
+    isFullscreen: false,
+    devices: { open: false, cams: [], mics: [], speakers: [], cam: '', mic: '', speaker: '' },
 
     // Feed
     messages: [],
@@ -155,7 +143,8 @@ window.learnClassroom = (cfg = {}) => {
     announceMode: false,
     sending: { chat: false, question: false },
     composerError: { chat: '', question: '' },
-    busy: { start: false, end: false, remove: null, message: null },
+    busy: { start: false, end: false, remove: null, message: null, mod: null, upload: false },
+    upload: { title: '', error: '' },
     confirm: { open: false, kind: '', title: '', body: '', confirmLabel: '', payload: null },
     elapsed: '',
     clockTimer: null,
@@ -176,12 +165,13 @@ window.learnClassroom = (cfg = {}) => {
         // Restored from the back/forward cache: the call was torn down on pagehide.
         window.addEventListener('pageshow', (e) => {
             if (!e.persisted) return;
-            if (['in_call', 'joining'].includes(this.state)) {
+            if (['in_call', 'joining', 'reconnecting'].includes(this.state)) {
                 this.state = this.room.status === 'live' ? 'prejoin' : 'ended';
                 this.hasLeft = this.state === 'prejoin';
             }
             this.pollNow();
         });
+        document.addEventListener('fullscreenchange', () => { this.isFullscreen = !!document.fullscreenElement; });
 
         this.poll();
     },
@@ -189,8 +179,9 @@ window.learnClassroom = (cfg = {}) => {
     destroy() {
         clearInterval(this.clockTimer);
         clearTimeout(this.feedTimer);
+        clearTimeout(this.rejoinTimer);
         this.stopPresence();
-        this.disposeApi();
+        this.disconnect(true);
     },
 
     initialState() {
@@ -205,24 +196,42 @@ window.learnClassroom = (cfg = {}) => {
         return this.state === 'in_call';
     },
 
-    get canUseMedia() {
-        return this.isManager || !!this.room.allow_participant_media;
+    get canUseMic() { return this.isManager || !!this.permissions.audio; },
+    get canUseCam() { return this.isManager || !!this.permissions.video; },
+    get canShare() { return this.isManager || !!this.permissions.screen; },
+
+    get screenShareSupported() {
+        return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    },
+
+    get fullscreenSupported() {
+        return !!document.fullscreenEnabled;
     },
 
     get mediaLockedText() {
-        return 'The host has turned off participant microphones and cameras for this class. You can still watch, chat and ask questions.';
+        return 'The host has not allowed participants to use this. You can still watch, chat and ask questions.';
     },
 
     get connection() {
         if (!this.online) return { key: 'offline', label: 'Offline' };
-        if (this.feedFailures >= 2 || this.jitsiReconnecting) return { key: 'reconnecting', label: 'Reconnecting' };
-        if (this.state === 'joining' || (!this.feedLoaded && this.feedFailures === 0)) return { key: 'connecting', label: 'Connecting' };
+        if (this.state === 'reconnecting' || this.lkState === 'reconnecting') return { key: 'reconnecting', label: 'Reconnecting…' };
+        if (this.state === 'joining' || this.lkState === 'connecting') return { key: 'connecting', label: 'Connecting…' };
+        if (this.feedFailures >= 2 && !this.inCall) return { key: 'reconnecting', label: 'Reconnecting…' };
+        if (this.inCall && this.lkState === 'connected') return { key: 'connected', label: 'Connected' };
+        if (!this.feedLoaded && this.feedFailures === 0) return { key: 'connecting', label: 'Connecting…' };
 
-        return { key: 'connected', label: 'Connected' };
+        return { key: 'connected', label: this.inCall ? 'Connected' : 'Online' };
     },
 
     get showConnectionBanner() {
-        return !this.online || this.feedFailures >= 2;
+        return !this.online || this.feedFailures >= 2 || this.state === 'reconnecting';
+    },
+
+    get connectionBannerText() {
+        if (!this.online) return 'You are offline — we will reconnect when your connection returns.';
+        if (this.state === 'reconnecting') return 'Connection lost — reconnecting to the class…';
+
+        return 'Connection lost — retrying…';
     },
 
     get panelVisible() {
@@ -278,6 +287,36 @@ window.learnClassroom = (cfg = {}) => {
         });
     },
 
+    /** The big tile in speaker layout: pinned → screen share → active speaker → host → first. */
+    get stageTile() {
+        if (!this.tiles.length) return null;
+        const pinned = this.pinnedId && this.tiles.find((t) => t.id === this.pinnedId);
+        if (pinned) return pinned;
+        const screen = this.tiles.find((t) => t.source === 'screen');
+        if (screen) return screen;
+        const speaking = this.tiles.find((t) => t.speaking && !t.isLocal && t.source === 'camera');
+        if (speaking) return speaking;
+        const host = this.tiles.find((t) => t.isHost && !t.isLocal && t.source === 'camera');
+        if (host) return host;
+
+        return this.tiles.find((t) => !t.isLocal) || this.tiles[0];
+    },
+
+    get filmstripTiles() {
+        const main = this.stageTile;
+        return this.tiles.filter((t) => !main || t.id !== main.id);
+    },
+
+    get gridClass() {
+        const n = this.tiles.length;
+        if (n <= 1) return 'grid-cols-1';
+        if (n === 2) return 'grid-cols-1 sm:grid-cols-2';
+        if (n <= 4) return 'grid-cols-2';
+        if (n <= 9) return 'grid-cols-2 md:grid-cols-3';
+
+        return 'grid-cols-3 md:grid-cols-4';
+    },
+
     // --- Clock ----------------------------------------------------------
     tick() {
         if (this.room.status !== 'live' || !this.room.started_at) {
@@ -304,6 +343,8 @@ window.learnClassroom = (cfg = {}) => {
 
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     },
+
+    formatBytes,
 
     flash(text, ms = 5000) {
         this.notice = text;
@@ -336,13 +377,13 @@ window.learnClassroom = (cfg = {}) => {
 
             if (response.status === 401 || response.status === 419) {
                 this.feedStopped = true;
-                this.endCall('error');
+                this.disconnect(true);
                 this.fail('Your session expired', 'Reload the page and sign in again to continue.');
                 return;
             }
             if (response.status === 403 || response.status === 404) {
                 this.feedStopped = true;
-                this.endCall('error');
+                this.disconnect(true);
                 this.fail('This class is no longer available', 'You no longer have access to this class.');
                 return;
             }
@@ -380,6 +421,8 @@ window.learnClassroom = (cfg = {}) => {
 
         if (Array.isArray(data.participants)) this.participants = data.participants;
         if (data.counts) this.counts = data.counts;
+        if (Array.isArray(data.materials)) this.materials = data.materials;
+        if (data.me && data.me.permissions) this.applyPermissions(data.me.permissions);
         this.feedLoaded = true;
 
         if (data.me && data.me.removed && this.state !== 'removed') {
@@ -397,15 +440,16 @@ window.learnClassroom = (cfg = {}) => {
         const status = this.room.status;
 
         if (status === 'live') {
-            if (this.state === 'waiting' || (this.state === 'ended' && !jitsi.api)) {
+            if (this.state === 'waiting' || (this.state === 'ended' && !lk.room)) {
                 this.hasLeft = false;
                 this.state = 'prejoin';
             }
             return;
         }
 
-        if (['prejoin', 'joining', 'in_call'].includes(this.state)) {
-            this.endCall('ended');
+        if (['prejoin', 'joining', 'in_call', 'reconnecting'].includes(this.state)) {
+            this.disconnect(true);
+            this.state = 'ended';
         } else if (this.state === 'waiting' && (status === 'completed' || status === 'cancelled')) {
             this.state = 'ended';
         } else if (this.state === 'ended' && (status === 'scheduled' || status === 'draft')) {
@@ -431,8 +475,7 @@ window.learnClassroom = (cfg = {}) => {
         const mine = m.user && Number(m.user.id) === Number(this.viewer.id);
         if (countUnread && !mine) {
             const bucket = m.type === 'question' ? 'qa' : 'chat';
-            const tabFor = bucket === 'qa' ? 'qa' : 'chat';
-            if (!this.panelVisible || this.tab !== tabFor) this.unread[bucket] += 1;
+            if (!this.panelVisible || this.tab !== bucket) this.unread[bucket] += 1;
             if (m.type === 'announcement') this.flash('Announcement from the host: ' + m.body, 8000);
         }
 
@@ -475,16 +518,12 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     // --- Joining -----------------------------------------------------------
-    async join() {
-        if (this.state === 'joining' || this.state === 'in_call') return;
-        this.state = 'joining';
-        this.hasLeft = false;
-        this.mediaError = '';
-
+    /** Ask Laravel for a short-lived token (join and reconnect use the same checks). */
+    async requestToken(url) {
         let response;
         let data;
         try {
-            response = await fetch(this.urls.join, {
+            response = await fetch(url, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 credentials: 'same-origin',
@@ -492,206 +531,438 @@ window.learnClassroom = (cfg = {}) => {
             });
             data = await readJson(response);
         } catch (e) {
+            return { ok: false, network: true };
+        }
+
+        return { ok: response.ok, status: response.status, data };
+    },
+
+    async join() {
+        if (['joining', 'in_call', 'reconnecting'].includes(this.state)) return;
+        this.state = 'joining';
+        this.hasLeft = false;
+        this.mediaError = '';
+        this.rejoinAttempts = 0;
+
+        const result = await this.requestToken(this.urls.join);
+        if (!(await this.handleTokenResult(result))) return;
+
+        await this.connect(result.data.config, this.isManager);
+    },
+
+    /** Maps token errors to screens. Returns true when a config is available. */
+    async handleTokenResult(result) {
+        if (result.network) {
             this.fail('Could not reach the classroom', 'Check your internet connection and try again.');
+            return false;
+        }
+        if (result.ok && result.data && result.data.config) return true;
+
+        const data = result.data;
+        const reason = data && data.reason;
+        if (reason === 'removed') { this.enterRemoved(); return false; }
+        if (reason === 'not_live') {
+            this.flash(errorMessage(data, 'This live session is not running right now.'));
+            this.state = ['completed', 'cancelled'].includes(this.room.status) ? 'ended' : 'waiting';
+            this.pollNow();
+            return false;
+        }
+        if (reason === 'locked') {
+            this.state = 'prejoin';
+            this.flash(errorMessage(data, 'The host has locked this class.'), 8000);
+            return false;
+        }
+        if (result.status === 419) { this.fail('Your session expired', 'Reload the page and try again.'); return false; }
+        if (result.status === 429) { this.fail('Too many attempts', 'Please wait a minute before trying again.'); return false; }
+        if (reason === 'provider_unavailable') {
+            this.fail('Live video is unavailable', errorMessage(data, 'The live video server is not available.'));
+            return false;
+        }
+
+        this.fail('You cannot join this session', errorMessage(data, 'Something went wrong. Please try again.'));
+        return false;
+    },
+
+    /** Open the WebRTC connection to our SFU with a config from Laravel. */
+    async connect(config, publishOnJoin) {
+        let mod;
+        try {
+            mod = await loadLiveKit();
+        } catch (e) {
+            this.sendLeave(false);
+            this.fail('The classroom could not load', 'Part of the page failed to download. Check your connection and try again.');
+            return;
+        }
+        lk.mod = mod;
+
+        if (!mod.isBrowserSupported()) {
+            this.sendLeave(false);
+            this.fail('This browser cannot join live classes',
+                'Use a recent version of Chrome, Edge, Firefox or Safari (on iPhone/iPad use Safari 14.5 or newer).');
             return;
         }
 
-        if (!response.ok) {
-            const reason = data && data.reason;
-            if (reason === 'removed') return this.enterRemoved();
-            if (reason === 'not_live') {
-                this.flash(errorMessage(data, 'This live session is not running right now.'));
-                this.state = ['completed', 'cancelled'].includes(this.room.status) ? 'ended' : 'waiting';
-                this.pollNow();
+        this.applyPermissions(config.permissions || {});
+        this.disconnect(true);
+
+        const room = new mod.Room({
+            adaptiveStream: true, // subscribe to the quality each tile actually needs
+            dynacast: true, // stop encoding layers nobody watches
+            disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
+            videoCaptureDefaults: { resolution: mod.VideoPresets.h720.resolution },
+            audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            publishDefaults: {
+                simulcast: true,
+                videoSimulcastLayers: [mod.VideoPresets.h180, mod.VideoPresets.h360],
+                screenShareEncoding: mod.ScreenSharePresets.h1080fps15.encoding,
+                dtx: true,
+            },
+        });
+        lk.room = room;
+        lk.intentional = false;
+        this.wireRoom(room, mod);
+
+        this.lkState = 'connecting';
+        const rtcConfig = { iceTransportPolicy: config.ice_transport_policy === 'relay' ? 'relay' : 'all' };
+        if (Array.isArray(config.ice_servers) && config.ice_servers.length) rtcConfig.iceServers = config.ice_servers;
+
+        let timer;
+        try {
+            // Never spin forever: an unreachable server fails after CONNECT_TIMEOUT_MS.
+            const timeout = new Promise((resolve, reject) => {
+                timer = setTimeout(() => reject(new Error('timeout')), CONNECT_TIMEOUT_MS);
+            });
+            await Promise.race([room.connect(config.server_url, config.token, { autoSubscribe: true, rtcConfig }), timeout]);
+        } catch (e) {
+            if (lk.room !== room) return; // replaced meanwhile
+            this.disconnect(true);
+            this.sendLeave(false);
+            const timedOut = e && e.message === 'timeout';
+            this.fail('Could not connect to the live classroom',
+                (timedOut ? 'The video server (' + config.server_url + ') did not answer within ' + (CONNECT_TIMEOUT_MS / 1000) + ' seconds. '
+                    : 'The video server did not answer. ')
+                + 'Check your connection; on a work or school network video calls may be blocked — try another network, then Retry.');
+            return;
+        } finally {
+            clearTimeout(timer);
+        }
+        if (lk.room !== room) return;
+
+        this.lkState = 'connected';
+        this.state = 'in_call';
+        this.rejoinAttempts = 0;
+        this.startPresence();
+        this.pollNow();
+        this.refreshTiles();
+
+        if (!room.canPlaybackAudio) this.audioBlocked = true;
+
+        if (publishOnJoin) {
+            if (this.canUseMic) await this.setMic(true, true);
+            if (this.canUseCam) await this.setCam(true, true);
+        }
+    },
+
+    wireRoom(room, mod) {
+        const E = mod.RoomEvent;
+        const refresh = () => this.scheduleRefresh();
+
+        room
+            .on(E.ParticipantConnected, refresh)
+            .on(E.ParticipantDisconnected, (p) => {
+                if (this.pinnedId && this.pinnedId.startsWith(p.identity + ':')) this.pinnedId = null;
+                refresh();
+            })
+            .on(E.TrackSubscribed, (track) => {
+                if (track.kind === 'audio') {
+                    const el = track.attach();
+                    el.dataset.lkAudio = '1';
+                    this.$refs.audioSink && this.$refs.audioSink.appendChild(el);
+                }
+                refresh();
+            })
+            .on(E.TrackUnsubscribed, (track) => {
+                track.detach().forEach((el) => { if (el.dataset && el.dataset.lkAudio) el.remove(); });
+                refresh();
+            })
+            .on(E.TrackSubscriptionFailed, () => this.flash('A participant’s video could not be received. It will retry automatically.'))
+            .on(E.TrackMuted, refresh)
+            .on(E.TrackUnmuted, refresh)
+            .on(E.LocalTrackPublished, refresh)
+            .on(E.LocalTrackUnpublished, refresh)
+            .on(E.ActiveSpeakersChanged, refresh)
+            .on(E.ConnectionQualityChanged, refresh)
+            .on(E.ParticipantPermissionsChanged, (prev, participant) => {
+                if (participant && participant.isLocal) this.onLocalPermissionsChanged(participant);
+            })
+            .on(E.AudioPlaybackStatusChanged, () => { this.audioBlocked = !room.canPlaybackAudio; })
+            .on(E.MediaDevicesError, (e) => { this.mediaError = this.deviceHelp('camera', e); })
+            .on(E.MediaDevicesChanged, () => this.onDevicesChanged())
+            .on(E.DataReceived, (payload, participant, kind, topic) => this.onData(payload, topic))
+            .on(E.Reconnecting, () => { this.lkState = 'reconnecting'; })
+            .on(E.SignalReconnecting, () => { this.lkState = 'reconnecting'; })
+            .on(E.Reconnected, () => { this.lkState = 'connected'; this.pollNow(); refresh(); })
+            .on(E.Disconnected, (reason) => this.onDisconnected(room, reason));
+    },
+
+    /** Coalesce bursts of SFU events into one re-render per frame. */
+    scheduleRefresh() {
+        if (lk.refreshFrame) return;
+        lk.refreshFrame = requestAnimationFrame(() => {
+            lk.refreshFrame = null;
+            this.refreshTiles();
+        });
+    },
+
+    /** Rebuild the plain tile list from the SFU room state, then attach video elements. */
+    refreshTiles() {
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod) {
+            this.tiles = [];
+            return;
+        }
+
+        const S = mod.Track.Source;
+        const people = [room.localParticipant, ...room.remoteParticipants.values()];
+        const tiles = [];
+        const remoteState = {};
+
+        people.forEach((p) => {
+            let meta = {};
+            try { meta = p.metadata ? JSON.parse(p.metadata) : {}; } catch (e) { meta = {}; }
+            const camPub = p.getTrackPublication(S.Camera);
+            const micPub = p.getTrackPublication(S.Microphone);
+            const screenPub = p.getTrackPublication(S.ScreenShare);
+            const cam = !!(camPub && !camPub.isMuted && camPub.track);
+            const mic = !!(micPub && !micPub.isMuted);
+            const screen = !!(screenPub && !screenPub.isMuted && screenPub.track);
+            const base = {
+                identity: p.identity,
+                name: p.name || p.identity,
+                isLocal: !!p.isLocal,
+                isHost: meta.role === 'host',
+                mic,
+                speaking: !!p.isSpeaking,
+                quality: String(p.connectionQuality || 'unknown'),
+            };
+
+            remoteState[p.identity] = { mic, cam, screen, speaking: base.speaking, quality: base.quality };
+            tiles.push({ ...base, id: p.identity + ':camera', source: 'camera', hasVideo: cam });
+            if (screen) tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: true });
+        });
+
+        const local = room.localParticipant;
+        this.media.mic = !!local.isMicrophoneEnabled;
+        this.media.cam = !!local.isCameraEnabled;
+        this.media.screen = !!local.isScreenShareEnabled;
+        this.myQuality = String(local.connectionQuality || 'unknown');
+        if (this.pinnedId && !tiles.some((t) => t.id === this.pinnedId)) this.pinnedId = null;
+
+        this.remoteState = remoteState;
+        this.tiles = tiles;
+        this.$nextTick(() => this.attachVideos());
+    },
+
+    /** Attach each tile's video track to its <video data-tile-id>. */
+    attachVideos() {
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod) return;
+        const S = mod.Track.Source;
+
+        this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => {
+            const [identity, source] = String(el.dataset.tileId).split(':');
+            const p = identity === room.localParticipant.identity ? room.localParticipant : room.remoteParticipants.get(identity);
+            const pub = p && p.getTrackPublication(source === 'screen' ? S.ScreenShare : S.Camera);
+            const track = pub && !pub.isMuted ? pub.track : null;
+
+            if (!track) {
+                if (el.srcObject) el.srcObject = null;
+                el._lkTrack = null;
                 return;
             }
-            if (response.status === 419) return this.fail('Your session expired', 'Reload the page and try again.');
-            if (response.status === 429) return this.fail('Too many attempts', 'Please wait a minute before trying again.');
-            if (reason === 'provider_unavailable') return this.fail('Live video is unavailable', errorMessage(data, 'The live class provider is not available.'));
+            if (el._lkTrack !== track) {
+                if (el._lkTrack) el._lkTrack.detach(el);
+                track.attach(el);
+                el._lkTrack = track;
+            }
+        });
+    },
 
-            return this.fail('You cannot join this session', errorMessage(data, 'Something went wrong. Please try again.'));
-        }
+    tileState(identity) {
+        return this.remoteState[identity] || null;
+    },
 
-        this.joinConfig = data.config;
+    qualityLabel(q) {
+        return { excellent: 'Excellent connection', good: 'Good connection', poor: 'Poor connection', lost: 'Connection lost' }[q] || 'Measuring connection…';
+    },
 
+    qualityBars(q) {
+        return { excellent: 3, good: 2, poor: 1, lost: 0 }[q] ?? 0;
+    },
+
+    pin(tile) {
+        this.pinnedId = this.pinnedId === tile.id ? null : tile.id;
+        if (this.pinnedId) this.layout = 'speaker';
+        this.$nextTick(() => this.attachVideos());
+    },
+
+    setLayout(layout) {
+        this.layout = layout === 'grid' ? 'grid' : 'speaker';
+        this.$nextTick(() => this.attachVideos());
+    },
+
+    toggleFullscreen() {
+        const el = this.$refs.stageWrap;
+        if (!el || !this.fullscreenSupported) return;
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        else el.requestFullscreen().catch(() => this.flash('Full screen is not available here.'));
+    },
+
+    async enableAudio() {
         try {
-            await loadExternalApi(data.config.scriptUrl);
+            await lk.room.startAudio();
+            this.audioBlocked = false;
         } catch (e) {
-            this.sendLeave(false);
-            this.fail('The video service did not load', e.message);
+            this.flash('Your browser still blocks sound. Click anywhere on the page and try again.');
+        }
+    },
+
+    onData(payload, topic) {
+        if (topic !== DATA_TOPIC) return;
+        try {
+            const msg = JSON.parse(new TextDecoder().decode(payload));
+            // Signals only: the content always comes from Laravel.
+            if (msg && (msg.t === 'feed' || msg.t === 'rights')) this.pollNow();
+        } catch (e) { /* ignore malformed packets */ }
+    },
+
+    /** Tell everyone to refresh the feed now (a nudge — Laravel holds the data). */
+    nudge(type = 'feed') {
+        const room = lk.room;
+        if (!room || this.lkState !== 'connected') return;
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ t: type }));
+            room.localParticipant.publishData(bytes, { reliable: true, topic: DATA_TOPIC }).catch(() => {});
+        } catch (e) { /* not connected */ }
+    },
+
+    applyPermissions(p) {
+        this.permissions = { audio: !!p.audio, video: !!p.video, screen: !!p.screen };
+    },
+
+    /** The host changed our rights on the SFU: follow at once (Laravel is the source of truth). */
+    onLocalPermissionsChanged(local) {
+        const mod = lk.mod;
+        const perms = local.permissions;
+        if (!perms || !mod) return;
+
+        const allowed = new Set((perms.canPublishSources || []).map(Number));
+        const any = !!perms.canPublish;
+        // TrackSource numbers: CAMERA 1, MICROPHONE 2, SCREEN_SHARE 3 (empty list = all sources).
+        const can = (n) => any && (allowed.size === 0 || allowed.has(n));
+        const before = { ...this.permissions };
+        this.applyPermissions({ audio: can(2), video: can(1), screen: can(3) });
+
+        if (!this.permissions.audio && local.isMicrophoneEnabled) local.setMicrophoneEnabled(false).catch(() => {});
+        if (!this.permissions.video && local.isCameraEnabled) local.setCameraEnabled(false).catch(() => {});
+        if (!this.permissions.screen && local.isScreenShareEnabled) local.setScreenShareEnabled(false).catch(() => {});
+
+        if (!this.isManager) {
+            if (!before.audio && this.permissions.audio) this.flash('The host allowed you to use your microphone.');
+            else if (before.audio && !this.permissions.audio) this.flash('The host turned off your microphone.');
+            else if (!before.screen && this.permissions.screen) this.flash('The host allowed you to share your screen.');
+            else if (!before.video && this.permissions.video) this.flash('The host allowed you to use your camera.');
+        }
+        this.scheduleRefresh();
+    },
+
+    onDisconnected(room, reason) {
+        if (lk.room !== room) return; // an old connection
+        const mod = lk.mod;
+        const R = mod ? mod.DisconnectReason : {};
+        const intentional = lk.intentional;
+        this.cleanupRoom();
+        this.lkState = 'disconnected';
+        this.stopPresence();
+
+        if (intentional || ['removed', 'ended', 'error'].includes(this.state)) return;
+
+        if (reason === R.PARTICIPANT_REMOVED) {
+            this.enterRemoved();
+            this.pollNow();
+            return;
+        }
+        if (reason === R.ROOM_DELETED) {
+            // The host ended the class (or a new session is starting) — the feed decides.
+            this.state = 'prejoin';
+            this.hasLeft = true;
+            this.pollNow();
+            return;
+        }
+        if (reason === R.DUPLICATE_IDENTITY) {
+            this.state = 'prejoin';
+            this.hasLeft = true;
+            this.flash('You joined this class from another tab or device, so this window was disconnected.', 9000);
             return;
         }
 
-        // The room may have ended while the script was loading.
-        if (this.state !== 'joining') return;
+        this.scheduleRejoin();
+    },
 
-        try {
-            this.createApi(data.config);
-        } catch (e) {
+    /** Network / server failure: fetch a fresh token and reconnect with backoff. */
+    scheduleRejoin() {
+        if (this.rejoinAttempts >= MAX_REJOIN_ATTEMPTS) {
             this.sendLeave(false);
-            this.fail('The video call could not start', e && e.message ? e.message : 'Please try again.');
+            this.fail('Connection lost', 'We could not reconnect you to the class. Check your connection and press Retry.');
+            return;
         }
-    },
+        this.state = 'reconnecting';
+        const wait = Math.min(15000, 1000 * Math.pow(2, this.rejoinAttempts));
+        this.rejoinAttempts += 1;
 
-    createApi(config) {
-        this.disposeApi();
-        const node = this.$refs.stage;
-        node.innerHTML = '';
+        clearTimeout(this.rejoinTimer);
+        this.rejoinTimer = setTimeout(async () => {
+            if (this.state !== 'reconnecting') return;
+            if (!this.online) { this.scheduleRejoin(); return; }
 
-        const options = {
-            roomName: config.roomName,
-            parentNode: node,
-            width: '100%',
-            height: '100%',
-            userInfo: {
-                displayName: (config.user && config.user.name) || this.viewer.name,
-                email: (config.user && config.user.email) || undefined,
-            },
-            configOverwrite: config.configOverwrite || {},
-            interfaceConfigOverwrite: config.interfaceConfigOverwrite || {},
-        };
-        if (config.jwt) options.jwt = config.jwt;
+            const result = await this.requestToken(this.urls.token || this.urls.join);
+            if (this.state !== 'reconnecting') return;
+            if (result.network || (!result.ok && result.status >= 500)) { this.scheduleRejoin(); return; }
+            if (!(await this.handleTokenResult(result))) return;
 
-        this.media = {
-            audioMuted: !!(options.configOverwrite.startWithAudioMuted),
-            videoMuted: !!(options.configOverwrite.startWithVideoMuted),
-            sharing: false,
-            recording: false,
-        };
-        this.moderationApplied = false;
-        this.intentionalHangup = false;
-
-        const api = new window.JitsiMeetExternalAPI(config.domain, options);
-        jitsi.api = api;
-        this.hasApi = true;
-
-        api.addListener('videoConferenceJoined', (e) => {
-            this.localJitsiId = e && e.id ? String(e.id) : null;
-            this.state = 'in_call';
-            this.jitsiReconnecting = false;
-            this.startPresence();
-            this.applyModeration();
-            this.pollNow();
-        });
-        api.addListener('videoConferenceLeft', () => this.onConferenceLeft());
-        api.addListener('readyToClose', () => this.onConferenceLeft());
-        api.addListener('participantJoined', () => this.refreshSoon());
-        api.addListener('participantLeft', () => this.refreshSoon());
-        api.addListener('participantKickedOut', (e) => {
-            if (e && e.kicked && e.kicked.local) this.enterRemoved();
-            else this.refreshSoon();
-        });
-        api.addListener('participantRoleChanged', (e) => {
-            if (e && e.role === 'moderator' && String(e.id) === String(this.localJitsiId)) {
-                this.moderationApplied = false;
-                this.applyModeration();
+            const wasPublishing = { mic: this.media.mic, cam: this.media.cam };
+            await this.connect(result.data.config, false);
+            if (this.state === 'in_call') {
+                this.flash('Reconnected to the class.');
+                if (wasPublishing.mic && this.canUseMic) this.setMic(true, true);
+                if (wasPublishing.cam && this.canUseCam) this.setCam(true, true);
             }
-        });
-        api.addListener('audioMuteStatusChanged', (e) => { this.media.audioMuted = !!(e && e.muted); });
-        api.addListener('videoMuteStatusChanged', (e) => { this.media.videoMuted = !!(e && e.muted); });
-        api.addListener('screenSharingStatusChanged', (e) => { this.media.sharing = !!(e && e.on); });
-        api.addListener('recordingStatusChanged', (e) => {
-            this.recordingBusy = false;
-            if (!e || (e.mode && e.mode !== 'file')) return;
-            this.media.recording = !!e.on;
-            if (e.error) this.flash('Recording problem: ' + e.error, 8000);
-            else this.flash(e.on ? 'Recording started.' : 'Recording stopped.');
-        });
-        api.addListener('cameraError', (e) => { this.mediaError = this.deviceHelp('camera', e); });
-        api.addListener('micError', (e) => { this.mediaError = this.deviceHelp('microphone', e); });
-        api.addListener('suspendDetected', () => {
-            this.jitsiReconnecting = true;
-            this.flash('Your device went to sleep — reconnecting to the class…');
-        });
-        api.addListener('errorOccurred', (e) => {
-            if (e && e.isFatal) {
-                this.disposeApi();
-                this.stopPresence();
-                this.sendLeave(false);
-                this.fail('The call was interrupted', (e && e.message) ? String(e.message) : 'The connection to the video call was lost.');
-            } else if (e && e.name && String(e.name).indexOf('connection') !== -1) {
-                this.jitsiReconnecting = true;
-            }
-        });
+        }, wait);
     },
 
-    /** Participants cannot unmute themselves when the host disabled their media. */
-    applyModeration() {
-        if (!jitsi.api || !this.isManager || this.room.allow_participant_media || this.moderationApplied) return;
-        try {
-            jitsi.api.executeCommand('toggleModeration', true, 'audio');
-            jitsi.api.executeCommand('toggleModeration', true, 'video');
-            this.moderationApplied = true;
-        } catch (e) {
-            // Not a moderator (yet) — retried on participantRoleChanged.
-        }
+    cleanupRoom() {
+        const room = lk.room;
+        lk.room = null;
+        if (lk.refreshFrame) cancelAnimationFrame(lk.refreshFrame);
+        lk.refreshFrame = null;
+        if (room) room.removeAllListeners();
+        if (this.$refs.audioSink) this.$refs.audioSink.innerHTML = '';
+        this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => { el.srcObject = null; el._lkTrack = null; });
+        this.tiles = [];
+        this.remoteState = {};
+        this.media = { mic: false, cam: false, screen: false };
+        this.audioBlocked = false;
     },
 
-    deviceHelp(kind, e) {
-        const type = String((e && (e.type || e.name)) || '').toLowerCase();
-        const noun = kind === 'camera' ? 'camera' : 'microphone';
-        if (type.includes('permission')) {
-            return 'Your browser blocked the ' + noun + '. Click the camera/lock icon in the address bar, allow access, then try again.';
-        }
-        if (type.includes('not_found') || type.includes('notfound') || type.includes('not found')) {
-            return 'No ' + noun + ' was found. Connect one, or check that it is not switched off.';
-        }
-        if (type.includes('constraint') || type.includes('resolution')) {
-            return 'Your ' + noun + ' does not support the requested quality. Try another device in the call settings.';
-        }
-
-        return 'The ' + noun + ' could not start. Close other apps that may be using it (Zoom, Teams, another tab) and try again.';
-    },
-
-    refreshTimer: null,
-    refreshSoon() {
-        clearTimeout(this.refreshTimer);
-        this.refreshTimer = setTimeout(() => this.pollNow(), 1200);
-    },
-
-    onConferenceLeft() {
-        if (!jitsi.api) return;
-        const intentional = this.intentionalHangup;
-        this.disposeApi();
-        this.stopPresence();
-
-        if (this.state === 'removed' || this.state === 'ended' || this.state === 'error') return;
-
-        this.sendLeave(false);
-        if (this.room.status !== 'live') {
-            this.state = 'ended';
-        } else {
-            this.state = 'prejoin';
-            this.hasLeft = true;
-            if (!intentional) this.flash('You left the call.');
-        }
-    },
-
-    disposeApi() {
-        if (!jitsi.api) return;
-        const api = jitsi.api;
-        jitsi.api = null;
-        this.hasApi = false;
-        this.localJitsiId = null;
-        this.jitsiReconnecting = false;
-        try { api.dispose(); } catch (e) { /* already gone */ }
-        if (this.$refs.stage) this.$refs.stage.innerHTML = '';
-    },
-
-    /** End our part of the call and show a final screen. */
-    endCall(nextState) {
-        this.intentionalHangup = true;
-        if (jitsi.api) {
-            try { jitsi.api.executeCommand('hangup'); } catch (e) { /* ignore */ }
-        }
-        this.disposeApi();
-        this.stopPresence();
-        this.state = nextState;
-    },
-
-    enterRemoved() {
-        this.endCall('removed');
-        this.panelOpen = false;
+    /** Close our SFU connection (intentional = no auto-reconnect). */
+    disconnect(intentional = true) {
+        const room = lk.room;
+        if (!room) return;
+        lk.intentional = intentional;
+        this.cleanupRoom();
+        room.disconnect(true).catch(() => {});
     },
 
     fail(title, text) {
@@ -701,13 +972,173 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     async retry() {
-        this.disposeApi();
+        clearTimeout(this.rejoinTimer);
+        this.disconnect(true);
         this.stopPresence();
         this.errorTitle = '';
         this.errorText = '';
         this.state = this.room.status === 'live' ? 'prejoin' : this.initialState();
         this.pollNow();
         if (this.room.status === 'live') await this.join();
+    },
+
+    enterRemoved() {
+        clearTimeout(this.rejoinTimer);
+        this.disconnect(true);
+        this.stopPresence();
+        this.state = 'removed';
+        this.panelOpen = false;
+    },
+
+    // --- Devices -----------------------------------------------------------
+    /** Friendly text for getUserMedia / getDisplayMedia failures. */
+    deviceHelp(kind, e) {
+        const mod = lk.mod;
+        const failure = mod && mod.MediaDeviceFailure ? mod.MediaDeviceFailure.getFailure(e) : null;
+        const name = String((e && (e.name || e.message)) || '');
+        const noun = kind === 'camera' ? 'camera' : kind === 'screen' ? 'screen' : 'microphone';
+
+        if (!window.isSecureContext || !navigator.mediaDevices) {
+            return 'Camera and microphone need a secure (https://) connection. Open the class from its https:// address.';
+        }
+        if (failure === 'PermissionDenied' || /NotAllowed|Permission/i.test(name)) {
+            return 'Your browser blocked the ' + noun + '. Click the camera/lock icon in the address bar, allow access, then try again.';
+        }
+        if (failure === 'NotFound' || /NotFound|DevicesNotFound/i.test(name)) {
+            return 'No ' + noun + ' was found. Connect one, or check that it is switched on.';
+        }
+        if (failure === 'DeviceInUse' || /NotReadable|TrackStart|in use/i.test(name)) {
+            return 'Your ' + noun + ' is being used by another app (Zoom, Teams, another tab). Close it and try again.';
+        }
+        if (/Overconstrained/i.test(name)) {
+            return 'Your ' + noun + ' does not support the requested quality. Choose another device in Settings.';
+        }
+        if (/insufficient permissions|not allowed to publish/i.test(name)) {
+            return 'The host has not allowed you to use your ' + noun + '.';
+        }
+
+        return 'The ' + noun + ' could not start. Close other apps that may be using it and try again.';
+    },
+
+    async setMic(on, quiet = false) {
+        const room = lk.room;
+        if (!room || this.mediaBusy.mic) return;
+        if (on && !this.canUseMic) { if (!quiet) this.flash(this.mediaLockedText, 7000); return; }
+        this.mediaBusy.mic = true;
+        this.mediaError = '';
+        try {
+            await room.localParticipant.setMicrophoneEnabled(on);
+        } catch (e) {
+            this.mediaError = this.deviceHelp('microphone', e);
+        } finally {
+            this.mediaBusy.mic = false;
+            this.scheduleRefresh();
+        }
+    },
+
+    async setCam(on, quiet = false) {
+        const room = lk.room;
+        if (!room || this.mediaBusy.cam) return;
+        if (on && !this.canUseCam) { if (!quiet) this.flash(this.mediaLockedText, 7000); return; }
+        this.mediaBusy.cam = true;
+        this.mediaError = '';
+        try {
+            await room.localParticipant.setCameraEnabled(on);
+        } catch (e) {
+            this.mediaError = this.deviceHelp('camera', e);
+        } finally {
+            this.mediaBusy.cam = false;
+            this.scheduleRefresh();
+        }
+    },
+
+    toggleMic() {
+        if (!this.inCall) return;
+        this.setMic(!this.media.mic);
+    },
+
+    toggleCamera() {
+        if (!this.inCall) return;
+        this.setCam(!this.media.cam);
+    },
+
+    async toggleShare() {
+        const room = lk.room;
+        if (!room || !this.inCall || this.mediaBusy.screen) return;
+        if (!this.media.screen && !this.canShare) {
+            this.flash('The host has not allowed participants to share their screen.', 7000);
+            return;
+        }
+        if (!this.media.screen && !this.screenShareSupported) {
+            this.flash('This browser cannot share the screen (most phones and tablets cannot). Use a computer.', 7000);
+            return;
+        }
+        this.mediaBusy.screen = true;
+        try {
+            await room.localParticipant.setScreenShareEnabled(!this.media.screen, {
+                audio: true, // tab / system audio where the browser supports it
+                selfBrowserSurface: 'exclude',
+                surfaceSwitching: 'include',
+                systemAudio: 'include',
+                contentHint: 'detail',
+            });
+        } catch (e) {
+            // Closing the browser's "choose what to share" dialog is not an error.
+            if (!/NotAllowed|Permission denied by user|AbortError/i.test(String(e && (e.name || e.message)))) {
+                this.mediaError = this.deviceHelp('screen', e);
+            }
+        } finally {
+            this.mediaBusy.screen = false;
+            this.scheduleRefresh();
+        }
+    },
+
+    async openDevices() {
+        const mod = lk.mod || (await loadLiveKit().catch(() => null));
+        if (!mod) return;
+        this.devices.open = true;
+        await this.loadDevices(mod);
+    },
+
+    async loadDevices(mod = lk.mod) {
+        if (!mod) return;
+        try {
+            const [cams, mics, speakers] = await Promise.all([
+                mod.Room.getLocalDevices('videoinput', false),
+                mod.Room.getLocalDevices('audioinput', false),
+                mod.Room.getLocalDevices('audiooutput', false).catch(() => []),
+            ]);
+            const plain = (list) => list.map((d, i) => ({ id: d.deviceId, label: d.label || ('Device ' + (i + 1)) }));
+            this.devices.cams = plain(cams);
+            this.devices.mics = plain(mics);
+            this.devices.speakers = plain(speakers);
+            const room = lk.room;
+            if (room) {
+                this.devices.cam = room.getActiveDevice('videoinput') || '';
+                this.devices.mic = room.getActiveDevice('audioinput') || '';
+                this.devices.speaker = room.getActiveDevice('audiooutput') || '';
+            }
+        } catch (e) {
+            this.mediaError = this.deviceHelp('camera', e);
+        }
+    },
+
+    async switchDevice(kind, id) {
+        const room = lk.room;
+        if (!room || !id) return;
+        try {
+            await room.switchActiveDevice(kind, id);
+        } catch (e) {
+            this.mediaError = this.deviceHelp(kind === 'videoinput' ? 'camera' : 'microphone', e);
+        }
+    },
+
+    async onDevicesChanged() {
+        const before = { cams: this.devices.cams.length, mics: this.devices.mics.length };
+        await this.loadDevices();
+        if (this.devices.mics.length < before.mics || this.devices.cams.length < before.cams) {
+            this.flash('A camera or microphone was disconnected. Check Settings if your audio or video stopped.', 8000);
+        }
     },
 
     // --- Presence & leave ----------------------------------------------------
@@ -724,13 +1155,11 @@ window.learnClassroom = (cfg = {}) => {
 
     async sendPresence() {
         try {
-            const body = {};
-            if (this.localJitsiId && /^[A-Za-z0-9_-]{1,64}$/.test(this.localJitsiId)) body.jitsi_id = this.localJitsiId;
             const response = await fetch(this.urls.presence, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 credentials: 'same-origin',
-                body: JSON.stringify(body),
+                body: JSON.stringify({}),
             });
             if (!response.ok) return;
             const data = await response.json();
@@ -765,93 +1194,43 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     onPageHide() {
-        if (this.state === 'in_call' || this.state === 'joining') {
+        if (['in_call', 'joining', 'reconnecting'].includes(this.state)) {
             this.sendLeave(true);
         }
-        this.intentionalHangup = true;
-        this.disposeApi();
+        clearTimeout(this.rejoinTimer);
+        this.disconnect(true);
         this.stopPresence();
     },
 
     leaveCall() {
-        this.intentionalHangup = true;
-        if (jitsi.api) {
-            try { jitsi.api.executeCommand('hangup'); } catch (e) { /* ignore */ }
-        }
-        this.disposeApi();
+        clearTimeout(this.rejoinTimer);
+        this.disconnect(true);
         this.stopPresence();
         this.sendLeave(false);
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         this.state = this.room.status === 'live' ? 'prejoin' : 'ended';
         this.hasLeft = this.state === 'prejoin';
     },
 
-    // --- Controls ------------------------------------------------------
-    command(name, ...args) {
-        if (!jitsi.api) {
-            this.flash('Join the call first.');
-            return false;
-        }
-        try {
-            jitsi.api.executeCommand(name, ...args);
-            return true;
-        } catch (e) {
-            this.flash('That action is not available right now.');
-            return false;
-        }
-    },
-
-    toggleMic() {
-        if (!this.canUseMedia) return this.flash(this.mediaLockedText, 7000);
-        this.mediaError = '';
-        this.command('toggleAudio');
-    },
-
-    toggleCamera() {
-        if (!this.canUseMedia) return this.flash(this.mediaLockedText, 7000);
-        this.mediaError = '';
-        this.command('toggleVideo');
-    },
-
-    toggleShare() {
-        if (!this.canUseMedia) return this.flash(this.mediaLockedText, 7000);
-        this.command('toggleShareScreen');
-    },
-
-    toggleRecording() {
-        if (!this.isManager || !this.provider.supportsRecording || this.recordingBusy) return;
-        this.recordingBusy = true;
-        const ok = this.media.recording
-            ? this.command('stopRecording', 'file')
-            : this.command('startRecording', { mode: 'file' });
-        if (!ok) this.recordingBusy = false;
-        setTimeout(() => { this.recordingBusy = false; }, 10000);
-    },
-
-    muteEveryone(kind) {
-        if (!this.isManager) return;
-        if (this.command('muteEveryone', kind)) {
-            this.flash(kind === 'audio' ? 'Everyone else was muted.' : 'Everyone else’s camera was turned off.');
-        }
-    },
-
-    openAdvanced() {
-        if (!this.isManager) return;
-        this.command('toggleParticipantsPane', true);
-    },
-
     // --- Host: start / end ---------------------------------------------
+    async post(url, body = {}) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: jsonHeaders(),
+            credentials: 'same-origin',
+            body: JSON.stringify(body),
+        });
+        const data = await readJson(response);
+
+        return { ok: response.ok, status: response.status, data };
+    },
+
     async startSession() {
         if (!this.isManager || !this.urls.studio || this.busy.start) return;
         this.busy.start = true;
         try {
-            const response = await fetch(this.urls.studio.start, {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({}),
-            });
-            if (!response.ok) {
-                const data = await readJson(response);
+            const { ok, data } = await this.post(this.urls.studio.start);
+            if (!ok) {
                 this.flash(errorMessage(data, 'The session could not be started.'), 7000);
                 return;
             }
@@ -869,35 +1248,156 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     askEnd() {
-        this.openConfirm('end', 'End the session for everyone?',
-            'Everyone will be disconnected and the class will be marked as completed. Attendance is saved.', 'End session');
+        this.openConfirm('end', 'End the class for everyone?',
+            'Everyone will be disconnected and the class will be marked as completed. Attendance is saved.', 'End class');
     },
 
     async endSession() {
         if (!this.isManager || !this.urls.studio || this.busy.end) return;
         this.busy.end = true;
         try {
-            const response = await fetch(this.urls.studio.end, {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({}),
-            });
-            if (!response.ok) {
-                const data = await readJson(response);
+            const { ok, data } = await this.post(this.urls.studio.end);
+            if (!ok) {
                 this.flash(errorMessage(data, 'The session could not be ended.'), 7000);
                 return;
             }
-            if (jitsi.api) {
-                try { jitsi.api.executeCommand('endConference'); } catch (e) { /* not moderator */ }
-            }
             this.room.status = 'completed';
-            this.endCall('ended');
+            this.disconnect(true);
+            this.stopPresence();
+            this.state = 'ended';
             this.pollNow();
         } catch (e) {
             this.flash('Could not reach the server. Try again.', 7000);
         } finally {
             this.busy.end = false;
+        }
+    },
+
+    // --- Host: moderation (Laravel decides, the SFU executes) -----------------
+    async moderate(key, url, body, success) {
+        if (!this.isManager || !url || this.busy.mod) return null;
+        this.busy.mod = key;
+        try {
+            const { ok, data } = await this.post(url, body);
+            if (!ok) {
+                this.flash(errorMessage(data, 'That action could not be completed.'), 7000);
+                return null;
+            }
+            if (success) this.flash(typeof success === 'function' ? success(data) : success);
+            this.nudge('rights');
+            this.pollNow();
+            return data || {};
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 7000);
+            return null;
+        } finally {
+            this.busy.mod = null;
+        }
+    },
+
+    async toggleLock() {
+        const data = await this.moderate('lock', this.urls.studio && this.urls.studio.lock, { locked: !this.room.is_locked },
+            (d) => d.message || '');
+        if (data) this.room.is_locked = !!data.is_locked;
+    },
+
+    async setRoomMedia(key, value) {
+        const data = await this.moderate('media-' + key, this.urls.studio && this.urls.studio.media, { [key]: !!value },
+            'Participant settings updated.');
+        if (data) {
+            this.room.allow_participant_media = !!data.allow_participant_media;
+            this.room.allow_screen_share = !!data.allow_screen_share;
+        }
+    },
+
+    muteEveryone(kind) {
+        return this.moderate('mute-all', this.urls.studio && this.urls.studio.muteAll, { kind }, (d) => d.message || 'Done.');
+    },
+
+    muteParticipant(p, kind) {
+        const url = this.urls.studio && this.urls.studio.mute.replace('__ID__', p.user_id);
+        return this.moderate('mute-' + p.user_id, url, { kind }, p.name + ' was muted.');
+    },
+
+    setParticipantRight(p, key, value) {
+        const url = this.urls.studio && this.urls.studio.permissions.replace('__ID__', p.user_id);
+        return this.moderate('rights-' + p.user_id, url, { [key]: value }, 'Updated what ' + p.name + ' may use.');
+    },
+
+    /** Back to the room-wide switches (null = no personal override). */
+    resetParticipantRights(p) {
+        const url = this.urls.studio && this.urls.studio.permissions.replace('__ID__', p.user_id);
+        return this.moderate('rights-' + p.user_id, url, { audio: null, video: null, screen: null },
+            p.name + ' now follows the room settings.');
+    },
+
+    async toggleRecording() {
+        if (!this.isManager || !this.provider.supportsRecording || this.recordingBusy) return;
+        this.recordingBusy = true;
+        const url = this.room.is_recording ? this.urls.studio.recordingStop : this.urls.studio.recordingStart;
+        const data = await this.moderate('recording', url, {}, (d) => d.message || '');
+        if (data) this.room.is_recording = !!data.is_recording;
+        this.recordingBusy = false;
+    },
+
+    // --- Materials -------------------------------------------------------
+    async uploadMaterial(event) {
+        const input = event.target.querySelector('input[type=file]');
+        const file = input && input.files && input.files[0];
+        this.upload.error = '';
+        if (!file || !this.urls.studio || this.busy.upload) return;
+
+        const maxBytes = (this.cfg.maxMaterialMb || 50) * 1024 * 1024;
+        if (file.size > maxBytes) {
+            this.upload.error = 'Files can be at most ' + (this.cfg.maxMaterialMb || 50) + ' MB.';
+            return;
+        }
+
+        const form = new FormData();
+        form.append('file', file);
+        if (this.upload.title.trim()) form.append('title', this.upload.title.trim());
+
+        this.busy.upload = true;
+        try {
+            const response = await fetch(this.urls.studio.materials, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: form,
+            });
+            const data = await readJson(response);
+            if (!response.ok) {
+                this.upload.error = errorMessage(data, 'The file could not be uploaded.');
+                return;
+            }
+            if (data && data.material) this.materials = [data.material, ...this.materials.filter((m) => m.id !== data.material.id)];
+            this.upload.title = '';
+            input.value = '';
+            this.flash('File shared with the class.');
+            this.nudge('feed');
+        } catch (e) {
+            this.upload.error = 'Could not reach the server. Try again.';
+        } finally {
+            this.busy.upload = false;
+        }
+    },
+
+    async deleteMaterial(material) {
+        if (!this.urls.studio || !material) return;
+        try {
+            const response = await fetch(this.urls.studio.materialDestroy.replace('__ID__', material.id), {
+                method: 'DELETE',
+                headers: jsonHeaders(),
+                credentials: 'same-origin',
+            });
+            if (!response.ok) {
+                this.flash(errorMessage(await readJson(response), 'The file could not be removed.'));
+                return;
+            }
+            this.materials = this.materials.filter((m) => m.id !== material.id);
+            this.nudge('feed');
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.');
         }
     },
 
@@ -940,6 +1440,7 @@ window.learnClassroom = (cfg = {}) => {
                 this.upsertMessage(data.message, false);
             }
             if (announce) this.announceMode = false;
+            this.nudge('feed'); // everyone else fetches it right away
             this.pollNow();
             this.$nextTick(() => this.scrollToBottom(true));
         } catch (e) {
@@ -960,18 +1461,13 @@ window.learnClassroom = (cfg = {}) => {
         if (!message.can_answer || this.busy.message) return;
         this.busy.message = message.id;
         try {
-            const response = await fetch(this.urls.messages.answer.replace('__ID__', message.id), {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({}),
-            });
-            const data = await readJson(response);
-            if (!response.ok) {
+            const { ok, data } = await this.post(this.urls.messages.answer.replace('__ID__', message.id));
+            if (!ok) {
                 this.flash(errorMessage(data, 'The question could not be updated.'));
                 return;
             }
             if (data && data.id) this.upsertMessage(data, false);
+            this.nudge('feed');
         } catch (e) {
             this.flash('Could not reach the server. Try again.');
         } finally {
@@ -999,6 +1495,7 @@ window.learnClassroom = (cfg = {}) => {
                 return;
             }
             if (data && data.id) this.upsertMessage(data, false);
+            this.nudge('feed');
         } catch (e) {
             this.flash('Could not reach the server. Try again.');
         } finally {
@@ -1007,42 +1504,38 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     // --- People ----------------------------------------------------------
-    canRemove(p) {
+    canModerate(p) {
         return this.isManager && !!this.urls.studio && !p.is_me && p.role !== 'host' && this.room.status === 'live';
     },
 
     askRemove(p) {
-        this.openConfirm('remove', 'Remove ' + p.name + ' from the session?',
+        this.openConfirm('remove', 'Remove ' + p.name + ' from the class?',
             'They will be disconnected and cannot rejoin this session. They can still watch shared recordings later.', 'Remove', p);
     },
 
     async removeParticipant(p) {
-        if (!this.canRemove(p) || this.busy.remove) return;
+        if (!this.canModerate(p) || this.busy.remove) return;
         this.busy.remove = p.user_id;
         try {
-            const response = await fetch(this.urls.studio.remove.replace('__ID__', p.user_id), {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({}),
-            });
-            const data = await readJson(response);
-            if (!response.ok) {
+            const { ok, data } = await this.post(this.urls.studio.remove.replace('__ID__', p.user_id));
+            if (!ok) {
                 this.flash(errorMessage(data, 'The participant could not be removed.'), 7000);
                 return;
             }
-            const jitsiId = (data && (data.jitsi_id || data.jitsi_participant_id)) || p.jitsi_id;
-            if (jitsiId && jitsi.api) {
-                try { jitsi.api.executeCommand('kickParticipant', String(jitsiId)); } catch (e) { /* ignore */ }
-            }
             this.participants = this.participants.filter((x) => x.user_id !== p.user_id);
-            this.flash(p.name + ' was removed from the session.');
-            this.refreshSoon();
+            this.flash(p.name + ' was removed from the class.');
+            this.pollNow();
         } catch (e) {
             this.flash('Could not reach the server. Try again.', 7000);
         } finally {
             this.busy.remove = null;
         }
+    },
+
+    pinParticipant(p) {
+        const tile = this.tiles.find((t) => t.identity === p.identity && t.source === 'camera');
+        if (tile) this.pin(tile);
+        else this.flash(p.name + ' is not connected to the video yet.');
     },
 
     // --- Confirm dialog --------------------------------------------------
@@ -1061,6 +1554,7 @@ window.learnClassroom = (cfg = {}) => {
         if (kind === 'end') this.endSession();
         else if (kind === 'delete') this.deleteMessage(payload);
         else if (kind === 'remove') this.removeParticipant(payload);
+        else if (kind === 'material') this.deleteMaterial(payload);
     },
 };
 };

@@ -301,7 +301,7 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('learning_room_id')->constrained('learning_rooms')->cascadeOnDelete();
                 $table->foreignId('learning_room_session_id')->nullable()->constrained('learning_room_sessions')->nullOnDelete();
-                $table->string('source', 20);                        // upload | jaas
+                $table->string('source', 20);                        // upload | livekit
                 $table->string('status', 20)->default('ready');      // processing | ready | failed
                 $table->string('disk', 30)->nullable();
                 $table->string('path')->nullable();

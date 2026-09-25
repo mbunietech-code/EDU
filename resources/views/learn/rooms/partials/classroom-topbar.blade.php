@@ -20,6 +20,25 @@
     </div>
 
     <div class="flex shrink-0 items-center gap-2">
+        <span x-show="room.is_recording && room.status === 'live'" x-cloak
+            class="inline-flex items-center gap-1 rounded-full bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 ring-1 ring-inset ring-red-500/40"
+            role="status" aria-label="This class is being recorded">
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" aria-hidden="true"></span>
+            <span class="hidden sm:inline">Recording</span>
+        </span>
+        <span x-show="room.is_locked && room.status === 'live'" x-cloak title="Locked: no new people can join"
+            class="inline-flex items-center gap-1 rounded-full bg-gray-800 px-2 py-1 text-xs font-medium text-gray-300 ring-1 ring-inset ring-gray-700"
+            role="status" aria-label="The room is locked">
+            @include('learn.rooms.partials.icon', ['name' => 'lock', 'class' => 'h-3.5 w-3.5'])
+            <span class="hidden md:inline">Locked</span>
+        </span>
+        <span x-show="inCall" x-cloak class="hidden h-6 items-end gap-0.5 rounded px-1 py-1 sm:inline-flex" role="img"
+            :title="'Your network: ' + qualityLabel(myQuality)" :aria-label="'Your network: ' + qualityLabel(myQuality)">
+            <template x-for="bar in [1, 2, 3]" :key="bar">
+                <span class="w-1 rounded-sm" :style="'height:' + (bar * 4 + 2) + 'px'"
+                    :class="qualityBars(myQuality) >= bar ? (myQuality === 'poor' ? 'bg-amber-400' : (myQuality === 'lost' ? 'bg-red-500' : 'bg-emerald-400')) : 'bg-gray-600'"></span>
+            </template>
+        </span>
         <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset"
             :class="{
                 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30': connection.key === 'connected',

@@ -150,6 +150,7 @@ class RoomController extends Controller
             'chat_enabled' => true,
             'questions_enabled' => true,
             'allow_participant_media' => true,
+            'allow_screen_share' => false,
         ]);
 
         return view('studio.rooms.create', $this->formOptions($request->user(), $room));
@@ -267,13 +268,14 @@ class RoomController extends Controller
         $user = $request->user();
 
         if ($room->isLive()) {
-            // While live only the text and the three toggles may change.
+            // While live only the text and the toggles may change.
             $data = $request->validate([
                 'title' => ['required', 'string', 'max:255'],
                 'description' => ['nullable', 'string', 'max:20000'],
                 'chat_enabled' => ['nullable', 'boolean'],
                 'questions_enabled' => ['nullable', 'boolean'],
                 'allow_participant_media' => ['nullable', 'boolean'],
+                'allow_screen_share' => ['nullable', 'boolean'],
             ]);
 
             $this->rooms->update($room, [
@@ -407,6 +409,7 @@ class RoomController extends Controller
             'chat_enabled' => ['nullable', 'boolean'],
             'questions_enabled' => ['nullable', 'boolean'],
             'allow_participant_media' => ['nullable', 'boolean'],
+            'allow_screen_share' => ['nullable', 'boolean'],
             'notify' => ['nullable', 'boolean'],
             'action' => ['nullable', Rule::in(['draft', 'schedule', 'save'])],
         ];
@@ -533,11 +536,12 @@ class RoomController extends Controller
     private function togglePayload(Request $request, bool $creating): array
     {
         $out = [];
-        foreach (['chat_enabled', 'questions_enabled', 'allow_participant_media'] as $toggle) {
+        // Screen sharing by participants is opt-in; the other switches start on.
+        foreach (['chat_enabled' => true, 'questions_enabled' => true, 'allow_participant_media' => true, 'allow_screen_share' => false] as $toggle => $default) {
             if ($request->has($toggle)) {
                 $out[$toggle] = $request->boolean($toggle);
             } elseif ($creating) {
-                $out[$toggle] = true;
+                $out[$toggle] = $default;
             }
         }
 

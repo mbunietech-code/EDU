@@ -16,6 +16,7 @@ use App\Notifications\Learning\InstructorAccessGranted;
 use App\Services\Learning\LearningAnalytics;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Tests\Feature\Learning\Concerns\UsesLiveServer;
 use Tests\TestCase;
 
 /**
@@ -27,12 +28,13 @@ use Tests\TestCase;
 class AdminLearningTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesLiveServer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        config(['learning.live.provider' => 'jitsi', 'learning.live.jitsi.domain' => 'meet.jit.si']);
+        $this->useLiveServer();
         Notification::fake();
     }
 

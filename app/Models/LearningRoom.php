@@ -26,6 +26,7 @@ class LearningRoom extends Model
         'host_id', 'created_by', 'updated_by', 'status', 'access',
         'scheduled_at', 'duration_minutes', 'provider_room',
         'chat_enabled', 'questions_enabled', 'allow_participant_media',
+        'allow_screen_share', 'is_locked',
         'reminder_sent_at', 'started_at', 'ended_at', 'cancel_reason',
     ];
 
@@ -37,6 +38,8 @@ class LearningRoom extends Model
         'chat_enabled' => true,
         'questions_enabled' => true,
         'allow_participant_media' => true,
+        'allow_screen_share' => false,
+        'is_locked' => false,
     ];
 
     protected $casts = [
@@ -48,6 +51,8 @@ class LearningRoom extends Model
         'chat_enabled' => 'boolean',
         'questions_enabled' => 'boolean',
         'allow_participant_media' => 'boolean',
+        'allow_screen_share' => 'boolean',
+        'is_locked' => 'boolean',
     ];
 
     public const STATUSES = ['draft', 'scheduled', 'live', 'completed', 'cancelled'];
@@ -158,6 +163,12 @@ class LearningRoom extends Model
     public function recordings(): HasMany
     {
         return $this->hasMany(LearningRoomRecording::class)->latest();
+    }
+
+    /** Files the host shares in the classroom (slides, worksheets, …). */
+    public function materials(): HasMany
+    {
+        return $this->hasMany(LearningRoomMaterial::class)->latest();
     }
 
     // --- Scopes --------------------------------------------------------

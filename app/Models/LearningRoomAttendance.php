@@ -11,7 +11,8 @@ class LearningRoomAttendance extends Model
     protected $fillable = [
         'learning_room_session_id', 'learning_room_id', 'user_id', 'role',
         'first_joined_at', 'last_seen_at', 'left_at', 'total_seconds', 'join_count',
-        'removed_at', 'removed_by', 'jitsi_participant_id',
+        'removed_at', 'removed_by',
+        'can_publish_audio', 'can_publish_video', 'can_share_screen',
     ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
@@ -28,6 +29,10 @@ class LearningRoomAttendance extends Model
         'removed_at' => 'datetime',
         'total_seconds' => 'integer',
         'join_count' => 'integer',
+        // NULL = follow the room setting; true / false = the host's override for this person.
+        'can_publish_audio' => 'boolean',
+        'can_publish_video' => 'boolean',
+        'can_share_screen' => 'boolean',
     ];
 
     public const ROLES = ['host', 'participant'];
