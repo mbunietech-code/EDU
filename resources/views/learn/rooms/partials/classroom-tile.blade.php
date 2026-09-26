@@ -6,8 +6,19 @@
         :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"
         :aria-label="t.source === 'screen' ? t.name + ' is sharing their screen' : 'Video of ' + t.name"></video>
 
+    {{-- My own screen share: a notice instead of the picture (avoids the endless mirror effect) --}}
+    <div x-show="t.selfShare" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
+        <span class="text-indigo-300" aria-hidden="true">@include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => $big ? 'h-10 w-10' : 'h-6 w-6'])</span>
+        <p class="font-semibold text-white {{ $big ? 'text-base' : 'text-xs' }}">You are sharing your screen</p>
+        @if ($big)
+            <p class="max-w-sm text-xs text-gray-300">Everyone else sees it. Tip: share a window or another tab (slides, code) rather than this class tab.</p>
+        @endif
+        <button type="button" @click.stop="toggleShare()"
+            class="rounded-lg bg-red-600 font-semibold text-white hover:bg-red-500 {{ $big ? 'mt-1 px-4 py-2 text-sm' : 'px-2 py-1 text-[11px]' }}">Stop sharing</button>
+    </div>
+
     {{-- No video: initials --}}
-    <div x-show="!t.hasVideo" class="absolute inset-0 flex items-center justify-center">
+    <div x-show="!t.hasVideo && !t.selfShare" class="absolute inset-0 flex items-center justify-center">
         <div class="flex items-center justify-center rounded-full bg-indigo-600 font-semibold text-white {{ $big ? 'h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl' : 'h-10 w-10 text-sm' }}"
             :class="t.speaking ? 'ring-4 ring-emerald-400/70' : ''" aria-hidden="true"
             x-text="(t.name || '?').trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase()"></div>

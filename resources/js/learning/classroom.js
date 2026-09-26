@@ -922,7 +922,11 @@ window.learnClassroom = (cfg = {}) => {
 
             remoteState[p.identity] = { mic, cam, screen, speaking: base.speaking, quality: base.quality };
             tiles.push({ ...base, id: p.identity + ':camera', source: 'camera', hasVideo: cam });
-            if (screen) tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: true });
+            // My own screen share is never played back to me: showing it would capture itself
+            // again and again (a "hall of mirrors"). Everyone else sees it normally.
+            if (screen) {
+                tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: !p.isLocal, selfShare: !!p.isLocal });
+            }
         });
 
         const local = room.localParticipant;
@@ -946,9 +950,11 @@ window.learnClassroom = (cfg = {}) => {
 
         this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => {
             const [identity, source] = String(el.dataset.tileId).split(':');
-            const p = identity === room.localParticipant.identity ? room.localParticipant : room.remoteParticipants.get(identity);
+            const isMe = identity === room.localParticipant.identity;
+            const p = isMe ? room.localParticipant : room.remoteParticipants.get(identity);
             const pub = p && p.getTrackPublication(source === 'screen' ? S.ScreenShare : S.Camera);
-            const track = pub && !pub.isMuted ? pub.track : null;
+            // Never attach my own screen share (see refreshTiles).
+            const track = pub && !pub.isMuted && !(isMe && source === 'screen') ? pub.track : null;
 
             if (!track) {
                 if (el.srcObject) el.srcObject = null;
