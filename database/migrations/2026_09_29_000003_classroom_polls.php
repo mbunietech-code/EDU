@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
 
-            $table->index(['learning_room_id', 'learning_room_session_id']);
+            $table->index(['learning_room_id', 'learning_room_session_id'], 'learning_room_polls_room_session_index'); // default name is over MySQL's 64 characters
         });
 
         Schema::create('learning_room_poll_votes', function (Blueprint $table) {

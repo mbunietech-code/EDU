@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `learning_room_polls` (
     `created_at` TIMESTAMP NULL,
     `updated_at` TIMESTAMP NULL,
     PRIMARY KEY (`id`),
-    KEY `learning_room_polls_learning_room_id_learning_room_session_id_index` (`learning_room_id`, `learning_room_session_id`),
+    KEY `learning_room_polls_room_session_index` (`learning_room_id`, `learning_room_session_id`),
     CONSTRAINT `learning_room_polls_learning_room_id_foreign` FOREIGN KEY (`learning_room_id`) REFERENCES `learning_rooms` (`id`) ON DELETE CASCADE,
     CONSTRAINT `learning_room_polls_learning_room_session_id_foreign` FOREIGN KEY (`learning_room_session_id`) REFERENCES `learning_room_sessions` (`id`) ON DELETE SET NULL,
     CONSTRAINT `learning_room_polls_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
