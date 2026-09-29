@@ -890,8 +890,11 @@ window.learnClassroom = (cfg = {}) => {
         // second instead of a blurrier picture). On a weak connection the video
         // may stutter or pause, but it never turns low-resolution.
         const room = new mod.Room({
-            adaptiveStream: false, // always receive the full stream, whatever the tile size
-            dynacast: false,
+            // With a single layer these can no longer lower the quality; they only
+            // pause cameras that nobody has on screen, so a class with many cameras
+            // does not make everyone download all of them in Full HD.
+            adaptiveStream: true,
+            dynacast: true,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
             videoCaptureDefaults: { resolution: mod.VideoPresets.h1080.resolution },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
