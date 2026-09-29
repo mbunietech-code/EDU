@@ -15,6 +15,10 @@
 # Host networking is used on purpose: WebRTC needs thousands of UDP ports and
 # the real public IP; Docker's NAT would break both.
 
+# Fixed project name: containers and the caddy_data volume (TLS certificates) keep
+# the same names whatever folder this file lives in.
+name: live-server
+
 services:
   caddy:
     image: caddy:2
@@ -24,6 +28,7 @@ services:
       LIVE_DOMAIN: ${LIVE_DOMAIN}
       TURN_DOMAIN: ${TURN_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -86,7 +91,7 @@ services:
     volumes:
       - ./egress.yaml:/etc/egress.yaml:ro
       # Finished MP4s land here; Laravel imports them from LIVE_RECORDING_IMPORT_DIR.
-      - ${RECORDINGS_DIR:-/opt/live-server/recordings}:/out
+      - ${RECORDINGS_DIR:-/opt/livestream/recordings}:/out
     depends_on:
       - livekit
       - redis

@@ -106,9 +106,9 @@ Also open the same ports in your provider's cloud firewall / security group, if 
 ```bash
 # on the live server
 sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
-sudo mkdir -p /opt/live-server/recordings
-# copy this folder to /opt/live-server (git clone, scp or rsync)
-cd /opt/live-server
+sudo mkdir -p /opt/livestream/recordings
+# copy this folder to /opt/livestream (git clone, scp or rsync)
+cd /opt/livestream
 cp .env.example .env
 nano .env                     # domains, PUBLIC_IP, secrets (see below)
 nano livekit.yaml             # webhook.api_key = LIVE_API_KEY, webhook.urls = https://<your app>/api/webhooks/livekit
@@ -133,9 +133,9 @@ docker compose --profile recording up -d   # adds Redis + Egress
 If Laravel runs on the same server, let it read and delete the recordings:
 
 ```bash
-sudo chgrp -R www-data /opt/live-server/recordings
-sudo chmod -R 2775 /opt/live-server/recordings
-sudo setfacl -d -m g:www-data:rwx /opt/live-server/recordings   # files Egress creates later
+sudo chgrp -R www-data /opt/livestream/recordings
+sudo chmod -R 2775 /opt/livestream/recordings
+sudo setfacl -d -m g:www-data:rwx /opt/livestream/recordings   # files Egress creates later
 ```
 
 Updates: change the `*_VERSION` values in `.env`, then `docker compose pull && docker compose up -d`.
@@ -151,6 +151,17 @@ Updates: change the `*_VERSION` values in `.env`, then `docker compose pull && d
   `SESSION_SECURE_COOKIE=true`. Camera, microphone and screen sharing only work on secure pages.
 - The classroom page sends `Permissions-Policy: camera=(self), microphone=(self), display-capture=(self)`.
   If a proxy/CDN adds its own `Permissions-Policy`, it must allow the same.
+
+### Sharing 443 with OpenVPN
+
+If an OpenVPN TCP server must listen on 443 on the same host, Caddy cannot bind 443 and
+the classroom's `wss://live.…` stops working. Let OpenVPN hand every non-VPN connection to Caddy:
+
+1. OpenVPN server config (`/etc/openvpn/server/<name>.conf`): add `port-share 127.0.0.1 4443`,
+   then `systemctl restart openvpn-server@<name>`.
+2. Live server `.env`: `HTTPS_PORT=4443`, then `docker compose up -d`.
+3. Keep 4443 closed in the firewall; browsers still use `wss://live.example.com` on 443.
+   Port 80 must stay free for Let's Encrypt renewals.
 
 ### TURN on port 443 (strict corporate / school networks)
 
@@ -174,7 +185,7 @@ at it, and run coturn's TLS listener on `443` of that IP (`--tls-listening-port=
 | `TURN_SERVER_USERNAME` / `TURN_SERVER_CREDENTIAL` | | only if you run coturn with a fixed user instead |
 | `LIVE_ICE_TRANSPORT_POLICY` | `all` | `relay` forces TURN (testing) |
 | `LIVE_RECORDING_ENABLED` | `true` | only with the Egress profile running |
-| `LIVE_RECORDING_IMPORT_DIR` | `/opt/live-server/recordings` | the Egress output folder as seen by Laravel |
+| `LIVE_RECORDING_IMPORT_DIR` | `/opt/livestream/recordings` | the Egress output folder as seen by Laravel |
 
 Then:
 
