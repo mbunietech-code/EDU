@@ -304,7 +304,7 @@ Route::prefix('admin')
             Route::delete('messages/{conversation}/{message}', [AdminChatController::class, 'destroy'])->name('chat.destroy');
         });
 
-        // --- Internal team chat (admin <-> super admin) -------------
+        // --- Internal team chat (private 1:1 chats + groups) ---------
         // Group chats. Registered before the {conversation} routes below, which
         // would otherwise swallow "groups/…" paths.
         Route::prefix('team-chat/groups')->name('team-chat.groups.')->whereNumber('group')->group(function () {
@@ -324,12 +324,8 @@ Route::prefix('admin')
 
         Route::get('team-chat', [\App\Http\Controllers\Admin\TeamChatController::class, 'index'])->name('team-chat.index');
         Route::post('team-chat/start/{admin}', [\App\Http\Controllers\Admin\TeamChatController::class, 'start'])->name('team-chat.start');
-        Route::get('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'show'])->name('team-chat.show');
-        Route::get('team-chat/{conversation}/fetch', [\App\Http\Controllers\Admin\TeamChatController::class, 'fetch'])->name('team-chat.fetch');
-        Route::post('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'store'])->name('team-chat.store');
-        Route::put('team-chat/{conversation}/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'update'])->name('team-chat.update');
-        Route::delete('team-chat/{conversation}/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'destroy'])->name('team-chat.destroy');
-        Route::get('team-chat/{conversation}/file/{message}', [\App\Http\Controllers\Admin\TeamChatController::class, 'attachment'])->name('team-chat.attachment');
+        // Old shared-thread links (/admin/team-chat/{id}) land on the chat list.
+        Route::get('team-chat/{conversation}', [\App\Http\Controllers\Admin\TeamChatController::class, 'legacy'])->whereNumber('conversation')->name('team-chat.show');
 
         // --- Subscriptions ----------------------------------------
         Route::middleware('can:subscriptions.view')->group(function () {

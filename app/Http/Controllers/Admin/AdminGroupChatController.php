@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Group chats inside Team Chat. Any member can read and post; only super
- * admins create groups, rename them and change who is in them.
+ * admins create groups, rename them and change who is in them. Private
+ * one-to-one chats (direct_key set) are started from TeamChatController and
+ * can never be changed or opened by anyone outside the pair.
  */
 class AdminGroupChatController extends Controller
 {
@@ -41,6 +43,7 @@ class AdminGroupChatController extends Controller
     public function settings(Request $request, AdminGroup $group)
     {
         $this->requireSuperAdmin($request);
+        $this->forbidDirect($group);
 
         return view('admin.team-chat.group-form', [
             'group' => $group,
@@ -52,6 +55,7 @@ class AdminGroupChatController extends Controller
     public function update(Request $request, AdminGroup $group)
     {
         $this->requireSuperAdmin($request);
+        $this->forbidDirect($group);
 
         $data = $this->validateGroup($request);
 
@@ -64,6 +68,7 @@ class AdminGroupChatController extends Controller
     public function destroy(Request $request, AdminGroup $group)
     {
         $this->requireSuperAdmin($request);
+        $this->forbidDirect($group);
 
         $paths = $group->messages()->whereNotNull('file_path')->pluck('file_path');
         $group->delete();
@@ -198,6 +203,13 @@ class AdminGroupChatController extends Controller
         abort_unless($group->hasMember($request->user()), 403);
     }
 
+    // A private chat is always exactly its two people: nobody renames it, adds
+    // members to it or deletes it for both sides.
+    protected function forbidDirect(AdminGroup $group): void
+    {
+        abort_if($group->isDirect(), 404);
+    }
+
     /**
      * @return \Illuminate\Support\Collection<int,User>
      */
@@ -246,7 +258,9 @@ class AdminGroupChatController extends Controller
             // The shared chat thread aligns bubbles with `fromAdmin === viewer`;
             // group views always pass viewer=true, so this simply means "mine".
             'fromAdmin' => $mine,
-            'sender' => $mine ? null : ($message->sender?->name ?? 'Unknown'),
+            'sender' => $mine || in_array($message->sender_id, $group->directUserIds(), true)
+                ? null // in a private chat the other side needs no name tag
+                : ($message->sender?->name ?? 'Unknown'),
             'type' => $message->is_deleted ? 'text' : $message->type,
             'body' => $message->is_deleted ? 'This message was deleted' : $message->body,
             'file' => (! $message->is_deleted && $message->file_path) ? route('admin.team-chat.groups.attachment', [$group, $message]) : null,

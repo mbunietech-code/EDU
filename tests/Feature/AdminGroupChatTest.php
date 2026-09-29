@@ -160,7 +160,7 @@ class AdminGroupChatTest extends TestCase
         $this->assertDatabaseCount('admin_group_messages', 0);
     }
 
-    public function test_index_lists_groups_and_line_admin_without_groups_still_lands_on_their_thread(): void
+    public function test_index_lists_groups_only_to_their_members(): void
     {
         $super = $this->superAdmin();
         $line = $this->lineAdmin();
@@ -170,6 +170,6 @@ class AdminGroupChatTest extends TestCase
         $this->actingAs($super)->get(route('admin.team-chat.index'))->assertOk()->assertSee('Support');
         $this->actingAs($line)->get(route('admin.team-chat.index'))->assertOk()->assertSee('Support');
 
-        $this->actingAs($lonely)->get(route('admin.team-chat.index'))->assertRedirect();
+        $this->actingAs($lonely)->get(route('admin.team-chat.index'))->assertOk()->assertDontSee('Support');
     }
 }

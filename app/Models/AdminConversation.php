@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * One thread per non-super-admin user. The "Super Admin" side is treated as
- * a single collective counterpart — any super admin can read and reply here,
- * and the line admin sees them all as one "Super Admin" conversation.
+ * Legacy Team Chat thread (before 2026-09-29): one per admin, readable by
+ * every super admin. Kept only as history — alter 0016 copied each thread
+ * into a private AdminGroup chat (peer_id / migrated_at record where it went).
  */
 class AdminConversation extends Model
 {
