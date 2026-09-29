@@ -1,4 +1,13 @@
 {
+  "node_modules/@livekit/track-processors/dist/index.mjs": {
+    "file": "assets/index-C93ZIJuY.js",
+    "name": "index",
+    "src": "node_modules/@livekit/track-processors/dist/index.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/livekit-client/dist/livekit-client.esm.mjs"
+    ]
+  },
   "node_modules/livekit-client/dist/livekit-client.esm.mjs": {
     "file": "assets/livekit-client.esm-BEQj0Dup.js",
     "name": "livekit-client.esm",
@@ -6,17 +15,18 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-Bzzov1oc.css",
+    "file": "assets/app-Dfavk29C.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-ehakB1Ip.js",
+    "file": "assets/app-DSzGmoAd.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "node_modules/livekit-client/dist/livekit-client.esm.mjs"
+      "node_modules/livekit-client/dist/livekit-client.esm.mjs",
+      "node_modules/@livekit/track-processors/dist/index.mjs"
     ]
   }
 }

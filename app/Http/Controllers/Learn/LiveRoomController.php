@@ -244,6 +244,14 @@ class LiveRoomController extends Controller
                     : null,
             ],
             'materials' => $this->materials($room),
+            // Camera background blur / pictures: MediaPipe files served from our own site.
+            'backgrounds' => [
+                'wasm' => asset('vendor/mediapipe/wasm'),
+                'model' => asset('vendor/mediapipe/selfie_segmenter.tflite'),
+                'images' => collect(['blue' => 'Blue', 'green' => 'Green', 'study' => 'Study'])
+                    ->map(fn ($label, $key) => ['label' => $label, 'url' => asset("images/classroom-backgrounds/{$key}.png")])
+                    ->values()->all(),
+            ],
             'maxMessageLength' => RoomService::MAX_MESSAGE_LENGTH,
             'maxMaterialMb' => max(1, (int) config('learning.max_resource_mb', 50)),
             'materialExtensions' => array_values((array) config('learning.resource_extensions', [])),

@@ -130,4 +130,20 @@ class ClassroomHandsTest extends TestCase
 
         $this->assertSame(route('studio.rooms.lower-hands', $room->id), $urls($host)['studio']['lowerHands']);
     }
+
+    public function test_camera_backgrounds_are_served_from_our_own_site(): void
+    {
+        [, $learner, $room] = $this->classInProgress();
+
+        $backgrounds = $this->actingAs($learner)->get(route('learn.rooms.live', $room))->assertOk()->viewData('config')['backgrounds'];
+
+        $this->assertSame(asset('vendor/mediapipe/wasm'), $backgrounds['wasm']);
+        $this->assertFileExists(public_path('vendor/mediapipe/wasm/vision_wasm_internal.wasm'));
+        $this->assertFileExists(public_path('vendor/mediapipe/selfie_segmenter.tflite'));
+        $this->assertCount(3, $backgrounds['images']);
+        foreach ($backgrounds['images'] as $image) {
+            $this->assertStringStartsWith(asset('images/classroom-backgrounds/'), $image['url']);
+            $this->assertFileExists(public_path(str_replace(asset(''), '', $image['url'])));
+        }
+    }
 }

@@ -1,3 +1,8 @@
+# The live classroom's background blur runs MediaPipe in WebAssembly: browsers need this type to load it.
+<IfModule mod_mime.c>
+    AddType application/wasm .wasm
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

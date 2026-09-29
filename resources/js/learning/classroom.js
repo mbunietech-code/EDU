@@ -63,6 +63,18 @@ function loadLiveKit() {
     return livekitModule;
 }
 
+/** Background blur / virtual background (MediaPipe) — only downloaded when someone picks one. */
+let processorsModule = null;
+function loadProcessors() {
+    if (!processorsModule) {
+        processorsModule = import('@livekit/track-processors').catch((e) => {
+            processorsModule = null;
+            throw e;
+        });
+    }
+    return processorsModule;
+}
+
 function csrfToken() {
     return document.querySelector('meta[name=csrf-token]')?.content || '';
 }
@@ -104,7 +116,7 @@ function formatBytes(bytes) {
 
 window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
-    const lk = { mod: null, room: null, intentional: false, refreshFrame: null };
+    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
     const recorder = { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() };
     // Whiteboard canvas and strokes, also outside Alpine (thousands of points).
@@ -164,6 +176,9 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // My camera background: none | blur | image (remembered on this device).
+    bg: { mode: 'none', image: '', busy: false, error: '' },
+    bgImages: (cfg.backgrounds && Array.isArray(cfg.backgrounds.images)) ? cfg.backgrounds.images : [],
     // Whiteboard (state from the feed; strokes live in `wb`).
     board: { active: false, all_can_draw: false, version: 0 },
     boardColours: PEN_COLOURS,
@@ -232,6 +247,9 @@ window.learnClassroom = (cfg = {}) => {
         try {
             const saved = window.localStorage.getItem('classroom.recQuality');
             if (saved && REC_PRESETS[saved]) this.recQuality = saved;
+            const bg = JSON.parse(window.localStorage.getItem('classroom.background') || 'null');
+            if (bg && bg.mode === 'blur') this.bg.mode = 'blur';
+            if (bg && bg.mode === 'image' && this.bgImages.some((i) => i.url === bg.image)) Object.assign(this.bg, { mode: 'image', image: bg.image });
         } catch (e) { /* storage unavailable */ }
         this.tick();
         this.clockTimer = setInterval(() => this.tick(), 1000);
@@ -950,7 +968,11 @@ window.learnClassroom = (cfg = {}) => {
             .on(E.TrackSubscriptionFailed, () => this.flash('A participant’s video could not be received. It will retry automatically.'))
             .on(E.TrackMuted, refresh)
             .on(E.TrackUnmuted, refresh)
-            .on(E.LocalTrackPublished, () => { this.recAttachMic(); refresh(); })
+            .on(E.LocalTrackPublished, (pub) => {
+                this.recAttachMic();
+                if (pub && pub.source === mod.Track.Source.Camera && this.bg.mode !== 'none') this.applyBackground();
+                refresh();
+            })
             .on(E.LocalTrackUnpublished, refresh)
             .on(E.ActiveSpeakersChanged, refresh)
             .on(E.ConnectionQualityChanged, refresh)
@@ -1651,6 +1673,7 @@ window.learnClassroom = (cfg = {}) => {
         this.audioBlocked = false;
         this.floating = [];
         this.reactionSeen = {};
+        lk.bgProcessor = null;
         wb.live = {};
         wb.drawing = null;
     },
@@ -1824,6 +1847,63 @@ window.learnClassroom = (cfg = {}) => {
             }
         } catch (e) {
             this.mediaError = this.deviceHelp('camera', e);
+        }
+    },
+
+    // --- Camera background ------------------------------------------------
+    async setBackground(mode, image = '') {
+        if (this.bg.busy || !['none', 'blur', 'image'].includes(mode)) return;
+        if (mode === 'image' && !this.bgImages.some((i) => i.url === image)) return;
+        this.bg.mode = mode;
+        this.bg.image = mode === 'image' ? image : '';
+        try {
+            window.localStorage.setItem('classroom.background', JSON.stringify({ mode, image: this.bg.image }));
+        } catch (e) { /* storage unavailable */ }
+        await this.applyBackground();
+    },
+
+    /** Put the chosen background on my camera track (no camera yet: done when it starts). */
+    async applyBackground() {
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod) return;
+        const pub = room.localParticipant.getTrackPublication(mod.Track.Source.Camera);
+        const track = pub && pub.track;
+        if (!track || typeof track.setProcessor !== 'function') return;
+        const current = track.getProcessor ? track.getProcessor() : null;
+        this.bg.busy = true;
+        this.bg.error = '';
+        try {
+            if (this.bg.mode === 'none') {
+                if (current) await track.stopProcessor();
+                return;
+            }
+            const tp = await loadProcessors();
+            if (!tp.supportsBackgroundProcessors()) {
+                this.bg.error = 'This browser cannot change the camera background. Try a recent Chrome, Edge or Firefox.';
+                this.bg.mode = 'none';
+                return;
+            }
+            const options = this.bg.mode === 'blur'
+                ? { mode: 'background-blur', blurRadius: 12 }
+                : { mode: 'virtual-background', imagePath: this.bg.image };
+            if (current && current === lk.bgProcessor && typeof current.switchTo === 'function') {
+                await current.switchTo(options);
+                return;
+            }
+            const assets = this.cfg.backgrounds || {};
+            // Served from our own site (public/vendor/mediapipe), not a CDN.
+            lk.bgProcessor = tp.BackgroundProcessor({
+                ...options,
+                assetPaths: { tasksVisionFileSet: assets.wasm, modelAssetPath: assets.model },
+            });
+            await track.setProcessor(lk.bgProcessor);
+        } catch (e) {
+            this.bg.error = 'The background could not be changed on this device.';
+            this.bg.mode = 'none';
+            try { if (track.getProcessor && track.getProcessor()) await track.stopProcessor(); } catch (err) { /* already plain */ }
+        } finally {
+            this.bg.busy = false;
         }
     },
 
