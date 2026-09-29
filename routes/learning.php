@@ -71,6 +71,12 @@ Route::middleware(['auth', 'verified'])
             ->middleware('throttle:30,1')->name('rooms.hand');
         Route::post('/rooms/{room:slug}/polls/{poll}/vote', [Learn\RoomPollController::class, 'vote'])
             ->whereNumber('poll')->middleware('throttle:30,1')->name('rooms.polls.vote');
+        Route::get('/rooms/{room:slug}/board', [Learn\RoomBoardController::class, 'index'])
+            ->middleware('throttle:120,1')->name('rooms.board');
+        Route::post('/rooms/{room:slug}/board/strokes', [Learn\RoomBoardController::class, 'store'])
+            ->middleware('throttle:240,1')->name('rooms.board.strokes.store');
+        Route::delete('/rooms/{room:slug}/board/strokes/{stroke}', [Learn\RoomBoardController::class, 'destroy'])
+            ->whereNumber('stroke')->middleware('throttle:60,1')->name('rooms.board.strokes.destroy');
         Route::get('/rooms/{room:slug}/feed', [Learn\LiveRoomController::class, 'feed'])
             ->middleware('throttle:120,1')->name('rooms.feed');
         Route::post('/rooms/{room:slug}/messages', [Learn\RoomMessageController::class, 'store'])
@@ -148,6 +154,7 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
                 ->whereNumber('user')->name('rooms.participants.lower-hand');
             Route::post('/rooms/{room}/lower-hands', [Studio\RoomModerationController::class, 'lowerHands'])->name('rooms.lower-hands');
             Route::post('/rooms/{room}/polls', [Studio\RoomPollController::class, 'store'])->name('rooms.polls.store');
+            Route::post('/rooms/{room}/board', [Studio\RoomBoardController::class, 'update'])->name('rooms.board');
             Route::post('/rooms/{room}/polls/{poll}/close', [Studio\RoomPollController::class, 'close'])
                 ->whereNumber('poll')->name('rooms.polls.close');
             Route::post('/rooms/{room}/recording/start', [Studio\RoomModerationController::class, 'startRecording'])->name('rooms.recording.start');

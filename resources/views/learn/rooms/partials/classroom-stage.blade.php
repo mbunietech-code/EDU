@@ -6,7 +6,7 @@
     {{-- In the call --}}
     <div x-show="inCall" class="absolute inset-0">
         {{-- Speaker layout: the speaker fills the stage. Everyone else's camera is in the side panel → Cameras. --}}
-        <template x-if="layout === 'speaker'">
+        <template x-if="layout === 'speaker' && !board.active">
         <div class="absolute inset-0 p-2 sm:p-3">
             <div class="relative h-full w-full">
                 <template x-for="t in (stageTile ? [stageTile] : [])" :key="t.id">
@@ -19,7 +19,7 @@
         </template>
 
         {{-- Grid layout --}}
-        <template x-if="layout === 'grid'">
+        <template x-if="layout === 'grid' && !board.active">
         <div class="absolute inset-0 grid auto-rows-fr gap-2 overflow-y-auto p-2 sm:p-3" :class="gridClass" role="list" aria-label="Participants">
             <template x-for="t in tiles" :key="t.id">
                 <div class="min-h-[7rem]" role="listitem">
@@ -27,6 +27,78 @@
                 </div>
             </template>
         </div>
+        </template>
+
+        {{-- Whiteboard: replaces the video layout while the host has it open --}}
+        <template x-if="board.active">
+            <div class="absolute inset-0 flex flex-col gap-2 p-2 sm:p-3">
+                <div x-ref="boardBox" class="relative min-h-0 flex-1" x-init="$nextTick(() => mountBoard())">
+                    <canvas x-ref="boardCanvas" class="absolute rounded-lg bg-white shadow-lg" style="touch-action: none"
+                        :class="canDraw ? 'cursor-crosshair' : 'cursor-default'"
+                        @pointerdown="boardDown($event)" @pointermove="boardMove($event)"
+                        @pointerup="boardUp()" @pointercancel="boardUp()"
+                        role="img" aria-label="Class whiteboard"></canvas>
+
+                    {{-- The speaker stays visible in the corner --}}
+                    <template x-for="t in (boardPipTile ? [boardPipTile] : [])" :key="'pip-' + t.id">
+                        <div class="absolute bottom-2 right-2 z-10 h-24 w-40 overflow-hidden rounded-xl shadow-xl ring-1 ring-black/20 sm:h-32 sm:w-56">
+                            @include('learn.rooms.partials.classroom-tile', ['big' => false])
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Tools --}}
+                <div class="flex shrink-0 flex-wrap items-center justify-center gap-1.5 text-xs" role="toolbar" aria-label="Whiteboard tools">
+                    <template x-if="canDraw">
+                        <div class="flex flex-wrap items-center gap-1.5 rounded-full bg-gray-800 px-2 py-1">
+                            <template x-for="colour in boardColours" :key="colour">
+                                <button type="button" @click="setBoardColour(colour)"
+                                    class="h-6 w-6 rounded-full ring-2 transition"
+                                    :class="!boardTool.eraser && boardTool.colour === colour ? 'ring-white scale-110' : 'ring-transparent'"
+                                    :style="'background:' + colour" :aria-label="'Pen colour ' + colour"
+                                    :aria-pressed="(!boardTool.eraser && boardTool.colour === colour).toString()"></button>
+                            </template>
+                            <span class="mx-1 h-5 w-px bg-gray-600" aria-hidden="true"></span>
+                            <template x-for="[name, size] in Object.entries(boardSizes)" :key="name">
+                                <button type="button" @click="boardTool.size = size; boardTool.eraser = false"
+                                    class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-700"
+                                    :class="!boardTool.eraser && boardTool.size === size ? 'bg-gray-700' : ''"
+                                    :aria-label="'Pen size ' + name" :aria-pressed="(!boardTool.eraser && boardTool.size === size).toString()">
+                                    <span class="rounded-full bg-gray-100" :style="'width:' + (size / 2 + 3) + 'px;height:' + (size / 2 + 3) + 'px'"></span>
+                                </button>
+                            </template>
+                            <button type="button" @click="boardTool.eraser = !boardTool.eraser"
+                                class="flex h-7 w-7 items-center justify-center rounded-full text-gray-200 hover:bg-gray-700"
+                                :class="boardTool.eraser ? 'bg-indigo-600 hover:bg-indigo-500' : ''"
+                                :aria-pressed="boardTool.eraser.toString()" aria-label="Eraser" title="Eraser">
+                                @include('learn.rooms.partials.icon', ['name' => 'eraser', 'class' => 'h-4 w-4'])
+                            </button>
+                            <button type="button" @click="undoBoard()" :disabled="boardMine === 0 || boardBusy !== null"
+                                class="flex h-7 w-7 items-center justify-center rounded-full text-gray-200 hover:bg-gray-700 disabled:opacity-40"
+                                aria-label="Undo my last line" title="Undo my last line">
+                                @include('learn.rooms.partials.icon', ['name' => 'undo', 'class' => 'h-4 w-4'])
+                            </button>
+                        </div>
+                    </template>
+                    <template x-if="!canDraw">
+                        <p class="rounded-full bg-gray-800 px-3 py-1.5 text-gray-300">The host is using the whiteboard.</p>
+                    </template>
+
+                    <template x-if="isManager">
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" @click="setBoard({ all_can_draw: !board.all_can_draw })" :disabled="boardBusy !== null"
+                                class="rounded-full px-3 py-1.5 font-medium ring-1 disabled:opacity-50"
+                                :class="board.all_can_draw ? 'bg-emerald-600 text-white ring-emerald-500 hover:bg-emerald-500' : 'bg-gray-800 text-gray-200 ring-gray-700 hover:bg-gray-700'"
+                                :aria-pressed="board.all_can_draw.toString()"
+                                x-text="board.all_can_draw ? 'Everyone can draw' : 'Only I draw'"></button>
+                            <button type="button" @click="askClearBoard()" :disabled="boardBusy !== null"
+                                class="rounded-full bg-gray-800 px-3 py-1.5 font-medium text-gray-200 ring-1 ring-gray-700 hover:bg-gray-700 disabled:opacity-50">Clear</button>
+                            <button type="button" @click="setBoard({ active: false })" :disabled="boardBusy !== null"
+                                class="rounded-full bg-gray-800 px-3 py-1.5 font-medium text-gray-200 ring-1 ring-gray-700 hover:bg-gray-700 disabled:opacity-50">Close board</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
         </template>
 
         {{-- Reactions float up from the bottom-left of the stage --}}

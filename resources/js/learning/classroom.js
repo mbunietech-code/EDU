@@ -33,7 +33,15 @@ const REC_PRESETS = {
 };
 const recMbPerHour = (p) => Math.round(((p.video + p.audio) * 3600) / 8 / 1e6);
 const CONNECT_TIMEOUT_MS = 20000;
+import {
+    BOARD_COLOURS, ERASER_SIZE, PEN_COLOURS, PEN_SIZES,
+    addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, toBoard,
+} from './whiteboard.js';
+
 const DATA_TOPIC = 'classroom';
+/** Live whiteboard pen movements (the saved strokes come from Laravel). */
+const BOARD_TOPIC = 'board';
+const BOARD_SEND_MS = 60;
 /**
  * Reactions travel peer-to-peer over the SFU (they are fleeting, nothing is
  * stored). Only these emoji are ever shown; the sender's name comes from the
@@ -99,6 +107,12 @@ window.learnClassroom = (cfg = {}) => {
     const lk = { mod: null, room: null, intentional: false, refreshFrame: null };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
     const recorder = { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() };
+    // Whiteboard canvas and strokes, also outside Alpine (thousands of points).
+    const wb = {
+        canvas: null, ctx: null, box: null, observer: null, base: null, baseCtx: null, rect: null,
+        strokes: [], lastId: 0, version: -1, loading: false, reloadAgain: false,
+        pending: [], live: {}, drawing: null, sendFrom: 0, sendTimer: null, frame: null, lastFetch: 0,
+    };
 
     return {
     cfg,
@@ -150,6 +164,13 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // Whiteboard (state from the feed; strokes live in `wb`).
+    board: { active: false, all_can_draw: false, version: 0 },
+    boardColours: PEN_COLOURS,
+    boardSizes: PEN_SIZES,
+    boardTool: { colour: PEN_COLOURS[0], size: PEN_SIZES.medium, eraser: false },
+    boardBusy: null,
+    boardMine: 0, // strokes of mine on the board (enables Undo)
     // Polls / quizzes of the running session (from the feed).
     polls: [],
     pollBusy: null,
@@ -412,6 +433,12 @@ window.learnClassroom = (cfg = {}) => {
         return this.tiles.find((t) => !t.isLocal) || this.tiles[0];
     },
 
+    /** Camera in the corner of the whiteboard: whoever speaks, else the host. */
+    get boardPipTile() {
+        const cams = this.tiles.filter((t) => t.source === 'camera' && !t.isLocal && t.hasVideo);
+        return cams.find((t) => t.speaking) || cams.find((t) => t.isHost) || null;
+    },
+
     get filmstripTiles() {
         const main = this.stageTile;
         return this.tiles.filter((t) => !main || t.id !== main.id);
@@ -575,6 +602,7 @@ window.learnClassroom = (cfg = {}) => {
         if (data.counts) this.counts = data.counts;
         if (Array.isArray(data.materials)) this.materials = data.materials;
         if (Array.isArray(data.polls)) this.applyPolls(data.polls, firstLoad);
+        if (data.board) this.applyBoard(data.board);
         if (data.me && data.me.permissions) this.applyPermissions(data.me.permissions);
         this.feedLoaded = true;
 
@@ -1070,7 +1098,7 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     onData(payload, topic, participant) {
-        if (topic !== DATA_TOPIC && topic !== REACTION_TOPIC) return;
+        if (topic !== DATA_TOPIC && topic !== REACTION_TOPIC && topic !== BOARD_TOPIC) return;
         let msg;
         try {
             msg = JSON.parse(new TextDecoder().decode(payload));
@@ -1089,8 +1117,14 @@ window.learnClassroom = (cfg = {}) => {
             return;
         }
 
+        if (topic === BOARD_TOPIC) {
+            this.onBoardPacket(msg, participant);
+            return;
+        }
+
         // Signals only: the content always comes from Laravel.
         if (msg.t === 'feed' || msg.t === 'rights') this.pollNow();
+        if (msg.t === 'board') this.fetchBoard();
     },
 
     // --- Polls & quizzes ---------------------------------------------------
@@ -1179,6 +1213,268 @@ window.learnClassroom = (cfg = {}) => {
     closePoll(poll) {
         const url = this.urls.studio && this.urls.studio.pollClose;
         if (url) this.runPoll('close:' + poll.id, url.replace('__ID__', poll.id), {});
+    },
+
+    // --- Whiteboard --------------------------------------------------------
+    get canDraw() {
+        return this.inCall && this.board.active && (this.isManager || this.board.all_can_draw);
+    },
+
+    applyBoard(state) {
+        const wasActive = this.board.active;
+        this.board = { active: !!state.active, all_can_draw: !!state.all_can_draw, version: state.version | 0 };
+        if (!this.board.active) {
+            if (wasActive) this.$nextTick(() => this.attachVideos());
+            return;
+        }
+        if (!wasActive) this.$nextTick(() => this.attachVideos());
+        // A clear / undo raises the version: reload everything. Otherwise top up now and then.
+        if (this.board.version !== wb.version) this.fetchBoard(true);
+        else if (Date.now() - wb.lastFetch > 30000) this.fetchBoard();
+    },
+
+    /** Load the saved strokes (all of them after a version change, else only new ones). */
+    async fetchBoard(full = false) {
+        if (!this.urls.board || !this.board.active) return;
+        if (wb.loading) { wb.reloadAgain = true; return; }
+        wb.loading = true;
+        wb.lastFetch = Date.now();
+        try {
+            let after = full ? 0 : wb.lastId;
+            let strokes = full ? [] : wb.strokes;
+            let version = null;
+            for (let page = 0; page < 20; page++) {
+                const response = await fetch(this.urls.board + '?after=' + after, { headers: jsonHeaders(), credentials: 'same-origin' });
+                const data = await readJson(response);
+                if (!response.ok || !data) return;
+                version = data.version;
+                strokes = strokes.concat((data.strokes || []).filter(isValidStroke));
+                if (strokes.length) after = strokes[strokes.length - 1].id;
+                if (!data.more) break;
+            }
+            wb.strokes = strokes;
+            wb.lastId = strokes.length ? strokes[strokes.length - 1].id : 0;
+            if (version !== null) wb.version = version;
+            // Saved strokes replace the live copies that were drawn while they travelled.
+            strokes.forEach((st) => { delete wb.live[st.uid]; });
+            wb.pending = wb.pending.filter((st) => !strokes.some((x) => x.uid === st.uid));
+            this.boardMine = strokes.filter((st) => st.user_id === this.viewer.id).length;
+            this.rebuildBoard();
+        } catch (e) {
+            /* offline: the next feed or nudge retries */
+        } finally {
+            wb.loading = false;
+            if (wb.reloadAgain) { wb.reloadAgain = false; this.fetchBoard(); }
+        }
+    },
+
+    /** Called by x-init when the board canvas is shown. */
+    mountBoard() {
+        const canvas = this.$refs.boardCanvas;
+        const box = this.$refs.boardBox;
+        if (!canvas || !box) return;
+        if (wb.observer) wb.observer.disconnect();
+        wb.canvas = canvas;
+        wb.box = box;
+        wb.ctx = canvas.getContext('2d');
+        wb.base = document.createElement('canvas');
+        wb.baseCtx = wb.base.getContext('2d');
+        wb.observer = new ResizeObserver(() => this.layoutBoard());
+        wb.observer.observe(box);
+        this.layoutBoard();
+        this.fetchBoard(wb.version !== this.board.version);
+    },
+
+    layoutBoard() {
+        if (!wb.canvas || !wb.box || !wb.canvas.isConnected) return;
+        const fit = fitBoard(wb.box.clientWidth, wb.box.clientHeight);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        Object.assign(wb.canvas.style, { left: fit.x + 'px', top: fit.y + 'px', width: fit.w + 'px', height: fit.h + 'px' });
+        wb.canvas.width = wb.base.width = Math.round(fit.w * dpr);
+        wb.canvas.height = wb.base.height = Math.round(fit.h * dpr);
+        this.rebuildBoard();
+    },
+
+    /** Repaint the saved strokes into the cached base layer, then the screen. */
+    rebuildBoard() {
+        if (!wb.baseCtx || !wb.base.width) return;
+        paintBoard(wb.baseCtx, wb.strokes, wb.base.width, wb.base.height);
+        this.renderBoard();
+    },
+
+    /** Base layer + strokes still in flight (mine being saved, others' live ones, the one I am drawing). */
+    renderBoard() {
+        if (wb.frame) return;
+        wb.frame = requestAnimationFrame(() => {
+            wb.frame = null;
+            if (!wb.ctx || !wb.canvas || !wb.canvas.isConnected) return;
+            const { width, height } = wb.canvas;
+            wb.ctx.drawImage(wb.base, 0, 0);
+            wb.pending.forEach((st) => drawStroke(wb.ctx, st, width, height));
+            Object.values(wb.live).forEach((st) => drawStroke(wb.ctx, st, width, height));
+            if (wb.drawing) drawStroke(wb.ctx, wb.drawing, width, height);
+        });
+    },
+
+    boardDown(e) {
+        if (!this.canDraw || !wb.canvas || (e.button !== undefined && e.button > 0)) return;
+        e.preventDefault();
+        try { wb.canvas.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
+        const eraser = this.boardTool.eraser;
+        wb.drawing = {
+            uid: newStrokeId(),
+            user_id: this.viewer.id,
+            c: eraser ? BOARD_COLOURS[BOARD_COLOURS.length - 1] : this.boardTool.colour,
+            w: eraser ? ERASER_SIZE : this.boardTool.size,
+            p: toBoard(e.clientX, e.clientY, wb.canvas.getBoundingClientRect()),
+        };
+        wb.sendFrom = 0;
+        this.scheduleBoardSend();
+        this.renderBoard();
+    },
+
+    boardMove(e) {
+        if (!wb.drawing) return;
+        const rect = wb.canvas.getBoundingClientRect();
+        const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
+        let added = false;
+        (events.length ? events : [e]).forEach((ev) => {
+            const [x, y] = toBoard(ev.clientX, ev.clientY, rect);
+            added = addPoint(wb.drawing, x, y) || added;
+        });
+        if (added) {
+            this.scheduleBoardSend();
+            this.renderBoard();
+        }
+    },
+
+    async boardUp() {
+        const stroke = wb.drawing;
+        if (!stroke) return;
+        wb.drawing = null;
+        this.sendBoardPoints(stroke);
+        wb.pending.push(stroke);
+        this.renderBoard();
+        try {
+            const { ok, data } = await this.post(this.urls.boardStroke, { uid: stroke.uid, c: stroke.c, w: stroke.w, p: stroke.p });
+            if (!ok) {
+                wb.pending = wb.pending.filter((st) => st !== stroke);
+                this.renderBoard();
+                this.flash(errorMessage(data, 'Your drawing could not be saved.'), 7000);
+                return;
+            }
+            this.nudge('board');
+            this.fetchBoard();
+        } catch (e) {
+            wb.pending = wb.pending.filter((st) => st !== stroke);
+            this.renderBoard();
+            this.flash('Could not reach the server — the last line was not saved.', 7000);
+        }
+    },
+
+    scheduleBoardSend() {
+        if (wb.sendTimer) return;
+        wb.sendTimer = setTimeout(() => {
+            wb.sendTimer = null;
+            if (wb.drawing) this.sendBoardPoints(wb.drawing);
+        }, BOARD_SEND_MS);
+    },
+
+    /** Stream the new points of a stroke to everyone (drawn at once on their screens). */
+    sendBoardPoints(stroke) {
+        const room = lk.room;
+        const from = Math.min(wb.sendFrom, stroke.p.length);
+        const points = stroke.p.slice(from);
+        wb.sendFrom = stroke.p.length;
+        if (!room || this.lkState !== 'connected' || !points.length) return;
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ u: stroke.uid, c: stroke.c, w: stroke.w, i: from, p: points }));
+            room.localParticipant.publishData(bytes, { reliable: true, topic: BOARD_TOPIC }).catch(() => {});
+        } catch (e) { /* not connected */ }
+    },
+
+    /** Someone else's pen: only the host, or anyone while the host lets everyone draw. */
+    onBoardPacket(msg, participant) {
+        if (!participant || !this.board.active || typeof msg.u !== 'string' || msg.u.length > 40) return;
+        let role = '';
+        try { role = JSON.parse(participant.metadata || '{}').role; } catch (e) { role = ''; }
+        if (role !== 'host' && !this.board.all_can_draw) return;
+        const chunk = { c: msg.c, w: msg.w, p: msg.p };
+        if (!isValidStroke(chunk) || !Number.isInteger(msg.i) || msg.i < 0) return;
+        if (wb.strokes.some((st) => st.uid === msg.u)) return; // already saved
+        let stroke = wb.live[msg.u];
+        if (!stroke) {
+            // Only start from the first packet (a stroke joined midway would jump).
+            if (msg.i !== 0) return;
+            stroke = wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, p: [], at: 0 };
+        }
+        if (msg.i !== stroke.p.length || stroke.p.length + msg.p.length > 3000) return;
+        stroke.p.push(...msg.p);
+        stroke.at = Date.now();
+        // Forget live strokes whose owner never saved them (left, or lost the connection).
+        Object.keys(wb.live).forEach((k) => { if (Date.now() - wb.live[k].at > 20000) delete wb.live[k]; });
+        this.renderBoard();
+    },
+
+    setBoardColour(colour) {
+        this.boardTool.colour = colour;
+        this.boardTool.eraser = false;
+    },
+
+    async undoBoard() {
+        const mine = wb.strokes.filter((st) => st.user_id === this.viewer.id);
+        const last = mine[mine.length - 1];
+        if (!last || this.boardBusy || !this.urls.boardStrokeDestroy) return;
+        this.boardBusy = 'undo';
+        try {
+            const response = await fetch(this.urls.boardStrokeDestroy.replace('__ID__', last.id), {
+                method: 'DELETE', headers: jsonHeaders(), credentials: 'same-origin',
+            });
+            const data = await readJson(response);
+            if (!response.ok) {
+                this.flash(errorMessage(data, 'Could not undo.'), 6000);
+                return;
+            }
+            wb.strokes = wb.strokes.filter((st) => st !== last);
+            this.boardMine = Math.max(0, this.boardMine - 1);
+            if (data && Number.isInteger(data.version)) wb.version = data.version;
+            this.rebuildBoard();
+            this.nudge('board');
+            this.nudge('feed');
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 6000);
+        } finally {
+            this.boardBusy = null;
+        }
+    },
+
+    /** Host switches: { active }, { all_can_draw } or { clear: true }. */
+    async setBoard(switches) {
+        const url = this.urls.studio && this.urls.studio.board;
+        if (!url || this.boardBusy) return;
+        this.boardBusy = 'switch';
+        try {
+            const { ok, data } = await this.post(url, switches);
+            if (!ok) {
+                this.flash(errorMessage(data, 'The whiteboard could not be changed.'), 7000);
+                return;
+            }
+            this.applyBoard(data);
+            this.nudge('feed');
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 7000);
+        } finally {
+            this.boardBusy = null;
+        }
+    },
+
+    toggleBoard() {
+        if (!this.inCall) return;
+        this.setBoard({ active: !this.board.active });
+    },
+
+    askClearBoard() {
+        this.openConfirm('clear-board', 'Clear the whiteboard?', 'Everything on the board is erased for everyone.', 'Clear board');
     },
 
     // --- Raise hand & reactions ------------------------------------------
@@ -1355,6 +1651,8 @@ window.learnClassroom = (cfg = {}) => {
         this.audioBlocked = false;
         this.floating = [];
         this.reactionSeen = {};
+        wb.live = {};
+        wb.drawing = null;
     },
 
     /** Close our SFU connection (intentional = no auto-reconnect). */
@@ -2223,6 +2521,7 @@ window.learnClassroom = (cfg = {}) => {
         else if (kind === 'delete') this.deleteMessage(payload);
         else if (kind === 'remove') this.removeParticipant(payload);
         else if (kind === 'material') this.deleteMaterial(payload);
+        else if (kind === 'clear-board') this.setBoard({ clear: true });
     },
 };
 };

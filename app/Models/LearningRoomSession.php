@@ -11,16 +11,20 @@ class LearningRoomSession extends Model
     protected $fillable = [
         'learning_room_id', 'started_by', 'ended_by', 'started_at', 'ended_at', 'peak_participants',
         'egress_id', 'recording_started_at',
+        'board_active', 'board_all_can_draw', 'board_version',
     ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
-    protected $attributes = ['peak_participants' => 0];
+    protected $attributes = ['peak_participants' => 0, 'board_active' => false, 'board_all_can_draw' => false, 'board_version' => 0];
 
     protected $casts = [
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
         'peak_participants' => 'integer',
         'recording_started_at' => 'datetime',
+        'board_active' => 'boolean',
+        'board_all_can_draw' => 'boolean',
+        'board_version' => 'integer',
     ];
 
     public function room(): BelongsTo

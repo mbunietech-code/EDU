@@ -9,6 +9,7 @@ use App\Models\LearningRoom;
 use App\Models\LearningRoomMaterial;
 use App\Models\User;
 use App\Services\Learning\LiveProvider;
+use App\Services\Learning\RoomBoardService;
 use App\Services\Learning\RoomPollService;
 use App\Services\Learning\RoomService;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,7 @@ class LiveRoomController extends Controller
         protected RoomService $rooms,
         protected LiveProvider $live,
         protected RoomPollService $polls,
+        protected RoomBoardService $board,
     ) {
     }
 
@@ -134,6 +136,7 @@ class LiveRoomController extends Controller
 
         $feed['materials'] = $this->materials($room);
         $feed['polls'] = $this->polls->feed($room, $request->user());
+        $feed['board'] = $this->board->state($room);
 
         return response()->json($feed);
     }
@@ -159,6 +162,9 @@ class LiveRoomController extends Controller
             'presence' => route('learn.rooms.presence', $room),
             'leave' => route('learn.rooms.leave', $room),
             'hand' => route('learn.rooms.hand', $room),
+            'board' => route('learn.rooms.board', $room),
+            'boardStroke' => route('learn.rooms.board.strokes.store', $room),
+            'boardStrokeDestroy' => str_replace('999999999', '__ID__', route('learn.rooms.board.strokes.destroy', ['room' => $room, 'stroke' => 999999999])),
             'pollVote' => str_replace('999999999', '__ID__', route('learn.rooms.polls.vote', ['room' => $room, 'poll' => 999999999])),
             'feed' => route('learn.rooms.feed', $room),
             'messages' => [
@@ -194,6 +200,7 @@ class LiveRoomController extends Controller
                 'mute' => $userTemplate('studio.rooms.participants.mute'),
                 'lowerHand' => $userTemplate('studio.rooms.participants.lower-hand'),
                 'lowerHands' => route('studio.rooms.lower-hands', $room->id),
+                'board' => route('studio.rooms.board', $room->id),
                 'pollStore' => route('studio.rooms.polls.store', $room->id),
                 'pollClose' => str_replace('999999999', '__ID__', route('studio.rooms.polls.close', ['room' => $room->id, 'poll' => 999999999])),
             ];

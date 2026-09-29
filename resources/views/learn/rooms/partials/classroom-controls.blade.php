@@ -72,6 +72,17 @@
             </div>
         </div>
 
+        {{-- Whiteboard (host opens it for everyone) --}}
+        <template x-if="isManager">
+            <button type="button" @click="toggleBoard()" class="{{ $btn }}" :disabled="boardBusy !== null"
+                :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (board.active ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600')"
+                :aria-disabled="(!inCall).toString()" :aria-pressed="board.active.toString()"
+                :aria-label="board.active ? 'Close the whiteboard' : 'Open the whiteboard'"
+                :title="board.active ? 'Close the whiteboard' : 'Whiteboard'">
+                @include('learn.rooms.partials.icon', ['name' => 'pencil'])
+            </button>
+        </template>
+
         {{-- Layout --}}
         <button type="button" @click="setLayout(layout === 'grid' ? 'speaker' : 'grid')" class="{{ $btn }} hidden sm:inline-flex"
             :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'"
