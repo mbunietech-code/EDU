@@ -131,6 +131,20 @@ class ClassroomHandsTest extends TestCase
         $this->assertSame(route('studio.rooms.lower-hands', $room->id), $urls($host)['studio']['lowerHands']);
     }
 
+    public function test_panel_sections_are_a_vertical_icon_rail_with_names(): void
+    {
+        [$host, $learner, $room] = $this->classInProgress();
+
+        $page = $this->actingAs($learner)->get(route('learn.rooms.live', $room))->assertOk();
+        $page->assertSee('aria-orientation="vertical"', false);
+        foreach (['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Questions (Q&amp;A)', 'polls' => 'Polls &amp; quizzes', 'people' => 'People', 'info' => 'Class info'] as $key => $name) {
+            $page->assertSee('id="panel-tab-'.$key.'"', false)->assertSee('aria-label="'.$name.'"', false);
+        }
+        $page->assertDontSee('id="panel-tab-rooms"', false);
+
+        $this->actingAs($host)->get(route('learn.rooms.live', $room))->assertOk()->assertSee('aria-label="Breakout rooms"', false);
+    }
+
     public function test_camera_backgrounds_are_served_from_our_own_site(): void
     {
         [, $learner, $room] = $this->classInProgress();

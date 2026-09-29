@@ -1,6 +1,7 @@
 {{-- Control bar: our own buttons driving our own WebRTC connection. Host tools sit in a popover to fit phones. --}}
 @php
-    $btn = 'relative inline-flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:h-12 sm:w-12';
+    // Phones get slightly smaller buttons so the whole bar fits a 320px screen.
+    $btn = 'relative inline-flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-full text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:h-12 sm:w-12';
     $menuItem = 'flex w-full items-center gap-2 px-3 py-2 text-left text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-500';
 @endphp
 {{-- Desktop in a call: floats over the video and slides away; the mouse at the bottom edge brings it back. --}}
@@ -9,7 +10,7 @@
     @mouseenter="barHover = true; showBar()" @mouseleave="barHover = false; scheduleBarHide()"
     @focusin="showBar()" @focusout="scheduleBarHide()"
     style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
-    <div class="mx-auto flex max-w-4xl items-center justify-center gap-1.5 sm:gap-3">
+    <div class="mx-auto flex max-w-4xl items-center justify-center gap-1 sm:gap-3">
         {{-- Microphone --}}
         <button type="button" @click="toggleMic()" class="{{ $btn }}" :disabled="mediaBusy.mic"
             :class="!inCall || !canUseMic ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (media.mic ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-500')"
@@ -74,7 +75,7 @@
 
         {{-- Whiteboard (host opens it for everyone) --}}
         <template x-if="isManager">
-            <button type="button" @click="toggleBoard()" class="{{ $btn }}" :disabled="boardBusy !== null"
+            <button type="button" @click="toggleBoard()" class="{{ $btn }} hidden sm:inline-flex" :disabled="boardBusy !== null"
                 :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (board.active ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600')"
                 :aria-disabled="(!inCall).toString()" :aria-pressed="board.active.toString()"
                 :aria-label="board.active ? 'Close the whiteboard' : 'Open the whiteboard'"
@@ -95,7 +96,7 @@
 
         {{-- Record (host): server recording when available, otherwise recorded by this browser --}}
         <template x-if="isManager">
-            <button type="button" @click="toggleRecord()" class="{{ $btn }}"
+            <button type="button" @click="toggleRecord()" class="{{ $btn }} hidden sm:inline-flex"
                 :disabled="rec.starting || rec.uploading || recordingBusy"
                 :class="(rec.active || (provider.supportsRecording && room.is_recording)) ? 'bg-red-600 hover:bg-red-500'
                     : (!inCall || rec.uploading ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600')"
@@ -120,7 +121,7 @@
         </button>
 
         {{-- People --}}
-        <button type="button" @click="togglePanel('people')" class="{{ $btn }}"
+        <button type="button" @click="togglePanel('people')" class="{{ $btn }} hidden sm:inline-flex"
             :class="panelVisible && tab === 'people' ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
             :aria-pressed="(panelVisible && tab === 'people').toString()"
             :aria-label="'People, ' + counts.participants + ' in the class'" title="People">
@@ -134,10 +135,15 @@
                 @include('learn.rooms.partials.icon', ['name' => 'cog'])
             </button>
             <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="More options"
-                class="absolute bottom-full right-1/2 z-30 mb-2 w-60 translate-x-1/2 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700">
+                class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
                 <button type="button" role="menuitem" @click="openDevices(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'adjustments'])
                     Camera, microphone &amp; speaker
+                </button>
+                <button type="button" role="menuitem" @click="openTab('people'); open = false" class="{{ $menuItem }} sm:hidden">
+                    @include('learn.rooms.partials.icon', ['name' => 'users'])
+                    <span class="flex-1">People</span>
+                    <span class="text-xs tabular-nums text-gray-400" x-text="counts.participants"></span>
                 </button>
                 <button type="button" role="menuitem" @click="setLayout(layout === 'grid' ? 'speaker' : 'grid'); open = false" :disabled="!inCall" class="{{ $menuItem }} sm:hidden">
                     @include('learn.rooms.partials.icon', ['name' => 'grid'])
@@ -184,6 +190,10 @@
                             </template>
                         </div>
                     </template>
+                    <button type="button" role="menuitem" @click="toggleBoard(); open = false" :disabled="!inCall || boardBusy !== null" class="{{ $menuItem }} sm:hidden">
+                        @include('learn.rooms.partials.icon', ['name' => 'pencil'])
+                        <span x-text="board.active ? 'Close the whiteboard' : 'Open the whiteboard'"></span>
+                    </button>
                     <button type="button" role="menuitem" @click="muteEveryone('audio'); open = false" :disabled="room.status !== 'live' || busy.mod" class="{{ $menuItem }}">
                         @include('learn.rooms.partials.icon', ['name' => 'speaker-off'])
                         Mute everyone

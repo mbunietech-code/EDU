@@ -1,49 +1,80 @@
-{{-- Side panel: lg = 22rem right column (during a call on desktop it slides in over the
-     video from the right edge); below lg = full-screen sheet. Tabs Chat | Q&A | People | Info. --}}
+{{-- Side panel: lg = 25rem right column (during a call on desktop it slides in over the
+     video from the right edge); below lg = full-screen sheet. Sections are an icon rail on its left edge. --}}
 <aside x-show="panelVisible" x-cloak x-ref="panel"
     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
     @mouseenter="panelHover = true; showPanel()" @mouseleave="onPanelLeave()"
-    class="fixed inset-0 z-40 flex flex-col bg-gray-900 lg:w-[22rem] lg:shrink-0 lg:border-l lg:border-gray-800"
+    class="fixed inset-0 z-40 flex bg-gray-900 lg:w-[25rem] lg:shrink-0 lg:border-l lg:border-gray-800"
     :class="autoHide ? 'lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:z-40 lg:shadow-2xl' : 'lg:static lg:inset-auto lg:z-auto'"
     aria-label="Class chat, questions and people"
     :role="isLg ? null : 'dialog'" :aria-modal="isLg ? null : 'true'">
 
-    <div class="flex h-12 shrink-0 items-center border-b border-gray-800 px-2">
-        <div class="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Panel sections">
-            @php($tabs = ['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'polls' => 'Polls', 'people' => 'People'] + ($isManager ? ['rooms' => 'Rooms'] : []) + ['info' => 'Info'])
-            @php($tabOrder = array_keys($tabs))
-            @foreach ($tabs as $key => $label)
-                @php($tabIndex = array_search($key, $tabOrder, true))
-                @php($nextTab = $tabOrder[($tabIndex + 1) % count($tabOrder)])
-                @php($prevTab = $tabOrder[($tabIndex + count($tabOrder) - 1) % count($tabOrder)])
-                <button type="button" role="tab" id="panel-tab-{{ $key }}" aria-controls="panel-{{ $key }}"
-                    :aria-selected="(tab === '{{ $key }}').toString()" :tabindex="tab === '{{ $key }}' ? 0 : -1"
-                    @click="openTab('{{ $key }}')"
-                    @keydown.arrow-right.prevent="openTab('{{ $nextTab }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
-                    @keydown.arrow-left.prevent="openTab('{{ $prevTab }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
-                    class="relative inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
-                    :class="tab === '{{ $key }}' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-200'">
-                    {{ $label }}
-                    @if ($key === 'chat')
-                        <span x-show="unread.chat > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.chat > 99 ? '99+' : unread.chat"></span>
-                    @elseif ($key === 'qa')
-                        <span x-show="unread.qa > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.qa > 99 ? '99+' : unread.qa"></span>
-                    @elseif ($key === 'polls')
-                        <span x-show="unread.polls > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.polls"></span>
-                        <span x-show="!unread.polls && openPoll" x-cloak class="h-2 w-2 rounded-full bg-emerald-400" aria-label="A poll is open"></span>
-                    @elseif ($key === 'rooms')
-                        <span x-show="breakouts.open" x-cloak class="h-2 w-2 rounded-full bg-emerald-400" aria-label="Breakout rooms are open"></span>
-                    @elseif ($key === 'people')
-                        <span class="text-xs tabular-nums text-gray-500" x-text="counts.participants"></span>
-                    @elseif ($key === 'cameras')
-                        <span x-show="cameraTiles.length" class="text-xs tabular-nums text-gray-500" x-text="cameraTiles.length"></span>
-                    @endif
-                </button>
+    {{-- Sections as an icon rail down the left edge; the name shows on hover / keyboard focus and in the header. --}}
+    @php
+        $tabs = [
+            'chat' => ['Chat', 'chat'],
+            'cameras' => ['Cameras', 'camera'],
+            'qa' => ['Questions (Q&A)', 'question'],
+            'polls' => ['Polls & quizzes', 'chart'],
+            'people' => ['People', 'users'],
+        ] + ($isManager ? ['rooms' => ['Breakout rooms', 'rooms']] : []) + [
+            'info' => ['Class info', 'info'],
+        ];
+        $tabOrder = array_keys($tabs);
+        $tabCount = count($tabOrder);
+        $nextTabs = [];
+        $prevTabs = [];
+        foreach ($tabOrder as $i => $k) {
+            $nextTabs[$k] = $tabOrder[($i + 1) % $tabCount];
+            $prevTabs[$k] = $tabOrder[($i + $tabCount - 1) % $tabCount];
+        }
+    @endphp
+    <nav class="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-gray-800 bg-gray-950/60 py-2"
+        role="tablist" aria-label="Panel sections" aria-orientation="vertical">
+        @foreach ($tabs as $key => $meta)
+            <button type="button" role="tab" id="panel-tab-{{ $key }}" aria-controls="panel-{{ $key }}" aria-label="{{ $meta[0] }}"
+                :aria-selected="(tab === '{{ $key }}').toString()" :tabindex="tab === '{{ $key }}' ? 0 : -1"
+                @click="openTab('{{ $key }}')"
+                @keydown.arrow-down.prevent="openTab('{{ $nextTabs[$key] }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
+                @keydown.arrow-up.prevent="openTab('{{ $prevTabs[$key] }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
+                @keydown.arrow-right.prevent="openTab('{{ $nextTabs[$key] }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
+                @keydown.arrow-left.prevent="openTab('{{ $prevTabs[$key] }}'); $nextTick(() => document.getElementById('panel-tab-' + tab)?.focus())"
+                class="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                :class="tab === '{{ $key }}' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'">
+                @include('learn.rooms.partials.icon', ['name' => $meta[1], 'class' => 'h-5 w-5'])
+
+                {{-- Badges --}}
+                @if ($key === 'chat')
+                    <span x-show="unread.chat > 0" x-cloak class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-[1.1rem] text-white" x-text="unread.chat > 99 ? '99+' : unread.chat" aria-hidden="true"></span>
+                @elseif ($key === 'qa')
+                    <span x-show="unread.qa > 0" x-cloak class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-[1.1rem] text-white" x-text="unread.qa > 99 ? '99+' : unread.qa" aria-hidden="true"></span>
+                @elseif ($key === 'polls')
+                    <span x-show="unread.polls > 0" x-cloak class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-[1.1rem] text-white" x-text="unread.polls" aria-hidden="true"></span>
+                    <span x-show="!unread.polls && openPoll" x-cloak class="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
+                @elseif ($key === 'rooms')
+                    <span x-show="breakouts.open" x-cloak class="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
+                @elseif ($key === 'people')
+                    <span x-show="counts.hands > 0" x-cloak class="absolute -right-1 -top-1 rounded-full bg-amber-400 px-1 text-[10px] font-semibold leading-4 text-gray-950" x-text="'✋' + counts.hands" aria-hidden="true"></span>
+                @endif
+
+                {{-- Name on hover (mouse) or keyboard focus --}}
+                <span class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg ring-1 ring-gray-700 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                    aria-hidden="true">{{ $meta[0] }}</span>
+            </button>
+        @endforeach
+    </nav>
+
+    <div class="flex min-w-0 flex-1 flex-col">
+    <div class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-gray-800 pl-3 pr-2">
+        <h2 class="truncate text-sm font-semibold text-white">
+            @foreach ($tabs as $key => $meta)
+                <span x-show="tab === '{{ $key }}'" @if ($key !== 'chat') x-cloak @endif>{{ $meta[0] }}</span>
             @endforeach
-        </div>
+            <span x-show="tab === 'people'" x-cloak class="ml-1 text-xs font-normal tabular-nums text-gray-500" x-text="counts.participants"></span>
+            <span x-show="tab === 'cameras' && cameraTiles.length" x-cloak class="ml-1 text-xs font-normal tabular-nums text-gray-500" x-text="cameraTiles.length"></span>
+        </h2>
         <button type="button" @click="closePanel()" x-show="!isLg || autoHide"
-            class="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white"
+            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white"
             aria-label="Close panel">
             @include('learn.rooms.partials.icon', ['name' => 'x'])
         </button>
@@ -610,4 +641,5 @@
 
         <a href="{{ route('learn.rooms.show', $room) }}" class="mt-4 inline-block text-sm font-medium text-indigo-300 hover:text-indigo-200">Open the class page</a>
     </section>
+    </div>
 </aside>
