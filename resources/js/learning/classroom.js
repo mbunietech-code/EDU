@@ -883,29 +883,24 @@ window.learnClassroom = (cfg = {}) => {
         this.applyPermissions(config.permissions || {});
         this.disconnect(true);
 
-        // The host's camera is what everyone watches: Full HD with a 720p middle
-        // layer, so a weak link drops to 720p rather than straight to 360p.
-        // Participants stay at 720p to spare their upload. Simulcast + dynacast
-        // mean nobody receives or encodes more than their tile and network need.
-        const cam = this.isManager
-            ? { capture: mod.VideoPresets.h1080, layers: [mod.VideoPresets.h360, mod.VideoPresets.h720] }
-            : { capture: mod.VideoPresets.h720, layers: [mod.VideoPresets.h180, mod.VideoPresets.h360] };
-
+        // Fixed best quality (the platform owner's choice): every camera is sent in
+        // Full HD as ONE stream, and everyone receives that same stream. There are
+        // no lower layers for the SFU or the browser to fall back to, and the
+        // encoder keeps the resolution when bandwidth is short (fewer frames per
+        // second instead of a blurrier picture). On a weak connection the video
+        // may stutter or pause, but it never turns low-resolution.
         const room = new mod.Room({
-            // Subscribe to the quality each tile needs, counting HiDPI/retina pixels.
-            adaptiveStream: { pixelDensity: 'screen' },
-            dynacast: true, // stop encoding layers nobody watches
+            adaptiveStream: false, // always receive the full stream, whatever the tile size
+            dynacast: false,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
-            videoCaptureDefaults: { resolution: cam.capture.resolution },
+            videoCaptureDefaults: { resolution: mod.VideoPresets.h1080.resolution },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
-                simulcast: true,
-                videoEncoding: cam.capture.encoding,
-                videoSimulcastLayers: cam.layers,
-                // Slides and code need sharp text more than motion: 1080p at up to
-                // 4 Mbps, with a 720p layer for viewers on weak connections.
+                simulcast: false,
+                videoEncoding: { maxBitrate: 4000000, maxFramerate: 30, priority: 'high' },
+                degradationPreference: 'maintain-resolution',
+                // Slides and code: sharp 1080p text at up to 4 Mbps.
                 screenShareEncoding: { maxBitrate: 4000000, maxFramerate: 15, priority: 'high' },
-                screenShareSimulcastLayers: [mod.ScreenSharePresets.h720fps5],
                 dtx: true,
             },
         });
