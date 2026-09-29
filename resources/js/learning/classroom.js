@@ -777,16 +777,29 @@ window.learnClassroom = (cfg = {}) => {
         this.applyPermissions(config.permissions || {});
         this.disconnect(true);
 
+        // The host's camera is what everyone watches: Full HD with a 720p middle
+        // layer, so a weak link drops to 720p rather than straight to 360p.
+        // Participants stay at 720p to spare their upload. Simulcast + dynacast
+        // mean nobody receives or encodes more than their tile and network need.
+        const cam = this.isManager
+            ? { capture: mod.VideoPresets.h1080, layers: [mod.VideoPresets.h360, mod.VideoPresets.h720] }
+            : { capture: mod.VideoPresets.h720, layers: [mod.VideoPresets.h180, mod.VideoPresets.h360] };
+
         const room = new mod.Room({
-            adaptiveStream: true, // subscribe to the quality each tile actually needs
+            // Subscribe to the quality each tile needs, counting HiDPI/retina pixels.
+            adaptiveStream: { pixelDensity: 'screen' },
             dynacast: true, // stop encoding layers nobody watches
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
-            videoCaptureDefaults: { resolution: mod.VideoPresets.h720.resolution },
+            videoCaptureDefaults: { resolution: cam.capture.resolution },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
                 simulcast: true,
-                videoSimulcastLayers: [mod.VideoPresets.h180, mod.VideoPresets.h360],
-                screenShareEncoding: mod.ScreenSharePresets.h1080fps15.encoding,
+                videoEncoding: cam.capture.encoding,
+                videoSimulcastLayers: cam.layers,
+                // Slides and code need sharp text more than motion: 1080p at up to
+                // 4 Mbps, with a 720p layer for viewers on weak connections.
+                screenShareEncoding: { maxBitrate: 4000000, maxFramerate: 15, priority: 'high' },
+                screenShareSimulcastLayers: [mod.ScreenSharePresets.h720fps5],
                 dtx: true,
             },
         });
@@ -1260,6 +1273,11 @@ window.learnClassroom = (cfg = {}) => {
                 surfaceSwitching: 'include',
                 systemAudio: 'include',
                 contentHint: 'detail',
+                // No `resolution`: 1080p is already the default, and on Safari 17
+                // setting one makes the capture low-resolution (livekit-client note).
+            }, {
+                // When bandwidth is short, drop frames — never blur the text.
+                degradationPreference: 'maintain-resolution',
             });
         } catch (e) {
             // Closing the browser's "choose what to share" dialog is not an error.
