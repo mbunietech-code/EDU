@@ -22,7 +22,8 @@
             <span x-show="media.mic" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'mic'])</span>
         </button>
 
-        {{-- Camera --}}
+        {{-- Camera (+ a small button on it to change the background) --}}
+        <div class="relative shrink-0">
         <button type="button" @click="toggleCamera()" class="{{ $btn }}" :disabled="mediaBusy.cam"
             :class="!inCall || !canUseCam ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (media.cam ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-500')"
             :aria-disabled="(!inCall || !canUseCam).toString()"
@@ -32,6 +33,11 @@
             <span x-show="!media.cam">@include('learn.rooms.partials.icon', ['name' => 'camera-off'])</span>
             <span x-show="media.cam" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'camera'])</span>
         </button>
+        <button type="button" @click="openBackground()"
+            class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[11px] ring-2 ring-gray-700 hover:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+            :class="bg.mode !== 'none' ? 'ring-indigo-500' : ''"
+            aria-label="Change your camera background" title="Change background">✨</button>
+        </div>
 
         {{-- Share screen (hidden where the browser cannot share) --}}
         <button type="button" @click="toggleShare()" class="{{ $btn }}" x-show="screenShareSupported" :disabled="mediaBusy.screen"
@@ -136,6 +142,10 @@
             </button>
             <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="More options"
                 class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
+                <button type="button" role="menuitem" @click="openBackground(); open = false" class="{{ $menuItem }}">
+                    <span class="w-5 text-center" aria-hidden="true">✨</span>
+                    Change background
+                </button>
                 <button type="button" role="menuitem" @click="openDevices(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'adjustments'])
                     Camera, microphone &amp; speaker
@@ -276,27 +286,34 @@
         {{-- Camera background (blur / picture), processed on this device --}}
         <div class="mt-5 border-t border-gray-800 pt-4">
             <p class="text-xs text-gray-400">Camera background</p>
-            <div class="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Camera background">
-                <button type="button" role="radio" @click="setBackground('none')" :disabled="bg.busy" :aria-checked="(bg.mode === 'none').toString()"
-                    class="flex h-14 w-20 items-center justify-center rounded-lg bg-gray-800 text-xs font-medium ring-2 disabled:opacity-50"
-                    :class="bg.mode === 'none' ? 'ring-indigo-500 text-white' : 'ring-transparent text-gray-300 hover:ring-gray-600'">None</button>
-                <button type="button" role="radio" @click="setBackground('blur')" :disabled="bg.busy" :aria-checked="(bg.mode === 'blur').toString()"
-                    class="flex h-14 w-20 items-center justify-center rounded-lg bg-gradient-to-br from-gray-600 to-gray-800 text-xs font-medium ring-2 disabled:opacity-50"
-                    :class="bg.mode === 'blur' ? 'ring-indigo-500 text-white' : 'ring-transparent text-gray-200 hover:ring-gray-600'">Blur</button>
-                <template x-for="img in bgImages" :key="img.url">
-                    <button type="button" role="radio" @click="setBackground('image', img.url)" :disabled="bg.busy"
-                        :aria-checked="(bg.mode === 'image' && bg.image === img.url).toString()" :aria-label="img.label + ' background'"
-                        class="h-14 w-20 overflow-hidden rounded-lg bg-cover bg-center ring-2 disabled:opacity-50"
-                        :class="bg.mode === 'image' && bg.image === img.url ? 'ring-indigo-500' : 'ring-transparent hover:ring-gray-600'"
-                        :style="'background-image:url(' + img.url + ')'"></button>
-                </template>
-            </div>
-            <p x-show="bg.busy" x-cloak class="mt-2 text-xs text-gray-400">Applying… the first time takes a few seconds.</p>
-            <p x-show="bg.error" x-cloak class="mt-2 text-xs text-red-400" x-text="bg.error" role="alert"></p>
-            <p class="mt-2 text-[11px] text-gray-500">Done on your device, nothing is uploaded. It uses more battery, so switch it off on older phones.</p>
+            @include('learn.rooms.partials.classroom-background-picker')
         </div>
         <div class="mt-5 flex justify-end">
             <button type="button" @click="devices.open = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Done</button>
+        </div>
+    </div>
+</div>
+
+{{-- Camera background: its own dialog, with a preview of my camera --}}
+<div x-show="bgOpen" x-cloak class="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="bg-title"
+    @keydown.escape.window="bgOpen = false">
+    <div class="fixed inset-0 bg-black/60" @click="bgOpen = false" aria-hidden="true"></div>
+    <div class="relative w-full max-w-md rounded-xl bg-gray-900 p-5 text-sm text-gray-200 shadow-2xl ring-1 ring-gray-700">
+        <h2 id="bg-title" class="text-base font-semibold text-white">Camera background</h2>
+        <div class="mt-3 aspect-video overflow-hidden rounded-lg bg-gray-800">
+            <video x-show="media.cam" :data-tile-id="viewer.identity + ':camera'" autoplay playsinline muted
+                class="h-full w-full -scale-x-100 object-cover" aria-label="Preview of your camera"></video>
+            <div x-show="!media.cam" class="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
+                <p class="text-gray-300" x-text="inCall ? 'Your camera is off.' : 'Join the class to see a preview.'"></p>
+                <button type="button" x-show="inCall && canUseCam" @click="setCam(true)" :disabled="mediaBusy.cam"
+                    class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">Turn camera on</button>
+            </div>
+        </div>
+        <div class="mt-4">
+            @include('learn.rooms.partials.classroom-background-picker')
+        </div>
+        <div class="mt-5 flex justify-end">
+            <button type="button" @click="bgOpen = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Done</button>
         </div>
     </div>
 </div>

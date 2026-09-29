@@ -184,6 +184,7 @@ window.learnClassroom = (cfg = {}) => {
     breakoutBusy: null,
     // My camera background: none | blur | image (remembered on this device).
     bg: { mode: 'none', image: '', busy: false, error: '' },
+    bgOpen: false,
     bgImages: (cfg.backgrounds && Array.isArray(cfg.backgrounds.images)) ? cfg.backgrounds.images : [],
     // Whiteboard (state from the feed; strokes live in `wb`).
     board: { active: false, all_can_draw: false, version: 0 },
@@ -883,27 +884,27 @@ window.learnClassroom = (cfg = {}) => {
         this.applyPermissions(config.permissions || {});
         this.disconnect(true);
 
-        // Fixed best quality (the platform owner's choice): every camera is sent in
-        // Full HD as ONE stream, and everyone receives that same stream. There are
-        // no lower layers for the SFU or the browser to fall back to, and the
-        // encoder keeps the resolution when bandwidth is short (fewer frames per
-        // second instead of a blurrier picture). On a weak connection the video
-        // may stutter or pause, but it never turns low-resolution.
+        // HD that does not freeze (the platform owner's choice): every camera is
+        // sent in Full HD plus one 720p copy, and never anything smaller. Good
+        // connections get 1080p; a weak one gets the 720p copy (still HD) instead
+        // of a frozen picture. Each copy keeps its resolution under congestion
+        // (fewer frames per second, never a blurrier picture).
         const room = new mod.Room({
-            // With a single layer these can no longer lower the quality; they only
-            // pause cameras that nobody has on screen, so a class with many cameras
-            // does not make everyone download all of them in Full HD.
+            // Picks 1080p or 720p per viewer, and pauses cameras nobody has on screen
+            // (so many cameras do not make everyone download all of them).
             adaptiveStream: true,
             dynacast: true,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
             videoCaptureDefaults: { resolution: mod.VideoPresets.h1080.resolution },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
-                simulcast: false,
+                simulcast: true,
                 videoEncoding: { maxBitrate: 4000000, maxFramerate: 30, priority: 'high' },
+                videoSimulcastLayers: [mod.VideoPresets.h720],
                 degradationPreference: 'maintain-resolution',
-                // Slides and code: sharp 1080p text at up to 4 Mbps.
+                // Slides and code: sharp 1080p text at up to 4 Mbps, with a 720p copy for weak connections.
                 screenShareEncoding: { maxBitrate: 4000000, maxFramerate: 15, priority: 'high' },
+                screenShareSimulcastLayers: [mod.ScreenSharePresets.h720fps15],
                 dtx: true,
             },
         });
@@ -1943,6 +1944,12 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     // --- Camera background ------------------------------------------------
+    openBackground() {
+        this.devices.open = false;
+        this.bgOpen = true;
+        this.$nextTick(() => this.attachVideos());
+    },
+
     async setBackground(mode, image = '') {
         if (this.bg.busy || !['none', 'blur', 'image'].includes(mode)) return;
         if (mode === 'image' && !this.bgImages.some((i) => i.url === image)) return;

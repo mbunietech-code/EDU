@@ -149,7 +149,10 @@ class ClassroomHandsTest extends TestCase
     {
         [, $learner, $room] = $this->classInProgress();
 
-        $backgrounds = $this->actingAs($learner)->get(route('learn.rooms.live', $room))->assertOk()->viewData('config')['backgrounds'];
+        $page = $this->actingAs($learner)->get(route('learn.rooms.live', $room))->assertOk()
+            ->assertSee('aria-label="Change your camera background"', false) // on the camera button
+            ->assertSee('id="bg-title"', false);                               // its own dialog
+        $backgrounds = $page->viewData('config')['backgrounds'];
 
         $this->assertSame(asset('vendor/mediapipe/wasm'), $backgrounds['wasm']);
         $this->assertFileExists(public_path('vendor/mediapipe/wasm/vision_wasm_internal.wasm'));
