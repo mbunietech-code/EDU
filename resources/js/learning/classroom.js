@@ -34,6 +34,14 @@ const REC_PRESETS = {
 const recMbPerHour = (p) => Math.round(((p.video + p.audio) * 3600) / 8 / 1e6);
 const CONNECT_TIMEOUT_MS = 20000;
 const DATA_TOPIC = 'classroom';
+/**
+ * Reactions travel peer-to-peer over the SFU (they are fleeting, nothing is
+ * stored). Only these emoji are ever shown; the sender's name comes from the
+ * SFU participant (set by our signed token), never from the packet.
+ */
+const REACTION_TOPIC = 'reaction';
+const REACTIONS = ['👍', '👏', '❤️', '😂', '🎉', '😮'];
+const REACTION_GAP_MS = 700;
 
 /** livekit-client is only downloaded when someone actually joins a call. */
 let livekitModule = null;
@@ -140,7 +148,14 @@ window.learnClassroom = (cfg = {}) => {
     lastId: 0,
     cursor: null,
     participants: [],
-    counts: { participants: 0, questions_open: 0 },
+    counts: { participants: 0, hands: 0, questions_open: 0 },
+    handBusy: false,
+    // Reactions floating up the stage: { id, emoji, name, left }.
+    reactions: REACTIONS,
+    floating: [],
+    floatSeq: 0,
+    lastReactionAt: 0,
+    reactionSeen: {}, // identity → last time we showed one of theirs (flood guard)
     feedLoaded: false,
     feedFailures: 0,
     feedTimer: null,
@@ -355,9 +370,26 @@ window.learnClassroom = (cfg = {}) => {
         return [...this.participants].sort((a, b) => {
             if (a.is_me !== b.is_me) return a.is_me ? -1 : 1;
             if ((a.role === 'host') !== (b.role === 'host')) return a.role === 'host' ? -1 : 1;
+            // Raised hands next, first raised first.
+            if (!!a.hand_raised_at !== !!b.hand_raised_at) return a.hand_raised_at ? -1 : 1;
+            if (a.hand_raised_at && b.hand_raised_at && a.hand_raised_at !== b.hand_raised_at) {
+                return a.hand_raised_at < b.hand_raised_at ? -1 : 1;
+            }
 
             return String(a.name).localeCompare(String(b.name));
         });
+    },
+
+    get myHandRaised() {
+        const me = this.participants.find((p) => p.is_me);
+        return !!(me && me.hand_raised_at);
+    },
+
+    /** 1-based place in the raised-hands queue for this SFU identity, or 0. */
+    handPosition(identity) {
+        const queue = this.participants.filter((p) => p.hand_raised_at)
+            .sort((a, b) => (a.hand_raised_at < b.hand_raised_at ? -1 : 1));
+        return queue.findIndex((p) => p.identity === identity) + 1;
     },
 
     /** The big tile in speaker layout: pinned → screen share → active speaker → host → first. */
@@ -525,7 +557,16 @@ window.learnClassroom = (cfg = {}) => {
         (data.messages || []).forEach((m) => this.upsertMessage(m, !firstLoad));
         (data.updates || []).forEach((m) => this.upsertMessage(m, false));
 
-        if (Array.isArray(data.participants)) this.participants = data.participants;
+        if (Array.isArray(data.participants)) {
+            // Tell the host when someone new raises a hand (not on the first load).
+            if (this.isManager && !firstLoad) {
+                const before = new Set(this.participants.filter((p) => p.hand_raised_at).map((p) => p.user_id));
+                const raised = data.participants.filter((p) => p.hand_raised_at && !p.is_me && !before.has(p.user_id));
+                if (raised.length === 1) this.flash('✋ ' + raised[0].name + ' raised their hand');
+                else if (raised.length > 1) this.flash('✋ ' + raised.length + ' people raised their hand');
+            }
+            this.participants = data.participants;
+        }
         if (data.counts) this.counts = data.counts;
         if (Array.isArray(data.materials)) this.materials = data.materials;
         if (data.me && data.me.permissions) this.applyPermissions(data.me.permissions);
@@ -884,7 +925,7 @@ window.learnClassroom = (cfg = {}) => {
             .on(E.AudioPlaybackStatusChanged, () => { this.audioBlocked = !room.canPlaybackAudio; })
             .on(E.MediaDevicesError, (e) => { this.mediaError = this.deviceHelp('camera', e); })
             .on(E.MediaDevicesChanged, () => this.onDevicesChanged())
-            .on(E.DataReceived, (payload, participant, kind, topic) => this.onData(payload, topic))
+            .on(E.DataReceived, (payload, participant, kind, topic) => this.onData(payload, topic, participant))
             .on(E.Reconnecting, () => { this.lkState = 'reconnecting'; })
             .on(E.SignalReconnecting, () => { this.lkState = 'reconnecting'; })
             .on(E.Reconnected, () => { this.lkState = 'connected'; this.pollNow(); refresh(); })
@@ -1021,13 +1062,84 @@ window.learnClassroom = (cfg = {}) => {
         }
     },
 
-    onData(payload, topic) {
-        if (topic !== DATA_TOPIC) return;
+    onData(payload, topic, participant) {
+        if (topic !== DATA_TOPIC && topic !== REACTION_TOPIC) return;
+        let msg;
         try {
-            const msg = JSON.parse(new TextDecoder().decode(payload));
-            // Signals only: the content always comes from Laravel.
-            if (msg && (msg.t === 'feed' || msg.t === 'rights')) this.pollNow();
-        } catch (e) { /* ignore malformed packets */ }
+            msg = JSON.parse(new TextDecoder().decode(payload));
+        } catch (e) {
+            return; // ignore malformed packets
+        }
+        if (!msg) return;
+
+        if (topic === REACTION_TOPIC) {
+            if (!participant || !REACTIONS.includes(msg.e)) return;
+            // One per sender per REACTION_GAP_MS, whatever a modified client sends.
+            const now = Date.now();
+            if (now - (this.reactionSeen[participant.identity] || 0) < REACTION_GAP_MS) return;
+            this.reactionSeen[participant.identity] = now;
+            this.showReaction(msg.e, participant.name || 'Someone');
+            return;
+        }
+
+        // Signals only: the content always comes from Laravel.
+        if (msg.t === 'feed' || msg.t === 'rights') this.pollNow();
+    },
+
+    // --- Raise hand & reactions ------------------------------------------
+    async toggleHand() {
+        if (!this.inCall || this.handBusy || !this.urls.hand) return;
+        const raised = !this.myHandRaised;
+        const me = this.participants.find((p) => p.is_me);
+        const before = me ? me.hand_raised_at : undefined;
+        if (me) me.hand_raised_at = raised ? new Date().toISOString() : undefined;
+        this.handBusy = true;
+        try {
+            const { ok, data } = await this.post(this.urls.hand, { raised });
+            if (!ok) {
+                if (me) me.hand_raised_at = before;
+                this.flash(errorMessage(data, 'Your hand could not be changed. Try again.'), 7000);
+                return;
+            }
+            this.nudge('feed');
+            this.pollNow();
+        } catch (e) {
+            if (me) me.hand_raised_at = before;
+            this.flash('Could not reach the server. Try again.', 7000);
+        } finally {
+            this.handBusy = false;
+        }
+    },
+
+    lowerHand(p) {
+        const url = this.urls.studio && this.urls.studio.lowerHand;
+        if (!url) return;
+        this.moderate('hand:' + p.user_id, url.replace('__ID__', p.user_id), {});
+    },
+
+    lowerAllHands() {
+        this.moderate('hands', this.urls.studio && this.urls.studio.lowerHands, {}, (d) => d.message || '');
+    },
+
+    react(emoji) {
+        const room = lk.room;
+        if (!this.inCall || !room || !REACTIONS.includes(emoji)) return;
+        const now = Date.now();
+        if (now - this.lastReactionAt < REACTION_GAP_MS) return;
+        this.lastReactionAt = now;
+        this.showReaction(emoji, 'You');
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ e: emoji }));
+            room.localParticipant.publishData(bytes, { reliable: false, topic: REACTION_TOPIC }).catch(() => {});
+        } catch (e) { /* not connected */ }
+    },
+
+    showReaction(emoji, name) {
+        const id = ++this.floatSeq;
+        // Keep the stage readable when a whole class reacts at once.
+        if (this.floating.length >= 25) this.floating.shift();
+        this.floating.push({ id, emoji, name, left: 4 + Math.random() * 18 });
+        setTimeout(() => { this.floating = this.floating.filter((f) => f.id !== id); }, 3300);
     },
 
     /** Tell everyone to refresh the feed now (a nudge — Laravel holds the data). */
@@ -1146,6 +1258,8 @@ window.learnClassroom = (cfg = {}) => {
         this.remoteState = {};
         this.media = { mic: false, cam: false, screen: false };
         this.audioBlocked = false;
+        this.floating = [];
+        this.reactionSeen = {};
     },
 
     /** Close our SFU connection (intentional = no auto-reconnect). */

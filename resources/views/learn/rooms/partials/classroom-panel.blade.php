@@ -232,9 +232,11 @@
     {{-- People --}}
     <section id="panel-people" role="tabpanel" aria-labelledby="panel-tab-people" x-show="tab === 'people'" x-cloak class="flex min-h-0 flex-1 flex-col">
         <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-800 px-3 py-2 text-xs text-gray-400">
-            <span><span class="tabular-nums" x-text="counts.participants"></span> in the class</span>
+            <span><span class="tabular-nums" x-text="counts.participants"></span> in the class<span x-show="counts.hands > 0" x-cloak> · ✋ <span class="tabular-nums" x-text="counts.hands"></span></span></span>
             <template x-if="isManager && room.status === 'live'">
                 <div class="flex items-center gap-1">
+                    <button type="button" x-show="counts.hands > 0" @click="lowerAllHands()" :disabled="busy.mod"
+                        class="rounded-md px-2 py-1 font-medium text-amber-300 hover:bg-gray-800 hover:text-amber-200 disabled:opacity-50">Lower hands</button>
                     <button type="button" @click="muteEveryone('audio')" :disabled="busy.mod"
                         class="rounded-md px-2 py-1 font-medium text-indigo-300 hover:bg-gray-800 hover:text-indigo-200 disabled:opacity-50">Mute all</button>
                     <button type="button" @click="toggleLock()" :disabled="busy.mod"
@@ -263,9 +265,13 @@
                                 <span x-text="p.name"></span>
                                 <span x-show="p.is_me" class="font-normal text-gray-400">(you)</span>
                             </p>
-                            <p class="text-xs" :class="p.role === 'host' ? 'text-indigo-300' : 'text-gray-500'"
-                                x-text="p.role === 'host' ? 'Host' : (tileState(p.identity) ? 'In the video call' : 'Watching the class page')"></p>
+                            <p class="text-xs" :class="p.hand_raised_at ? 'text-amber-300' : (p.role === 'host' ? 'text-indigo-300' : 'text-gray-500')"
+                                x-text="p.hand_raised_at ? '✋ Hand raised' + (counts.hands > 1 ? ' · #' + handPosition(p.identity) : '')
+                                    : (p.role === 'host' ? 'Host' : (tileState(p.identity) ? 'In the video call' : 'Watching the class page'))"></p>
                         </div>
+                        <button type="button" x-show="isManager && p.hand_raised_at && !p.is_me" @click="lowerHand(p)" :disabled="busy.mod"
+                            class="shrink-0 rounded-md bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/25 disabled:opacity-50"
+                            :aria-label="'Lower ' + p.name + '’s hand'">Lower</button>
                         {{-- Live state from the SFU. Hosts can tap the mic / camera to turn it off for that person. --}}
                         <div class="flex shrink-0 items-center gap-0.5 text-gray-400">
                             <span x-show="tileState(p.identity) && tileState(p.identity).screen" class="p-1 text-indigo-300" title="Sharing the screen">

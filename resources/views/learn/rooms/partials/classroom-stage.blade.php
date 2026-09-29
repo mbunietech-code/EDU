@@ -29,6 +29,16 @@
         </div>
         </template>
 
+        {{-- Reactions float up from the bottom-left of the stage --}}
+        <div class="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true">
+            <template x-for="f in floating" :key="f.id">
+                <div class="classroom-float-up absolute bottom-20 flex flex-col items-center" :style="'left:' + f.left + '%'">
+                    <span class="text-4xl drop-shadow-lg sm:text-5xl" x-text="f.emoji"></span>
+                    <span class="mt-0.5 max-w-[8rem] truncate rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white" x-text="f.name"></span>
+                </div>
+            </template>
+        </div>
+
         {{-- Only me in the room --}}
         <div x-show="tiles.length === 1" x-cloak class="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
             <p class="rounded-full bg-black/60 px-3 py-1 text-xs text-gray-200">You are the only one here — others will appear as they join.</p>

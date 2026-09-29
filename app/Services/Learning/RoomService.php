@@ -479,8 +479,56 @@ class RoomService
             $now = now();
             $this->credit($attendance, $now);
             $attendance->left_at = $now;
+            $attendance->hand_raised_at = null;
             $attendance->save();
         });
+    }
+
+    /** A participant raises or lowers their own hand in the running session. */
+    public function setHand(LearningRoom $room, User $user, bool $raised): void
+    {
+        DB::transaction(function () use ($room, $user, $raised) {
+            $session = $this->lockLiveSession($room);
+
+            if (! $session) {
+                throw ValidationException::withMessages(['status' => 'The class is not live.']);
+            }
+
+            $attendance = $this->attendanceFor($session, $user);
+
+            if (! $attendance || $attendance->removed_at !== null) {
+                throw ValidationException::withMessages(['user' => 'Join the class first.']);
+            }
+
+            // Raising again keeps the original time, so the queue order stays fair.
+            if ($raised && $attendance->hand_raised_at === null) {
+                $attendance->hand_raised_at = now();
+            } elseif (! $raised) {
+                $attendance->hand_raised_at = null;
+            }
+
+            $attendance->save();
+        });
+    }
+
+    /**
+     * The host lowers one person's hand, or everyone's when $target is null.
+     *
+     * @return int hands lowered
+     */
+    public function lowerHands(LearningRoom $room, ?User $target, User $actor): int
+    {
+        $session = $room->isLive() ? $this->openSession($room) : null;
+
+        if (! $session) {
+            return 0;
+        }
+
+        return LearningRoomAttendance::query()
+            ->where('learning_room_session_id', $session->id)
+            ->when($target, fn ($q) => $q->where('user_id', $target->id))
+            ->whereNotNull('hand_raised_at')
+            ->update(['hand_raised_at' => null, 'updated_at' => now()]);
     }
 
     /**
@@ -1084,8 +1132,8 @@ class RoomService
      *  'me' => ['removed','is_host','permissions' => ['audio','video','screen']],
      *  'messages' => [...] (id > $afterId; $afterId = 0 → last 100; max 200; oldest first),
      *  'updates' => [...] (id <= $afterId AND updated_at >= $since),
-     *  'participants' => [['user_id','identity','name','role','is_me','permissions'?]] (permissions for managers only),
-     *  'counts' => ['participants','questions_open']].
+     *  'participants' => [['user_id','identity','name','role','is_me','hand_raised_at'?,'permissions'?]] (permissions for managers only),
+     *  'counts' => ['participants','hands','questions_open']].
      *
      * @return array<string,mixed>
      */
@@ -1146,11 +1194,13 @@ class RoomService
                 'name' => $a->user?->name ?? 'Member',
                 'role' => $a->role,
                 'is_me' => (int) $a->user_id === (int) $viewer->id,
+                'hand_raised_at' => $a->hand_raised_at?->toIso8601String(),
                 // Only managers see (and change) other people's publish rights.
                 'permissions' => $manager && $a->user ? $this->permissionsFor($room, $a->user, $a) : null,
             ], fn ($v) => $v !== null))->values()->all(),
             'counts' => [
                 'participants' => $present->count(),
+                'hands' => $present->whereNotNull('hand_raised_at')->count(),
                 'questions_open' => LearningRoomMessage::query()
                     ->where('learning_room_id', $room->id)
                     ->where('type', 'question')

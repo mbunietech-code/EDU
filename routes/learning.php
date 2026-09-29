@@ -67,6 +67,8 @@ Route::middleware(['auth', 'verified'])
         Route::post('/rooms/{room:slug}/presence', [Learn\LiveRoomController::class, 'presence'])
             ->middleware('throttle:60,1')->name('rooms.presence');
         Route::post('/rooms/{room:slug}/leave', [Learn\LiveRoomController::class, 'leave'])->name('rooms.leave');
+        Route::post('/rooms/{room:slug}/hand', [Learn\LiveRoomController::class, 'hand'])
+            ->middleware('throttle:30,1')->name('rooms.hand');
         Route::get('/rooms/{room:slug}/feed', [Learn\LiveRoomController::class, 'feed'])
             ->middleware('throttle:120,1')->name('rooms.feed');
         Route::post('/rooms/{room:slug}/messages', [Learn\RoomMessageController::class, 'store'])
@@ -140,6 +142,9 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
             Route::post('/rooms/{room}/participants/{user}/mute', [Studio\RoomModerationController::class, 'mute'])
                 ->whereNumber('user')->name('rooms.participants.mute');
             Route::post('/rooms/{room}/mute-all', [Studio\RoomModerationController::class, 'muteAll'])->name('rooms.mute-all');
+            Route::post('/rooms/{room}/participants/{user}/lower-hand', [Studio\RoomModerationController::class, 'lowerHand'])
+                ->whereNumber('user')->name('rooms.participants.lower-hand');
+            Route::post('/rooms/{room}/lower-hands', [Studio\RoomModerationController::class, 'lowerHands'])->name('rooms.lower-hands');
             Route::post('/rooms/{room}/recording/start', [Studio\RoomModerationController::class, 'startRecording'])->name('rooms.recording.start');
             Route::post('/rooms/{room}/recording/stop', [Studio\RoomModerationController::class, 'stopRecording'])->name('rooms.recording.stop');
             Route::post('/rooms/{room}/recording/browser', [Studio\RoomModerationController::class, 'browserRecording'])->name('rooms.recording.browser');

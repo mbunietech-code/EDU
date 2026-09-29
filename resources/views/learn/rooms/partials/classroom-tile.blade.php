@@ -38,6 +38,14 @@
         </span>
     </div>
 
+    {{-- Raised hand --}}
+    <div x-show="t.source === 'camera' && handPosition(t.identity) > 0" x-cloak
+        class="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-md bg-amber-400 px-1.5 py-0.5 text-xs font-semibold text-gray-950 shadow"
+        :aria-label="t.name + ' raised their hand'">
+        <span aria-hidden="true">✋</span>
+        <span class="tabular-nums" x-show="counts.hands > 1" x-text="handPosition(t.identity)"></span>
+    </div>
+
     {{-- Connection quality --}}
     <div class="absolute right-1.5 top-1.5 flex items-center gap-1">
         <span class="inline-flex h-5 items-end gap-0.5 rounded bg-black/50 px-1 py-1" :title="qualityLabel(t.quality)" role="img" :aria-label="qualityLabel(t.quality)">

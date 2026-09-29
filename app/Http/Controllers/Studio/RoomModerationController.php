@@ -98,6 +98,24 @@ class RoomModerationController extends Controller
         return $this->done($request, $user->name.' was muted.', ['user_id' => $user->id, 'kind' => $data['kind']]);
     }
 
+    public function lowerHand(Request $request, LearningRoom $room, User $user): JsonResponse|RedirectResponse
+    {
+        $this->authorize('moderate', $room);
+
+        $this->rooms->lowerHands($room, $user, $request->user());
+
+        return $this->done($request, $user->name.'’s hand is lowered.', ['user_id' => $user->id]);
+    }
+
+    public function lowerHands(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
+    {
+        $this->authorize('moderate', $room);
+
+        $count = $this->rooms->lowerHands($room, null, $request->user());
+
+        return $this->done($request, $count === 1 ? '1 hand lowered.' : $count.' hands lowered.', ['count' => $count]);
+    }
+
     public function muteAll(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
     {
         $this->authorize('moderate', $room);

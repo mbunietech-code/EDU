@@ -90,6 +90,18 @@ class LiveRoomController extends Controller
         return response()->json($this->rooms->presence($room, $request->user()));
     }
 
+    /** Raise or lower my own hand. */
+    public function hand(Request $request, LearningRoom $room): JsonResponse
+    {
+        $this->authorize('join', $room);
+
+        $data = $request->validate(['raised' => ['required', 'boolean']]);
+
+        $this->rooms->setHand($room, $request->user(), (bool) $data['raised']);
+
+        return response()->json(['raised' => (bool) $data['raised']]);
+    }
+
     /** Also the sendBeacon target on pagehide (FormData with _token). */
     public function leave(Request $request, LearningRoom $room)
     {
@@ -141,6 +153,7 @@ class LiveRoomController extends Controller
             'token' => route('learn.rooms.token', $room),
             'presence' => route('learn.rooms.presence', $room),
             'leave' => route('learn.rooms.leave', $room),
+            'hand' => route('learn.rooms.hand', $room),
             'feed' => route('learn.rooms.feed', $room),
             'messages' => [
                 'store' => route('learn.rooms.messages.store', $room),
@@ -173,6 +186,8 @@ class LiveRoomController extends Controller
                 'remove' => $userTemplate('studio.rooms.participants.remove'),
                 'permissions' => $userTemplate('studio.rooms.participants.permissions'),
                 'mute' => $userTemplate('studio.rooms.participants.mute'),
+                'lowerHand' => $userTemplate('studio.rooms.participants.lower-hand'),
+                'lowerHands' => route('studio.rooms.lower-hands', $room->id),
             ];
         }
 

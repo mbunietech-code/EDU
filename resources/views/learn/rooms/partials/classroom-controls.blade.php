@@ -42,6 +42,36 @@
             @include('learn.rooms.partials.icon', ['name' => 'screen'])
         </button>
 
+        {{-- Raise hand (the host runs the class, so only participants get it) --}}
+        <template x-if="!isManager">
+            <button type="button" @click="toggleHand()" class="{{ $btn }}" :disabled="handBusy"
+                :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (myHandRaised ? 'bg-amber-500 text-gray-950 hover:bg-amber-400' : 'bg-gray-700 hover:bg-gray-600')"
+                :aria-disabled="(!inCall).toString()"
+                :aria-pressed="myHandRaised.toString()"
+                :aria-label="myHandRaised ? 'Lower your hand' : 'Raise your hand'"
+                :title="myHandRaised ? 'Lower your hand' : 'Raise your hand'">
+                @include('learn.rooms.partials.icon', ['name' => 'hand'])
+            </button>
+        </template>
+
+        {{-- Reactions --}}
+        <div class="relative" x-data="{ open: false }" @keydown.escape.stop="open = false; $refs.reactToggle.focus()" @click.outside="open = false">
+            <button type="button" x-ref="reactToggle" @click="inCall && (open = !open)" class="{{ $btn }}"
+                :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (open ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600')"
+                :aria-disabled="(!inCall).toString()" :aria-expanded="open.toString()" aria-haspopup="menu"
+                aria-label="Send a reaction" title="Reactions">
+                @include('learn.rooms.partials.icon', ['name' => 'smile'])
+            </button>
+            <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="Reactions"
+                class="absolute bottom-full left-1/2 z-30 mb-2 flex -translate-x-1/2 gap-1 rounded-full bg-gray-800 p-1.5 shadow-xl ring-1 ring-gray-700">
+                <template x-for="emoji in reactions" :key="emoji">
+                    <button type="button" role="menuitem" @click="react(emoji)"
+                        class="flex h-10 w-10 items-center justify-center rounded-full text-2xl transition hover:scale-110 hover:bg-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                        :aria-label="'React ' + emoji" x-text="emoji"></button>
+                </template>
+            </div>
+        </div>
+
         {{-- Layout --}}
         <button type="button" @click="setLayout(layout === 'grid' ? 'speaker' : 'grid')" class="{{ $btn }} hidden sm:inline-flex"
             :class="!inCall ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'"
