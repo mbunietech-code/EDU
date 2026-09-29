@@ -66,8 +66,11 @@ class LiveRoomController extends Controller
             return $this->providerUnavailable($room, $user, implode(' ', $status['issues']));
         }
 
+        // A host may ask for a breakout room to visit; everyone else is placed by Laravel.
+        $breakout = $request->integer('breakout') ?: null;
+
         try {
-            $result = $this->rooms->join($room, $user);
+            $result = $this->rooms->join($room, $user, $breakout);
         } catch (RoomAccessException $e) {
             return response()->json([
                 'reason' => $e->reason,
@@ -201,6 +204,9 @@ class LiveRoomController extends Controller
                 'lowerHand' => $userTemplate('studio.rooms.participants.lower-hand'),
                 'lowerHands' => route('studio.rooms.lower-hands', $room->id),
                 'board' => route('studio.rooms.board', $room->id),
+                'breakouts' => route('studio.rooms.breakouts', $room->id),
+                'breakoutsOpen' => route('studio.rooms.breakouts.open', $room->id),
+                'breakoutsClose' => route('studio.rooms.breakouts.close', $room->id),
                 'pollStore' => route('studio.rooms.polls.store', $room->id),
                 'pollClose' => str_replace('999999999', '__ID__', route('studio.rooms.polls.close', ['room' => $room->id, 'poll' => 999999999])),
             ];

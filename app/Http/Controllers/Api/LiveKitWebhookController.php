@@ -51,7 +51,9 @@ class LiveKitWebhookController extends Controller
     /** @param  array<string,mixed>  $event */
     private function participantLeft(array $event, LiveProvider $live, RoomService $rooms): JsonResponse
     {
-        $room = $this->roomByName((string) data_get($event, 'room.name', ''));
+        // Breakout rooms are SFU rooms named "<provider_room>-b<n>".
+        [$name, $breakout] = $live->parseRoomName((string) data_get($event, 'room.name', ''));
+        $room = $this->roomByName($name);
         $userId = $live->userIdFromIdentity(data_get($event, 'participant.identity'));
         $user = $userId ? User::query()->find($userId) : null;
 
@@ -59,7 +61,7 @@ class LiveKitWebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        $rooms->participantDisconnected($room, $user);
+        $rooms->participantDisconnected($room, $user, $breakout);
 
         return response()->json(['status' => 'ok']);
     }

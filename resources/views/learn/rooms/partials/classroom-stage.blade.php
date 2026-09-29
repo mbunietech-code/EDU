@@ -111,6 +111,22 @@
             </template>
         </div>
 
+        {{-- In a breakout room --}}
+        <div x-show="currentBreakout" x-cloak class="absolute inset-x-0 top-3 z-20 flex justify-center px-3">
+            <p class="flex items-center gap-2 rounded-full bg-indigo-600/90 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                <span x-text="(isManager ? 'Visiting Room ' : 'You are in Room ') + currentBreakout"></span>
+                <template x-if="isManager">
+                    <button type="button" @click="visitRoom(null)" :disabled="moving" class="rounded-full bg-white/20 px-2 py-0.5 hover:bg-white/30">Back to main room</button>
+                </template>
+                <template x-if="!isManager">
+                    <span class="font-normal text-indigo-100">· the host brings everyone back</span>
+                </template>
+            </p>
+        </div>
+        <div x-show="moving" x-cloak class="absolute inset-0 z-30 flex items-center justify-center bg-gray-950/70">
+            <p class="rounded-lg bg-gray-800 px-4 py-2 text-sm text-gray-100" role="status">Changing rooms…</p>
+        </div>
+
         {{-- Only me in the room --}}
         <div x-show="tiles.length === 1" x-cloak class="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
             <p class="rounded-full bg-black/60 px-3 py-1 text-xs text-gray-200">You are the only one here — others will appear as they join.</p>

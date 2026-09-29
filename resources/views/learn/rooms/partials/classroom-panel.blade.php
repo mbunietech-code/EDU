@@ -11,7 +11,7 @@
 
     <div class="flex h-12 shrink-0 items-center border-b border-gray-800 px-2">
         <div class="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Panel sections">
-            @php($tabs = ['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'polls' => 'Polls', 'people' => 'People', 'info' => 'Info'])
+            @php($tabs = ['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'polls' => 'Polls', 'people' => 'People'] + ($isManager ? ['rooms' => 'Rooms'] : []) + ['info' => 'Info'])
             @php($tabOrder = array_keys($tabs))
             @foreach ($tabs as $key => $label)
                 @php($tabIndex = array_search($key, $tabOrder, true))
@@ -32,6 +32,8 @@
                     @elseif ($key === 'polls')
                         <span x-show="unread.polls > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.polls"></span>
                         <span x-show="!unread.polls && openPoll" x-cloak class="h-2 w-2 rounded-full bg-emerald-400" aria-label="A poll is open"></span>
+                    @elseif ($key === 'rooms')
+                        <span x-show="breakouts.open" x-cloak class="h-2 w-2 rounded-full bg-emerald-400" aria-label="Breakout rooms are open"></span>
                     @elseif ($key === 'people')
                         <span class="text-xs tabular-nums text-gray-500" x-text="counts.participants"></span>
                     @elseif ($key === 'cameras')
@@ -331,6 +333,73 @@
             </template>
         </ul>
     </section>
+
+    {{-- Breakout rooms (host only) --}}
+    @if ($isManager)
+    <section id="panel-rooms" role="tabpanel" aria-labelledby="panel-tab-rooms" x-show="tab === 'rooms'" x-cloak class="min-h-0 flex-1 overflow-y-auto p-3 text-sm">
+        <template x-if="room.status !== 'live'">
+            <p class="px-2 py-10 text-center text-gray-400">Breakout rooms can be used once the class is live.</p>
+        </template>
+        <template x-if="room.status === 'live'">
+            <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-800/70 p-3">
+                    <label class="flex items-center gap-2 text-xs text-gray-300">
+                        Rooms
+                        <input type="number" min="1" max="20" :value="breakouts.count || 2" @change="setBreakoutCount($event.target.value)"
+                            :disabled="breakoutBusy !== null"
+                            class="w-16 rounded-md border-0 bg-gray-900 px-2 py-1 text-sm text-gray-100 ring-1 ring-gray-700 focus:ring-2 focus:ring-indigo-500">
+                    </label>
+                    <button type="button" @click="shuffleBreakouts()" :disabled="breakoutBusy !== null"
+                        class="rounded-md bg-gray-700 px-2.5 py-1 text-xs font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Shuffle everyone</button>
+                    <span class="flex-1"></span>
+                    <button type="button" x-show="!breakouts.open" @click="openBreakouts()" :disabled="breakoutBusy !== null || !breakouts.count"
+                        class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">Open rooms</button>
+                    <button type="button" x-show="breakouts.open" x-cloak @click="closeBreakouts()" :disabled="breakoutBusy !== null"
+                        class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-50">Close rooms</button>
+                </div>
+                <p class="px-1 text-[11px] text-gray-500" x-text="breakouts.open
+                    ? 'Rooms are open. Everyone is in their room; changing a room moves that person at once. Announcements and questions still reach the whole class.'
+                    : 'Set how many rooms, then shuffle or pick a room for each person. Nobody moves until you open the rooms.'"></p>
+
+                {{-- Main room + each breakout room with its people --}}
+                <template x-for="n in [0, ...Array.from({ length: breakouts.count }, (_, i) => i + 1)]" :key="n">
+                    <div class="rounded-lg ring-1" :class="currentBreakout === (n || null) ? 'ring-indigo-500' : 'ring-gray-800'">
+                        <div class="flex items-center justify-between gap-2 border-b border-gray-800 px-3 py-2">
+                            <p class="font-medium text-gray-100">
+                                <span x-text="n ? 'Room ' + n : 'Main room'"></span>
+                                <span class="ml-1 text-xs font-normal text-gray-500" x-text="roomMembers(n).length + (roomMembers(n).length === 1 ? ' person' : ' people')"></span>
+                            </p>
+                            <button type="button" x-show="inCall && (n === 0 || breakouts.open) && currentBreakout !== (n || null)" @click="visitRoom(n || null)" :disabled="moving"
+                                class="rounded-md bg-gray-700 px-2 py-1 text-xs font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50"
+                                x-text="n ? 'Join' : 'Back here'"></button>
+                            <span x-show="currentBreakout === (n || null)" class="text-xs text-indigo-300">You are here</span>
+                        </div>
+                        <ul class="divide-y divide-gray-800" role="list">
+                            <template x-for="p in roomMembers(n)" :key="p.user_id">
+                                <li class="flex items-center justify-between gap-2 px-3 py-1.5">
+                                    <span class="min-w-0 truncate text-gray-200">
+                                        <span x-show="p.hand_raised_at" aria-label="Hand raised">✋ </span><span x-text="p.name"></span>
+                                    </span>
+                                    <select @change="assignBreakout(p, $event.target.value)" :disabled="breakoutBusy !== null"
+                                        class="rounded-md border-0 bg-gray-900 py-0.5 pl-2 pr-7 text-xs text-gray-100 ring-1 ring-gray-700"
+                                        :aria-label="'Room for ' + p.name">
+                                        <option value="0" :selected="!p.breakout">Main</option>
+                                        <template x-for="r in breakouts.count" :key="r">
+                                            <option :value="r" :selected="p.breakout === r" x-text="'Room ' + r"></option>
+                                        </template>
+                                    </select>
+                                </li>
+                            </template>
+                            <template x-if="roomMembers(n).length === 0">
+                                <li class="px-3 py-2 text-xs text-gray-500">Nobody yet.</li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </section>
+    @endif
 
     {{-- People --}}
     <section id="panel-people" role="tabpanel" aria-labelledby="panel-tab-people" x-show="tab === 'people'" x-cloak class="flex min-h-0 flex-1 flex-col">

@@ -106,6 +106,23 @@ class LiveProvider
         return (string) $room->provider_room;
     }
 
+    /** The SFU room of breakout room $breakout (1..n) of a learning room, or its main room for null. */
+    public function sfuRoomName(LearningRoom $room, ?int $breakout = null): string
+    {
+        return $this->roomName($room).($breakout ? '-b'.$breakout : '');
+    }
+
+    /**
+     * Split an SFU room name into the learning room's provider_room and the
+     * breakout number (null for the main room).
+     *
+     * @return array{0:string,1:?int}
+     */
+    public function parseRoomName(string $name): array
+    {
+        return preg_match('/^(.+)-b([1-9]\d?)$/', $name, $m) === 1 ? [$m[1], (int) $m[2]] : [$name, null];
+    }
+
     /** Stable participant identity for a user — the key the SFU uses for moderation. */
     public function identityFor(User|int $user): string
     {
@@ -125,7 +142,7 @@ class LiveProvider
      *
      * @throws \RuntimeException when the live server is not configured
      */
-    public function token(User $user, LearningRoom $room, array $permissions, bool $moderator): string
+    public function token(User $user, LearningRoom $room, array $permissions, bool $moderator, ?int $breakout = null): string
     {
         $this->assertConfigured();
 
@@ -145,7 +162,7 @@ class LiveProvider
                 'role' => $moderator ? 'host' : 'participant',
             ]),
             'video' => [
-                'room' => $this->roomName($room),
+                'room' => $this->sfuRoomName($room, $breakout),
                 'roomJoin' => true,
                 'canSubscribe' => true,
                 'canPublish' => $sources !== [],
@@ -226,19 +243,20 @@ class LiveProvider
     /**
      * Everything the classroom needs to connect:
      * ['provider','server_url','token','identity','room_name','ice_servers','ice_transport_policy',
-     *  'permissions' => ['audio','video','screen'],'moderator','supports_recording','user' => ['id','name']].
+     *  'permissions' => ['audio','video','screen'],'moderator','supports_recording','user' => ['id','name'],
+     *  'breakout' => breakout room number, or null for the main room].
      *
      * @param  array{audio:bool,video:bool,screen:bool}  $permissions
      * @return array<string,mixed>
      */
-    public function clientConfig(User $user, LearningRoom $room, array $permissions, bool $moderator): array
+    public function clientConfig(User $user, LearningRoom $room, array $permissions, bool $moderator, ?int $breakout = null): array
     {
         return [
             'provider' => $this->name(),
             'server_url' => $this->browserServerUrl(),
-            'token' => $this->token($user, $room, $permissions, $moderator),
+            'token' => $this->token($user, $room, $permissions, $moderator, $breakout),
             'identity' => $this->identityFor($user),
-            'room_name' => $this->roomName($room),
+            'room_name' => $this->sfuRoomName($room, $breakout),
             'ice_servers' => $this->iceServers($user),
             'ice_transport_policy' => $this->iceTransportPolicy(),
             'permissions' => [
@@ -249,6 +267,7 @@ class LiveProvider
             'moderator' => $moderator,
             'supports_recording' => $moderator && $this->supportsRecording(),
             'user' => ['id' => $user->id, 'name' => $user->name],
+            'breakout' => $breakout,
         ];
     }
 

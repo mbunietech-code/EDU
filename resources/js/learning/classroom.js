@@ -116,7 +116,8 @@ function formatBytes(bytes) {
 
 window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
-    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null };
+    // lastMedia: my mic / camera just before the connection closed (restored after a reconnect or a room move).
+    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false } };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
     const recorder = { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() };
     // Whiteboard canvas and strokes, also outside Alpine (thousands of points).
@@ -176,6 +177,11 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // Breakout rooms: state from the feed; currentBreakout = the SFU room I am connected to (null = main).
+    breakouts: { open: false, count: 0 },
+    currentBreakout: null,
+    moving: false,
+    breakoutBusy: null,
     // My camera background: none | blur | image (remembered on this device).
     bg: { mode: 'none', image: '', busy: false, error: '' },
     bgImages: (cfg.backgrounds && Array.isArray(cfg.backgrounds.images)) ? cfg.backgrounds.images : [],
@@ -621,6 +627,12 @@ window.learnClassroom = (cfg = {}) => {
         if (Array.isArray(data.materials)) this.materials = data.materials;
         if (Array.isArray(data.polls)) this.applyPolls(data.polls, firstLoad);
         if (data.board) this.applyBoard(data.board);
+        if (data.breakouts) this.breakouts = { open: !!data.breakouts.open, count: data.breakouts.count | 0 };
+        // Laravel says which room I belong in; follow it (rooms opened, closed, or I was moved).
+        if (data.me && this.inCall && !this.moving) {
+            const target = Number.isInteger(data.me.breakout) ? data.me.breakout : null;
+            if (target !== this.currentBreakout) this.moveToRoom(target);
+        }
         if (data.me && data.me.permissions) this.applyPermissions(data.me.permissions);
         this.feedLoaded = true;
 
@@ -785,7 +797,7 @@ window.learnClassroom = (cfg = {}) => {
 
     // --- Joining -----------------------------------------------------------
     /** Ask Laravel for a short-lived token (join and reconnect use the same checks). */
-    async requestToken(url) {
+    async requestToken(url, body = {}) {
         let response;
         let data;
         try {
@@ -793,7 +805,7 @@ window.learnClassroom = (cfg = {}) => {
                 method: 'POST',
                 headers: jsonHeaders(),
                 credentials: 'same-origin',
-                body: JSON.stringify({}),
+                body: JSON.stringify(body),
             });
             data = await readJson(response);
         } catch (e) {
@@ -930,6 +942,7 @@ window.learnClassroom = (cfg = {}) => {
         this.lkState = 'connected';
         this.state = 'in_call';
         this.rejoinAttempts = 0;
+        this.currentBreakout = Number.isInteger(config.breakout) ? config.breakout : null;
         this.revealChrome();
         this.startPresence();
         this.pollNow();
@@ -1499,6 +1512,85 @@ window.learnClassroom = (cfg = {}) => {
         this.openConfirm('clear-board', 'Clear the whiteboard?', 'Everything on the board is erased for everyone.', 'Clear board');
     },
 
+    // --- Breakout rooms ----------------------------------------------------
+    /** Reconnect to breakout room n (null = the main room) with a fresh token from Laravel. */
+    async moveToRoom(n) {
+        if (this.moving || !this.urls.token) return;
+        this.moving = true;
+        const keep = { mic: this.media.mic, cam: this.media.cam };
+        this.flash(n ? 'Moving you to Room ' + n + '…' : 'Going back to the main room…', 4000);
+        try {
+            const result = await this.requestToken(this.urls.token, n ? { breakout: n } : {});
+            if (!(await this.handleTokenResult(result))) return;
+            // Chat belongs to the room: start the new room's chat from scratch.
+            this.messages = [];
+            this.lastId = 0;
+            this.cursor = null;
+            this.unread.chat = 0;
+            await this.connect(result.data.config, false);
+            if (this.inCall) {
+                if (keep.mic && this.canUseMic) await this.setMic(true, true);
+                if (keep.cam && this.canUseCam) await this.setCam(true, true);
+            }
+        } finally {
+            this.moving = false;
+            this.pollNow();
+        }
+    },
+
+    /** Host: open another room's call (null = the main room). */
+    visitRoom(n) {
+        if (!this.isManager || !this.inCall || n === this.currentBreakout) return;
+        this.moveToRoom(n);
+    },
+
+    /** People (not hosts) assigned to room n (0 = main room). */
+    roomMembers(n) {
+        return this.sortedParticipants.filter((p) => p.role !== 'host' && (p.breakout || 0) === n);
+    },
+
+    async breakoutRequest(key, url, body) {
+        if (!url || this.breakoutBusy) return;
+        this.breakoutBusy = key;
+        try {
+            const { ok, data } = await this.post(url, body);
+            if (!ok) {
+                this.flash(errorMessage(data, 'Breakout rooms could not be changed.'), 7000);
+                return;
+            }
+            if (data && data.count !== undefined) this.breakouts = { open: !!data.open, count: data.count | 0 };
+            this.nudge('feed');
+            this.pollNow();
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 7000);
+        } finally {
+            this.breakoutBusy = null;
+        }
+    },
+
+    setBreakoutCount(count) {
+        const n = Math.max(1, Math.min(20, parseInt(count, 10) || 1));
+        this.breakoutRequest('count', this.urls.studio && this.urls.studio.breakouts, { count: n });
+    },
+
+    shuffleBreakouts() {
+        this.breakoutRequest('shuffle', this.urls.studio && this.urls.studio.breakouts, { count: Math.max(1, this.breakouts.count || 2), shuffle: true });
+    },
+
+    assignBreakout(p, room) {
+        const assignments = {};
+        assignments[p.user_id] = parseInt(room, 10) || null;
+        this.breakoutRequest('assign:' + p.user_id, this.urls.studio && this.urls.studio.breakouts, { count: Math.max(1, this.breakouts.count), assignments });
+    },
+
+    openBreakouts() {
+        this.breakoutRequest('open', this.urls.studio && this.urls.studio.breakoutsOpen, {});
+    },
+
+    closeBreakouts() {
+        this.breakoutRequest('close', this.urls.studio && this.urls.studio.breakoutsClose, {});
+    },
+
     // --- Raise hand & reactions ------------------------------------------
     async toggleHand() {
         if (!this.inCall || this.handBusy || !this.urls.hand) return;
@@ -1644,12 +1736,13 @@ window.learnClassroom = (cfg = {}) => {
             if (this.state !== 'reconnecting') return;
             if (!this.online) { this.scheduleRejoin(); return; }
 
-            const result = await this.requestToken(this.urls.token || this.urls.join);
+            const result = await this.requestToken(this.urls.token || this.urls.join,
+                this.currentBreakout ? { breakout: this.currentBreakout } : {});
             if (this.state !== 'reconnecting') return;
             if (result.network || (!result.ok && result.status >= 500)) { this.scheduleRejoin(); return; }
             if (!(await this.handleTokenResult(result))) return;
 
-            const wasPublishing = { mic: this.media.mic, cam: this.media.cam };
+            const wasPublishing = { ...lk.lastMedia };
             await this.connect(result.data.config, false);
             if (this.state === 'in_call') {
                 this.flash('Reconnected to the class.');
@@ -1669,6 +1762,7 @@ window.learnClassroom = (cfg = {}) => {
         this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => { el.srcObject = null; el._lkTrack = null; });
         this.tiles = [];
         this.remoteState = {};
+        if (room) lk.lastMedia = { mic: this.media.mic, cam: this.media.cam };
         this.media = { mic: false, cam: false, screen: false };
         this.audioBlocked = false;
         this.floating = [];

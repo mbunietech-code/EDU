@@ -9,7 +9,7 @@ class LearningRoomMessage extends Model
 {
     protected $fillable = [
         'learning_room_id', 'learning_room_session_id', 'user_id', 'type', 'body',
-        'is_answered', 'answered_by', 'answered_at', 'is_deleted',
+        'is_answered', 'answered_by', 'answered_at', 'is_deleted', 'breakout_number',
     ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
@@ -23,6 +23,7 @@ class LearningRoomMessage extends Model
         'is_answered' => 'boolean',
         'is_deleted' => 'boolean',
         'answered_at' => 'datetime',
+        'breakout_number' => 'integer',
     ];
 
     public const TYPES = ['chat', 'question', 'announcement'];

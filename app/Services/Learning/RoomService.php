@@ -59,6 +59,7 @@ class RoomService
         protected LiveProvider $live,
         protected LearningNotifier $notifier,
         protected LiveServerClient $server,
+        protected RoomBreakoutService $breakouts,
     ) {
     }
 
@@ -271,7 +272,7 @@ class RoomService
         ]);
 
         // Disconnect everyone (this also stops a running recording).
-        $this->server->deleteRoom($this->live->roomName($room));
+        $this->disconnectEveryone($room, $session);
         Cache::forget(self::browserRecordingKey($room));
     }
 
@@ -336,7 +337,7 @@ class RoomService
      * @throws \App\Exceptions\Learning\RoomAccessException reason not_live | removed | inactive | locked
      * @throws \RuntimeException when the live server is not configured
      */
-    public function join(LearningRoom $room, User $user): array
+    public function join(LearningRoom $room, User $user, ?int $breakout = null): array
     {
         if (! $user->isActive()) {
             throw new RoomAccessException('inactive');
@@ -394,9 +395,12 @@ class RoomService
 
         $room->refresh();
 
+        // Breakout rooms: participants go where they are assigned, hosts where they ask to.
+        $target = $this->breakouts->roomForJoin($room, $attendance->session()->firstOrFail(), $attendance, $moderator, $breakout);
+
         return [
             'attendance' => $attendance,
-            'config' => $this->live->clientConfig($user, $room, $this->permissionsFor($room, $user, $attendance), $moderator),
+            'config' => $this->live->clientConfig($user, $room, $this->permissionsFor($room, $user, $attendance), $moderator, $target),
         ];
     }
 
@@ -589,7 +593,7 @@ class RoomService
         }
 
         // Refused a new token from now on; this closes the connection they already have.
-        $this->server->removeParticipant($this->live->roomName($room), $this->live->identityFor($target));
+        $this->server->removeParticipant($this->breakouts->sfuRoomFor($room, $attendance), $this->live->identityFor($target));
     }
 
     // --- Moderation (always through Laravel; the SFU only executes) -------
@@ -680,7 +684,7 @@ class RoomService
             'rights' => $effective,
         ]);
 
-        $this->server->updatePermissions($this->live->roomName($room), $this->live->identityFor($target), $effective);
+        $this->server->updatePermissions($this->breakouts->sfuRoomFor($room, $attendance), $this->live->identityFor($target), $effective);
 
         return $effective;
     }
@@ -701,7 +705,10 @@ class RoomService
             throw ValidationException::withMessages(['user' => 'Use your own controls to mute yourself.']);
         }
 
-        return $this->server->muteSource($this->live->roomName($room), $this->live->identityFor($target), $kind);
+        $session = $this->openSession($room);
+        $attendance = $session ? $this->attendanceFor($session, $target) : null;
+
+        return $this->server->muteSource($this->breakouts->sfuRoomFor($room, $attendance, $session), $this->live->identityFor($target), $kind);
     }
 
     /**
@@ -723,7 +730,15 @@ class RoomService
             ->push($this->live->identityFor($actor))
             ->unique()->values()->all();
 
-        $count = $this->server->muteEveryone($this->live->roomName($room), $kind, $hosts);
+        // The main room, plus every breakout room while they are open.
+        $session = $this->openSession($room);
+        $sfuRooms = $session?->breakouts_open ? $this->breakouts->allSfuRooms($room, $session) : [$this->live->roomName($room)];
+        $count = 0;
+        $failed = false;
+        foreach ($sfuRooms as $sfuRoom) {
+            $count += $this->server->muteEveryone($sfuRoom, $kind, $hosts);
+            $failed = $failed || $this->server->lastError() !== null;
+        }
 
         ActivityLog::log('learning_room_mute_all', 'LearningRoom', $room->id, [
             'title' => $room->title,
@@ -731,7 +746,7 @@ class RoomService
             'count' => $count,
         ]);
 
-        return $this->server->lastError() === null ? $count : null;
+        return $failed ? null : $count;
     }
 
     /**
@@ -847,7 +862,7 @@ class RoomService
         ]);
 
         // Disconnect everyone from the video server right away.
-        $this->server->deleteRoom($this->live->roomName($room));
+        $this->disconnectEveryone($room, $session);
 
         return true;
     }
@@ -931,9 +946,29 @@ class RoomService
     }
 
     /** SFU webhook: the participant left (closed the tab, lost the network, was removed). */
-    public function participantDisconnected(LearningRoom $room, User $user): void
+    /**
+     * The SFU says someone left $breakout (null = main room). Moving between
+     * the main room and a breakout room fires this for the room they left, so
+     * it only counts when that is the room they are supposed to be in.
+     */
+    public function participantDisconnected(LearningRoom $room, User $user, ?int $breakout = null): void
     {
+        $session = $this->openSession($room);
+        $attendance = $session ? $this->attendanceFor($session, $user) : null;
+
+        if ($attendance && $this->breakouts->currentRoom($session, $attendance) !== $breakout) {
+            return;
+        }
+
         $this->leave($room, $user);
+    }
+
+    /** Close every SFU room of the session (main and breakouts): everyone is disconnected. */
+    private function disconnectEveryone(LearningRoom $room, ?LearningRoomSession $session): void
+    {
+        foreach ($this->breakouts->allSfuRooms($room, $session ?: null) as $name) {
+            $this->server->deleteRoom($name);
+        }
     }
 
     /** Give every connected non-manager their current rights (after a room-wide switch changed). */
@@ -951,7 +986,7 @@ class RoomService
             }
 
             $this->server->updatePermissions(
-                $this->live->roomName($room),
+                $this->breakouts->sfuRoomFor($room, $attendance),
                 $this->live->identityFor($user),
                 $this->permissionsFor($room, $user, $attendance),
             );
@@ -1032,6 +1067,9 @@ class RoomService
             'user_id' => $user->id,
             'type' => $type,
             'body' => $body,
+            'breakout_number' => $type === 'chat'
+                ? $this->breakouts->currentRoom($session, $this->attendanceFor($session, $user))
+                : null,
         ]);
 
         $message->setRelation('room', $room)->setRelation('user', $user);
@@ -1144,14 +1182,22 @@ class RoomService
         $manager = $room->isManageableBy($viewer);
         $afterId = max(0, $afterId);
 
+        // Chat belongs to the room the viewer is in (main or breakout); questions and announcements to everyone.
+        $session = $this->openSession($room);
+        $myAttendance = $session ? $this->attendanceFor($session, $viewer) : null;
+        $myRoom = $this->breakouts->currentRoom($session, $myAttendance);
+        $visible = fn () => $this->roomMessages($room)->where(fn ($q) => $q
+            ->where('type', '!=', 'chat')
+            ->orWhere(fn ($q) => $myRoom === null ? $q->whereNull('breakout_number') : $q->where('breakout_number', $myRoom)));
+
         $messages = $afterId > 0
-            ? $this->roomMessages($room)->where('id', '>', $afterId)->orderBy('id')->limit(self::FEED_MAX_PAGE)->get()
-            : $this->roomMessages($room)->orderByDesc('id')->limit(self::FEED_FIRST_PAGE)->get()->reverse()->values();
+            ? $visible()->where('id', '>', $afterId)->orderBy('id')->limit(self::FEED_MAX_PAGE)->get()
+            : $visible()->orderByDesc('id')->limit(self::FEED_FIRST_PAGE)->get()->reverse()->values();
 
         $updates = collect();
         $sinceAt = $this->parseCursor($since);
         if ($afterId > 0 && $sinceAt) {
-            $updates = $this->roomMessages($room)
+            $updates = $visible()
                 ->where('id', '<=', $afterId)
                 ->where('updated_at', '>=', $sinceAt)
                 ->orderBy('id')
@@ -1159,9 +1205,7 @@ class RoomService
                 ->get();
         }
 
-        $session = $this->openSession($room);
         $present = $this->presentParticipants($room);
-        $myAttendance = $session ? $this->attendanceFor($session, $viewer) : null;
 
         $payload = fn (LearningRoomMessage $m) => $this->messagePayload($m->setRelation('room', $room), $viewer);
 
@@ -1181,7 +1225,9 @@ class RoomService
                 'ends_at' => $this->endsAt($room)?->toIso8601String(),
                 'title' => $room->title,
             ],
+            'breakouts' => $this->breakouts->state($session),
             'me' => [
+                'breakout' => $myRoom,
                 'removed' => $myAttendance?->removed_at !== null,
                 'is_host' => $manager,
                 'permissions' => $this->permissionsFor($room, $viewer, $myAttendance),
@@ -1195,6 +1241,8 @@ class RoomService
                 'role' => $a->role,
                 'is_me' => (int) $a->user_id === (int) $viewer->id,
                 'hand_raised_at' => $a->hand_raised_at?->toIso8601String(),
+                // Assigned breakout room (for a host: the one they are visiting).
+                'breakout' => $a->breakout_number,
                 // Only managers see (and change) other people's publish rights.
                 'permissions' => $manager && $a->user ? $this->permissionsFor($room, $a->user, $a) : null,
             ], fn ($v) => $v !== null))->values()->all(),
@@ -1258,7 +1306,7 @@ class RoomService
                         'auto' => true,
                     ]);
 
-                    $this->server->deleteRoom($this->live->roomName($room));
+                    $this->disconnectEveryone($room, $session);
                     $closed++;
                 }
             });

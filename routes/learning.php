@@ -155,6 +155,9 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
             Route::post('/rooms/{room}/lower-hands', [Studio\RoomModerationController::class, 'lowerHands'])->name('rooms.lower-hands');
             Route::post('/rooms/{room}/polls', [Studio\RoomPollController::class, 'store'])->name('rooms.polls.store');
             Route::post('/rooms/{room}/board', [Studio\RoomBoardController::class, 'update'])->name('rooms.board');
+            Route::post('/rooms/{room}/breakouts', [Studio\RoomBreakoutController::class, 'update'])->name('rooms.breakouts');
+            Route::post('/rooms/{room}/breakouts/open', [Studio\RoomBreakoutController::class, 'open'])->name('rooms.breakouts.open');
+            Route::post('/rooms/{room}/breakouts/close', [Studio\RoomBreakoutController::class, 'close'])->name('rooms.breakouts.close');
             Route::post('/rooms/{room}/polls/{poll}/close', [Studio\RoomPollController::class, 'close'])
                 ->whereNumber('poll')->name('rooms.polls.close');
             Route::post('/rooms/{room}/recording/start', [Studio\RoomModerationController::class, 'startRecording'])->name('rooms.recording.start');

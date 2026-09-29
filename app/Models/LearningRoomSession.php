@@ -12,10 +12,11 @@ class LearningRoomSession extends Model
         'learning_room_id', 'started_by', 'ended_by', 'started_at', 'ended_at', 'peak_participants',
         'egress_id', 'recording_started_at',
         'board_active', 'board_all_can_draw', 'board_version',
+        'breakout_count', 'breakouts_open',
     ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
-    protected $attributes = ['peak_participants' => 0, 'board_active' => false, 'board_all_can_draw' => false, 'board_version' => 0];
+    protected $attributes = ['peak_participants' => 0, 'board_active' => false, 'board_all_can_draw' => false, 'board_version' => 0, 'breakout_count' => 0, 'breakouts_open' => false];
 
     protected $casts = [
         'started_at' => 'datetime',
@@ -25,6 +26,8 @@ class LearningRoomSession extends Model
         'board_active' => 'boolean',
         'board_all_can_draw' => 'boolean',
         'board_version' => 'integer',
+        'breakout_count' => 'integer',
+        'breakouts_open' => 'boolean',
     ];
 
     public function room(): BelongsTo

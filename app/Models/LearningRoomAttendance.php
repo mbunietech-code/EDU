@@ -13,7 +13,7 @@ class LearningRoomAttendance extends Model
         'first_joined_at', 'last_seen_at', 'left_at', 'total_seconds', 'join_count',
         'removed_at', 'removed_by',
         'can_publish_audio', 'can_publish_video', 'can_share_screen',
-        'hand_raised_at',
+        'hand_raised_at', 'breakout_number',
     ];
 
     /** Mirrors the column defaults so unsaved / just-created models read the same as reloaded ones. */
@@ -29,6 +29,7 @@ class LearningRoomAttendance extends Model
         'left_at' => 'datetime',
         'removed_at' => 'datetime',
         'hand_raised_at' => 'datetime',
+        'breakout_number' => 'integer',
         'total_seconds' => 'integer',
         'join_count' => 'integer',
         // NULL = follow the room setting; true / false = the host's override for this person.
