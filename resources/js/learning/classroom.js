@@ -150,6 +150,11 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // Polls / quizzes of the running session (from the feed).
+    polls: [],
+    pollBusy: null,
+    pollDraft: { question: '', options: ['', ''], correct: null, error: '' },
+    pollMaxOptions: 6,
     // Reactions floating up the stage: { id, emoji, name, left }.
     reactions: REACTIONS,
     floating: [],
@@ -177,7 +182,7 @@ window.learnClassroom = (cfg = {}) => {
     barTimer: null,
     panelTimer: null,
     tab: 'chat',
-    unread: { chat: 0, qa: 0 },
+    unread: { chat: 0, qa: 0, polls: 0 },
     qaFilter: 'all',
     drafts: { chat: '', question: '' },
     announceMode: false,
@@ -569,6 +574,7 @@ window.learnClassroom = (cfg = {}) => {
         }
         if (data.counts) this.counts = data.counts;
         if (Array.isArray(data.materials)) this.materials = data.materials;
+        if (Array.isArray(data.polls)) this.applyPolls(data.polls, firstLoad);
         if (data.me && data.me.permissions) this.applyPermissions(data.me.permissions);
         this.feedLoaded = true;
 
@@ -655,6 +661,7 @@ window.learnClassroom = (cfg = {}) => {
         }
         if (name === 'chat') this.unread.chat = 0;
         if (name === 'qa') this.unread.qa = 0;
+        if (name === 'polls') this.unread.polls = 0;
         this.$nextTick(() => {
             this.scrollToBottom(true);
             if (name === 'cameras') this.attachVideos();
@@ -1084,6 +1091,94 @@ window.learnClassroom = (cfg = {}) => {
 
         // Signals only: the content always comes from Laravel.
         if (msg.t === 'feed' || msg.t === 'rights') this.pollNow();
+    },
+
+    // --- Polls & quizzes ---------------------------------------------------
+    applyPolls(polls, firstLoad = false) {
+        if (!firstLoad) {
+            const known = new Set(this.polls.map((p) => p.id));
+            const fresh = polls.find((p) => p.is_open && !known.has(p.id));
+            if (fresh && !this.isManager) {
+                this.flash('📊 New poll: ' + fresh.question, 7000);
+                if (!(this.panelVisible && this.tab === 'polls')) this.unread.polls++;
+            }
+        }
+        this.polls = polls;
+    },
+
+    get unreadTotal() {
+        return this.unread.chat + this.unread.qa + this.unread.polls;
+    },
+
+    get openPoll() {
+        return this.polls.find((p) => p.is_open) || null;
+    },
+
+    pollPercent(poll, i) {
+        if (!poll.results || !poll.total) return 0;
+        return Math.round((poll.results[i] * 100) / poll.total);
+    },
+
+    async runPoll(key, url, body) {
+        if (!url || this.pollBusy) return false;
+        this.pollBusy = key;
+        try {
+            const { ok, data } = await this.post(url, body);
+            if (!ok) {
+                const message = errorMessage(data, 'That did not work. Try again.');
+                if (key === 'create') this.pollDraft.error = message;
+                else this.flash(message, 7000);
+                return false;
+            }
+            if (data && Array.isArray(data.polls)) this.polls = data.polls;
+            this.nudge('feed');
+            return true;
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 7000);
+            return false;
+        } finally {
+            this.pollBusy = null;
+        }
+    },
+
+    vote(poll, i) {
+        if (!poll.is_open || poll.my_vote !== null || !this.urls.pollVote) return;
+        this.runPoll('vote:' + poll.id, this.urls.pollVote.replace('__ID__', poll.id), { option: i });
+    },
+
+    addPollOption() {
+        if (this.pollDraft.options.length < this.pollMaxOptions) this.pollDraft.options.push('');
+    },
+
+    removePollOption(i) {
+        if (this.pollDraft.options.length <= 2) return;
+        this.pollDraft.options.splice(i, 1);
+        if (this.pollDraft.correct === i) this.pollDraft.correct = null;
+        else if (this.pollDraft.correct !== null && this.pollDraft.correct > i) this.pollDraft.correct--;
+    },
+
+    async createPoll() {
+        const draft = this.pollDraft;
+        draft.error = '';
+        // Drop blank options here, so the "right answer" still points at the same text.
+        const options = [];
+        let correct = null;
+        draft.options.forEach((text, i) => {
+            if (!String(text).trim()) return;
+            if (draft.correct === i) correct = options.length;
+            options.push(text);
+        });
+        const ok = await this.runPoll('create', this.urls.studio && this.urls.studio.pollStore, {
+            question: draft.question,
+            options,
+            correct_option: correct,
+        });
+        if (ok) this.pollDraft = { question: '', options: ['', ''], correct: null, error: '' };
+    },
+
+    closePoll(poll) {
+        const url = this.urls.studio && this.urls.studio.pollClose;
+        if (url) this.runPoll('close:' + poll.id, url.replace('__ID__', poll.id), {});
     },
 
     // --- Raise hand & reactions ------------------------------------------

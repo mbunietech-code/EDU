@@ -471,7 +471,7 @@ class FoundationTest extends TestCase
         $user = $this->learner();
 
         Schema::disableForeignKeyConstraints();
-        foreach (['learning_room_recordings', 'learning_room_messages', 'learning_room_attendances',
+        foreach (['learning_room_poll_votes', 'learning_room_polls', 'learning_room_recordings', 'learning_room_messages', 'learning_room_attendances',
             'learning_room_sessions', 'learning_room_members', 'learning_rooms'] as $table) {
             Schema::dropIfExists($table);
         }

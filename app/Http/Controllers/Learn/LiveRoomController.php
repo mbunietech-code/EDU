@@ -9,6 +9,7 @@ use App\Models\LearningRoom;
 use App\Models\LearningRoomMaterial;
 use App\Models\User;
 use App\Services\Learning\LiveProvider;
+use App\Services\Learning\RoomPollService;
 use App\Services\Learning\RoomService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,8 +23,11 @@ use Illuminate\Support\Str;
  */
 class LiveRoomController extends Controller
 {
-    public function __construct(protected RoomService $rooms, protected LiveProvider $live)
-    {
+    public function __construct(
+        protected RoomService $rooms,
+        protected LiveProvider $live,
+        protected RoomPollService $polls,
+    ) {
     }
 
     public function show(Request $request, LearningRoom $room)
@@ -129,6 +133,7 @@ class LiveRoomController extends Controller
         );
 
         $feed['materials'] = $this->materials($room);
+        $feed['polls'] = $this->polls->feed($room, $request->user());
 
         return response()->json($feed);
     }
@@ -154,6 +159,7 @@ class LiveRoomController extends Controller
             'presence' => route('learn.rooms.presence', $room),
             'leave' => route('learn.rooms.leave', $room),
             'hand' => route('learn.rooms.hand', $room),
+            'pollVote' => str_replace('999999999', '__ID__', route('learn.rooms.polls.vote', ['room' => $room, 'poll' => 999999999])),
             'feed' => route('learn.rooms.feed', $room),
             'messages' => [
                 'store' => route('learn.rooms.messages.store', $room),
@@ -188,6 +194,8 @@ class LiveRoomController extends Controller
                 'mute' => $userTemplate('studio.rooms.participants.mute'),
                 'lowerHand' => $userTemplate('studio.rooms.participants.lower-hand'),
                 'lowerHands' => route('studio.rooms.lower-hands', $room->id),
+                'pollStore' => route('studio.rooms.polls.store', $room->id),
+                'pollClose' => str_replace('999999999', '__ID__', route('studio.rooms.polls.close', ['room' => $room->id, 'poll' => 999999999])),
             ];
         }
 

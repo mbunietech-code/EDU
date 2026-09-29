@@ -11,11 +11,12 @@
 
     <div class="flex h-12 shrink-0 items-center border-b border-gray-800 px-2">
         <div class="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Panel sections">
-            @php($tabOrder = ['chat', 'cameras', 'qa', 'people', 'info'])
-            @foreach (['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'people' => 'People', 'info' => 'Info'] as $key => $label)
+            @php($tabs = ['chat' => 'Chat', 'cameras' => 'Cameras', 'qa' => 'Q&A', 'polls' => 'Polls', 'people' => 'People', 'info' => 'Info'])
+            @php($tabOrder = array_keys($tabs))
+            @foreach ($tabs as $key => $label)
                 @php($tabIndex = array_search($key, $tabOrder, true))
-                @php($nextTab = $tabOrder[($tabIndex + 1) % 5])
-                @php($prevTab = $tabOrder[($tabIndex + 4) % 5])
+                @php($nextTab = $tabOrder[($tabIndex + 1) % count($tabOrder)])
+                @php($prevTab = $tabOrder[($tabIndex + count($tabOrder) - 1) % count($tabOrder)])
                 <button type="button" role="tab" id="panel-tab-{{ $key }}" aria-controls="panel-{{ $key }}"
                     :aria-selected="(tab === '{{ $key }}').toString()" :tabindex="tab === '{{ $key }}' ? 0 : -1"
                     @click="openTab('{{ $key }}')"
@@ -28,6 +29,9 @@
                         <span x-show="unread.chat > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.chat > 99 ? '99+' : unread.chat"></span>
                     @elseif ($key === 'qa')
                         <span x-show="unread.qa > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.qa > 99 ? '99+' : unread.qa"></span>
+                    @elseif ($key === 'polls')
+                        <span x-show="unread.polls > 0" x-cloak class="rounded-full bg-indigo-600 px-1.5 text-[11px] leading-4 text-white" x-text="unread.polls"></span>
+                        <span x-show="!unread.polls && openPoll" x-cloak class="h-2 w-2 rounded-full bg-emerald-400" aria-label="A poll is open"></span>
                     @elseif ($key === 'people')
                         <span class="text-xs tabular-nums text-gray-500" x-text="counts.participants"></span>
                     @elseif ($key === 'cameras')
@@ -227,6 +231,105 @@
                 <p class="text-center text-xs text-gray-400" x-text="askDisabledText"></p>
             </template>
         </form>
+    </section>
+
+    {{-- Polls & quizzes --}}
+    <section id="panel-polls" role="tabpanel" aria-labelledby="panel-tab-polls" x-show="tab === 'polls'" x-cloak class="min-h-0 flex-1 overflow-y-auto p-3">
+        {{-- Host: ask a new poll --}}
+        <template x-if="isManager && room.status === 'live'">
+            <form @submit.prevent="createPoll()" class="mb-4 space-y-2 rounded-lg bg-gray-800/70 p-3">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">New poll</p>
+                <label class="sr-only" for="poll-question">Question</label>
+                <textarea id="poll-question" x-model="pollDraft.question" rows="2" maxlength="300" required
+                    class="w-full resize-none rounded-md border-0 bg-gray-900 px-2.5 py-2 text-sm text-gray-100 placeholder-gray-500 ring-1 ring-gray-700 focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ask the class a question…"></textarea>
+                <template x-for="(opt, i) in pollDraft.options" :key="i">
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" @click="pollDraft.correct = pollDraft.correct === i ? null : i"
+                            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md ring-1 transition"
+                            :class="pollDraft.correct === i ? 'bg-emerald-600 text-white ring-emerald-500' : 'text-gray-500 ring-gray-700 hover:text-gray-200'"
+                            :aria-pressed="(pollDraft.correct === i).toString()"
+                            :aria-label="'Mark option ' + (i + 1) + ' as the right answer'"
+                            :title="pollDraft.correct === i ? 'Right answer (quiz)' : 'Mark as the right answer to make this a quiz'">
+                            @include('learn.rooms.partials.icon', ['name' => 'check-circle', 'class' => 'h-4 w-4'])
+                        </button>
+                        <input type="text" x-model="pollDraft.options[i]" maxlength="120" :aria-label="'Option ' + (i + 1)"
+                            class="min-w-0 flex-1 rounded-md border-0 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 placeholder-gray-500 ring-1 ring-gray-700 focus:ring-2 focus:ring-indigo-500"
+                            :placeholder="'Option ' + (i + 1)">
+                        <button type="button" x-show="pollDraft.options.length > 2" @click="removePollOption(i)"
+                            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-700 hover:text-gray-200"
+                            :aria-label="'Remove option ' + (i + 1)">
+                            @include('learn.rooms.partials.icon', ['name' => 'x', 'class' => 'h-4 w-4'])
+                        </button>
+                    </div>
+                </template>
+                <div class="flex items-center justify-between gap-2">
+                    <button type="button" @click="addPollOption()" :class="pollDraft.options.length >= pollMaxOptions ? 'invisible' : ''"
+                        class="text-xs font-medium text-indigo-300 hover:text-indigo-200">+ Add option</button>
+                    <button type="submit" :disabled="pollBusy === 'create'"
+                        class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                        x-text="pollDraft.correct !== null ? 'Start quiz' : 'Start poll'"></button>
+                </div>
+                <p x-show="pollDraft.error" x-cloak class="text-xs text-red-400" x-text="pollDraft.error" role="alert"></p>
+                <p class="text-[11px] text-gray-500">Tick an option to make it a quiz. Starting a new poll closes the open one.</p>
+            </form>
+        </template>
+
+        <template x-if="polls.length === 0">
+            <p class="px-2 py-10 text-center text-sm text-gray-400" x-text="isManager ? 'No polls yet in this class.' : 'No polls yet. When the host asks one, it appears here.'"></p>
+        </template>
+
+        <ul class="space-y-3" role="list">
+            <template x-for="poll in [...polls].reverse()" :key="poll.id">
+                <li class="rounded-lg bg-gray-800/70 p-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-sm font-medium text-gray-100" x-text="poll.question"></p>
+                        <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase"
+                            :class="poll.is_open ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-700 text-gray-400'"
+                            x-text="(poll.is_quiz ? 'Quiz' : 'Poll') + (poll.is_open ? ' · open' : ' · closed')"></span>
+                    </div>
+
+                    <div class="mt-2 space-y-1.5">
+                        <template x-for="(opt, i) in poll.options" :key="i">
+                            <button type="button" @click="vote(poll, i)"
+                                :disabled="isManager || !poll.is_open || poll.my_vote !== null || pollBusy !== null"
+                                class="relative block w-full overflow-hidden rounded-md px-2.5 py-2 text-left text-sm ring-1 transition enabled:hover:ring-indigo-400"
+                                :class="poll.my_vote === i ? 'ring-indigo-500' : (poll.correct_option === i ? 'ring-emerald-500' : 'ring-gray-700')"
+                                :aria-pressed="(poll.my_vote === i).toString()">
+                                {{-- Result bar (managers, or everyone once closed) --}}
+                                <span x-show="poll.results" class="absolute inset-y-0 left-0 transition-all"
+                                    :class="poll.correct_option === i ? 'bg-emerald-600/30' : 'bg-indigo-600/25'"
+                                    :style="'width:' + pollPercent(poll, i) + '%'"></span>
+                                <span class="relative flex items-center justify-between gap-2">
+                                    <span class="flex min-w-0 items-center gap-1.5 text-gray-100">
+                                        <span x-show="poll.correct_option === i" class="shrink-0 text-emerald-400" aria-label="Right answer">✓</span>
+                                        <span class="truncate" x-text="opt"></span>
+                                        <span x-show="poll.my_vote === i" class="shrink-0 text-[11px] text-indigo-300">(your answer)</span>
+                                    </span>
+                                    <span x-show="poll.results" class="shrink-0 text-xs tabular-nums text-gray-300"
+                                        x-text="pollPercent(poll, i) + '% · ' + (poll.results ? poll.results[i] : 0)"></span>
+                                </span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-400">
+                        <span>
+                            <span class="tabular-nums" x-text="poll.total"></span> <span x-text="poll.total === 1 ? 'vote' : 'votes'"></span>
+                            <template x-if="!isManager && poll.is_open">
+                                <span x-text="poll.my_vote !== null ? ' · Thanks! Results show when the host closes the poll.' : ' · Tap your answer'"></span>
+                            </template>
+                            <template x-if="!isManager && !poll.is_open && poll.is_quiz && poll.my_vote !== null">
+                                <span :class="poll.my_vote === poll.correct_option ? 'text-emerald-400' : 'text-amber-300'"
+                                    x-text="poll.my_vote === poll.correct_option ? ' · You got it right 🎉' : ' · Not quite this time'"></span>
+                            </template>
+                        </span>
+                        <button type="button" x-show="isManager && poll.is_open" @click="closePoll(poll)" :disabled="pollBusy !== null"
+                            class="rounded-md bg-gray-700 px-2 py-1 font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-50">Close &amp; show results</button>
+                    </div>
+                </li>
+            </template>
+        </ul>
     </section>
 
     {{-- People --}}

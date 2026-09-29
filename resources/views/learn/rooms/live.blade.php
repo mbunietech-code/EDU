@@ -21,10 +21,10 @@
             <button type="button" x-show="autoHide && !chrome.panel" x-cloak x-transition.opacity
                 @mouseenter="showPanel()" @click="openTab(tab)"
                 class="absolute right-0 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-lg bg-gray-800/90 px-1.5 py-3 text-gray-200 shadow-lg ring-1 ring-gray-700 hover:bg-gray-700"
-                :aria-label="'Open chat and people' + (unread.chat + unread.qa > 0 ? ', ' + (unread.chat + unread.qa) + ' unread' : '')">
+                :aria-label="'Open chat and people' + (unreadTotal > 0 ? ', ' + unreadTotal + ' unread' : '')">
                 @include('learn.rooms.partials.icon', ['name' => 'chat', 'class' => 'h-5 w-5'])
-                <span x-show="unread.chat + unread.qa > 0" class="min-w-[1.1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-[1.1rem] text-white"
-                    x-text="unread.chat + unread.qa > 99 ? '99+' : unread.chat + unread.qa"></span>
+                <span x-show="unreadTotal > 0" class="min-w-[1.1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-[1.1rem] text-white"
+                    x-text="unreadTotal > 99 ? '99+' : unreadTotal"></span>
             </button>
         </div>
 

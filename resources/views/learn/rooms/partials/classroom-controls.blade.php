@@ -103,9 +103,9 @@
             :aria-pressed="(panelVisible && tab === 'chat').toString()"
             :aria-label="unread.chat > 0 ? 'Chat, ' + unread.chat + ' unread' : 'Chat'" title="Chat">
             @include('learn.rooms.partials.icon', ['name' => 'chat'])
-            <span x-show="unread.chat + unread.qa > 0" x-cloak aria-hidden="true"
+            <span x-show="unreadTotal > 0" x-cloak aria-hidden="true"
                 class="absolute -right-0.5 -top-0.5 min-w-[1.1rem] rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-[1.1rem] text-white"
-                x-text="unread.chat + unread.qa > 99 ? '99+' : unread.chat + unread.qa"></span>
+                x-text="unreadTotal > 99 ? '99+' : unreadTotal"></span>
         </button>
 
         {{-- People --}}
