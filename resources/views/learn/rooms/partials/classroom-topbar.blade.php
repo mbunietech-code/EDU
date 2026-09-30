@@ -1,5 +1,9 @@
-{{-- Classroom top bar: back, title, status, timer, connection, people count, host End. --}}
-<header class="flex h-14 shrink-0 items-center gap-2 border-b border-gray-800 bg-gray-900 px-2 sm:gap-3 sm:px-4">
+{{-- Classroom top bar: back, title, status, timer, connection, people count, host End.
+     Desktop in a call: floats over the video and slides away; the mouse at the top edge brings it back. --}}
+<header x-ref="topBar" class="flex h-14 shrink-0 items-center gap-2 border-b border-gray-800 px-2 transition-transform duration-300 ease-out sm:gap-3 sm:px-4"
+    :class="autoHide ? ('absolute inset-x-0 top-0 z-30 bg-gray-900/90 backdrop-blur ' + (chrome.top ? 'translate-y-0' : '-translate-y-full')) : 'bg-gray-900'"
+    @mouseenter="topHover = true; showTop()" @mouseleave="topHover = false; scheduleTopHide()"
+    @focusin="showTop()" @focusout="scheduleTopHide()">
     @unless ($isGuest)
     <a href="{{ route('learn.rooms.show', $room) }}"
         class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"

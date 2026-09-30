@@ -30,6 +30,12 @@
 
         @include('learn.rooms.partials.classroom-controls')
 
+        {{-- Desktop, top bar tucked away: a small handle hints where it is --}}
+        <div x-show="autoHide && !chrome.top" x-cloak x-transition.opacity
+            class="pointer-events-none absolute inset-x-0 top-1.5 z-20 flex justify-center" aria-hidden="true">
+            <span class="h-1 w-16 rounded-full bg-white/40"></span>
+        </div>
+
         {{-- Desktop, control bar tucked away: a small handle hints where it is --}}
         <div x-show="autoHide && !chrome.bar" x-cloak x-transition.opacity
             class="pointer-events-none absolute inset-x-0 bottom-1.5 z-20 flex justify-center" aria-hidden="true">

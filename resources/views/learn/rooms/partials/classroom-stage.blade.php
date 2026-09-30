@@ -31,7 +31,7 @@
 
         {{-- Whiteboard: replaces the video layout while the host has it open --}}
         <template x-if="board.active">
-            <div class="absolute inset-0 flex flex-col gap-2 p-2 sm:p-3">
+            <div class="absolute inset-0 flex flex-col gap-2 p-2 sm:p-3" :class="autoHide ? 'pt-6 sm:pt-6' : ''">
                 {{-- Tools: above the board, away from the call buttons and pop-ups at the bottom --}}
                 <div class="flex shrink-0 flex-wrap items-center justify-center gap-1.5 text-xs" role="toolbar" aria-label="Whiteboard tools">
                     <template x-if="canDraw">

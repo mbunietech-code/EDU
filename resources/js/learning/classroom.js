@@ -221,7 +221,9 @@ window.learnClassroom = (cfg = {}) => {
     panelOpen: false,
     // Immersive mode on desktop during a call: the control bar and the side
     // panel hide and slide back in when the mouse reaches the bottom / right edge.
-    chrome: { bar: true, panel: false },
+    chrome: { bar: true, top: true, panel: false },
+    topHover: false,
+    topTimer: null,
     barHover: false,
     panelHover: false,
     panelPinned: false,
@@ -768,6 +770,10 @@ window.learnClassroom = (cfg = {}) => {
         if (!this.autoHide) return;
         if (e.clientY >= window.innerHeight - 110) this.showBar();
         else this.scheduleBarHide();
+        // The top bar (title, timer, End session) comes back when the mouse reaches the very top
+        // edge (a thin strip, so the whiteboard tools just below stay usable).
+        if (e.clientY <= 10) this.showTop();
+        else this.scheduleTopHide();
         if (e.clientX >= window.innerWidth - 28) this.showPanel();
     },
 
@@ -806,7 +812,27 @@ window.learnClassroom = (cfg = {}) => {
     /** Show both bars briefly (entering the call), then let them tuck away. */
     revealChrome() {
         this.showBar();
-        this.$nextTick(() => this.scheduleBarHide(3500));
+        this.showTop();
+        this.$nextTick(() => {
+            this.scheduleBarHide(3500);
+            this.scheduleTopHide(3500);
+        });
+    },
+
+    showTop() {
+        clearTimeout(this.topTimer);
+        this.topTimer = null;
+        this.chrome.top = true;
+    },
+
+    scheduleTopHide(delay = 2000) {
+        if (!this.autoHide || this.topHover || this.topTimer) return;
+        this.topTimer = setTimeout(() => {
+            this.topTimer = null;
+            // Keep it while the mouse is on it or one of its buttons has keyboard focus.
+            const focusInside = this.$refs.topBar && this.$refs.topBar.contains(document.activeElement);
+            if (this.autoHide && !this.topHover && !focusInside) this.chrome.top = false;
+        }, delay);
     },
 
     // --- Joining -----------------------------------------------------------
