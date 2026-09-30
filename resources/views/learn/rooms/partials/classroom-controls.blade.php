@@ -134,6 +134,12 @@
             </button>
             <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="More options"
                 class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
+                <template x-if="isManager && guests && guests.enabled">
+                    <button type="button" role="menuitem" @click="guests.link ? copyGuestLink() : setGuestLink(true); open = false" :disabled="guestBusy !== null" class="{{ $menuItem }}">
+                        <span class="w-5 text-center" aria-hidden="true">🔗</span>
+                        <span x-text="guests.link ? 'Copy guest invite link' : 'Invite guests (create link)'"></span>
+                    </button>
+                </template>
                 <button type="button" role="menuitem" @click="openDevices(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'adjustments'])
                     Camera, microphone &amp; speaker

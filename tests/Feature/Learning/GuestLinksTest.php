@@ -99,6 +99,28 @@ class GuestLinksTest extends TestCase
         $this->get($link)->assertNotFound()->assertSee('This meeting link does not work');
     }
 
+    public function test_the_host_manages_the_link_from_the_studio_room_page_before_the_class(): void
+    {
+        $host = User::factory()->create(['can_teach' => true]);
+        $room = LearningRoom::create([
+            'title' => 'Sunday service', 'host_id' => $host->id, 'created_by' => $host->id, 'status' => 'scheduled',
+            'access' => 'private', 'scheduled_at' => now()->addDay(), 'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($host)->get(route('studio.rooms.show', $room))->assertOk()->assertSee('Guest links are turned off');
+
+        $this->turnGuestLinks(true);
+        $this->actingAs($host)->get(route('studio.rooms.show', $room))->assertOk()->assertSee('Create guest link');
+
+        $this->actingAs($host)->post(route('studio.rooms.guest-link', $room), ['enabled' => 1])->assertRedirect();
+        $link = $room->fresh()->guestUrl();
+        $this->assertNotNull($link);
+        $this->actingAs($host)->get(route('studio.rooms.show', $room))->assertOk()->assertSee($link)->assertSee('Waiting room: On');
+
+        $this->actingAs($host)->post(route('studio.rooms.guest-link', $room), ['enabled' => 0])->assertRedirect();
+        $this->assertNull($room->fresh()->guest_token);
+    }
+
     public function test_a_guest_waits_until_the_host_lets_them_in(): void
     {
         [$host, $room, $token] = $this->liveRoomWithGuestLink();

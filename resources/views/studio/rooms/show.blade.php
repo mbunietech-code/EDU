@@ -184,6 +184,46 @@
         </div>
 
         <div class="min-w-0 space-y-6">
+            @if ($canManage)
+                <x-mbui.card>
+                    <h2 class="mbui-section-label">Guest link</h2>
+                    @if (! \App\Models\LearningRoom::guestLinksEnabled())
+                        <p class="mt-2 text-sm text-gray-500">Guest links are turned off. An administrator can turn them on in Admin → Learning → Live sessions.</p>
+                    @elseif ($room->guest_token)
+                        <p class="mt-2 text-sm text-gray-500">Anyone with this link joins with just their name, no account needed.</p>
+                        <div class="mt-3 flex gap-2" x-data="{ copied: false }">
+                            <input type="text" readonly value="{{ $room->guestUrl() }}" aria-label="Guest link"
+                                class="min-w-0 flex-1 rounded-lg border-gray-300 bg-gray-50 text-xs text-gray-700" @focus="$el.select()">
+                            <button type="button" class="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500"
+                                @click="navigator.clipboard.writeText(@js($room->guestUrl())).then(() => { copied = true; setTimeout(() => copied = false, 2000) })"
+                                x-text="copied ? 'Copied' : 'Copy'">Copy</button>
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <form method="POST" action="{{ route('studio.rooms.guest-link', $room) }}">
+                                @csrf
+                                <input type="hidden" name="enabled" value="1">
+                                <input type="hidden" name="waiting_room" value="{{ $room->guest_waiting_room ? 0 : 1 }}">
+                                <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-medium ring-1 ring-gray-300 hover:bg-gray-50">
+                                    Waiting room: {{ $room->guest_waiting_room ? 'On' : 'Off' }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('studio.rooms.guest-link', $room) }}">
+                                @csrf
+                                <input type="hidden" name="enabled" value="0">
+                                <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 ring-1 ring-red-200 hover:bg-red-50">Turn off link</button>
+                            </form>
+                        </div>
+                    @else
+                        <p class="mt-2 text-sm text-gray-500">Create a link that anyone can use to join with just their name, no account needed. You let them in from the waiting room.</p>
+                        <form method="POST" action="{{ route('studio.rooms.guest-link', $room) }}" class="mt-3">
+                            @csrf
+                            <input type="hidden" name="enabled" value="1">
+                            <button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Create guest link</button>
+                        </form>
+                    @endif
+                </x-mbui.card>
+            @endif
+
             <x-mbui.card>
                 <h2 class="mbui-section-label">People & attendance</h2>
                 <ul class="mt-3 space-y-2 text-sm">

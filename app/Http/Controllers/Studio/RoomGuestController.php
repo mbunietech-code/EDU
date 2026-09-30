@@ -7,6 +7,7 @@ use App\Models\LearningRoom;
 use App\Models\User;
 use App\Services\Learning\GuestAccessService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /** The host's guest link (on / off, waiting room) and the waiting room door (JSON for the classroom). */
@@ -16,7 +17,7 @@ class RoomGuestController extends Controller
     {
     }
 
-    public function link(Request $request, LearningRoom $room): JsonResponse
+    public function link(Request $request, LearningRoom $room): JsonResponse|RedirectResponse
     {
         $this->authorize('moderate', $room);
 
@@ -26,6 +27,10 @@ class RoomGuestController extends Controller
         ]);
 
         $this->guests->configureRoom($room, (bool) $data['enabled'], array_key_exists('waiting_room', $data) ? (bool) $data['waiting_room'] : null);
+
+        if (! $request->expectsJson()) {
+            return back()->with('success', $room->guest_token ? 'Guest link is on. Copy it and share it.' : 'Guest link turned off.');
+        }
 
         return response()->json([
             'guest_link' => $room->guestUrl(),
