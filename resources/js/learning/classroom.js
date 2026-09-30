@@ -839,7 +839,8 @@ window.learnClassroom = (cfg = {}) => {
         const result = await this.requestToken(this.urls.join);
         if (!(await this.handleTokenResult(result))) return;
 
-        await this.connect(result.data.config, this.isManager);
+        // Hosts and meeting guests start with camera + microphone on (guests came to see each other).
+        await this.connect(result.data.config, this.isManager || !!this.viewer.is_guest);
     },
 
     /** Maps token errors to screens. Returns true when a config is available. */

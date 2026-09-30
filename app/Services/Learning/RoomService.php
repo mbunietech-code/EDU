@@ -426,9 +426,14 @@ class RoomService
             return ['audio' => false, 'video' => false, 'screen' => false];
         }
 
+        // Meeting guests came to see and talk to each other: microphone and camera
+        // are on for them whatever the room switch says (the host can still turn
+        // one guest off personally). Screen sharing follows the room.
+        $media = $user->isGuest() || (bool) $room->allow_participant_media;
+
         return [
-            'audio' => $attendance?->can_publish_audio ?? (bool) $room->allow_participant_media,
-            'video' => $attendance?->can_publish_video ?? (bool) $room->allow_participant_media,
+            'audio' => $attendance?->can_publish_audio ?? $media,
+            'video' => $attendance?->can_publish_video ?? $media,
             'screen' => $attendance?->can_share_screen ?? (bool) $room->allow_screen_share,
         ];
     }

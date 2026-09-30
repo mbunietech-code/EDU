@@ -151,6 +151,26 @@ class GuestLinksTest extends TestCase
         $this->assertTrue(collect($people)->firstWhere('user_id', $guest->id)['is_guest']);
     }
 
+    public function test_guests_may_use_camera_and_microphone_even_when_the_room_switch_is_off(): void
+    {
+        [$host, $room, $token] = $this->liveRoomWithGuestLink(waitingRoom: false);
+        $room->forceFill(['allow_participant_media' => false, 'allow_screen_share' => false])->save();
+        $member = User::factory()->create();
+        $room->members()->create(['user_id' => $member->id]);
+
+        $guest = $this->joinAsGuest($token);
+        $this->actingAs($guest)->postJson(route('learn.rooms.token', $room))->assertOk()
+            ->assertJsonPath('config.permissions', ['audio' => true, 'video' => true, 'screen' => false]);
+
+        // Members still follow the room switch.
+        $this->actingAs($member)->postJson(route('learn.rooms.token', $room))->assertOk()
+            ->assertJsonPath('config.permissions', ['audio' => false, 'video' => false, 'screen' => false]);
+
+        // The host can still turn one guest off personally.
+        $this->actingAs($host)->postJson(route('studio.rooms.participants.permissions', [$room->id, $guest->id]), ['video' => false])->assertOk();
+        $this->actingAs($guest->fresh())->postJson(route('learn.rooms.token', $room))->assertJsonPath('config.permissions.video', false);
+    }
+
     public function test_with_the_waiting_room_off_guests_go_straight_in(): void
     {
         [, $room, $token] = $this->liveRoomWithGuestLink(waitingRoom: false);
