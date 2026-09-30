@@ -177,6 +177,9 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // Guest links (hosts only): the link, the waiting room switch and who is at the door.
+    guests: cfg.guests || null,
+    guestBusy: null,
     // Breakout rooms: state from the feed; currentBreakout = the SFU room I am connected to (null = main).
     breakouts: { open: false, count: 0 },
     currentBreakout: null,
@@ -628,6 +631,16 @@ window.learnClassroom = (cfg = {}) => {
         if (Array.isArray(data.materials)) this.materials = data.materials;
         if (Array.isArray(data.polls)) this.applyPolls(data.polls, firstLoad);
         if (data.board) this.applyBoard(data.board);
+        if (data.guests && this.isManager) {
+            // Tell the host when someone new is waiting to be let in.
+            if (!firstLoad && this.guests) {
+                const before = new Set((this.guests.waiting || []).map((g) => g.user_id));
+                const fresh = (data.guests.waiting || []).filter((g) => !before.has(g.user_id));
+                if (fresh.length === 1) this.flash('🚪 ' + fresh[0].name + ' is waiting to join', 7000);
+                else if (fresh.length > 1) this.flash('🚪 ' + fresh.length + ' people are waiting to join', 7000);
+            }
+            this.guests = data.guests;
+        }
         if (data.breakouts) this.breakouts = { open: !!data.breakouts.open, count: data.breakouts.count | 0 };
         // Laravel says which room I belong in; follow it (rooms opened, closed, or I was moved).
         if (data.me && this.inCall && !this.moving) {
@@ -1588,6 +1601,69 @@ window.learnClassroom = (cfg = {}) => {
 
     closeBreakouts() {
         this.breakoutRequest('close', this.urls.studio && this.urls.studio.breakoutsClose, {});
+    },
+
+    // --- Guest links & waiting room (host) ---------------------------------
+    get waitingGuests() {
+        return (this.guests && this.guests.waiting) || [];
+    },
+
+    async guestRequest(key, url, body = {}) {
+        if (!url || this.guestBusy) return null;
+        this.guestBusy = key;
+        try {
+            const { ok, data } = await this.post(url, body);
+            if (!ok) {
+                this.flash(errorMessage(data, 'That did not work. Try again.'), 7000);
+                return null;
+            }
+            this.pollNow();
+            return data || {};
+        } catch (e) {
+            this.flash('Could not reach the server. Try again.', 7000);
+            return null;
+        } finally {
+            this.guestBusy = null;
+        }
+    },
+
+    async setGuestLink(enabled) {
+        const data = await this.guestRequest('link', this.urls.studio && this.urls.studio.guestLink, { enabled });
+        if (data && this.guests) {
+            this.guests.link = data.guest_link;
+            this.guests.waiting_room = data.guest_waiting_room;
+            if (enabled && data.guest_link) this.copyGuestLink();
+        }
+    },
+
+    async setGuestWaitingRoom(on) {
+        const data = await this.guestRequest('waiting', this.urls.studio && this.urls.studio.guestLink, { enabled: !!(this.guests && this.guests.link), waiting_room: on });
+        if (data && this.guests) this.guests.waiting_room = data.guest_waiting_room;
+    },
+
+    async copyGuestLink() {
+        const link = this.guests && this.guests.link;
+        if (!link) return;
+        try {
+            await navigator.clipboard.writeText(link);
+            this.flash('Guest link copied. Share it with anyone — they join with just a name.');
+        } catch (e) {
+            window.prompt('Copy the guest link:', link);
+        }
+    },
+
+    admitGuest(g) {
+        const url = this.urls.studio && this.urls.studio.guestAdmit;
+        if (url) this.guestRequest('admit:' + g.user_id, url.replace('__ID__', g.user_id));
+    },
+
+    denyGuest(g) {
+        const url = this.urls.studio && this.urls.studio.guestDeny;
+        if (url) this.guestRequest('deny:' + g.user_id, url.replace('__ID__', g.user_id));
+    },
+
+    admitAllGuests() {
+        this.guestRequest('admit-all', this.urls.studio && this.urls.studio.guestAdmitAll);
     },
 
     // --- Raise hand & reactions ------------------------------------------

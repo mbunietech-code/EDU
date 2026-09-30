@@ -27,6 +27,18 @@ class LiveSessionController extends Controller
     {
     }
 
+    /** Guest links (join a meeting with just a name, no account): on or off for the whole platform. */
+    public function guestLinks(Request $request, \App\Services\Learning\GuestAccessService $guests): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+
+        $guests->setEnabled((bool) $data['enabled'], $request->user());
+
+        return back()->with('success', $data['enabled']
+            ? 'Guest links are on: hosts can share a link that works without an account.'
+            : 'Guest links are off: every guest link stops working and guests are signed out.');
+    }
+
     public function index(Request $request, LiveServerClient $server): View
     {
         Gate::authorize('rooms.view');

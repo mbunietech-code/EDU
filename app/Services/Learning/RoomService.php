@@ -1016,7 +1016,7 @@ class RoomService
         return LearningRoomAttendance::query()
             ->where('learning_room_session_id', $session->id)
             ->present()
-            ->with('user:id,name')
+            ->with('user:id,name,is_guest')
             ->orderBy('first_joined_at')
             ->orderBy('id')
             ->get();
@@ -1240,6 +1240,7 @@ class RoomService
                 'name' => $a->user?->name ?? 'Member',
                 'role' => $a->role,
                 'is_me' => (int) $a->user_id === (int) $viewer->id,
+                'is_guest' => (bool) $a->user?->is_guest,
                 'hand_raised_at' => $a->hand_raised_at?->toIso8601String(),
                 // Assigned breakout room (for a host: the one they are visiting).
                 'breakout' => $a->breakout_number,

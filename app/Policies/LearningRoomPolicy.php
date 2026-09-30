@@ -20,6 +20,11 @@ class LearningRoomPolicy
 
     public function join(User $user, LearningRoom $room): bool
     {
+        // A guest waits at the door until the host lets them in.
+        if ($user->isGuest() && ($user->guest_admitted_at === null || $user->guest_denied_at !== null)) {
+            return false;
+        }
+
         return $this->view($user, $room);
     }
 

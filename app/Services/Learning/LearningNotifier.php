@@ -205,7 +205,8 @@ class LearningNotifier
 
     private function activeUsers(): Builder
     {
-        return User::query()->where('status', 'active');
+        // Meeting guests are never an audience (made-up addresses, one room only).
+        return User::query()->where('status', 'active')->where('is_guest', false);
     }
 
     /** Ids of users enrolled in any of the given (non-trashed) courses. */

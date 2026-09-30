@@ -24,7 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'research.contribute' => \App\Http\Middleware\EnsureCanWriteResearch::class,
         ]);
 
-        $middleware->web(append: [UpdateLastSeen::class]);
+        // RestrictGuests: meeting guests (guest links) may only use their one room.
+        $middleware->web(append: [UpdateLastSeen::class, \App\Http\Middleware\RestrictGuests::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->report(function (\Throwable $e) {

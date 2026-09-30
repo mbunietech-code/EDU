@@ -183,6 +183,32 @@
                             </template>
                         </div>
                     </template>
+                    {{-- Guest link (only when an admin turned guest links on) --}}
+                    <template x-if="guests && guests.enabled">
+                        <div class="border-b border-gray-700 px-3 pb-2 pt-1">
+                            <p class="text-[11px] uppercase tracking-wide text-gray-500">Guest link (no account needed)</p>
+                            <template x-if="!guests.link">
+                                <button type="button" @click="setGuestLink(true)" :disabled="guestBusy !== null"
+                                    class="mt-1 w-full rounded-md bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">Create guest link</button>
+                            </template>
+                            <template x-if="guests.link">
+                                <div class="mt-1 space-y-1">
+                                    <button type="button" @click="copyGuestLink()"
+                                        class="w-full truncate rounded-md bg-gray-700 px-2 py-1.5 text-left text-xs text-gray-100 hover:bg-gray-600" :title="guests.link">
+                                        📋 Copy link
+                                    </button>
+                                    <button type="button" role="menuitemcheckbox" :aria-checked="(!!guests.waiting_room).toString()"
+                                        @click="setGuestWaitingRoom(!guests.waiting_room)" :disabled="guestBusy !== null"
+                                        class="flex w-full items-center justify-between rounded-md px-2 py-1 text-xs text-gray-200 hover:bg-gray-700 disabled:opacity-50">
+                                        <span>Waiting room (I let guests in)</span>
+                                        <span class="font-semibold" :class="guests.waiting_room ? 'text-emerald-300' : 'text-gray-400'" x-text="guests.waiting_room ? 'On' : 'Off'"></span>
+                                    </button>
+                                    <button type="button" @click="setGuestLink(false)" :disabled="guestBusy !== null"
+                                        class="w-full rounded-md px-2 py-1 text-left text-xs text-red-300 hover:bg-gray-700 disabled:opacity-50">Turn off the link</button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                     <button type="button" role="menuitem" @click="toggleBoard(); open = false" :disabled="!inCall || boardBusy !== null" class="{{ $menuItem }} sm:hidden">
                         @include('learn.rooms.partials.icon', ['name' => 'pencil'])
                         <span x-text="board.active ? 'Close the whiteboard' : 'Open the whiteboard'"></span>

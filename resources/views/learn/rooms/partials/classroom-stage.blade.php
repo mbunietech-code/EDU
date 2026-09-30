@@ -247,9 +247,11 @@
             </p>
             <p class="mt-3 text-sm text-gray-400" x-show="room.status !== 'cancelled'">Thanks for taking part. If the host shares a recording, you will find it on the class page.</p>
             <div class="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+                @unless ($isGuest)
                 <a href="{{ route('learn.rooms.show', $room) }}"
                     class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Back to class details</a>
                 <a href="{{ route('learn.rooms.index') }}" class="text-sm font-medium text-indigo-300 hover:text-indigo-200">All live classes</a>
+                @endunless
             </div>
             <template x-if="isManager && room.status === 'completed'">
                 <button type="button" @click="startSession()" :disabled="busy.start"
@@ -269,8 +271,10 @@
             </div>
             <h2 id="stage-removed" class="mt-4 text-lg font-semibold text-white">You were removed from this class</h2>
             <p class="mt-2 text-sm text-gray-300">The host removed you from the live class. You cannot rejoin this session. If you think this was a mistake, contact the host.</p>
+            @unless ($isGuest)
             <a href="{{ route('learn.rooms.show', $room) }}"
                 class="mt-6 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Back to class details</a>
+            @endunless
         </div>
     </section>
 
@@ -292,7 +296,9 @@
                     class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
                     Reload page
                 </button>
+                @unless ($isGuest)
                 <a href="{{ route('learn.rooms.show', $room) }}" class="text-sm font-medium text-indigo-300 hover:text-indigo-200">Back to class details</a>
+                @endunless
             </div>
         </div>
     </section>

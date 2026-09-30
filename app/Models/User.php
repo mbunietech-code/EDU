@@ -43,6 +43,9 @@ class User extends Authenticatable
             'permissions' => 'array',
             'can_write_research' => 'boolean',
             'can_teach' => 'boolean',
+            'is_guest' => 'boolean',
+            'guest_admitted_at' => 'datetime',
+            'guest_denied_at' => 'datetime',
         ];
     }
 
@@ -245,6 +248,21 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->is_admin;
+    }
+
+    /**
+     * A meeting guest: joined one room through its guest link with just a
+     * name. Restricted to that room (RestrictGuests); never emailed.
+     */
+    public function isGuest(): bool
+    {
+        return (bool) $this->is_guest;
+    }
+
+    /** Guests have made-up addresses: the mail channel skips them. */
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        return $this->isGuest() ? null : $this->email;
     }
 
     public function isActive(): bool

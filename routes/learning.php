@@ -20,6 +20,15 @@ use Illuminate\Support\Facades\Route;
 */
 
 // --- Learner ----------------------------------------------------------
+// Meeting guest links: join with just a name (no account). Off unless an admin turns them on.
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/join/{token}', [Learn\GuestJoinController::class, 'show'])->name('guest.join');
+    Route::post('/join/{token}', [Learn\GuestJoinController::class, 'store'])->middleware('throttle:10,1')->name('guest.store');
+    Route::get('/join/{token}/wait', [Learn\GuestJoinController::class, 'wait'])->name('guest.wait');
+    Route::get('/join/{token}/status', [Learn\GuestJoinController::class, 'status'])->name('guest.status');
+    Route::get('/guest/ended', [Learn\GuestJoinController::class, 'ended'])->name('guest.ended');
+});
+
 Route::middleware(['auth', 'verified'])
     ->prefix('learn')
     ->name('learn.')
@@ -155,6 +164,10 @@ Route::middleware(['auth', 'verified', 'can:learning.studio'])
             Route::post('/rooms/{room}/lower-hands', [Studio\RoomModerationController::class, 'lowerHands'])->name('rooms.lower-hands');
             Route::post('/rooms/{room}/polls', [Studio\RoomPollController::class, 'store'])->name('rooms.polls.store');
             Route::post('/rooms/{room}/board', [Studio\RoomBoardController::class, 'update'])->name('rooms.board');
+            Route::post('/rooms/{room}/guest-link', [Studio\RoomGuestController::class, 'link'])->name('rooms.guest-link');
+            Route::post('/rooms/{room}/guests/admit-all', [Studio\RoomGuestController::class, 'admitAll'])->name('rooms.guests.admit-all');
+            Route::post('/rooms/{room}/guests/{user}/admit', [Studio\RoomGuestController::class, 'admit'])->whereNumber('user')->name('rooms.guests.admit');
+            Route::post('/rooms/{room}/guests/{user}/deny', [Studio\RoomGuestController::class, 'deny'])->whereNumber('user')->name('rooms.guests.deny');
             Route::post('/rooms/{room}/breakouts', [Studio\RoomBreakoutController::class, 'update'])->name('rooms.breakouts');
             Route::post('/rooms/{room}/breakouts/open', [Studio\RoomBreakoutController::class, 'open'])->name('rooms.breakouts.open');
             Route::post('/rooms/{room}/breakouts/close', [Studio\RoomBreakoutController::class, 'close'])->name('rooms.breakouts.close');
@@ -249,6 +262,8 @@ Route::middleware(['auth', 'verified', 'admin'])
         // Live sessions on our self-hosted video server (actions reuse the studio endpoints).
         Route::middleware('can:rooms.view')->group(function () {
             Route::get('/live', [AdminLearning\LiveSessionController::class, 'index'])->name('live.index');
+            Route::post('/live/guest-links', [AdminLearning\LiveSessionController::class, 'guestLinks'])
+                ->middleware('can:rooms.manage')->name('live.guest-links');
             Route::get('/live/{room}', [AdminLearning\LiveSessionController::class, 'show'])->whereNumber('room')->name('live.show');
             Route::delete('/live/{room}/messages/{message}', [AdminLearning\LiveSessionController::class, 'destroyMessage'])
                 ->whereNumber(['room', 'message'])->name('live.messages.destroy');

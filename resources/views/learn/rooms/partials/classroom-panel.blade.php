@@ -54,7 +54,8 @@
                 @elseif ($key === 'rooms')
                     <span x-show="breakouts.open" x-cloak class="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
                 @elseif ($key === 'people')
-                    <span x-show="counts.hands > 0" x-cloak class="absolute -right-1 -top-1 rounded-full bg-amber-400 px-1 text-[10px] font-semibold leading-4 text-gray-950" x-text="'✋' + counts.hands" aria-hidden="true"></span>
+                    <span x-show="waitingGuests.length > 0" x-cloak class="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1 text-[10px] font-semibold leading-4 text-gray-950" x-text="'🚪' + waitingGuests.length" aria-hidden="true"></span>
+                    <span x-show="!waitingGuests.length && counts.hands > 0" x-cloak class="absolute -right-1 -top-1 rounded-full bg-amber-400 px-1 text-[10px] font-semibold leading-4 text-gray-950" x-text="'✋' + counts.hands" aria-hidden="true"></span>
                 @endif
 
                 {{-- Name on hover (mouse) or keyboard focus --}}
@@ -443,6 +444,29 @@
                 </div>
             </template>
         </div>
+        {{-- Waiting room (host): guests at the door --}}
+        <template x-if="isManager && waitingGuests.length">
+            <div class="shrink-0 border-b border-gray-800 bg-amber-500/10 px-3 py-2">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs font-semibold text-amber-200">🚪 Waiting to join (<span x-text="waitingGuests.length"></span>)</p>
+                    <button type="button" x-show="waitingGuests.length > 1" @click="admitAllGuests()" :disabled="guestBusy !== null"
+                        class="rounded-md px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-gray-800 disabled:opacity-50">Admit all</button>
+                </div>
+                <ul class="mt-1 space-y-1" role="list">
+                    <template x-for="g in waitingGuests" :key="g.user_id">
+                        <li class="flex items-center justify-between gap-2">
+                            <span class="min-w-0 truncate text-sm text-gray-100"><span x-text="g.name"></span> <span class="text-xs text-gray-500">(guest)</span></span>
+                            <span class="flex shrink-0 gap-1">
+                                <button type="button" @click="admitGuest(g)" :disabled="guestBusy !== null"
+                                    class="rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Admit</button>
+                                <button type="button" @click="denyGuest(g)" :disabled="guestBusy !== null"
+                                    class="rounded-md bg-gray-700 px-2 py-0.5 text-xs text-gray-200 hover:bg-gray-600 disabled:opacity-50">Deny</button>
+                            </span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </template>
         <ul class="min-h-0 flex-1 divide-y divide-gray-800 overflow-y-auto" role="list">
             <template x-if="feedLoaded && participants.length === 0">
                 <li class="px-3 py-10 text-center text-sm text-gray-400">No one is in the class yet.</li>
@@ -458,6 +482,7 @@
                             <p class="truncate text-sm font-medium text-gray-100">
                                 <span x-text="p.name"></span>
                                 <span x-show="p.is_me" class="font-normal text-gray-400">(you)</span>
+                                <span x-show="p.is_guest" class="ml-1 rounded bg-gray-700 px-1 text-[10px] font-medium text-gray-300">Guest</span>
                             </p>
                             <p class="text-xs" :class="p.hand_raised_at ? 'text-amber-300' : (p.role === 'host' ? 'text-indigo-300' : 'text-gray-500')"
                                 x-text="p.hand_raised_at ? '✋ Hand raised' + (counts.hands > 1 ? ' · #' + handPosition(p.identity) : '')
@@ -630,7 +655,9 @@
             </ul>
         </div>
 
-        <a href="{{ route('learn.rooms.show', $room) }}" class="mt-4 inline-block text-sm font-medium text-indigo-300 hover:text-indigo-200">Open the class page</a>
+        @unless ($isGuest)
+            <a href="{{ route('learn.rooms.show', $room) }}" class="mt-4 inline-block text-sm font-medium text-indigo-300 hover:text-indigo-200">Open the class page</a>
+        @endunless
     </section>
     </div>
 </aside>

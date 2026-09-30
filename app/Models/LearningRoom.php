@@ -40,6 +40,7 @@ class LearningRoom extends Model
         'allow_participant_media' => true,
         'allow_screen_share' => false,
         'is_locked' => false,
+        'guest_waiting_room' => true,
     ];
 
     protected $casts = [
@@ -53,6 +54,7 @@ class LearningRoom extends Model
         'allow_participant_media' => 'boolean',
         'allow_screen_share' => 'boolean',
         'is_locked' => 'boolean',
+        'guest_waiting_room' => 'boolean',
     ];
 
     public const STATUSES = ['draft', 'scheduled', 'live', 'completed', 'cancelled'];
@@ -178,6 +180,10 @@ class LearningRoom extends Model
      */
     public function scopeVisibleTo(Builder $q, User $user): Builder
     {
+        if ($user->isGuest()) {
+            return $q->whereKey((int) $user->guest_room_id)->whereNotNull($q->qualifyColumn('guest_token'));
+        }
+
         if ($user->hasPermission('rooms.view')) {
             return $q;
         }
@@ -223,12 +229,37 @@ class LearningRoom extends Model
         return $q->where('status', 'completed');
     }
 
+    // --- Guest links --------------------------------------------------
+    /** Admins switch guest links on for the whole platform (off by default). */
+    public static function guestLinksEnabled(): bool
+    {
+        try {
+            return (string) Setting::get('learning.guest_links', '0') === '1';
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function guestUrl(): ?string
+    {
+        return $this->guest_token ? route('guest.join', $this->guest_token) : null;
+    }
+
     // --- Helpers -----------------------------------------------------
     /** Single-record form of scopeVisibleTo() (used by LearningRoomPolicy::view). */
     public function isVisibleTo(User $user): bool
     {
         if ($this->trashed()) {
             return false;
+        }
+
+        // A guest sees only the room whose link they used, while that link is on.
+        if ($user->isGuest()) {
+            return (int) $user->guest_room_id === (int) $this->id
+                && $this->guest_token !== null
+                && ! $this->isDraft()
+                && $user->guest_denied_at === null
+                && static::guestLinksEnabled();
         }
 
         if ($user->hasPermission('rooms.view') || $this->isHostedBy($user)) {

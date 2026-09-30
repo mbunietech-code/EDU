@@ -8,6 +8,7 @@ use App\Http\Controllers\Studio\RoomMaterialController;
 use App\Models\LearningRoom;
 use App\Models\LearningRoomMaterial;
 use App\Models\User;
+use App\Services\Learning\GuestAccessService;
 use App\Services\Learning\LiveProvider;
 use App\Services\Learning\RoomBoardService;
 use App\Services\Learning\RoomPollService;
@@ -29,12 +30,18 @@ class LiveRoomController extends Controller
         protected LiveProvider $live,
         protected RoomPollService $polls,
         protected RoomBoardService $board,
+        protected GuestAccessService $guests,
     ) {
     }
 
     public function show(Request $request, LearningRoom $room)
     {
         $this->authorize('view', $room);
+
+        // Guests still at the door wait on their own page.
+        if ($request->user()->isGuest() && $request->user()->guest_admitted_at === null && $room->guest_token) {
+            return redirect()->route('guest.wait', $room->guest_token);
+        }
 
         $room->load(['host:id,name,can_teach', 'category:id,name,slug', 'course:id,title,slug']);
 
@@ -44,6 +51,8 @@ class LiveRoomController extends Controller
             'room' => $room,
             'config' => $config,
             'isManager' => $config['viewer']['is_manager'],
+            // Guests (guest link) only have this room: no links to the rest of the site.
+            'isGuest' => $request->user()->isGuest(),
             'descriptionHtml' => $room->description
                 ? Str::markdown($room->description, ['html_input' => 'escape', 'allow_unsafe_links' => false])
                 : null,
@@ -141,6 +150,17 @@ class LiveRoomController extends Controller
         $feed['polls'] = $this->polls->feed($room, $request->user());
         $feed['board'] = $this->board->state($room);
 
+        // The host's door: guests waiting to be let in, and the guest link.
+        if ($room->isManageableBy($request->user())) {
+            $feed['guests'] = [
+                'waiting' => $this->guests->waiting($room)->map(fn ($g) => [
+                    'user_id' => $g->id,
+                    'name' => $g->name,
+                    'since' => $g->created_at?->toIso8601String(),
+                ])->values()->all(),
+            ] + $this->guestSettings($room);
+        }
+
         return response()->json($feed);
     }
 
@@ -207,6 +227,10 @@ class LiveRoomController extends Controller
                 'breakouts' => route('studio.rooms.breakouts', $room->id),
                 'breakoutsOpen' => route('studio.rooms.breakouts.open', $room->id),
                 'breakoutsClose' => route('studio.rooms.breakouts.close', $room->id),
+                'guestLink' => route('studio.rooms.guest-link', $room->id),
+                'guestAdmitAll' => route('studio.rooms.guests.admit-all', $room->id),
+                'guestAdmit' => $userTemplate('studio.rooms.guests.admit'),
+                'guestDeny' => $userTemplate('studio.rooms.guests.deny'),
                 'pollStore' => route('studio.rooms.polls.store', $room->id),
                 'pollClose' => str_replace('999999999', '__ID__', route('studio.rooms.polls.close', ['room' => $room->id, 'poll' => 999999999])),
             ];
@@ -236,6 +260,7 @@ class LiveRoomController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'is_manager' => $isManager,
+                'is_guest' => $user->isGuest(),
                 'identity' => $this->live->identityFor($user),
             ],
             'pollMs' => max(1000, (int) config('learning.poll_interval_ms', 4000)),
@@ -250,6 +275,7 @@ class LiveRoomController extends Controller
                     : null,
             ],
             'materials' => $this->materials($room),
+            'guests' => $isManager ? ['waiting' => []] + $this->guestSettings($room) : null,
             // Camera background blur / pictures: MediaPipe files served from our own site.
             'backgrounds' => [
                 'wasm' => asset('vendor/mediapipe/wasm'),
@@ -271,6 +297,16 @@ class LiveRoomController extends Controller
             ->each(fn (LearningRoomMaterial $m) => $m->setRelation('room', $room))
             ->map(fn (LearningRoomMaterial $m) => RoomMaterialController::payload($m))
             ->values()->all();
+    }
+
+    /** @return array{enabled:bool,link:?string,waiting_room:bool} */
+    protected function guestSettings(LearningRoom $room): array
+    {
+        return [
+            'enabled' => $this->guests->enabled(),
+            'link' => $this->guests->enabled() ? $room->guestUrl() : null,
+            'waiting_room' => (bool) $room->guest_waiting_room,
+        ];
     }
 
     protected function providerUnavailable(LearningRoom $room, User $user, string $details): JsonResponse

@@ -1,10 +1,12 @@
 {{-- Classroom top bar: back, title, status, timer, connection, people count, host End. --}}
 <header class="flex h-14 shrink-0 items-center gap-2 border-b border-gray-800 bg-gray-900 px-2 sm:gap-3 sm:px-4">
+    @unless ($isGuest)
     <a href="{{ route('learn.rooms.show', $room) }}"
         class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
         aria-label="Back to class details" title="Back to class details">
         @include('learn.rooms.partials.icon', ['name' => 'arrow-left'])
     </a>
+    @endunless
 
     <div class="flex min-w-0 flex-1 items-center gap-2">
         <h1 class="min-w-0 truncate text-sm font-semibold text-white sm:text-base" x-text="room.title">{{ $room->title }}</h1>

@@ -50,6 +50,31 @@
         @endif
     </x-mbui.card>
 
+    {{-- Guest links: platform-wide switch --}}
+    @php
+        $guestLinksOn = \App\Models\LearningRoom::guestLinksEnabled();
+    @endphp
+    <x-mbui.card class="mt-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+                <h2 class="text-base font-semibold text-gray-900">Guest links</h2>
+                <p class="mt-0.5 text-sm text-gray-500">Let hosts share a meeting link that anyone can join with just a name, without an account. Guests wait until the host lets them in and can only use that one meeting.</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-3">
+                <x-mbui.badge :appearance="$guestLinksOn ? 'success' : 'neutral'">{{ $guestLinksOn ? 'On' : 'Off' }}</x-mbui.badge>
+                @can('rooms.manage')
+                    <form method="POST" action="{{ route('admin.learning.live.guest-links') }}">
+                        @csrf
+                        <input type="hidden" name="enabled" value="{{ $guestLinksOn ? 0 : 1 }}">
+                        <button type="submit" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold shadow-sm {{ $guestLinksOn ? 'bg-white text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50' : 'bg-indigo-600 text-white hover:bg-indigo-500' }}">
+                            {{ $guestLinksOn ? 'Turn off' : 'Turn on' }}
+                        </button>
+                    </form>
+                @endcan
+            </div>
+        </div>
+    </x-mbui.card>
+
     {{-- Live now --}}
     <h2 class="mbui-section-label mt-8">Live now</h2>
     @if ($live->isEmpty())
