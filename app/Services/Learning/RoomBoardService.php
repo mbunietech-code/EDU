@@ -19,8 +19,9 @@ use Illuminate\Validation\ValidationException;
  *
  * A stroke's data: {c: "#rrggbb" (palette only), w: pen width in 1/1000 of
  * the board width, p: [x0, y0, x1, y1, …] as integers 0..10000 (board
- * coordinates, so it scales to any screen), s: 1 for shapes drawn with sharp
- * corners (optional)}.
+ * coordinates, so it scales to any screen), and optionally s: 1 (shape with
+ * sharp corners), h: 1 (highlighter), f: 1 (filled shape), t: "text" (a text
+ * label at the single point p, w = letter size)}.
  */
 class RoomBoardService
 {
@@ -34,6 +35,8 @@ class RoomBoardService
     public const MAX_POINTS = 1500;
 
     public const MAX_STROKES = 5000;
+
+    public const TEXT_MAX = 200;
 
     /** Strokes returned per request (the client pages through a big board). */
     public const PAGE = 500;
@@ -109,6 +112,8 @@ class RoomBoardService
         $colour = strtolower((string) ($data['c'] ?? ''));
         $width = $data['w'] ?? null;
         $points = $data['p'] ?? null;
+        // A text label: one anchor point, w = letter size.
+        $text = array_key_exists('t', $data) ? trim(preg_replace('/\s+/u', ' ', strip_tags((string) $data['t'])) ?? '') : null;
 
         $error = match (true) {
             ! preg_match('/^[A-Za-z0-9_-]{8,40}$/', $uid) => 'Invalid stroke id.',
@@ -117,6 +122,7 @@ class RoomBoardService
             ! is_array($points) || ! array_is_list($points) || count($points) < 2 || count($points) % 2 !== 0
                 || count($points) > self::MAX_POINTS * 2 => 'Invalid stroke.',
             collect($points)->contains(fn ($v) => ! is_int($v) || $v < 0 || $v > 10000) => 'Invalid stroke.',
+            $text !== null && ($text === '' || mb_strlen($text) > self::TEXT_MAX || count($points) !== 2) => 'Text must be 1 to '.self::TEXT_MAX.' characters.',
             default => null,
         };
 
@@ -133,8 +139,17 @@ class RoomBoardService
                 'learning_room_session_id' => $session->id,
                 'user_id' => $user->id,
                 'uid' => $uid,
-                // s = sharp corners (shapes: lines, boxes, arrows) instead of a smoothed pen line.
-                'data' => ['c' => $colour, 'w' => $width, 'p' => $points] + (! empty($data['s']) ? ['s' => 1] : []),
+                // s = sharp corners (shapes) instead of a smoothed pen line, h = highlighter
+                // (see-through), f = filled shape, t = a text label.
+                'data' => array_filter([
+                    'c' => $colour,
+                    'w' => $width,
+                    'p' => $points,
+                    's' => ! empty($data['s']) ? 1 : null,
+                    'h' => ! empty($data['h']) ? 1 : null,
+                    'f' => ! empty($data['f']) ? 1 : null,
+                    't' => $text,
+                ], fn ($v) => $v !== null),
             ]);
         } catch (UniqueConstraintViolationException $e) {
             // A retried upload of the same stroke.

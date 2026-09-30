@@ -143,6 +143,25 @@ class ClassroomBoardTest extends TestCase
         $this->assertArrayNotHasKey('s', $pen);
     }
 
+    public function test_text_highlighter_and_filled_shapes(): void
+    {
+        [$host, $learner, $room] = $this->classInProgress();
+        $this->switchBoard($host, $room, ['active' => true])->assertOk();
+
+        $this->draw($host, $room, ['uid' => 'text-label-1', 'w' => 34, 'p' => [500, 500], 't' => "  <b>Photo</b>synthesis \n "])->assertCreated();
+        $this->draw($host, $room, ['uid' => 'marker-line1', 'w' => 18, 'h' => 1])->assertCreated();
+        $this->draw($host, $room, ['uid' => 'filled-box-1', 's' => 1, 'f' => 1, 'p' => [100, 100, 900, 100, 900, 500, 100, 100]])->assertCreated();
+
+        $this->draw($host, $room, ['t' => '', 'p' => [1, 2]])->assertUnprocessable();
+        $this->draw($host, $room, ['t' => str_repeat('x', 201), 'p' => [1, 2]])->assertUnprocessable();
+        $this->draw($host, $room, ['t' => 'two points', 'p' => [1, 2, 3, 4]])->assertUnprocessable();
+
+        [$text, $marker, $box] = $this->board($learner, $room)['strokes'];
+        $this->assertSame('Photosynthesis', $text['t']);
+        $this->assertSame(1, $marker['h']);
+        $this->assertSame([1, 1], [$box['s'], $box['f']]);
+    }
+
     public function test_undo_is_for_your_own_strokes_and_clear_is_for_the_host(): void
     {
         [$host, $learner, $room] = $this->classInProgress();

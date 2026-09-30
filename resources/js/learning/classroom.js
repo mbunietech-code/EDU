@@ -35,7 +35,7 @@ const recMbPerHour = (p) => Math.round(((p.video + p.audio) * 3600) / 8 / 1e6);
 const CONNECT_TIMEOUT_MS = 20000;
 import {
     BOARD_COLOURS, ERASER_SIZE, PEN_COLOURS, PEN_SIZES,
-    SHAPES, addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, recogniseShape, shapePoints, toBoard,
+    CLOSED_SHAPES, SHAPES, TEXT_MAX, addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, recogniseShape, shapePoints, toBoard,
 } from './whiteboard.js';
 
 const DATA_TOPIC = 'classroom';
@@ -214,8 +214,10 @@ window.learnClassroom = (cfg = {}) => {
     board: { active: false, all_can_draw: false, version: 0 },
     boardColours: PEN_COLOURS,
     boardSizes: PEN_SIZES,
-    // shape: pen | line | rect | ellipse | arrow; smart: tidy hand-drawn lines, boxes and circles.
-    boardTool: { colour: PEN_COLOURS[0], size: PEN_SIZES.medium, eraser: false, shape: 'pen', smart: true },
+    // shape: pen | highlighter | text | one of SHAPES; fill: filled shapes; smart: tidy hand-drawn lines, boxes and circles.
+    boardTool: { colour: PEN_COLOURS[0], size: PEN_SIZES.medium, eraser: false, shape: 'pen', fill: false, smart: true },
+    boardShapes: SHAPES,
+    boardText: { open: false, value: '', x: 0, y: 0, left: 0, top: 0 },
     boardBusy: null,
     boardMine: 0, // strokes of mine on the board (enables Undo)
     // Polls / quizzes of the running session (from the feed).
@@ -1455,15 +1457,28 @@ window.learnClassroom = (cfg = {}) => {
         e.preventDefault();
         try { wb.canvas.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
         const eraser = this.boardTool.eraser;
-        const start = toBoard(e.clientX, e.clientY, wb.canvas.getBoundingClientRect());
-        const shape = !eraser && SHAPES.includes(this.boardTool.shape) ? this.boardTool.shape : null;
+        const rect = wb.canvas.getBoundingClientRect();
+        const start = toBoard(e.clientX, e.clientY, rect);
+        const tool = eraser ? 'eraser' : this.boardTool.shape;
+
+        if (tool === 'text') {
+            // Type where you clicked; Enter puts the text on the board.
+            this.boardText = { open: true, value: '', x: start[0], y: start[1], left: e.clientX - rect.left + wb.canvas.offsetLeft, top: e.clientY - rect.top + wb.canvas.offsetTop };
+            this.$nextTick(() => this.$refs.boardTextInput && this.$refs.boardTextInput.focus());
+            return;
+        }
+
+        const shape = SHAPES.includes(tool) ? tool : null;
+        const highlighter = tool === 'highlighter';
         wb.drawing = {
             uid: newStrokeId(),
             user_id: this.viewer.id,
             c: eraser ? BOARD_COLOURS[BOARD_COLOURS.length - 1] : this.boardTool.colour,
-            w: eraser ? ERASER_SIZE : this.boardTool.size,
+            w: eraser ? ERASER_SIZE : (highlighter ? Math.min(80, this.boardTool.size * 3) : this.boardTool.size),
             p: shape ? shapePoints(shape, start[0], start[1], start[0], start[1]) : start,
             s: shape ? 1 : 0,
+            h: highlighter ? 1 : 0,
+            f: shape && this.boardTool.fill && CLOSED_SHAPES.includes(shape) ? 1 : 0,
             shape,
             origin: start,
         };
@@ -1500,17 +1515,42 @@ window.learnClassroom = (cfg = {}) => {
         wb.drawing = null;
         const isEraser = stroke.c === BOARD_COLOURS[BOARD_COLOURS.length - 1];
         // Smart pen: a nearly straight line, box or circle becomes a clean one.
-        const tidy = !stroke.shape && !isEraser && this.boardTool.smart ? recogniseShape(stroke.p) : null;
+        const tidy = !stroke.shape && !isEraser && !stroke.h && this.boardTool.smart ? recogniseShape(stroke.p) : null;
         if (tidy) {
             stroke.p = tidy.p;
             stroke.s = 1;
         }
         if (stroke.shape || tidy) this.sendBoardShape(stroke);
         else this.sendBoardPoints(stroke);
+        await this.saveBoardStroke(stroke);
+    },
+
+    /** Put the text typed on the board. */
+    async commitBoardText() {
+        const text = this.boardText.value.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
+        const at = [this.boardText.x, this.boardText.y];
+        this.boardText = { open: false, value: '', x: 0, y: 0, left: 0, top: 0 };
+        if (!text || !this.canDraw) return;
+        // Letter size from the pen size: thin / medium / thick.
+        const size = { [PEN_SIZES.thin]: 22, [PEN_SIZES.medium]: 34, [PEN_SIZES.thick]: 56 }[this.boardTool.size] || 34;
+        const stroke = { uid: newStrokeId(), user_id: this.viewer.id, c: this.boardTool.colour, w: size, p: at, t: text };
+        this.sendBoardShape(stroke);
+        await this.saveBoardStroke(stroke);
+    },
+
+    cancelBoardText() {
+        this.boardText = { open: false, value: '', x: 0, y: 0, left: 0, top: 0 };
+    },
+
+    /** Keep a finished stroke on screen while Laravel saves it; tell the others. */
+    async saveBoardStroke(stroke) {
         wb.pending.push(stroke);
         this.renderBoard();
+        const body = { uid: stroke.uid, c: stroke.c, w: stroke.w, p: stroke.p };
+        ['s', 'h', 'f'].forEach((k) => { if (stroke[k]) body[k] = 1; });
+        if (stroke.t) body.t = stroke.t;
         try {
-            const { ok, data } = await this.post(this.urls.boardStroke, { uid: stroke.uid, c: stroke.c, w: stroke.w, p: stroke.p, s: stroke.s ? 1 : 0 });
+            const { ok, data } = await this.post(this.urls.boardStroke, body);
             if (!ok) {
                 wb.pending = wb.pending.filter((st) => st !== stroke);
                 this.renderBoard();
@@ -1542,7 +1582,7 @@ window.learnClassroom = (cfg = {}) => {
         wb.sendFrom = stroke.p.length;
         if (!room || this.lkState !== 'connected' || !points.length) return;
         try {
-            const bytes = new TextEncoder().encode(JSON.stringify({ u: stroke.uid, c: stroke.c, w: stroke.w, i: from, p: points }));
+            const bytes = new TextEncoder().encode(JSON.stringify({ u: stroke.uid, c: stroke.c, w: stroke.w, h: stroke.h ? 1 : 0, i: from, p: points }));
             room.localParticipant.publishData(bytes, { reliable: true, topic: BOARD_TOPIC }).catch(() => {});
         } catch (e) { /* not connected */ }
     },
@@ -1552,7 +1592,9 @@ window.learnClassroom = (cfg = {}) => {
         const room = lk.room;
         if (!room || this.lkState !== 'connected') return;
         try {
-            const bytes = new TextEncoder().encode(JSON.stringify({ u: stroke.uid, c: stroke.c, w: stroke.w, s: 1, i: 0, r: 1, p: stroke.p }));
+            const msg = { u: stroke.uid, c: stroke.c, w: stroke.w, s: stroke.t ? 0 : 1, f: stroke.f ? 1 : 0, i: 0, r: 1, p: stroke.p };
+            if (stroke.t) msg.t = stroke.t;
+            const bytes = new TextEncoder().encode(JSON.stringify(msg));
             room.localParticipant.publishData(bytes, { reliable: true, topic: BOARD_TOPIC }).catch(() => {});
         } catch (e) { /* not connected */ }
     },
@@ -1563,12 +1605,12 @@ window.learnClassroom = (cfg = {}) => {
         let role = '';
         try { role = JSON.parse(participant.metadata || '{}').role; } catch (e) { role = ''; }
         if (role !== 'host' && !this.board.all_can_draw) return;
-        const chunk = { c: msg.c, w: msg.w, p: msg.p };
+        const chunk = { c: msg.c, w: msg.w, p: msg.p, t: msg.t };
         if (!isValidStroke(chunk) || !Number.isInteger(msg.i) || msg.i < 0) return;
         if (wb.strokes.some((st) => st.uid === msg.u)) return; // already saved
         if (msg.r) {
             // A whole shape: replaces the live copy.
-            wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, s: msg.s ? 1 : 0, p: msg.p.slice(0, 3000), at: Date.now() };
+            wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, s: msg.s ? 1 : 0, f: msg.f ? 1 : 0, t: msg.t, p: msg.p.slice(0, 3000), at: Date.now() };
             this.renderBoard();
             return;
         }
@@ -1576,7 +1618,7 @@ window.learnClassroom = (cfg = {}) => {
         if (!stroke) {
             // Only start from the first packet (a stroke joined midway would jump).
             if (msg.i !== 0) return;
-            stroke = wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, p: [], at: 0 };
+            stroke = wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, h: msg.h ? 1 : 0, p: [], at: 0 };
         }
         if (msg.i !== stroke.p.length || stroke.p.length + msg.p.length > 3000) return;
         stroke.p.push(...msg.p);

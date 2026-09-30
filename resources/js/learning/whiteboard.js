@@ -14,6 +14,7 @@ export const PEN_COLOURS = BOARD_COLOURS.slice(0, -1);
 export const PEN_SIZES = { thin: 3, medium: 6, thick: 14 };
 export const ERASER_SIZE = 40;
 export const MAX_POINTS = 1500;
+export const TEXT_MAX = 200;
 export const BOARD_RATIO = 16 / 9;
 /** Skip points closer than this to the last one (board units): smaller strokes, same look. */
 const MIN_STEP = 12;
@@ -61,7 +62,8 @@ export function isValidStroke(s) {
         && BOARD_COLOURS.includes(s.c)
         && Number.isInteger(s.w) && s.w >= 1 && s.w <= 80
         && Array.isArray(s.p) && s.p.length % 2 === 0 && s.p.length <= MAX_POINTS * 2
-        && s.p.every((v) => Number.isInteger(v) && v >= 0 && v <= 10000);
+        && s.p.every((v) => Number.isInteger(v) && v >= 0 && v <= 10000)
+        && (s.t === undefined || (typeof s.t === 'string' && s.t.length > 0 && s.t.length <= TEXT_MAX && s.p.length === 2));
 }
 
 /** Draw one stroke on a canvas of width × height device pixels. */
@@ -72,6 +74,26 @@ export function drawStroke(ctx, stroke, width, height) {
     const sy = height / 10000;
     const lw = Math.max(1, (stroke.w * width) / 1000);
 
+    // A text label at one point; w is the letter size.
+    if (typeof stroke.t === 'string' && stroke.t) {
+        ctx.fillStyle = stroke.c;
+        ctx.font = '600 ' + Math.max(8, lw) + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.fillText(stroke.t, p[0] * sx, p[1] * sy);
+        return;
+    }
+
+    ctx.save();
+    // Highlighter: see-through, so what is underneath stays readable.
+    if (stroke.h) ctx.globalAlpha = 0.35;
+    try {
+        drawPath(ctx, stroke, p, sx, sy, lw);
+    } finally {
+        ctx.restore();
+    }
+}
+
+function drawPath(ctx, stroke, p, sx, sy, lw) {
     ctx.strokeStyle = stroke.c;
     ctx.fillStyle = stroke.c;
     ctx.lineWidth = lw;
@@ -91,6 +113,13 @@ export function drawStroke(ctx, stroke, width, height) {
     // Shapes keep sharp corners: straight segments point to point.
     if (stroke.s) {
         for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * sx, p[i + 1] * sy);
+        // A filled shape: a light fill inside, the outline on top.
+        if (stroke.f) {
+            ctx.save();
+            ctx.globalAlpha *= 0.3;
+            ctx.fill();
+            ctx.restore();
+        }
         ctx.stroke();
         return;
     }
@@ -117,7 +146,24 @@ export function paintBoard(ctx, strokes, width, height) {
 const Y_SCALE = 9 / 16;
 const clampUnit = (v) => Math.max(0, Math.min(10000, Math.round(v)));
 
-export const SHAPES = ['line', 'rect', 'ellipse', 'arrow'];
+export const SHAPES = ['line', 'arrow', 'double', 'rect', 'ellipse', 'triangle', 'diamond', 'star', 'hexagon'];
+/** Shapes with an inside (they can be filled). */
+export const CLOSED_SHAPES = ['rect', 'ellipse', 'triangle', 'diamond', 'star', 'hexagon'];
+
+/** Points around the box (x0, y0)–(x1, y1): angles in turns from the top, radius 0..1 of the box. */
+function polygon(x0, y0, x1, y1, corners) {
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    const rx = Math.abs(x1 - x0) / 2;
+    const ry = Math.abs(y1 - y0) / 2;
+    const out = [];
+    corners.forEach(([turn, r]) => {
+        const a = turn * Math.PI * 2 - Math.PI / 2;
+        out.push(clampUnit(cx + rx * r * Math.cos(a)), clampUnit(cy + ry * r * Math.sin(a)));
+    });
+    out.push(out[0], out[1]);
+    return out;
+}
 
 /** Points of a shape dragged from (x0, y0) to (x1, y1), in board units. */
 export function shapePoints(kind, x0, y0, x1, y1) {
@@ -134,6 +180,16 @@ export function shapePoints(kind, x0, y0, x1, y1) {
             out.push(clampUnit(cx + rx * Math.cos(a)), clampUnit(cy + ry * Math.sin(a)));
         }
         return out;
+    }
+    if (kind === 'triangle') return [clampUnit((x0 + x1) / 2), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), Math.min(x0, x1), Math.max(y0, y1), clampUnit((x0 + x1) / 2), Math.min(y0, y1)];
+    if (kind === 'diamond') return polygon(x0, y0, x1, y1, [[0, 1], [0.25, 1], [0.5, 1], [0.75, 1]]);
+    if (kind === 'hexagon') return polygon(x0, y0, x1, y1, [0, 1, 2, 3, 4, 5].map((i) => [i / 6 + 1 / 12, 1]));
+    if (kind === 'star') return polygon(x0, y0, x1, y1, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [i / 10, i % 2 ? 0.45 : 1]));
+    if (kind === 'double') {
+        const one = shapePoints('arrow', x0, y0, x1, y1);
+        const back = shapePoints('arrow', x1, y1, x0, y0);
+        // Arrow one way, then the second head at the start.
+        return [...one, x0, y0, back[4], back[5], x0, y0, back[8], back[9]];
     }
     if (kind === 'arrow') {
         // Head drawn in screen proportions so it is not squashed.

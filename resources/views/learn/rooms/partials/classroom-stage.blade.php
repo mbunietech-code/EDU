@@ -37,14 +37,40 @@
                 <div class="flex shrink-0 flex-wrap items-center justify-center gap-1.5 text-xs" role="toolbar" aria-label="Whiteboard tools">
                     <template x-if="canDraw">
                         <div class="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl bg-gray-800 px-2 py-1 sm:rounded-full">
-                            {{-- Pen or shape --}}
-                            <template x-for="tool in [['pen', '✏️', 'Pen'], ['line', '╱', 'Line'], ['rect', '▭', 'Box'], ['ellipse', '◯', 'Circle'], ['arrow', '➜', 'Arrow']]" :key="tool[0]">
+                            {{-- Pen, highlighter, text, shapes --}}
+                            <template x-for="tool in [['pen', '✏️', 'Pen'], ['highlighter', '🖍️', 'Highlighter'], ['text', 'T', 'Text']]" :key="tool[0]">
                                 <button type="button" @click="setBoardShape(tool[0])"
-                                    class="flex h-7 w-7 items-center justify-center rounded-full text-sm text-gray-100 hover:bg-gray-700"
+                                    class="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-gray-100 hover:bg-gray-700"
                                     :class="!boardTool.eraser && boardTool.shape === tool[0] ? 'bg-indigo-600 hover:bg-indigo-500' : ''"
                                     :aria-pressed="(!boardTool.eraser && boardTool.shape === tool[0]).toString()"
                                     :aria-label="tool[2]" :title="tool[2]" x-text="tool[1]"></button>
                             </template>
+                            <div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.stop="open = false">
+                                <button type="button" @click="open = !open"
+                                    class="flex h-7 items-center gap-1 rounded-full px-2 text-xs font-medium text-gray-100 hover:bg-gray-700"
+                                    :class="!boardTool.eraser && boardShapes.includes(boardTool.shape) ? 'bg-indigo-600 hover:bg-indigo-500' : ''"
+                                    :aria-expanded="open.toString()" aria-haspopup="true" title="Shapes">
+                                    <span x-text="({ line: '╱', arrow: '➜', double: '⟷', rect: '▭', ellipse: '◯', triangle: '△', diamond: '◇', star: '☆', hexagon: '⬡' })[boardTool.shape] || '▭'"></span>
+                                    <span>Shapes ▾</span>
+                                </button>
+                                <div x-show="open" x-transition.origin.top x-cloak
+                                    class="absolute left-1/2 top-full z-30 mt-2 grid w-48 -translate-x-1/2 grid-cols-3 gap-1 rounded-xl bg-gray-800 p-2 shadow-xl ring-1 ring-gray-700">
+                                    <template x-for="sh in [['line', '╱', 'Line'], ['arrow', '➜', 'Arrow'], ['double', '⟷', 'Two-way arrow'], ['rect', '▭', 'Box'], ['ellipse', '◯', 'Circle'], ['triangle', '△', 'Triangle'], ['diamond', '◇', 'Diamond'], ['star', '☆', 'Star'], ['hexagon', '⬡', 'Hexagon']]" :key="sh[0]">
+                                        <button type="button" @click="setBoardShape(sh[0]); open = false"
+                                            class="flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-gray-100 hover:bg-gray-700"
+                                            :class="boardTool.shape === sh[0] && !boardTool.eraser ? 'bg-indigo-600 hover:bg-indigo-500' : ''"
+                                            :aria-label="sh[2]">
+                                            <span class="text-lg leading-none" x-text="sh[1]"></span>
+                                            <span class="text-[10px] text-gray-300" x-text="sh[2]"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <button type="button" x-show="['rect', 'ellipse', 'triangle', 'diamond', 'star', 'hexagon'].includes(boardTool.shape) && !boardTool.eraser"
+                                @click="boardTool.fill = !boardTool.fill"
+                                class="flex h-7 items-center gap-1 rounded-full px-2 text-[11px] font-medium hover:bg-gray-700"
+                                :class="boardTool.fill ? 'text-emerald-300' : 'text-gray-400'" :aria-pressed="boardTool.fill.toString()"
+                                title="Fill the shape">◧ <span x-text="boardTool.fill ? 'Filled' : 'Outline'"></span></button>
                             <button type="button" @click="boardTool.smart = !boardTool.smart"
                                 class="flex h-7 items-center gap-1 rounded-full px-2 text-[11px] font-medium hover:bg-gray-700"
                                 :class="boardTool.smart ? 'text-emerald-300' : 'text-gray-400'"
@@ -110,6 +136,16 @@
                         @pointerdown="boardDown($event)" @pointermove="boardMove($event)"
                         @pointerup="boardUp()" @pointercancel="boardUp()"
                         role="img" aria-label="Class whiteboard"></canvas>
+
+                    {{-- Text tool: type where you clicked --}}
+                    <template x-if="boardText.open">
+                        <form @submit.prevent="commitBoardText()" class="absolute z-20" :style="'left:' + boardText.left + 'px; top:' + boardText.top + 'px'">
+                            <input x-ref="boardTextInput" type="text" x-model="boardText.value" maxlength="200"
+                                @keydown.escape.stop="cancelBoardText()" @blur="commitBoardText()"
+                                class="w-56 max-w-[60vw] rounded-md border-2 border-indigo-500 bg-white/95 px-2 py-1 text-sm font-semibold shadow-lg focus:outline-none"
+                                :style="'color:' + boardTool.colour" placeholder="Type, then Enter" aria-label="Text for the whiteboard">
+                        </form>
+                    </template>
 
                     {{-- The speaker stays visible in the top corner (the call buttons float at the bottom) --}}
                     <template x-for="t in (boardPipTile ? [boardPipTile] : [])" :key="'pip-' + t.id">
