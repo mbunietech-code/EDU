@@ -126,14 +126,6 @@
                 x-text="unreadTotal > 99 ? '99+' : unreadTotal"></span>
         </button>
 
-        {{-- People --}}
-        <button type="button" @click="togglePanel('people')" class="{{ $btn }} hidden sm:inline-flex"
-            :class="panelVisible && tab === 'people' ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
-            :aria-pressed="(panelVisible && tab === 'people').toString()"
-            :aria-label="'People, ' + counts.participants + ' in the class'" title="People">
-            @include('learn.rooms.partials.icon', ['name' => 'users'])
-        </button>
-
         {{-- More: layout (phones), devices, full screen --}}
         <div class="relative" x-data="{ open: false }" @keydown.escape.stop="open = false; $refs.moreToggle.focus()" @click.outside="open = false">
             <button type="button" x-ref="moreToggle" @click="open = !open" class="{{ $btn }} bg-gray-700 hover:bg-gray-600"
@@ -142,18 +134,9 @@
             </button>
             <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="More options"
                 class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
-                <button type="button" role="menuitem" @click="openBackground(); open = false" class="{{ $menuItem }}">
-                    <span class="w-5 text-center" aria-hidden="true">✨</span>
-                    Change background
-                </button>
                 <button type="button" role="menuitem" @click="openDevices(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'adjustments'])
                     Camera, microphone &amp; speaker
-                </button>
-                <button type="button" role="menuitem" @click="openTab('people'); open = false" class="{{ $menuItem }} sm:hidden">
-                    @include('learn.rooms.partials.icon', ['name' => 'users'])
-                    <span class="flex-1">People</span>
-                    <span class="text-xs tabular-nums text-gray-400" x-text="counts.participants"></span>
                 </button>
                 <button type="button" role="menuitem" @click="setLayout(layout === 'grid' ? 'speaker' : 'grid'); open = false" :disabled="!inCall" class="{{ $menuItem }} sm:hidden">
                     @include('learn.rooms.partials.icon', ['name' => 'grid'])
@@ -181,7 +164,7 @@
                 </button>
                 <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="Host tools"
                     class="absolute bottom-full right-0 z-30 mb-2 w-72 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
-                    <button type="button" role="menuitem" @click="toggleRecord(); open = false" :disabled="!inCall || rec.starting || rec.uploading || recordingBusy" class="{{ $menuItem }}">
+                    <button type="button" role="menuitem" @click="toggleRecord(); open = false" :disabled="!inCall || rec.starting || rec.uploading || recordingBusy" class="{{ $menuItem }} sm:hidden">
                         @include('learn.rooms.partials.icon', ['name' => 'record', 'class' => 'h-5 w-5 text-red-400'])
                         <span x-text="recordLabel"></span>
                     </button>
@@ -231,13 +214,6 @@
                         <span x-show="room.is_locked" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'unlock'])</span>
                         <span x-text="room.is_locked ? 'Unlock the room' : 'Lock the room (no new people)'"></span>
                     </button>
-                    <template x-if="room.status === 'live'">
-                        <button type="button" role="menuitem" @click="askEnd(); open = false"
-                            class="flex w-full items-center gap-2 border-t border-gray-700 px-3 py-2 text-left font-semibold text-red-300 hover:bg-gray-700">
-                            @include('learn.rooms.partials.icon', ['name' => 'stop'])
-                            End class for everyone
-                        </button>
-                    </template>
                 </div>
             </div>
         </template>
@@ -283,11 +259,6 @@
             <p class="text-xs text-gray-500">Device names appear after you allow the camera or microphone once.</p>
         </div>
 
-        {{-- Camera background (blur / picture), processed on this device --}}
-        <div class="mt-5 border-t border-gray-800 pt-4">
-            <p class="text-xs text-gray-400">Camera background</p>
-            @include('learn.rooms.partials.classroom-background-picker')
-        </div>
         <div class="mt-5 flex justify-end">
             <button type="button" @click="devices.open = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Done</button>
         </div>

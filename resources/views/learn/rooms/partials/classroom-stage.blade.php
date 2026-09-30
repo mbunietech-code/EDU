@@ -231,7 +231,6 @@
             </svg>
             <p class="mt-4 text-sm font-medium text-white" x-text="state === 'reconnecting' ? 'Reconnecting to the class…' : 'Connecting to the class…'"></p>
             <p class="mt-1 text-xs text-gray-400" x-text="state === 'reconnecting' ? 'Your connection dropped. We are trying again (attempt ' + rejoinAttempts + ' of 5).' : 'Setting up a secure video connection.'"></p>
-            <button type="button" x-show="state === 'reconnecting'" @click="leaveCall()" class="mt-4 text-sm font-medium text-indigo-300 hover:text-indigo-200">Stop and leave</button>
         </div>
     </section>
 

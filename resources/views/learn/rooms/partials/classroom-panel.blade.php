@@ -440,15 +440,6 @@
                 <div class="flex items-center gap-1">
                     <button type="button" x-show="counts.hands > 0" @click="lowerAllHands()" :disabled="busy.mod"
                         class="rounded-md px-2 py-1 font-medium text-amber-300 hover:bg-gray-800 hover:text-amber-200 disabled:opacity-50">Lower hands</button>
-                    <button type="button" @click="muteEveryone('audio')" :disabled="busy.mod"
-                        class="rounded-md px-2 py-1 font-medium text-indigo-300 hover:bg-gray-800 hover:text-indigo-200 disabled:opacity-50">Mute all</button>
-                    <button type="button" @click="toggleLock()" :disabled="busy.mod"
-                        class="inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium text-indigo-300 hover:bg-gray-800 hover:text-indigo-200 disabled:opacity-50"
-                        :aria-label="room.is_locked ? 'Unlock the room' : 'Lock the room'">
-                        <span x-show="!room.is_locked">@include('learn.rooms.partials.icon', ['name' => 'lock', 'class' => 'h-3.5 w-3.5'])</span>
-                        <span x-show="room.is_locked" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'unlock', 'class' => 'h-3.5 w-3.5'])</span>
-                        <span x-text="room.is_locked ? 'Unlock' : 'Lock'"></span>
-                    </button>
                 </div>
             </template>
         </div>
