@@ -1158,6 +1158,11 @@ window.learnClassroom = (cfg = {}) => {
         this.layout = 'speaker';
         this.pinnedId = null;
         if (!this.isLg) this.panelOpen = false;
+        // Desktop call: the side panel slides away too (it comes back at the right edge).
+        if (this.autoHide) {
+            this.chrome.panel = false;
+            this.panelPinned = false;
+        }
         this.$nextTick(() => this.attachVideos());
     },
 

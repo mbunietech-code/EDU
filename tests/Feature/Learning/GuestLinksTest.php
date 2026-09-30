@@ -92,7 +92,7 @@ class GuestLinksTest extends TestCase
 
         $this->turnGuestLinks(true);
         $link = $this->actingAs($host)->postJson(route('studio.rooms.guest-link', $room->id), ['enabled' => true])->assertOk()->json('guest_link');
-        $this->assertStringContainsString('/join/', $link);
+        $this->assertMatchesRegularExpression('#/j/[a-z]{3}-[a-z]{4}-[a-z]{3}$#', $link, 'a short Meet-style link');
 
         $this->turnGuestLinks(false);
         auth()->guard('web')->logout();

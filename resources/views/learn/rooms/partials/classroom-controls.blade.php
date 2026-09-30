@@ -133,7 +133,7 @@
                 @include('learn.rooms.partials.icon', ['name' => 'cog'])
             </button>
             <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="More options"
-                class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
+                class="absolute bottom-full right-0 z-30 mb-2 max-h-[70vh] w-60 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
                 <template x-if="isManager && guests && guests.enabled">
                     <button type="button" role="menuitem" @click="guests.link ? copyGuestLink() : setGuestLink(true); open = false" :disabled="guestBusy !== null" class="{{ $menuItem }}">
                         <span class="w-5 text-center" aria-hidden="true">🔗</span>
@@ -169,7 +169,7 @@
                     <span x-show="room.is_recording" class="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full bg-red-500 ring-2 ring-gray-900" aria-hidden="true"></span>
                 </button>
                 <div x-show="open" x-transition.origin.bottom x-cloak role="menu" aria-label="Host tools"
-                    class="absolute bottom-full right-0 z-30 mb-2 w-72 overflow-hidden rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
+                    class="absolute bottom-full right-0 z-30 mb-2 max-h-[70vh] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-lg bg-gray-800 py-1 text-sm shadow-xl ring-1 ring-gray-700 sm:right-1/2 sm:translate-x-1/2">
                     <button type="button" role="menuitem" @click="toggleRecord(); open = false" :disabled="!inCall || rec.starting || rec.uploading || recordingBusy" class="{{ $menuItem }} sm:hidden">
                         @include('learn.rooms.partials.icon', ['name' => 'record', 'class' => 'h-5 w-5 text-red-400'])
                         <span x-text="recordLabel"></span>

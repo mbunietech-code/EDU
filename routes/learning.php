@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 // --- Learner ----------------------------------------------------------
 // Meeting guest links: join with just a name (no account). Off unless an admin turns them on.
 Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/j/{token}', [Learn\GuestJoinController::class, 'show'])->name('guest.short');
     Route::get('/join/{token}', [Learn\GuestJoinController::class, 'show'])->name('guest.join');
     Route::post('/join/{token}', [Learn\GuestJoinController::class, 'store'])->middleware('throttle:10,1')->name('guest.store');
     Route::get('/join/{token}/wait', [Learn\GuestJoinController::class, 'wait'])->name('guest.wait');

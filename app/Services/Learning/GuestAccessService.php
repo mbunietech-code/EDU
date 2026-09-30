@@ -52,7 +52,7 @@ class GuestAccessService
         $changes = [];
 
         if ($enabled && ! $room->guest_token) {
-            $changes['guest_token'] = Str::random(32);
+            $changes['guest_token'] = $this->newCode();
         } elseif (! $enabled && $room->guest_token) {
             $changes['guest_token'] = null; // the old link stops working at once
         }
@@ -66,10 +66,25 @@ class GuestAccessService
         }
     }
 
+    /** A short meeting code like "kqz-mwpt-rbh" (26^10 combinations; joining is rate-limited). */
+    private function newCode(): string
+    {
+        do {
+            $letters = '';
+            for ($i = 0; $i < 10; $i++) {
+                $letters .= chr(random_int(97, 122));
+            }
+            $code = substr($letters, 0, 3).'-'.substr($letters, 3, 4).'-'.substr($letters, 7, 3);
+        } while (LearningRoom::withTrashed()->where('guest_token', $code)->exists());
+
+        return $code;
+    }
+
     /** The room behind a guest link, while guest links work. */
     public function roomForToken(string $token): ?LearningRoom
     {
-        if (! $this->enabled() || ! preg_match('/^[A-Za-z0-9]{32}$/', $token)) {
+        // Short codes like "abc-defg-hij"; links made before them had 32-character tokens.
+        if (! $this->enabled() || ! preg_match('/^([a-z]{3}-[a-z]{4}-[a-z]{3}|[A-Za-z0-9]{32})$/', $token)) {
             return null;
         }
 

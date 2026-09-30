@@ -4,7 +4,7 @@
     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
     @mouseenter="panelHover = true; showPanel()" @mouseleave="onPanelLeave()"
-    class="fixed inset-0 z-40 flex bg-gray-900 lg:w-[25rem] lg:shrink-0 lg:border-l lg:border-gray-800"
+    class="fixed inset-0 z-40 flex overflow-hidden bg-gray-900 lg:w-[25rem] lg:shrink-0 lg:border-l lg:border-gray-800"
     :class="autoHide ? 'lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:z-40 lg:shadow-2xl' : 'lg:static lg:inset-auto lg:z-auto'"
     aria-label="Class chat, questions and people"
     :role="isLg ? null : 'dialog'" :aria-modal="isLg ? null : 'true'">
@@ -92,7 +92,7 @@
                 <ul class="mt-1 space-y-1.5" role="list">
                     <template x-for="a in announcements" :key="'a' + a.id">
                         <li class="text-sm text-amber-100">
-                            <p class="whitespace-pre-wrap break-words" x-text="a.body"></p>
+                            <p class="whitespace-pre-wrap [overflow-wrap:anywhere]" x-text="a.body"></p>
                             <p class="text-[11px] text-amber-300/80"><span x-text="a.user.name"></span> · <span x-text="formatTime(a.created_at)"></span></p>
                         </li>
                     </template>
@@ -100,7 +100,7 @@
             </div>
         </template>
 
-        <div x-ref="chatList" class="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-live="polite" aria-relevant="additions">
+        <div x-ref="chatList" class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3" aria-live="polite" aria-relevant="additions">
             <template x-if="feedLoaded && chatMessages.length === 0">
                 <div class="py-10 text-center text-sm text-gray-400">
                     <p class="font-medium text-gray-300">No messages yet.</p>
@@ -125,14 +125,14 @@
                             <span class="font-semibold text-gray-200" x-text="m.user.name"></span>
                             <span x-show="m.is_host" class="rounded bg-indigo-600 px-1 text-[10px] font-semibold uppercase text-white">Host</span>
                         </p>
-                        <div class="rounded-2xl px-3 py-1.5 text-sm"
+                        <div class="max-w-full rounded-2xl px-3 py-1.5 text-sm"
                             :class="[
                                 isMine(m) ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-100',
                                 isMine(m) && endsGroup(i) ? 'rounded-br-sm' : '',
                                 !isMine(m) && endsGroup(i) ? 'rounded-bl-sm' : '',
                                 m.is_deleted ? 'opacity-70' : '',
                             ]">
-                            <p x-show="!m.is_deleted" class="whitespace-pre-wrap break-words" x-text="m.body"></p>
+                            <p x-show="!m.is_deleted" class="whitespace-pre-wrap [overflow-wrap:anywhere]" x-text="m.body"></p>
                             <p x-show="m.is_deleted" class="italic" :class="isMine(m) ? 'text-indigo-100' : 'text-gray-400'">Message removed</p>
                             <p class="mt-0.5 text-right text-[10px] leading-none" :class="isMine(m) ? 'text-indigo-200' : 'text-gray-500'" x-text="formatTime(m.created_at)"></p>
                         </div>
@@ -211,7 +211,7 @@
             <span class="text-xs text-gray-400"><span class="tabular-nums" x-text="counts.questions_open"></span> open</span>
         </div>
 
-        <div x-ref="qaList" class="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3" aria-live="polite" aria-relevant="additions">
+        <div x-ref="qaList" class="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 py-3" aria-live="polite" aria-relevant="additions">
             <template x-if="feedLoaded && questions.length === 0">
                 <div class="py-10 text-center text-sm text-gray-400">
                     <p class="font-medium text-gray-300" x-text="qaFilter === 'all' ? 'No questions yet.' : (qaFilter === 'open' ? 'No open questions.' : 'No answered questions yet.')"></p>
@@ -225,7 +225,7 @@
                         <span class="text-gray-500" x-text="formatTime(q.created_at)"></span>
                         <span x-show="q.is_answered" class="rounded bg-emerald-600/20 px-1.5 text-[10px] font-semibold uppercase text-emerald-300">Answered</span>
                     </p>
-                    <p x-show="!q.is_deleted" class="mt-1 whitespace-pre-wrap break-words text-sm text-gray-100" x-text="q.body"></p>
+                    <p x-show="!q.is_deleted" class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-gray-100" x-text="q.body"></p>
                     <p x-show="q.is_deleted" class="mt-1 text-sm italic text-gray-500">Question removed</p>
                     <div class="mt-2 flex flex-wrap gap-2" x-show="q.can_answer || q.can_delete">
                         <button type="button" x-show="q.can_answer" @click="answer(q)" :disabled="busy.message === q.id"
@@ -305,7 +305,7 @@
                         x-text="pollDraft.correct !== null ? 'Start quiz' : 'Start poll'"></button>
                 </div>
                 <p x-show="pollDraft.error" x-cloak class="text-xs text-red-400" x-text="pollDraft.error" role="alert"></p>
-                <p class="text-[11px] text-gray-500">Tick an option to make it a quiz. Starting a new poll closes the open one.</p>
+                <p class="text-[11px] text-gray-500">Tick an option to make it a quiz. Starting a new poll closes the open one. Participants vote; you see the live count here (hosts do not vote).</p>
             </form>
         </template>
 
@@ -642,7 +642,7 @@
         </div>
 
         @if ($descriptionHtml)
-            <div class="research-prose mt-4 break-words border-t border-gray-800 pt-4 text-sm text-gray-300">{!! $descriptionHtml !!}</div>
+            <div class="research-prose mt-4 [overflow-wrap:anywhere] border-t border-gray-800 pt-4 text-sm text-gray-300">{!! $descriptionHtml !!}</div>
         @endif
 
         <div class="mt-4 border-t border-gray-800 pt-4">

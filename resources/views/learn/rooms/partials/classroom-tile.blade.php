@@ -1,6 +1,6 @@
 {{-- One video tile (inside an Alpine x-for / x-if that provides `t`). $big = stage tile. --}}
-<div class="group relative h-full w-full overflow-hidden rounded-xl bg-gray-800 ring-2 transition"
-    :class="t.speaking && t.source === 'camera' ? 'ring-emerald-400' : 'ring-transparent'">
+<div class="group relative h-full w-full overflow-hidden bg-gray-800 ring-2 transition"
+    :class="[t.speaking && t.source === 'camera' ? 'ring-emerald-400' : 'ring-transparent', {{ $big ? 'true' : 'false' }} && t.source === 'screen' ? 'rounded-none bg-black' : 'rounded-xl']">
     <video :data-tile-id="t.id" autoplay playsinline muted x-show="t.hasVideo"
         class="h-full w-full bg-black"
         :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"

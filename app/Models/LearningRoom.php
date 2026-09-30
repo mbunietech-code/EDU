@@ -242,7 +242,14 @@ class LearningRoom extends Model
 
     public function guestUrl(): ?string
     {
-        return $this->guest_token ? route('guest.join', $this->guest_token) : null;
+        if (! $this->guest_token) {
+            return null;
+        }
+
+        // Short codes get the short address: mbuniehub.com/j/abc-defg-hij.
+        return strlen($this->guest_token) === 12
+            ? route('guest.short', $this->guest_token)
+            : route('guest.join', $this->guest_token);
     }
 
     // --- Helpers -----------------------------------------------------

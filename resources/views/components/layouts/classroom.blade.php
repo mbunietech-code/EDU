@@ -15,7 +15,9 @@
     @livewireStyles
 </head>
 <body class="h-full overflow-hidden bg-gray-950 text-gray-100">
-    <div {{ $attributes->merge(['class' => 'flex h-screen flex-col']) }}>
+    {{-- Phones with a notch (landscape): keep the call's content out of the cut-outs. --}}
+    <div {{ $attributes->merge(['class' => 'flex h-screen flex-col']) }}
+        style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); height: 100dvh;">
         {{ $slot }}
     </div>
 

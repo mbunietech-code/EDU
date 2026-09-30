@@ -7,7 +7,8 @@
     <div x-show="inCall" class="absolute inset-0">
         {{-- Speaker layout: the speaker fills the stage. Everyone else's camera is in the side panel → Cameras. --}}
         <template x-if="layout === 'speaker' && !board.active">
-        <div class="absolute inset-0 p-2 sm:p-3">
+        {{-- A shared screen fills the whole stage, edge to edge --}}
+        <div class="absolute inset-0" :class="stageTile && stageTile.source === 'screen' ? 'p-0' : 'p-2 sm:p-3'">
             <div class="relative h-full w-full">
                 <template x-for="t in (stageTile ? [stageTile] : [])" :key="t.id">
                     <div class="absolute inset-0">
@@ -70,12 +71,18 @@
                     </template>
 
                     <template x-if="isManager">
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" @click="setBoard({ all_can_draw: !board.all_can_draw })" :disabled="boardBusy !== null"
-                                class="rounded-full px-3 py-1.5 font-medium ring-1 disabled:opacity-50"
-                                :class="board.all_can_draw ? 'bg-emerald-600 text-white ring-emerald-500 hover:bg-emerald-500' : 'bg-gray-800 text-gray-200 ring-gray-700 hover:bg-gray-700'"
-                                :aria-pressed="board.all_can_draw.toString()"
-                                x-text="board.all_can_draw ? 'Everyone can draw' : 'Only I draw'"></button>
+                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                            {{-- Who may draw: two clear choices (the selected one is highlighted) --}}
+                            <div class="inline-flex overflow-hidden rounded-full ring-1 ring-gray-700" role="radiogroup" aria-label="Who may draw">
+                                <button type="button" role="radio" @click="board.all_can_draw && setBoard({ all_can_draw: false })" :disabled="boardBusy !== null"
+                                    :aria-checked="(!board.all_can_draw).toString()"
+                                    class="px-3 py-1.5 font-medium disabled:opacity-50"
+                                    :class="!board.all_can_draw ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">Only me</button>
+                                <button type="button" role="radio" @click="!board.all_can_draw && setBoard({ all_can_draw: true })" :disabled="boardBusy !== null"
+                                    :aria-checked="board.all_can_draw.toString()"
+                                    class="px-3 py-1.5 font-medium disabled:opacity-50"
+                                    :class="board.all_can_draw ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">Everyone</button>
+                            </div>
                             <button type="button" @click="askClearBoard()" :disabled="boardBusy !== null"
                                 class="rounded-full bg-gray-800 px-3 py-1.5 font-medium text-gray-200 ring-1 ring-gray-700 hover:bg-gray-700 disabled:opacity-50">Clear</button>
                             <button type="button" @click="setBoard({ active: false })" :disabled="boardBusy !== null"
