@@ -32,22 +32,7 @@
         {{-- Whiteboard: replaces the video layout while the host has it open --}}
         <template x-if="board.active">
             <div class="absolute inset-0 flex flex-col gap-2 p-2 sm:p-3">
-                <div x-ref="boardBox" class="relative min-h-0 flex-1" x-init="$nextTick(() => mountBoard())">
-                    <canvas x-ref="boardCanvas" class="absolute rounded-lg bg-white shadow-lg" style="touch-action: none"
-                        :class="canDraw ? 'cursor-crosshair' : 'cursor-default'"
-                        @pointerdown="boardDown($event)" @pointermove="boardMove($event)"
-                        @pointerup="boardUp()" @pointercancel="boardUp()"
-                        role="img" aria-label="Class whiteboard"></canvas>
-
-                    {{-- The speaker stays visible in the corner --}}
-                    <template x-for="t in (boardPipTile ? [boardPipTile] : [])" :key="'pip-' + t.id">
-                        <div class="absolute bottom-2 right-2 z-10 h-24 w-40 overflow-hidden rounded-xl shadow-xl ring-1 ring-black/20 sm:h-32 sm:w-56">
-                            @include('learn.rooms.partials.classroom-tile', ['big' => false])
-                        </div>
-                    </template>
-                </div>
-
-                {{-- Tools --}}
+                {{-- Tools: above the board, away from the call buttons and pop-ups at the bottom --}}
                 <div class="flex shrink-0 flex-wrap items-center justify-center gap-1.5 text-xs" role="toolbar" aria-label="Whiteboard tools">
                     <template x-if="canDraw">
                         <div class="flex flex-wrap items-center gap-1.5 rounded-full bg-gray-800 px-2 py-1">
@@ -98,6 +83,21 @@
                         </div>
                     </template>
                 </div>
+                <div x-ref="boardBox" class="relative min-h-0 flex-1" x-init="$nextTick(() => mountBoard())">
+                    <canvas x-ref="boardCanvas" class="absolute rounded-lg bg-white shadow-lg" style="touch-action: none"
+                        :class="canDraw ? 'cursor-crosshair' : 'cursor-default'"
+                        @pointerdown="boardDown($event)" @pointermove="boardMove($event)"
+                        @pointerup="boardUp()" @pointercancel="boardUp()"
+                        role="img" aria-label="Class whiteboard"></canvas>
+
+                    {{-- The speaker stays visible in the top corner (the call buttons float at the bottom) --}}
+                    <template x-for="t in (boardPipTile ? [boardPipTile] : [])" :key="'pip-' + t.id">
+                        <div class="absolute right-2 top-2 z-10 h-24 w-40 overflow-hidden rounded-xl shadow-xl ring-1 ring-black/20 sm:h-32 sm:w-56">
+                            @include('learn.rooms.partials.classroom-tile', ['big' => false])
+                        </div>
+                    </template>
+                </div>
+
             </div>
         </template>
 

@@ -1073,8 +1073,13 @@ window.learnClassroom = (cfg = {}) => {
         this.myQuality = String(local.connectionQuality || 'unknown');
         if (this.pinnedId && !tiles.some((t) => t.id === this.pinnedId)) this.pinnedId = null;
 
+        // Someone started sharing (or I joined while they share): it goes big for everyone.
+        const shownScreens = new Set(this.tiles.filter((t) => t.source === 'screen').map((t) => t.id));
+        const newShare = tiles.find((t) => t.source === 'screen' && !t.isLocal && !shownScreens.has(t.id));
+
         this.remoteState = remoteState;
         this.tiles = tiles;
+        if (newShare) this.bringToFront();
         this.$nextTick(() => this.attachVideos());
     },
 
@@ -1116,6 +1121,18 @@ window.learnClassroom = (cfg = {}) => {
 
     qualityBars(q) {
         return { excellent: 3, good: 2, poor: 1, lost: 0 }[q] ?? 0;
+    },
+
+    /**
+     * Something everyone must see (a screen share that just started, the
+     * whiteboard): the stage shows it big — speaker view, no pin — and on a
+     * phone the side panel that covers the stage closes.
+     */
+    bringToFront() {
+        this.layout = 'speaker';
+        this.pinnedId = null;
+        if (!this.isLg) this.panelOpen = false;
+        this.$nextTick(() => this.attachVideos());
     },
 
     pin(tile) {
@@ -1275,7 +1292,10 @@ window.learnClassroom = (cfg = {}) => {
             if (wasActive) this.$nextTick(() => this.attachVideos());
             return;
         }
-        if (!wasActive) this.$nextTick(() => this.attachVideos());
+        if (!wasActive) {
+            this.bringToFront();
+            if (!this.isManager && this.inCall) this.flash('The host opened the whiteboard.');
+        }
         // A clear / undo raises the version: reload everything. Otherwise top up now and then.
         if (this.board.version !== wb.version) this.fetchBoard(true);
         else if (Date.now() - wb.lastFetch > 30000) this.fetchBoard();
