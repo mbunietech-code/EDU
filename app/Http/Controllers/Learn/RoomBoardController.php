@@ -29,7 +29,7 @@ class RoomBoardController extends Controller
     {
         $this->authorize('join', $room);
 
-        $stroke = $this->board->addStroke($room, $request->user(), $request->only(['uid', 'c', 'w', 'p']));
+        $stroke = $this->board->addStroke($room, $request->user(), $request->only(['uid', 'c', 'w', 'p', 's']));
 
         return response()->json(['id' => $stroke->id, 'uid' => $stroke->uid], 201);
     }

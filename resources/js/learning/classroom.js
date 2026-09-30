@@ -35,7 +35,7 @@ const recMbPerHour = (p) => Math.round(((p.video + p.audio) * 3600) / 8 / 1e6);
 const CONNECT_TIMEOUT_MS = 20000;
 import {
     BOARD_COLOURS, ERASER_SIZE, PEN_COLOURS, PEN_SIZES,
-    addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, toBoard,
+    SHAPES, addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, recogniseShape, shapePoints, toBoard,
 } from './whiteboard.js';
 
 const DATA_TOPIC = 'classroom';
@@ -50,6 +50,20 @@ const BOARD_SEND_MS = 60;
 const REACTION_TOPIC = 'reaction';
 const REACTIONS = ['👍', '👏', '❤️', '😂', '🎉', '😮'];
 const REACTION_GAP_MS = 700;
+/**
+ * Live captions: each speaker's own browser turns their speech into text
+ * (the Web Speech API — Google's service in Chrome/Edge, Apple's in Safari)
+ * and sends the text to everyone over the SFU. Nothing is stored on a server;
+ * each viewer can download the transcript they received.
+ */
+const CAPTION_TOPIC = 'caption';
+const CAPTION_LANGS = [
+    { code: 'en-US', label: 'English' },
+    { code: 'sw-TZ', label: 'Kiswahili' },
+    { code: 'zh-CN', label: '中文 (Chinese)' },
+];
+const CAPTION_MAX = 300;
+const CAPTION_SHOW_MS = 7000;
 
 /** livekit-client is only downloaded when someone actually joins a call. */
 let livekitModule = null;
@@ -118,6 +132,8 @@ window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
     // lastMedia: my mic / camera just before the connection closed (restored after a reconnect or a room move).
     const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false } };
+    // Speech recognition for my own captions (outside Alpine).
+    const cap = { rec: null, running: false, lastInterim: 0, restart: null };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
     const recorder = { mr: null, chunks: [], display: null, ctx: null, dest: null, mics: new WeakSet() };
     // Whiteboard canvas and strokes, also outside Alpine (thousands of points).
@@ -177,6 +193,11 @@ window.learnClassroom = (cfg = {}) => {
     participants: [],
     counts: { participants: 0, hands: 0, questions_open: 0 },
     handBusy: false,
+    // Captions: lang = the language I speak ('' = my speech is not captioned); show = I see captions.
+    captions: { lang: '', show: true, open: false, error: '' },
+    captionLangs: CAPTION_LANGS,
+    captionLines: [], // { identity, name, text, final, at } — the latest line per speaker
+    transcript: [],   // { name, text, at } — final lines received during this visit
     // Guest links (hosts only): the link, the waiting room switch and who is at the door.
     guests: cfg.guests || null,
     guestBusy: null,
@@ -193,7 +214,8 @@ window.learnClassroom = (cfg = {}) => {
     board: { active: false, all_can_draw: false, version: 0 },
     boardColours: PEN_COLOURS,
     boardSizes: PEN_SIZES,
-    boardTool: { colour: PEN_COLOURS[0], size: PEN_SIZES.medium, eraser: false },
+    // shape: pen | line | rect | ellipse | arrow; smart: tidy hand-drawn lines, boxes and circles.
+    boardTool: { colour: PEN_COLOURS[0], size: PEN_SIZES.medium, eraser: false, shape: 'pen', smart: true },
     boardBusy: null,
     boardMine: 0, // strokes of mine on the board (enables Undo)
     // Polls / quizzes of the running session (from the feed).
@@ -486,6 +508,12 @@ window.learnClassroom = (cfg = {}) => {
 
     // --- Clock ----------------------------------------------------------
     tick() {
+        // Captions fade a few seconds after the speaker stops.
+        if (this.captionLines.length) {
+            const now = Date.now();
+            const keep = this.captionLines.filter((l) => now - l.at < CAPTION_SHOW_MS);
+            if (keep.length !== this.captionLines.length) this.captionLines = keep;
+        }
         if (this.rec.active && this.rec.startedAt) {
             this.rec.elapsed = this.clock(Math.floor((Date.now() - this.rec.startedAt) / 1000));
         }
@@ -1094,6 +1122,7 @@ window.learnClassroom = (cfg = {}) => {
 
         const local = room.localParticipant;
         this.media.mic = !!local.isMicrophoneEnabled;
+        this.$nextTick(() => this.syncCaptions());
         this.media.cam = !!local.isCameraEnabled;
         this.media.screen = !!local.isScreenShareEnabled;
         this.myQuality = String(local.connectionQuality || 'unknown');
@@ -1194,7 +1223,7 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     onData(payload, topic, participant) {
-        if (topic !== DATA_TOPIC && topic !== REACTION_TOPIC && topic !== BOARD_TOPIC) return;
+        if (topic !== DATA_TOPIC && topic !== REACTION_TOPIC && topic !== BOARD_TOPIC && topic !== CAPTION_TOPIC) return;
         let msg;
         try {
             msg = JSON.parse(new TextDecoder().decode(payload));
@@ -1215,6 +1244,12 @@ window.learnClassroom = (cfg = {}) => {
 
         if (topic === BOARD_TOPIC) {
             this.onBoardPacket(msg, participant);
+            return;
+        }
+
+        if (topic === CAPTION_TOPIC) {
+            if (!participant || typeof msg.t !== 'string') return;
+            this.addCaption(participant.identity, participant.name || 'Someone', msg.t, !!msg.f);
             return;
         }
 
@@ -1420,21 +1455,33 @@ window.learnClassroom = (cfg = {}) => {
         e.preventDefault();
         try { wb.canvas.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
         const eraser = this.boardTool.eraser;
+        const start = toBoard(e.clientX, e.clientY, wb.canvas.getBoundingClientRect());
+        const shape = !eraser && SHAPES.includes(this.boardTool.shape) ? this.boardTool.shape : null;
         wb.drawing = {
             uid: newStrokeId(),
             user_id: this.viewer.id,
             c: eraser ? BOARD_COLOURS[BOARD_COLOURS.length - 1] : this.boardTool.colour,
             w: eraser ? ERASER_SIZE : this.boardTool.size,
-            p: toBoard(e.clientX, e.clientY, wb.canvas.getBoundingClientRect()),
+            p: shape ? shapePoints(shape, start[0], start[1], start[0], start[1]) : start,
+            s: shape ? 1 : 0,
+            shape,
+            origin: start,
         };
         wb.sendFrom = 0;
-        this.scheduleBoardSend();
+        // Shapes are sent once finished; pen lines stream as they are drawn.
+        if (!shape) this.scheduleBoardSend();
         this.renderBoard();
     },
 
     boardMove(e) {
         if (!wb.drawing) return;
         const rect = wb.canvas.getBoundingClientRect();
+        if (wb.drawing.shape) {
+            const [x, y] = toBoard(e.clientX, e.clientY, rect);
+            wb.drawing.p = shapePoints(wb.drawing.shape, wb.drawing.origin[0], wb.drawing.origin[1], x, y);
+            this.renderBoard();
+            return;
+        }
         const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
         let added = false;
         (events.length ? events : [e]).forEach((ev) => {
@@ -1451,11 +1498,19 @@ window.learnClassroom = (cfg = {}) => {
         const stroke = wb.drawing;
         if (!stroke) return;
         wb.drawing = null;
-        this.sendBoardPoints(stroke);
+        const isEraser = stroke.c === BOARD_COLOURS[BOARD_COLOURS.length - 1];
+        // Smart pen: a nearly straight line, box or circle becomes a clean one.
+        const tidy = !stroke.shape && !isEraser && this.boardTool.smart ? recogniseShape(stroke.p) : null;
+        if (tidy) {
+            stroke.p = tidy.p;
+            stroke.s = 1;
+        }
+        if (stroke.shape || tidy) this.sendBoardShape(stroke);
+        else this.sendBoardPoints(stroke);
         wb.pending.push(stroke);
         this.renderBoard();
         try {
-            const { ok, data } = await this.post(this.urls.boardStroke, { uid: stroke.uid, c: stroke.c, w: stroke.w, p: stroke.p });
+            const { ok, data } = await this.post(this.urls.boardStroke, { uid: stroke.uid, c: stroke.c, w: stroke.w, p: stroke.p, s: stroke.s ? 1 : 0 });
             if (!ok) {
                 wb.pending = wb.pending.filter((st) => st !== stroke);
                 this.renderBoard();
@@ -1492,6 +1547,16 @@ window.learnClassroom = (cfg = {}) => {
         } catch (e) { /* not connected */ }
     },
 
+    /** A finished shape (or a tidied pen line) replaces whatever others saw of it so far. */
+    sendBoardShape(stroke) {
+        const room = lk.room;
+        if (!room || this.lkState !== 'connected') return;
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ u: stroke.uid, c: stroke.c, w: stroke.w, s: 1, i: 0, r: 1, p: stroke.p }));
+            room.localParticipant.publishData(bytes, { reliable: true, topic: BOARD_TOPIC }).catch(() => {});
+        } catch (e) { /* not connected */ }
+    },
+
     /** Someone else's pen: only the host, or anyone while the host lets everyone draw. */
     onBoardPacket(msg, participant) {
         if (!participant || !this.board.active || typeof msg.u !== 'string' || msg.u.length > 40) return;
@@ -1501,6 +1566,12 @@ window.learnClassroom = (cfg = {}) => {
         const chunk = { c: msg.c, w: msg.w, p: msg.p };
         if (!isValidStroke(chunk) || !Number.isInteger(msg.i) || msg.i < 0) return;
         if (wb.strokes.some((st) => st.uid === msg.u)) return; // already saved
+        if (msg.r) {
+            // A whole shape: replaces the live copy.
+            wb.live[msg.u] = { uid: msg.u, c: msg.c, w: msg.w, s: msg.s ? 1 : 0, p: msg.p.slice(0, 3000), at: Date.now() };
+            this.renderBoard();
+            return;
+        }
         let stroke = wb.live[msg.u];
         if (!stroke) {
             // Only start from the first packet (a stroke joined midway would jump).
@@ -1517,6 +1588,11 @@ window.learnClassroom = (cfg = {}) => {
 
     setBoardColour(colour) {
         this.boardTool.colour = colour;
+        this.boardTool.eraser = false;
+    },
+
+    setBoardShape(shape) {
+        this.boardTool.shape = shape;
         this.boardTool.eraser = false;
     },
 
@@ -1718,6 +1794,143 @@ window.learnClassroom = (cfg = {}) => {
         this.guestRequest('admit-all', this.urls.studio && this.urls.studio.guestAdmitAll);
     },
 
+    // --- Live captions -------------------------------------------------------
+    get captionsSupported() {
+        return typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    },
+
+    get captionLangLabel() {
+        const l = CAPTION_LANGS.find((x) => x.code === this.captions.lang);
+        return l ? l.label : '';
+    },
+
+    openCaptions() {
+        this.captions.open = true;
+    },
+
+    /** Caption my speech in this language ('' = stop). */
+    setCaptionLang(code) {
+        if (code && !CAPTION_LANGS.some((l) => l.code === code)) return;
+        if (code && !this.captionsSupported) {
+            this.captions.error = 'This browser cannot turn speech into text. Use Chrome, Edge or Safari.';
+            return;
+        }
+        this.captions.error = '';
+        this.captions.lang = code;
+        if (code) this.captions.show = true;
+        this.stopRecognition();
+        this.syncCaptions();
+    },
+
+    /** Recognition runs only while I am in the call with my microphone on. */
+    syncCaptions() {
+        const want = !!this.captions.lang && this.inCall && this.media.mic;
+        if (want && !cap.running) this.startRecognition();
+        else if (!want && cap.running) this.stopRecognition();
+    },
+
+    startRecognition() {
+        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Rec) return;
+        const rec = new Rec();
+        rec.lang = this.captions.lang;
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.onresult = (event) => {
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const text = String(event.results[i][0].transcript || '').trim();
+                if (!text) continue;
+                if (event.results[i].isFinal) this.sendCaption(text, true);
+                else interim += (interim ? ' ' : '') + text;
+            }
+            // Words in progress: at most a few updates a second.
+            if (interim && Date.now() - cap.lastInterim > 400) {
+                cap.lastInterim = Date.now();
+                this.sendCaption(interim, false);
+            }
+        };
+        rec.onerror = (e) => {
+            if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) {
+                this.captions.error = 'Captions need permission to use the microphone for speech recognition.';
+                this.captions.lang = '';
+            } else if (e && e.error === 'language-not-supported') {
+                this.captions.error = 'This browser cannot caption ' + this.captionLangLabel + '. Try Chrome.';
+                this.captions.lang = '';
+            }
+        };
+        // Browsers stop listening after a pause: start again while captions are wanted.
+        rec.onend = () => {
+            cap.running = false;
+            cap.rec = null;
+            clearTimeout(cap.restart);
+            cap.restart = setTimeout(() => this.syncCaptions(), 300);
+        };
+        try {
+            rec.start();
+            cap.rec = rec;
+            cap.running = true;
+        } catch (e) {
+            cap.running = false;
+        }
+    },
+
+    stopRecognition() {
+        clearTimeout(cap.restart);
+        const rec = cap.rec;
+        cap.rec = null;
+        cap.running = false;
+        if (rec) {
+            rec.onend = null;
+            try { rec.abort(); } catch (e) { /* already stopped */ }
+        }
+    },
+
+    sendCaption(text, final) {
+        const t = text.slice(0, CAPTION_MAX);
+        this.addCaption(this.viewer.identity || 'me', 'You', t, final);
+        const room = lk.room;
+        if (!room || this.lkState !== 'connected') return;
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ t, f: final ? 1 : 0 }));
+            room.localParticipant.publishData(bytes, { reliable: final, topic: CAPTION_TOPIC }).catch(() => {});
+        } catch (e) { /* not connected */ }
+    },
+
+    addCaption(identity, name, text, final) {
+        const t = String(text).replace(/\s+/g, ' ').trim().slice(0, CAPTION_MAX);
+        if (!t) return;
+        const now = Date.now();
+        const others = this.captionLines.filter((l) => l.identity !== identity);
+        // The newest three speakers are shown.
+        this.captionLines = [...others, { identity, name, text: t, final, at: now }].slice(-3);
+        if (final) {
+            this.transcript.push({ name, text: t, at: now });
+            if (this.transcript.length > 5000) this.transcript.shift();
+        }
+    },
+
+    downloadTranscript() {
+        if (!this.transcript.length) {
+            this.flash('Nothing has been captioned yet.');
+            return;
+        }
+        const pad = (n) => String(n).padStart(2, '0');
+        const line = (l) => {
+            const d = new Date(l.at);
+            return '[' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '] ' + l.name + ': ' + l.text;
+        };
+        const text = (this.room.title || 'Class') + ' — transcript\n\n' + this.transcript.map(line).join('\n') + '\n';
+        const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'transcript-' + new Date().toISOString().slice(0, 10) + '.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+
     // --- Raise hand & reactions ------------------------------------------
     async toggleHand() {
         if (!this.inCall || this.handBusy || !this.urls.hand) return;
@@ -1895,6 +2108,8 @@ window.learnClassroom = (cfg = {}) => {
         this.floating = [];
         this.reactionSeen = {};
         lk.bgProcessor = null;
+        this.stopRecognition();
+        this.captionLines = [];
         wb.live = {};
         wb.drawing = null;
     },

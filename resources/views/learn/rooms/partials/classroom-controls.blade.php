@@ -79,6 +79,13 @@
             </div>
         </div>
 
+        {{-- Captions --}}
+        <button type="button" @click="openCaptions()" class="{{ $btn }} hidden sm:inline-flex"
+            :class="captions.lang ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
+            :aria-pressed="(!!captions.lang).toString()" aria-label="Captions and transcript" title="Captions (CC)">
+            <span class="text-xs font-bold tracking-wide">CC</span>
+        </button>
+
         {{-- Whiteboard (host opens it for everyone) --}}
         <template x-if="isManager">
             <button type="button" @click="toggleBoard()" class="{{ $btn }} hidden sm:inline-flex" :disabled="boardBusy !== null"
@@ -140,6 +147,11 @@
                         <span x-text="guests.link ? 'Copy guest invite link' : 'Invite guests (create link)'"></span>
                     </button>
                 </template>
+                <button type="button" role="menuitem" @click="openCaptions(); open = false" class="{{ $menuItem }}">
+                    <span class="w-5 text-center text-[10px] font-bold" aria-hidden="true">CC</span>
+                    <span class="flex-1">Captions &amp; transcript</span>
+                    <span x-show="captions.lang" class="text-xs text-emerald-300" x-text="captionLangLabel"></span>
+                </button>
                 <button type="button" role="menuitem" @click="openDevices(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'adjustments'])
                     Camera, microphone &amp; speaker
@@ -317,6 +329,48 @@
         </div>
         <div class="mt-5 flex justify-end">
             <button type="button" @click="bgOpen = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Done</button>
+        </div>
+    </div>
+</div>
+
+{{-- Captions: the language I speak, showing captions, and the transcript --}}
+<div x-show="captions.open" x-cloak class="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="captions-title"
+    @keydown.escape.window="captions.open = false">
+    <div class="fixed inset-0 bg-black/60" @click="captions.open = false" aria-hidden="true"></div>
+    <div class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-gray-900 p-5 text-sm text-gray-200 shadow-2xl ring-1 ring-gray-700">
+        <h2 id="captions-title" class="text-base font-semibold text-white">Captions &amp; transcript</h2>
+
+        <p class="mt-4 text-xs text-gray-400">Caption my speech — the language I speak</p>
+        <div class="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="The language I speak">
+            <button type="button" role="radio" @click="setCaptionLang('')" :aria-checked="(!captions.lang).toString()"
+                class="rounded-lg px-3 py-2 text-left ring-1"
+                :class="!captions.lang ? 'bg-gray-700 text-white ring-indigo-500' : 'bg-gray-800 text-gray-300 ring-gray-700 hover:bg-gray-700'">Off</button>
+            <template x-for="l in captionLangs" :key="l.code">
+                <button type="button" role="radio" @click="setCaptionLang(l.code)" :aria-checked="(captions.lang === l.code).toString()"
+                    class="rounded-lg px-3 py-2 text-left ring-1"
+                    :class="captions.lang === l.code ? 'bg-indigo-600 text-white ring-indigo-500' : 'bg-gray-800 text-gray-300 ring-gray-700 hover:bg-gray-700'"
+                    x-text="l.label"></button>
+            </template>
+        </div>
+        <p x-show="captions.lang && !media.mic" x-cloak class="mt-2 text-xs text-amber-300">Turn your microphone on — your words are captioned while it is on.</p>
+        <p x-show="captions.error" x-cloak class="mt-2 text-xs text-red-400" role="alert" x-text="captions.error"></p>
+
+        <label class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-gray-800 px-3 py-2">
+            <span>Show captions on screen</span>
+            <input type="checkbox" x-model="captions.show" class="rounded border-gray-600 bg-gray-900 text-indigo-500 focus:ring-indigo-500">
+        </label>
+
+        <button type="button" @click="downloadTranscript()"
+            class="mt-3 w-full rounded-lg bg-gray-800 px-3 py-2 text-left hover:bg-gray-700">
+            ⬇ Download transcript (<span x-text="transcript.length"></span> lines)
+        </button>
+
+        <p class="mt-4 text-[11px] text-gray-500">Each person picks the language they speak. Your browser turns your speech into text
+            (Chrome and Edge use Google's speech service, Safari uses Apple's) and the text is shown to everyone in the class.
+            Firefox does not support captions.</p>
+
+        <div class="mt-5 flex justify-end">
+            <button type="button" @click="captions.open = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">Done</button>
         </div>
     </div>
 </div>

@@ -36,7 +36,21 @@
                 {{-- Tools: above the board, away from the call buttons and pop-ups at the bottom --}}
                 <div class="flex shrink-0 flex-wrap items-center justify-center gap-1.5 text-xs" role="toolbar" aria-label="Whiteboard tools">
                     <template x-if="canDraw">
-                        <div class="flex flex-wrap items-center gap-1.5 rounded-full bg-gray-800 px-2 py-1">
+                        <div class="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl bg-gray-800 px-2 py-1 sm:rounded-full">
+                            {{-- Pen or shape --}}
+                            <template x-for="tool in [['pen', '✏️', 'Pen'], ['line', '╱', 'Line'], ['rect', '▭', 'Box'], ['ellipse', '◯', 'Circle'], ['arrow', '➜', 'Arrow']]" :key="tool[0]">
+                                <button type="button" @click="setBoardShape(tool[0])"
+                                    class="flex h-7 w-7 items-center justify-center rounded-full text-sm text-gray-100 hover:bg-gray-700"
+                                    :class="!boardTool.eraser && boardTool.shape === tool[0] ? 'bg-indigo-600 hover:bg-indigo-500' : ''"
+                                    :aria-pressed="(!boardTool.eraser && boardTool.shape === tool[0]).toString()"
+                                    :aria-label="tool[2]" :title="tool[2]" x-text="tool[1]"></button>
+                            </template>
+                            <button type="button" @click="boardTool.smart = !boardTool.smart"
+                                class="flex h-7 items-center gap-1 rounded-full px-2 text-[11px] font-medium hover:bg-gray-700"
+                                :class="boardTool.smart ? 'text-emerald-300' : 'text-gray-400'"
+                                :aria-pressed="boardTool.smart.toString()"
+                                title="Smart pen: tidies hand-drawn lines, boxes and circles">✨ <span x-text="boardTool.smart ? 'Smart on' : 'Smart off'"></span></button>
+                            <span class="mx-1 h-5 w-px bg-gray-600" aria-hidden="true"></span>
                             <template x-for="colour in boardColours" :key="colour">
                                 <button type="button" @click="setBoardColour(colour)"
                                     class="h-6 w-6 rounded-full ring-2 transition"
@@ -107,6 +121,16 @@
 
             </div>
         </template>
+
+        {{-- Live captions --}}
+        <div x-show="captions.show && captionLines.length" x-cloak
+            class="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex flex-col items-center gap-1 px-3 sm:bottom-24" aria-live="polite">
+            <template x-for="l in captionLines" :key="l.identity">
+                <p class="max-w-3xl rounded-lg bg-black/75 px-3 py-1.5 text-center text-sm text-white shadow-lg [overflow-wrap:anywhere] sm:text-base">
+                    <span class="font-semibold text-indigo-200" x-text="l.name + ': '"></span><span :class="l.final ? '' : 'text-gray-200'" x-text="l.text"></span>
+                </p>
+            </template>
+        </div>
 
         {{-- Reactions float up from the bottom-left of the stage --}}
         <div class="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true">

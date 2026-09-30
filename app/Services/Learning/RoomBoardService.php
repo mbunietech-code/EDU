@@ -19,7 +19,8 @@ use Illuminate\Validation\ValidationException;
  *
  * A stroke's data: {c: "#rrggbb" (palette only), w: pen width in 1/1000 of
  * the board width, p: [x0, y0, x1, y1, …] as integers 0..10000 (board
- * coordinates, so it scales to any screen)}.
+ * coordinates, so it scales to any screen), s: 1 for shapes drawn with sharp
+ * corners (optional)}.
  */
 class RoomBoardService
 {
@@ -132,7 +133,8 @@ class RoomBoardService
                 'learning_room_session_id' => $session->id,
                 'user_id' => $user->id,
                 'uid' => $uid,
-                'data' => ['c' => $colour, 'w' => $width, 'p' => $points],
+                // s = sharp corners (shapes: lines, boxes, arrows) instead of a smoothed pen line.
+                'data' => ['c' => $colour, 'w' => $width, 'p' => $points] + (! empty($data['s']) ? ['s' => 1] : []),
             ]);
         } catch (UniqueConstraintViolationException $e) {
             // A retried upload of the same stroke.

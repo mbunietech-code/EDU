@@ -85,9 +85,17 @@ export function drawStroke(ctx, stroke, width, height) {
         return;
     }
 
-    // Smooth the line through the midpoints of consecutive points.
     ctx.beginPath();
     ctx.moveTo(p[0] * sx, p[1] * sy);
+
+    // Shapes keep sharp corners: straight segments point to point.
+    if (stroke.s) {
+        for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * sx, p[i + 1] * sy);
+        ctx.stroke();
+        return;
+    }
+
+    // A pen line is smoothed through the midpoints of consecutive points.
     for (let i = 2; i < p.length - 2; i += 2) {
         const mx = ((p[i] + p[i + 2]) / 2) * sx;
         const my = ((p[i + 1] + p[i + 3]) / 2) * sy;
@@ -102,4 +110,122 @@ export function paintBoard(ctx, strokes, width, height) {
     ctx.fillStyle = BOARD_BG;
     ctx.fillRect(0, 0, width, height);
     strokes.forEach((s) => drawStroke(ctx, s, width, height));
+}
+
+// --- Shapes -------------------------------------------------------------------
+// Board units are not square (16:9): 1 unit of y is 9/16 of a unit of x on screen.
+const Y_SCALE = 9 / 16;
+const clampUnit = (v) => Math.max(0, Math.min(10000, Math.round(v)));
+
+export const SHAPES = ['line', 'rect', 'ellipse', 'arrow'];
+
+/** Points of a shape dragged from (x0, y0) to (x1, y1), in board units. */
+export function shapePoints(kind, x0, y0, x1, y1) {
+    if (kind === 'line') return [x0, y0, x1, y1];
+    if (kind === 'rect') return [x0, y0, x1, y0, x1, y1, x0, y1, x0, y0];
+    if (kind === 'ellipse') {
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2;
+        const rx = Math.abs(x1 - x0) / 2;
+        const ry = Math.abs(y1 - y0) / 2;
+        const out = [];
+        for (let i = 0; i <= 48; i++) {
+            const a = (i / 48) * Math.PI * 2;
+            out.push(clampUnit(cx + rx * Math.cos(a)), clampUnit(cy + ry * Math.sin(a)));
+        }
+        return out;
+    }
+    if (kind === 'arrow') {
+        // Head drawn in screen proportions so it is not squashed.
+        const dx = x1 - x0;
+        const dy = (y1 - y0) * Y_SCALE;
+        const len = Math.hypot(dx, dy) || 1;
+        const head = Math.min(400, len * 0.35);
+        const ang = Math.atan2(dy, dx);
+        const wing = (side) => [
+            clampUnit(x1 - head * Math.cos(ang + side * 0.5)),
+            clampUnit(y1 - (head * Math.sin(ang + side * 0.5)) / Y_SCALE),
+        ];
+        const [ax, ay] = wing(1);
+        const [bx, by] = wing(-1);
+        return [x0, y0, x1, y1, ax, ay, x1, y1, bx, by];
+    }
+    return [x0, y0, x1, y1];
+}
+
+/**
+ * Smart pen: when a hand-drawn line is close to a straight line, a box or an
+ * ellipse, return that clean shape ({ p, s: 1 }); otherwise null (keep the
+ * hand-drawn line).
+ */
+export function recogniseShape(points) {
+    const n = points.length / 2;
+    if (n < 4) return null;
+    const xs = [];
+    const ys = [];
+    for (let i = 0; i < points.length; i += 2) {
+        xs.push(points[i]);
+        ys.push(points[i + 1] * Y_SCALE); // screen proportions
+    }
+    let length = 0;
+    for (let i = 1; i < n; i++) length += Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]);
+    if (length < 300) return null; // a dot or a tiny scribble
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const ends = Math.hypot(xs[n - 1] - xs[0], ys[n - 1] - ys[0]);
+    const toBoard = (arr) => arr.map((v, i) => (i % 2 ? clampUnit(v / Y_SCALE) : clampUnit(v)));
+
+    // Straight line: every point stays close to the line between the two ends.
+    if (ends > length * 0.85) {
+        const ax = xs[0];
+        const ay = ys[0];
+        const bx = xs[n - 1];
+        const by = ys[n - 1];
+        let worst = 0;
+        for (let i = 0; i < n; i++) {
+            worst = Math.max(worst, Math.abs((by - ay) * xs[i] - (bx - ax) * ys[i] + bx * ay - by * ax) / (ends || 1));
+        }
+        if (worst < ends * 0.06) return { p: toBoard([ax, ay, bx, by]), s: 1 };
+        return null;
+    }
+
+    // Closed shapes: the pen came back near where it started.
+    if (ends > Math.max(w, h) * 0.3 || w < 150 || h < 150) return null;
+
+    // Ellipse: points sit on the ellipse that fits the bounding box.
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const rx = w / 2;
+    const ry = h / 2;
+    let ellipseErr = 0;
+    for (let i = 0; i < n; i++) {
+        ellipseErr += Math.abs(Math.hypot((xs[i] - cx) / rx, (ys[i] - cy) / ry) - 1);
+    }
+    ellipseErr /= n;
+
+    // Box: points sit on the edges of the bounding box.
+    let boxErr = 0;
+    for (let i = 0; i < n; i++) {
+        const edge = Math.min(Math.abs(xs[i] - minX), Math.abs(xs[i] - maxX), Math.abs(ys[i] - minY), Math.abs(ys[i] - maxY));
+        boxErr += edge / Math.min(w, h);
+    }
+    boxErr /= n;
+
+    if (boxErr < 0.08 && boxErr < ellipseErr) {
+        return { p: toBoard([minX, minY, maxX, minY, maxX, maxY, minX, maxY, minX, minY]), s: 1 };
+    }
+    if (ellipseErr < 0.15) {
+        const out = [];
+        for (let i = 0; i <= 48; i++) {
+            const a = (i / 48) * Math.PI * 2;
+            out.push(cx + rx * Math.cos(a), cy + ry * Math.sin(a));
+        }
+        return { p: toBoard(out), s: 1 };
+    }
+    return null;
 }

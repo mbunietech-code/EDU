@@ -130,6 +130,19 @@ class ClassroomBoardTest extends TestCase
         $this->assertCount(1, $this->board($learner, $room, $board['strokes'][0]['id'])['strokes']);
     }
 
+    public function test_shapes_keep_their_sharp_corner_flag(): void
+    {
+        [$host, $learner, $room] = $this->classInProgress();
+        $this->switchBoard($host, $room, ['active' => true])->assertOk();
+
+        $this->draw($host, $room, ['uid' => 'box-stroke-1', 's' => 1, 'p' => [100, 100, 900, 100, 900, 500, 100, 500, 100, 100]])->assertCreated();
+        $this->draw($host, $room, ['uid' => 'pen-stroke-1'])->assertCreated();
+
+        [$box, $pen] = $this->board($learner, $room)['strokes'];
+        $this->assertSame(1, $box['s']);
+        $this->assertArrayNotHasKey('s', $pen);
+    }
+
     public function test_undo_is_for_your_own_strokes_and_clear_is_for_the_host(): void
     {
         [$host, $learner, $room] = $this->classInProgress();
