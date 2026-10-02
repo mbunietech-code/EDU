@@ -81,48 +81,43 @@
         </div>
     @else
         {{-- Desktop table --}}
-        {{-- Cells wrap and use less padding so every column stays inside the card; it scrolls only as a last resort. --}}
-        <div class="mbui-card mt-4 hidden overflow-x-auto md:block">
-            <table class="w-full divide-y divide-gray-200">
+        {{-- Wide screens: a fixed-layout table — every column has its share of the width and text wraps
+             inside it, so the table always fits its card (no sideways scrolling). Smaller screens get cards. --}}
+        <div class="mbui-card mt-4 hidden xl:block">
+            <table class="w-full table-fixed divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th scope="col" class="mbui-th px-4">Room</th>
-                        <th scope="col" class="mbui-th px-4 hidden lg:table-cell">Category</th>
-                        <th scope="col" class="mbui-th px-4 hidden xl:table-cell">Instructor</th>
-                        <th scope="col" class="mbui-th px-4">Date</th>
-                        <th scope="col" class="mbui-th px-4 hidden lg:table-cell">Time</th>
-                        <th scope="col" class="mbui-th px-4">Status</th>
-                        <th scope="col" class="mbui-th px-4">Participants</th>
-                        <th scope="col" class="mbui-th px-4 text-right"><span class="sr-only">Actions</span></th>
+                        <th scope="col" class="mbui-th w-32 px-4">Category</th>
+                        <th scope="col" class="mbui-th hidden w-36 px-4 2xl:table-cell">Instructor</th>
+                        <th scope="col" class="mbui-th w-36 px-4">When</th>
+                        <th scope="col" class="mbui-th w-28 px-4">Status</th>
+                        <th scope="col" class="mbui-th w-32 px-4">Participants</th>
+                        <th scope="col" class="mbui-th w-36 px-4 text-right"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
                     @foreach ($rooms as $room)
                         @php($start = $room->scheduled_at?->copy()->setTimezone($tz))
                         <tr class="{{ $room->isLive() ? 'bg-red-50/40' : '' }} hover:bg-gray-50">
-                            <td class="mbui-td min-w-[12rem] whitespace-normal px-4">
+                            <td class="mbui-td whitespace-normal px-4">
                                 <a href="{{ route('studio.rooms.show', $room) }}" class="line-clamp-2 font-medium text-gray-900 [overflow-wrap:anywhere] hover:text-indigo-600">{{ $room->title }}</a>
                                 <p class="mt-0.5 line-clamp-2 text-xs text-gray-500 [overflow-wrap:anywhere]">
                                     {{ $room->accessLabel() }}
                                     @if ($room->course) · {{ $room->course->title }}@if ($room->course->trashed()) <span class="text-red-600">(in trash)</span>@endif @endif
-                                    <span class="xl:hidden"> · {{ $room->host->name ?? 'No host' }}</span>
+                                    <span class="2xl:hidden"> · {{ $room->host->name ?? 'No host' }}</span>
                                 </p>
                             </td>
-                            <td class="mbui-td hidden whitespace-normal px-4 text-sm text-gray-600 lg:table-cell">{{ $room->category->name ?? '—' }}</td>
-                            <td class="mbui-td hidden whitespace-normal px-4 text-sm text-gray-600 xl:table-cell">{{ $room->host->name ?? '—' }}</td>
-                            <td class="mbui-td whitespace-nowrap px-4 text-sm text-gray-700">
+                            <td class="mbui-td whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere]">{{ $room->category->name ?? '—' }}</td>
+                            <td class="mbui-td hidden whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere] 2xl:table-cell">{{ $room->host->name ?? '—' }}</td>
+                            <td class="mbui-td whitespace-normal px-4 text-sm text-gray-700">
                                 {{ $start ? $start->format('D, d M Y') : 'Not set' }}
-                                <span class="block text-xs text-gray-500 lg:hidden">{{ $start ? $start->format('H:i') : '' }}</span>
-                            </td>
-                            <td class="mbui-td hidden whitespace-nowrap px-4 text-sm text-gray-700 lg:table-cell">
                                 @if ($start)
-                                    {{ $start->format('H:i') }}–{{ $room->endsAt()?->setTimezone($tz)->format('H:i') }}
-                                @else
-                                    <span class="text-gray-400">—</span>
+                                    <span class="block text-xs text-gray-500">{{ $start->format('H:i') }}–{{ $room->endsAt()?->setTimezone($tz)->format('H:i') }}</span>
                                 @endif
                             </td>
                             <td class="mbui-td px-4"><x-learning.room-status :status="$room->status" /></td>
-                            <td class="mbui-td px-4 text-sm">
+                            <td class="mbui-td whitespace-normal px-4 text-sm">
                                 @forelse ($participantsLabel($room) as [$text, $cls])
                                     <span class="block {{ $cls }}">{{ $text }}</span>
                                 @empty
@@ -138,14 +133,14 @@
             </table>
         </div>
 
-        {{-- Mobile cards --}}
-        <ul class="mt-4 space-y-3 md:hidden">
+        {{-- Phones and tablets / smaller laptops: cards (two per row from tablet width) --}}
+        <ul class="mt-4 grid gap-3 md:grid-cols-2 xl:hidden">
             @foreach ($rooms as $room)
                 @php($start = $room->scheduled_at?->copy()->setTimezone($tz))
                 <li class="mbui-card overflow-hidden {{ $room->isLive() ? 'ring-1 ring-red-200' : '' }}">
                     <div class="p-4">
                         <div class="flex items-start justify-between gap-3">
-                            <a href="{{ route('studio.rooms.show', $room) }}" class="line-clamp-2 min-w-0 text-sm font-medium text-gray-900">{{ $room->title }}</a>
+                            <a href="{{ route('studio.rooms.show', $room) }}" class="line-clamp-2 min-w-0 text-sm font-medium text-gray-900 [overflow-wrap:anywhere]">{{ $room->title }}</a>
                             <x-learning.room-status :status="$room->status" class="shrink-0" />
                         </div>
                         <p class="mt-1 truncate text-xs text-gray-500">
