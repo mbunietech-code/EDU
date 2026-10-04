@@ -21,10 +21,7 @@ class VerifyEmailController extends Controller
         }
 
         if ($request->user()->markEmailAsVerified()) {
-            $request->user()->forceFill([
-                'email_verification_code' => null,
-                'email_verification_code_expires_at' => null,
-            ])->save();
+            $request->user()->clearEmailVerificationCode();
 
             event(new Verified($request->user()));
         }
@@ -56,10 +53,7 @@ class VerifyEmailController extends Controller
         }
 
         if ($user->markEmailAsVerified()) {
-            $user->forceFill([
-                'email_verification_code' => null,
-                'email_verification_code_expires_at' => null,
-            ])->save();
+            $user->clearEmailVerificationCode();
 
             event(new Verified($user));
         }

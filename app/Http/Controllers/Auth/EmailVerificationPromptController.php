@@ -18,10 +18,7 @@ class EmailVerificationPromptController extends Controller
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        if (
-            $request->user()->email_verification_code === null
-            || $request->user()->email_verification_code_expires_at?->isPast()
-        ) {
+        if ($request->user()->needsFreshEmailVerificationCode()) {
             $request->user()->sendEmailVerificationNotification();
             session()->flash('status', 'verification-code-sent');
         }

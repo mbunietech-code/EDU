@@ -9,18 +9,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('email_verification_code', 10)->nullable()->after('email_verified_at');
-            $table->timestamp('email_verification_code_expires_at')->nullable()->after('email_verification_code');
+            if (! Schema::hasColumn('users', 'email_verification_code')) {
+                $table->string('email_verification_code', 10)->nullable()->after('email_verified_at');
+            }
+
+            if (! Schema::hasColumn('users', 'email_verification_code_expires_at')) {
+                $table->timestamp('email_verification_code_expires_at')->nullable()->after('email_verification_code');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn([
-                'email_verification_code',
-                'email_verification_code_expires_at',
-            ]);
+            if (Schema::hasColumn('users', 'email_verification_code_expires_at')) {
+                $table->dropColumn('email_verification_code_expires_at');
+            }
+
+            if (Schema::hasColumn('users', 'email_verification_code')) {
+                $table->dropColumn('email_verification_code');
+            }
         });
     }
 };

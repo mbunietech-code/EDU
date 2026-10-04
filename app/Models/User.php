@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -78,19 +79,66 @@ class User extends Authenticatable implements MustVerifyEmail
         $code = (string) random_int(100000, 999999);
         $expiresInMinutes = 15;
 
-        $this->forceFill([
-            'email_verification_code' => $code,
-            'email_verification_code_expires_at' => now()->addMinutes($expiresInMinutes),
-        ])->save();
+        if ($this->emailVerificationCodeColumnsExist()) {
+            $this->forceFill([
+                'email_verification_code' => $code,
+                'email_verification_code_expires_at' => now()->addMinutes($expiresInMinutes),
+            ])->save();
+        } else {
+            Cache::put($this->emailVerificationCodeCacheKey(), $code, now()->addMinutes($expiresInMinutes));
+        }
 
         $this->notify(new EmailVerificationCode($code, $expiresInMinutes));
     }
 
     public function hasValidEmailVerificationCode(string $code): bool
     {
-        return $this->email_verification_code !== null
-            && hash_equals($this->email_verification_code, preg_replace('/\D+/', '', $code))
-            && $this->email_verification_code_expires_at?->isFuture();
+        $code = preg_replace('/\D+/', '', $code);
+
+        if ($this->emailVerificationCodeColumnsExist()) {
+            return $this->email_verification_code !== null
+                && hash_equals($this->email_verification_code, $code)
+                && $this->email_verification_code_expires_at?->isFuture();
+        }
+
+        $cachedCode = Cache::get($this->emailVerificationCodeCacheKey());
+
+        return is_string($cachedCode) && hash_equals($cachedCode, $code);
+    }
+
+    public function clearEmailVerificationCode(): void
+    {
+        if ($this->emailVerificationCodeColumnsExist()) {
+            $this->forceFill([
+                'email_verification_code' => null,
+                'email_verification_code_expires_at' => null,
+            ])->save();
+
+            return;
+        }
+
+        Cache::forget($this->emailVerificationCodeCacheKey());
+    }
+
+    public function needsFreshEmailVerificationCode(): bool
+    {
+        if ($this->emailVerificationCodeColumnsExist()) {
+            return $this->email_verification_code === null
+                || $this->email_verification_code_expires_at?->isPast();
+        }
+
+        return ! Cache::has($this->emailVerificationCodeCacheKey());
+    }
+
+    protected function emailVerificationCodeCacheKey(): string
+    {
+        return 'email-verification-code:' . $this->getKey() . ':' . sha1((string) $this->email);
+    }
+
+    protected function emailVerificationCodeColumnsExist(): bool
+    {
+        return Schema::hasColumn($this->getTable(), 'email_verification_code')
+            && Schema::hasColumn($this->getTable(), 'email_verification_code_expires_at');
     }
 
     /**
