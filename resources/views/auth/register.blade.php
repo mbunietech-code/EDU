@@ -4,7 +4,7 @@
         <div class="w-full max-w-md">
             <div class="mbui-card p-8">
                 <h1 class="mbui-title text-center">Create your account</h1>
-                <p class="mt-1 text-center text-sm text-gray-500">Join MbunieEduHub to manage your services.</p>
+                <p class="mt-1 text-center text-sm text-gray-500">Join MbunieEduHub. We will verify your email before creating the account.</p>
 
                 <form method="POST" action="{{ route('register') }}" class="mt-6 space-y-5">
                     @csrf
@@ -34,7 +34,7 @@
                     </div>
 
                     <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        Create account
+                        Send verification code
                     </button>
                 </form>
 
