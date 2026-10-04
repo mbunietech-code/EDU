@@ -41,7 +41,6 @@
                         request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
                         request()->routeIs('admin.orders.*', 'admin.payments.*', 'admin.chat.*', 'admin.team-chat.*', 'admin.contact-messages.*', 'admin.payment-methods.*', 'admin.subscriptions.*') => 'operations',
                         request()->routeIs('admin.reports.*', 'admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.notifications.*') => 'insights',
-                        request()->routeIs('admin.settings.*', 'admin.finance.*', 'admin.database.*', 'admin.optimization.*', 'admin.ai-assistant.*', 'admin.team.*') && $systemSectionVisible => 'system',
                         default => 'management',
                     };
                 @endphp
@@ -265,15 +264,7 @@
                     </div>
 
                     @if ($systemSectionVisible)
-                    <button type="button" @click="openSection = openSection === 'system' ? null : 'system'"
-                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
-                        <span>System</span>
-                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'system' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </button>
-
-                    <div class="space-y-1 pl-1" x-show="openSection === 'system'" x-cloak>
+                    <div class="space-y-1">
 
                 @can('settings.manage')
                 <x-admin.sidebar-link :route="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*')" label="Settings">
