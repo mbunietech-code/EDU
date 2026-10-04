@@ -40,8 +40,7 @@
                 @forelse ($orders as $order)
                     <tr>
                         <td class="mbui-td px-4">
-                            <a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
-                            <p class="mt-0.5 text-xs text-gray-400">{{ $order->created_at->format('d M Y') }}</p>
+                            <x-mbui.order-link :order="$order" :href="route('admin.orders.show', $order)" />
                         </td>
                         <td class="mbui-td whitespace-normal px-3">{{ $order->user->name }}</td>
                         <td class="mbui-td whitespace-normal px-3">

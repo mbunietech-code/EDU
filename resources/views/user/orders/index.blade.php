@@ -30,8 +30,7 @@
                     @foreach ($orders as $order)
                         <tr>
                             <td class="mbui-td">
-                                <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
-                                <p class="text-xs text-gray-400">{{ $order->created_at->format('d M Y H:i') }}</p>
+                                <x-mbui.order-link :order="$order" :href="route('user.orders.show', $order)" date-format="d M Y H:i" />
                             </td>
                             <td class="mbui-td">{{ $order->itemName() }}</td>
                             <td class="mbui-td">{{ $order->plan->name ?? '—' }}</td>

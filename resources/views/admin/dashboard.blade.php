@@ -67,7 +67,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse ($recentOrders as $order)
                     <tr>
-                        <td class="mbui-td"><a href="{{ route('admin.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a></td>
+                        <td class="mbui-td"><x-mbui.order-link :order="$order" :href="route('admin.orders.show', $order)" :show-date="false" /></td>
                         <td class="mbui-td">{{ $order->user->name }}</td>
                         <td class="mbui-td">{{ $order->itemName() }}</td>
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}

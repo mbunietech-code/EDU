@@ -181,7 +181,7 @@
                     @foreach ($pendingOrders as $order)
                         <tr>
                             <td class="mbui-td">
-                                <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor">{{ $order->order_number }}</a>
+                                <x-mbui.order-link :order="$order" :href="route('user.orders.show', $order)" :show-date="false" />
                             </td>
                             <td class="mbui-td">{{ $order->itemName() }}</td>
                             <td class="mbui-td">TZS {{ number_format($order->amount) }}
