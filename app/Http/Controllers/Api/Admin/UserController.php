@@ -13,6 +13,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $users = User::query()
+            ->realUsers()
             ->withCount(['orders', 'subscriptions as active_subscriptions_count' => fn ($q) => $q->where('status', 'active')])
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = $request->string('search');
@@ -36,6 +37,8 @@ class UserController extends Controller
 
     public function show(User $user): JsonResponse
     {
+        abort_if($user->isGuest(), 404);
+
         $user->loadCount(['orders', 'payments']);
         $user->load([
             'subscriptions' => fn ($q) => $q->with('product:id,name')->latest()->limit(10),

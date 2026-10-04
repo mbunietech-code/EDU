@@ -214,6 +214,7 @@ class SearchController extends Controller
 
             // Never select the email: id, name and join date only.
             'instructors' => User::query()
+                ->realUsers()
                 ->select(['id', 'name', 'can_teach', 'created_at'])
                 ->where('status', 'active')
                 ->where(fn (Builder $q) => $q

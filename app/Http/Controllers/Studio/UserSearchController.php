@@ -38,6 +38,7 @@ class UserSearchController extends Controller
         $like = '%'.addcslashes($q, '\\%_').'%';
 
         $users = User::query()
+            ->realUsers()
             ->select(['id', 'name', 'email'])
             ->where('status', 'active')
             ->where(function (Builder $w) use ($like, $q, $showEmail) {

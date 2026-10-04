@@ -46,6 +46,7 @@ class ProgressController extends Controller
             $data['courses'] = $courses;
         } else {
             $data['learners'] = User::query()
+                ->realUsers()
                 ->select(['id', 'name', 'email', 'status'])
                 ->where(fn (Builder $q) => $q->whereHas('learningProgress')->orWhereHas('learningEnrollments'))
                 ->when($search !== '', fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like)))
@@ -68,6 +69,7 @@ class ProgressController extends Controller
     public function show(Request $request, User $user, ProgressService $progress): View
     {
         Gate::authorize('learning.view');
+        abort_if($user->isGuest(), 404);
 
         $stats = $progress->stats($user);
 

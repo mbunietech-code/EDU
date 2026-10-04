@@ -25,6 +25,7 @@ class InstructorController extends Controller
         $search = Str::limit(trim((string) $request->query('q', '')), 100, '');
 
         $instructors = User::query()
+            ->realUsers()
             ->where('can_teach', true)
             ->withCount(['hostedRooms', 'teachingVideos', 'taughtCourses'])
             ->when($search !== '', fn (Builder $q) => $q->where(function (Builder $q) use ($search) {
@@ -52,7 +53,7 @@ class InstructorController extends Controller
             'user_id.required' => 'Choose the member who should get instructor access.',
         ]);
 
-        $user = User::query()->findOrFail((int) $data['user_id']);
+        $user = User::query()->realUsers()->findOrFail((int) $data['user_id']);
 
         if ($user->isInstructor()) {
             return back()->with('success', $user->name.' already has instructor access.');
@@ -74,6 +75,7 @@ class InstructorController extends Controller
     public function destroy(Request $request, User $user): RedirectResponse
     {
         Gate::authorize('learning.manage');
+        abort_if($user->isGuest(), 404);
 
         $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']]);
 

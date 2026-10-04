@@ -630,6 +630,7 @@ class RoomController extends Controller
     private function hostOptions(LearningRoom $room): Collection
     {
         return User::query()
+            ->realUsers()
             ->where(fn (Builder $q) => $q
                 ->where(fn (Builder $w) => $w
                     ->where('status', 'active')
@@ -647,7 +648,7 @@ class RoomController extends Controller
         $old = old('user_ids');
 
         $users = is_array($old)
-            ? User::query()->whereIn('id', array_filter(array_map('intval', $old)))->orderBy('name')->get(['id', 'name', 'email'])
+            ? User::query()->realUsers()->whereIn('id', array_filter(array_map('intval', $old)))->orderBy('name')->get(['id', 'name', 'email'])
             : ($room->exists ? $room->memberUsers()->orderBy('name')->get(['users.id', 'users.name', 'users.email']) : collect());
 
         return $users->map(fn (User $u) => array_filter([

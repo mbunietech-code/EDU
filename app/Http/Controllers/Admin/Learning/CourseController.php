@@ -262,7 +262,7 @@ class CourseController extends Controller
 
         // Keep the current instructor selectable even if no longer eligible.
         if ($course->instructor_id && ! $instructors->contains('id', $course->instructor_id)) {
-            $current = User::query()->find($course->instructor_id, ['id', 'name', 'email']);
+            $current = User::query()->realUsers()->find($course->instructor_id, ['id', 'name', 'email']);
             if ($current) {
                 $instructors->prepend($current);
             }
@@ -278,7 +278,7 @@ class CourseController extends Controller
     /** Users who may be set as a course instructor: instructors (can_teach) and admins. */
     private function eligibleInstructors(): Builder
     {
-        return User::query()->where(fn (Builder $q) => $q->where('can_teach', true)->orWhere('is_admin', true));
+        return User::query()->realUsers()->where(fn (Builder $q) => $q->where('can_teach', true)->orWhere('is_admin', true));
     }
 
     /** @return array<string,mixed> */

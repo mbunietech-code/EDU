@@ -98,6 +98,7 @@ class LearningAnalytics
     public function learnerCount(): int
     {
         return User::query()
+            ->realUsers()
             ->where(fn (Builder $q) => $q->whereHas('learningProgress')->orWhereHas('learningEnrollments'))
             ->count();
     }

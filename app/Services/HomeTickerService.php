@@ -195,6 +195,7 @@ class HomeTickerService
 
         // New members this week (aggregate, not per-user)
         $newMembers = User::query()
+            ->realUsers()
             ->where('is_admin', false)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();

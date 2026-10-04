@@ -12,10 +12,12 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $users = User::query()
+            ->realUsers()
             ->when($request->filled('search'), function ($query) use ($request) {
                 $term = $request->input('search');
-                $query->where('name', 'like', "%{$term}%")
-                      ->orWhere('email', 'like', "%{$term}%");
+                $query->where(fn ($q) => $q
+                    ->where('name', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%"));
             })
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
@@ -29,6 +31,8 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        abort_if($user->isGuest(), 404);
+
         $user->load(['orders.product', 'orders.plan', 'orders.tool', 'subscriptions.product', 'subscriptions.plan', 'payments']);
 
         return view('admin.users.show', compact('user'));

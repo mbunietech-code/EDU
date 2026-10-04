@@ -414,7 +414,7 @@ class VideoController extends Controller
         $id = $data['instructor_id'] ?? null;
 
         if ($id !== null) {
-            $eligible = User::query()->whereKey($id)
+            $eligible = User::query()->realUsers()->whereKey($id)
                 ->where(fn (Builder $q) => $q->where('can_teach', true)->orWhere('is_admin', true))
                 ->exists();
 
@@ -508,6 +508,7 @@ class VideoController extends Controller
     private function instructorOptions(?LearningVideo $video): Collection
     {
         return User::query()
+            ->realUsers()
             ->where(fn (Builder $q) => $q
                 ->where(fn (Builder $w) => $w
                     ->where('status', 'active')

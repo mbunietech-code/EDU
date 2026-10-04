@@ -167,13 +167,26 @@ class AiAssistantTools
 
     private function getUsersSummary(): array
     {
+        $users = $this->realUsersTable();
+
         return [
-            'total' => DB::table('users')->count(),
-            'active' => DB::table('users')->where('status', 'active')->count(),
-            'suspended' => DB::table('users')->where('status', 'suspended')->count(),
-            'new_last_7_days' => DB::table('users')->where('created_at', '>=', Carbon::now()->subDays(7))->count(),
-            'new_last_30_days' => DB::table('users')->where('created_at', '>=', Carbon::now()->subDays(30))->count(),
+            'total' => (clone $users)->count(),
+            'active' => (clone $users)->where('status', 'active')->count(),
+            'suspended' => (clone $users)->where('status', 'suspended')->count(),
+            'new_last_7_days' => (clone $users)->where('created_at', '>=', Carbon::now()->subDays(7))->count(),
+            'new_last_30_days' => (clone $users)->where('created_at', '>=', Carbon::now()->subDays(30))->count(),
         ];
+    }
+
+    private function realUsersTable()
+    {
+        $query = DB::table('users');
+
+        if (Schema::hasColumn('users', 'is_guest')) {
+            $query->where(fn ($q) => $q->where('is_guest', false)->orWhereNull('is_guest'));
+        }
+
+        return $query;
     }
 
     private function getAccountsSummary(): array

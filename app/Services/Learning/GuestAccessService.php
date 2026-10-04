@@ -3,6 +3,7 @@
 namespace App\Services\Learning;
 
 use App\Models\ActivityLog;
+use App\Models\LearningRoomGuest;
 use App\Models\LearningRoom;
 use App\Models\Setting;
 use App\Models\User;
@@ -12,9 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Guest links: a room's host shares a link; anyone who opens it joins with
- * just a name. Each guest becomes a restricted user row (is_guest) that can
- * reach that one room only (LearningRoom::isVisibleTo, RestrictGuests
- * middleware). With the room's waiting room on, the host lets each guest in.
+ * just a name. Laravel still needs a restricted auth user (is_guest) for the
+ * browser session, while guest meeting details are mirrored to
+ * learning_room_guests so admin user reporting can stay focused on real users.
+ * With the room's waiting room on, the host lets each guest in.
  *
  * Nothing works unless an admin turned guest links on for the platform.
  */
@@ -116,6 +118,17 @@ class GuestAccessService
             'last_seen_at' => now(),
         ])->save();
 
+        LearningRoomGuest::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'learning_room_id' => $room->id,
+                'name' => $name,
+                'admitted_at' => $user->guest_admitted_at,
+                'denied_at' => $user->guest_denied_at,
+                'last_seen_at' => $user->last_seen_at,
+            ],
+        );
+
         return $user;
     }
 
@@ -140,13 +153,23 @@ class GuestAccessService
     /** Host lets one guest in, or everyone waiting when $guest is null. */
     public function admit(LearningRoom $room, ?User $guest = null): int
     {
-        return $this->guestsOf($room, $guest)->whereNull('guest_denied_at')->whereNull('guest_admitted_at')
-            ->update(['guest_admitted_at' => now()]);
+        $now = now();
+
+        $count = $this->guestsOf($room, $guest)->whereNull('guest_denied_at')->whereNull('guest_admitted_at')
+            ->update(['guest_admitted_at' => $now]);
+
+        $this->guestRecordsOf($room, $guest)->whereNull('denied_at')->whereNull('admitted_at')
+            ->update(['admitted_at' => $now, 'updated_at' => $now]);
+
+        return $count;
     }
 
     public function deny(LearningRoom $room, User $guest): void
     {
-        $this->guestsOf($room, $guest)->update(['guest_denied_at' => now(), 'guest_admitted_at' => null]);
+        $now = now();
+
+        $this->guestsOf($room, $guest)->update(['guest_denied_at' => $now, 'guest_admitted_at' => null]);
+        $this->guestRecordsOf($room, $guest)->update(['denied_at' => $now, 'admitted_at' => null, 'updated_at' => $now]);
     }
 
     /**
@@ -171,5 +194,12 @@ class GuestAccessService
             ->where('is_guest', true)
             ->where('guest_room_id', $room->id)
             ->when($guest, fn ($q) => $q->whereKey($guest->id));
+    }
+
+    private function guestRecordsOf(LearningRoom $room, ?User $guest)
+    {
+        return LearningRoomGuest::query()
+            ->where('learning_room_id', $room->id)
+            ->when($guest, fn ($q) => $q->where('user_id', $guest->id));
     }
 }

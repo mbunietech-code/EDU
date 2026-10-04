@@ -22,9 +22,12 @@ class ChatController extends Controller
 
         $conversations = Conversation::with(['user', 'latestMessage'])
             ->withCount(['messages as unread' => fn ($query) => $query->where('is_from_admin', false)->where('is_read', false)])
+            ->whereHas('user', fn ($q) => $q->realUsers())
             ->when($search, fn ($query) => $query->whereHas('user', fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
+                ->realUsers()
+                ->where(fn ($inner) => $inner
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%"))
             ))
             ->latest('updated_at')
             ->get();
@@ -34,7 +37,9 @@ class ChatController extends Controller
 
     public function create()
     {
-        $users = User::where('is_admin', false)
+        $users = User::query()
+            ->realUsers()
+            ->where('is_admin', false)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
@@ -46,6 +51,8 @@ class ChatController extends Controller
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
         ]);
+
+        abort_unless(User::query()->realUsers()->whereKey($validated['user_id'])->exists(), 404);
 
         $conversation = Conversation::firstOrCreate(['user_id' => $validated['user_id']]);
 

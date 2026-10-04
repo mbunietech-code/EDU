@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Support\Permissions;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -273,6 +275,21 @@ class User extends Authenticatable
     public function isOnline(): bool
     {
         return $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(2));
+    }
+
+    /**
+     * Customer/member accounts only. Meeting guests use short-lived access and
+     * should not affect admin user counts, member pickers or customer reports.
+     */
+    public function scopeRealUsers(Builder $query): Builder
+    {
+        if (Schema::hasColumn($this->getTable(), 'is_guest')) {
+            $query->where(function (Builder $q) {
+                $q->where('is_guest', false)->orWhereNull('is_guest');
+            });
+        }
+
+        return $query;
     }
 
     public static function anyAdminOnline(): bool

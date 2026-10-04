@@ -586,7 +586,7 @@ class VideoService
         }
 
         $id = (int) $data['instructor_id'];
-        if (! User::query()->whereKey($id)->exists()) {
+        if (! User::query()->realUsers()->whereKey($id)->exists()) {
             throw ValidationException::withMessages(['instructor_id' => 'The selected instructor does not exist.']);
         }
 

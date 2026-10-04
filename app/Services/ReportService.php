@@ -68,7 +68,7 @@ class ReportService
     public function getDashboardMetrics(): array
     {
         return [
-            'total_users' => \App\Models\User::count(),
+            'total_users' => \App\Models\User::query()->realUsers()->count(),
             'total_products' => \App\Models\Product::count(),
             'total_accounts' => Account::count(),
             'available_accounts' => Account::where('status', 'available')->count(),

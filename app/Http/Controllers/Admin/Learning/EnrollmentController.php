@@ -31,6 +31,7 @@ class EnrollmentController extends Controller
         ]);
 
         $users = User::query()
+            ->realUsers()
             ->whereIn('id', array_map('intval', $data['user_ids']))
             ->where('status', 'active')
             ->get(['id', 'name']);

@@ -1506,7 +1506,7 @@ class RoomService
             throw ValidationException::withMessages(['host_id' => 'Only room managers can assign another host.']);
         }
 
-        $host = User::query()->find($hostId);
+        $host = User::query()->realUsers()->find($hostId);
         if (! $host || ! $host->isActive() || ! $host->canHostRooms()) {
             throw ValidationException::withMessages(['host_id' => 'The selected user cannot host live rooms.']);
         }
@@ -1591,7 +1591,7 @@ class RoomService
 
         $valid = $wanted->isEmpty()
             ? collect()
-            : User::query()->whereIn('id', $wanted->all())->pluck('id')->map(fn ($id) => (int) $id);
+            : User::query()->realUsers()->whereIn('id', $wanted->all())->pluck('id')->map(fn ($id) => (int) $id);
 
         LearningRoomMember::query()
             ->where('learning_room_id', $room->id)
