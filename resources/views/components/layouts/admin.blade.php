@@ -10,6 +10,7 @@
     <link rel="icon" href="{{ \App\Support\Branding::faviconUrl() ?? asset('favicon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="min-h-screen bg-gray-100" x-data="{ sidebarOpen: false }">
     <div class="min-h-full">
@@ -27,20 +28,38 @@
                 </button>
             </div>
 
-            <nav class="mt-4 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+            <nav class="mt-4 flex-1 overflow-hidden px-3 pb-3">
                 <x-admin.sidebar-link :route="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" label="Dashboard">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
                 </x-admin.sidebar-link>
 
                 @php
                     $canAny = fn (...$perms) => collect($perms)->contains(fn ($p) => auth()->user()->can($p));
+                    $me = auth()->user();
+                    $systemSectionVisible = $canAny('settings.manage', 'finance.access', 'database.access', 'ai.access', 'team.manage');
+                    $adminNavSection = match (true) {
+                        request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
+                        request()->routeIs('admin.orders.*', 'admin.payments.*', 'admin.chat.*', 'admin.team-chat.*', 'admin.contact-messages.*', 'admin.payment-methods.*', 'admin.subscriptions.*') => 'operations',
+                        request()->routeIs('admin.reports.*', 'admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.notifications.*') => 'insights',
+                        request()->routeIs('admin.settings.*', 'admin.finance.*', 'admin.database.*', 'admin.optimization.*', 'admin.ai-assistant.*', 'admin.team.*') && $systemSectionVisible => 'system',
+                        default => 'management',
+                    };
                 @endphp
 
-                @if ($canAny('users.view','products.view','tools.view','scholarships.view'))
-                <div class="pt-2">
-                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Management</p>
-                </div>
-                @endif
+                <div class="mt-3" x-data="{ section: @js($adminNavSection) }">
+                    <label for="admin-nav-section" class="sr-only">Admin section</label>
+                    <select id="admin-nav-section" x-model="section"
+                        class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-semibold text-white shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
+                        <option value="management">Management</option>
+                        <option value="learning">Learning</option>
+                        <option value="operations">Operations</option>
+                        <option value="insights">Insights</option>
+                        @if ($systemSectionVisible)
+                            <option value="system">System</option>
+                        @endif
+                    </select>
+
+                    <div class="mt-3 space-y-1" x-show="section === 'management'" x-cloak>
 
                 @can('users.view')
                 <x-admin.sidebar-link :route="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" label="Users">
@@ -93,13 +112,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </x-admin.sidebar-link>
                 @endif
+                    </div>
 
-                @php($me = auth()->user())
-                @if ($me->can('learning.view') || $me->can('rooms.view') || $me->canAccessStudio())
-                <div class="pt-2">
-                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Learning</p>
-                </div>
-                @endif
+                    <div class="mt-3 space-y-1" x-show="section === 'learning'" x-cloak>
 
                 @can('learning.view')
                 <x-admin.sidebar-link :route="route('admin.learning.dashboard')" :active="request()->routeIs('admin.learning.dashboard')" label="Learning Overview">
@@ -149,12 +164,9 @@
                 <x-admin.sidebar-link :route="route('learn.dashboard')" :active="request()->routeIs('learn.*')" label="Learning Library">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v-5.25l4.5 2.625L9 11.25z" />
                 </x-admin.sidebar-link>
+                    </div>
 
-                @if ($canAny('orders.view','payments.view','payment_methods.manage','chat.view','contact_messages.view','subscriptions.view'))
-                <div class="pt-2">
-                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Operations</p>
-                </div>
-                @endif
+                    <div class="mt-3 space-y-1" x-show="section === 'operations'" x-cloak>
 
                 @can('orders.view')
                 <x-admin.sidebar-link :route="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')" label="Orders">
@@ -197,12 +209,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </x-admin.sidebar-link>
                 @endcan
+                    </div>
 
-                @if ($canAny('reports.view','activity_logs.view','deleted_records.view','error_logs.view'))
-                <div class="pt-2">
-                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Insights</p>
-                </div>
-                @endif
+                    <div class="mt-3 space-y-1" x-show="section === 'insights'" x-cloak>
 
                 @can('reports.view')
                 <x-admin.sidebar-link :route="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')" label="Reports">
@@ -233,12 +242,10 @@
                     :badge="auth()->user()->unreadNotifications()->count()">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                 </x-admin.sidebar-link>
+                    </div>
 
-                @if ($canAny('settings.manage','finance.access','database.access','team.manage'))
-                <div class="pt-2">
-                    <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">System</p>
-                </div>
-                @endif
+                    @if ($systemSectionVisible)
+                    <div class="mt-3 space-y-1" x-show="section === 'system'" x-cloak>
 
                 @can('settings.manage')
                 <x-admin.sidebar-link :route="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*')" label="Settings">
@@ -275,21 +282,29 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                 </x-admin.sidebar-link>
                 @endcan
+                    </div>
+                    @endif
+                </div>
             </nav>
 
-            <div class="shrink-0 border-t border-gray-800 p-1.5 space-y-0">
-                <a href="{{ route('public.home') }}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-xs text-gray-300 hover:bg-gray-800 hover:text-white">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                    </svg>
-                    View Public Site
-                </a>
-                <form method="POST" action="{{ route('logout') }}">
+            <div class="shrink-0 border-t border-gray-800 p-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ route('public.home') }}" class="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                        <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                        </svg>
+                        <span class="truncate">Public Site</span>
+                    </a>
+                    <form method="POST" action="{{ route('logout') }}" class="m-0">
                     @csrf
-                    <x-mbui.button variant="ghost" type="submit" class="w-full justify-start !gap-2 !px-2 !py-1 !text-xs !text-gray-300 hover:!bg-gray-800 hover:!text-white">
-                        Sign out
-                    </x-mbui.button>
-                </form>
+                        <button type="submit" class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                            <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                            </svg>
+                            <span class="truncate">Sign out</span>
+                        </button>
+                    </form>
+                </div>
             </div>
         </aside>
 
