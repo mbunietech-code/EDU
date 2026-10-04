@@ -118,8 +118,6 @@
         </div>
     </footer>
 
-    <x-support-chat-button />
-
     @livewireScripts
     @stack('scripts')
 </body>
