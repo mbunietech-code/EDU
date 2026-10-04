@@ -46,20 +46,16 @@
                     };
                 @endphp
 
-                <div class="mt-3" x-data="{ section: @js($adminNavSection) }">
-                    <label for="admin-nav-section" class="sr-only">Admin section</label>
-                    <select id="admin-nav-section" x-model="section"
-                        class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-semibold text-white shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
-                        <option value="management">Management</option>
-                        <option value="learning">Learning</option>
-                        <option value="operations">Operations</option>
-                        <option value="insights">Insights</option>
-                        @if ($systemSectionVisible)
-                            <option value="system">System</option>
-                        @endif
-                    </select>
+                <div class="mt-3 space-y-2" x-data="{ openSection: @js($adminNavSection) }">
+                    <button type="button" @click="openSection = openSection === 'management' ? null : 'management'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span>Management</span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'management' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
 
-                    <div class="mt-3 space-y-1" x-show="section === 'management'" x-cloak>
+                    <div class="space-y-1 pl-1" x-show="openSection === 'management'" x-cloak>
 
                 @can('users.view')
                 <x-admin.sidebar-link :route="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" label="Users">
@@ -114,7 +110,15 @@
                 @endif
                     </div>
 
-                    <div class="mt-3 space-y-1" x-show="section === 'learning'" x-cloak>
+                    <button type="button" @click="openSection = openSection === 'learning' ? null : 'learning'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span>Learning</span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'learning' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div class="space-y-1 pl-1" x-show="openSection === 'learning'" x-cloak>
 
                 @can('learning.view')
                 <x-admin.sidebar-link :route="route('admin.learning.dashboard')" :active="request()->routeIs('admin.learning.dashboard')" label="Learning Overview">
@@ -166,7 +170,15 @@
                 </x-admin.sidebar-link>
                     </div>
 
-                    <div class="mt-3 space-y-1" x-show="section === 'operations'" x-cloak>
+                    <button type="button" @click="openSection = openSection === 'operations' ? null : 'operations'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span>Operations</span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'operations' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div class="space-y-1 pl-1" x-show="openSection === 'operations'" x-cloak>
 
                 @can('orders.view')
                 <x-admin.sidebar-link :route="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')" label="Orders">
@@ -211,7 +223,15 @@
                 @endcan
                     </div>
 
-                    <div class="mt-3 space-y-1" x-show="section === 'insights'" x-cloak>
+                    <button type="button" @click="openSection = openSection === 'insights' ? null : 'insights'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span>Insights</span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'insights' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div class="space-y-1 pl-1" x-show="openSection === 'insights'" x-cloak>
 
                 @can('reports.view')
                 <x-admin.sidebar-link :route="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')" label="Reports">
@@ -245,7 +265,15 @@
                     </div>
 
                     @if ($systemSectionVisible)
-                    <div class="mt-3 space-y-1" x-show="section === 'system'" x-cloak>
+                    <button type="button" @click="openSection = openSection === 'system' ? null : 'system'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span>System</span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'system' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div class="space-y-1 pl-1" x-show="openSection === 'system'" x-cloak>
 
                 @can('settings.manage')
                 <x-admin.sidebar-link :route="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*')" label="Settings">
