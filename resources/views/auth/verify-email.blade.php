@@ -1,31 +1,54 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn\'t receive the email, we will gladly send you another.') }}
-    </div>
+<x-layouts.public title="Verify Email">
 
-    @if (session('status') == 'verification-link-sent')
-        <div class="mb-4 font-medium text-sm text-green-600">
-            {{ __('A new verification link has been sent to the email address you provided during registration.') }}
-        </div>
-    @endif
+    <section class="mbui-container flex min-h-[72vh] items-center justify-center py-16">
+        <div class="w-full max-w-lg">
+            <div class="mbui-card p-6 sm:p-8">
+                <div class="mb-5 flex justify-center">
+                    <x-brand-mark class="h-12 w-12" rounded="rounded-xl" />
+                </div>
+                <h1 class="mbui-title text-center">Verify your email</h1>
+                <p class="mt-2 text-center text-sm leading-6 text-gray-500">
+                    We sent a 6-digit code to <span class="font-medium text-gray-700">{{ auth()->user()->email }}</span>.
+                    Enter it below to activate your account.
+                </p>
 
-    <div class="mt-4 flex items-center justify-between">
-        <form method="POST" action="{{ route('verification.send') }}">
-            @csrf
+                @if (session('status') === 'verification-code-sent' || session('status') === 'verification-link-sent')
+                    <div class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                        A fresh verification code has been sent to your email.
+                    </div>
+                @endif
 
-            <div>
-                <x-primary-button>
-                    {{ __('Resend Verification Email') }}
-                </x-primary-button>
+                <form method="POST" action="{{ route('verification.code') }}" class="mt-6 space-y-5">
+                    @csrf
+
+                    <div>
+                        <x-input-label for="code" value="Verification Code" />
+                        <x-text-input id="code" class="mbui-input mt-1 text-center text-lg font-semibold tracking-[0.35em]" type="text" inputmode="numeric" name="code" :value="old('code')" required autofocus maxlength="6" autocomplete="one-time-code" placeholder="000000" />
+                        <x-input-error :messages="$errors->get('code')" class="mt-2" />
+                    </div>
+
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                        Verify email
+                    </button>
+                </form>
+
+                <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <form method="POST" action="{{ route('verification.send') }}">
+                        @csrf
+                        <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                            Send a new code
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="text-sm font-medium text-gray-500 hover:text-gray-800">
+                            Sign out
+                        </button>
+                    </form>
+                </div>
             </div>
-        </form>
+        </div>
+    </section>
 
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-
-            <button type="submit" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                {{ __('Log Out') }}
-            </button>
-        </form>
-    </div>
-</x-guest-layout>
+</x-layouts.public>

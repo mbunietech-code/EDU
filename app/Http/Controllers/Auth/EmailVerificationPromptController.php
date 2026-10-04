@@ -14,8 +14,18 @@ class EmailVerificationPromptController extends Controller
      */
     public function __invoke(Request $request): RedirectResponse|View
     {
-        return $request->user()->hasVerifiedEmail()
-                    ? redirect()->intended(route('dashboard', absolute: false))
-                    : view('auth.verify-email');
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        if (
+            $request->user()->email_verification_code === null
+            || $request->user()->email_verification_code_expires_at?->isPast()
+        ) {
+            $request->user()->sendEmailVerificationNotification();
+            session()->flash('status', 'verification-code-sent');
+        }
+
+        return view('auth.verify-email');
     }
 }

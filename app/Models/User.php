@@ -2,17 +2,19 @@
 
 namespace App\Models;
 
+use App\Notifications\Auth\EmailVerificationCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -31,12 +33,14 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code',
     ];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_code_expires_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -62,6 +66,31 @@ class User extends Authenticatable
                 ], true);
             }
         });
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->sendEmailVerificationCode();
+    }
+
+    public function sendEmailVerificationCode(): void
+    {
+        $code = (string) random_int(100000, 999999);
+        $expiresInMinutes = 15;
+
+        $this->forceFill([
+            'email_verification_code' => $code,
+            'email_verification_code_expires_at' => now()->addMinutes($expiresInMinutes),
+        ])->save();
+
+        $this->notify(new EmailVerificationCode($code, $expiresInMinutes));
+    }
+
+    public function hasValidEmailVerificationCode(string $code): bool
+    {
+        return $this->email_verification_code !== null
+            && hash_equals($this->email_verification_code, preg_replace('/\D+/', '', $code))
+            && $this->email_verification_code_expires_at?->isFuture();
     }
 
     /**

@@ -1,10 +1,15 @@
 <x-layouts.public title="Forgot Password">
 
-    <section class="mbui-container flex min-h-[70vh] items-center justify-center py-16">
+    <section class="mbui-container flex min-h-[72vh] items-center justify-center py-16">
         <div class="w-full max-w-md">
-            <div class="mbui-card p-8">
-                <h1 class="mbui-title text-center">Forgot your password?</h1>
-                <p class="mt-1 text-center text-sm text-gray-500">No problem. Enter your email and we'll send you a password reset link.</p>
+            <div class="mbui-card p-6 sm:p-8">
+                <div class="mb-5 flex justify-center">
+                    <x-brand-mark class="h-12 w-12" rounded="rounded-xl" />
+                </div>
+                <h1 class="mbui-title text-center">Reset your password</h1>
+                <p class="mt-2 text-center text-sm leading-6 text-gray-500">
+                    Enter your account email and we will send a secure reset link.
+                </p>
 
                 @if (session('status'))
                     <div class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -17,12 +22,12 @@
 
                     <div>
                         <x-input-label for="email" value="Email Address" />
-                        <x-text-input id="email" class="mbui-input mt-1" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
+                        <x-text-input id="email" class="mbui-input mt-1" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" />
                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
                     </div>
 
                     <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        Email password reset link
+                        Send reset link
                     </button>
                 </form>
 
