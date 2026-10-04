@@ -56,7 +56,7 @@
                             <x-currency-conversion :amount="$order->amount" stacked class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
                         <td class="mbui-td px-3">
-                            <x-mbui.status-badge :status="$order->status" />
+                            <x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" />
                             @if ($order->payment)
                                 <div class="mt-1.5"><x-mbui.status-badge :status="$order->payment->status" /></div>
                             @endif

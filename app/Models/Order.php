@@ -88,6 +88,45 @@ class Order extends Model
         return $this->status === 'cancelled';
     }
 
+    public function accessExpired(): bool
+    {
+        if (! $this->isConfirmed()) {
+            return false;
+        }
+
+        if ($this->isSoftware()) {
+            return $this->softwareAccessLocked();
+        }
+
+        $subscription = $this->relationLoaded('subscription')
+            ? $this->subscription
+            : $this->subscription()->first();
+
+        return $subscription !== null
+            && ($subscription->status === 'expired' || $subscription->isExpired());
+    }
+
+    public function displayStatus(): string
+    {
+        if ($this->accessExpired()) {
+            return 'expired';
+        }
+
+        return match ($this->status) {
+            'confirmed', 'paid' => 'active',
+            default => (string) $this->status,
+        };
+    }
+
+    public function displayStatusLabel(): string
+    {
+        return match ($this->displayStatus()) {
+            'active' => 'Active',
+            'expired' => 'Expired',
+            default => ucwords(str_replace('_', ' ', (string) $this->status)),
+        };
+    }
+
     /**
      * A customer may cancel their own order only while it is still pending
      * and no payment has been approved. Confirmed orders can never be

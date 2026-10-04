@@ -187,7 +187,7 @@
                             <td class="mbui-td">TZS {{ number_format($order->amount) }}
                                 <x-currency-conversion :amount="$order->amount" class="mt-1 text-xs font-semibold text-gray-600" />
                             </td>
-                            <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
+                            <td class="mbui-td"><x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" /></td>
                             <td class="mbui-td">
                                 <a href="{{ route('user.payments.create', $order) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Submit payment</a>
                             </td>

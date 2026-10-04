@@ -1,4 +1,4 @@
-@props(['status'])
+@props(['status', 'label' => null])
 
 @php
     $map = [
@@ -8,7 +8,7 @@
         'paid' => 'success',
         'confirmed' => 'success',
         'published' => 'success',
-        'pending' => 'warning',
+        'pending' => 'info',
         'expiring_soon' => 'warning',
         'suspended' => 'warning',
         'inactive' => 'warning',
@@ -28,4 +28,4 @@
     $appearance = $map[strtolower((string) $status)] ?? 'neutral';
 @endphp
 
-<x-mbui.badge :appearance="$appearance">{{ ucwords(str_replace('_', ' ', $status)) }}</x-mbui.badge>
+<x-mbui.badge :appearance="$appearance">{{ $label ?? ucwords(str_replace('_', ' ', $status)) }}</x-mbui.badge>

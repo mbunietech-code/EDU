@@ -51,7 +51,7 @@ class OrderController extends Controller
     {
         $orders = $request->user()
             ->orders()
-            ->with(['product:id,name,slug', 'tool:id,name,slug', 'plan:id,name'])
+            ->with(['product:id,name,slug,type', 'tool:id,name,slug', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
             ->latest()
             ->paginate(20);
 
@@ -69,7 +69,7 @@ class OrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        $order->load(['product:id,name,slug', 'tool:id,name,slug', 'plan:id,name', 'payments:id,order_id,amount,status,created_at']);
+        $order->load(['product:id,name,slug,type', 'tool:id,name,slug', 'plan:id,name', 'payments:id,order_id,amount,status,created_at', 'subscription:id,order_id,status,expiry_date']);
 
         return response()->json([
             'data' => array_merge($this->row($order), [
@@ -131,6 +131,8 @@ class OrderController extends Controller
             'amount' => (float) $o->amount,
             'amount_label' => 'TZS '.number_format((float) $o->amount),
             'status' => $o->status,
+            'display_status' => $o->displayStatus(),
+            'display_status_label' => $o->displayStatusLabel(),
             'can_cancel' => $o->canBeCancelledByCustomer(),
             'created_at' => optional($o->created_at)->toIso8601String(),
             'created_ago' => optional($o->created_at)->diffForHumans(),

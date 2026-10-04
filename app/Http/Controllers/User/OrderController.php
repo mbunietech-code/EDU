@@ -24,7 +24,7 @@ class OrderController extends Controller
     {
         $orders = auth()->user()
             ->orders()
-            ->with(['product', 'plan', 'tool'])
+            ->with(['product', 'plan', 'tool', 'subscription'])
             ->latest()
             ->paginate(15);
 

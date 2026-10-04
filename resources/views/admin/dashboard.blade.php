@@ -73,7 +73,7 @@
                         <td class="mbui-td">TZS {{ number_format($order->amount) }}
                             <x-currency-conversion :amount="$order->amount" stacked class="mt-1 text-xs font-semibold text-gray-600" />
                         </td>
-                        <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
+                        <td class="mbui-td"><x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" /></td>
                     </tr>
                 @empty
                     <tr><td colspan="5" class="mbui-td text-center text-gray-400">No orders yet</td></tr>

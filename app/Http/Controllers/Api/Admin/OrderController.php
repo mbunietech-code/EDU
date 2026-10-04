@@ -13,7 +13,7 @@ class OrderController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $orders = Order::with(['user:id,name,email', 'product:id,name', 'tool:id,name', 'plan:id,name'])
+        $orders = Order::with(['user:id,name,email', 'product:id,name,type', 'tool:id,name', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = $request->string('search');
@@ -42,7 +42,7 @@ class OrderController extends Controller
     {
         $order->load([
             'user:id,name,email',
-            'product:id,name',
+            'product:id,name,type',
             'tool:id,name',
             'plan:id,name',
             'payments' => fn ($q) => $q->latest(),
@@ -141,6 +141,8 @@ class OrderController extends Controller
             'plan' => $o->plan->name ?? null,
             'amount_label' => 'TZS '.number_format((float) $o->amount),
             'status' => $o->status,
+            'display_status' => $o->displayStatus(),
+            'display_status_label' => $o->displayStatusLabel(),
             'created_ago' => optional($o->created_at)->diffForHumans(),
             'created_at' => optional($o->created_at)->toIso8601String(),
         ];

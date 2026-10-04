@@ -14,7 +14,7 @@
                     Download Receipt
                 </a>
             @endif
-            <x-mbui.status-badge :status="$order->status" />
+            <x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" />
         </div>
     </div>
 
@@ -38,7 +38,7 @@
                     </div>
                     <div>
                         <dt class="mbui-section-label">Status</dt>
-                        <dd class="mt-1"><x-mbui.status-badge :status="$order->status" /></dd>
+                        <dd class="mt-1"><x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" /></dd>
                     </div>
                 </dl>
             </x-mbui.card>

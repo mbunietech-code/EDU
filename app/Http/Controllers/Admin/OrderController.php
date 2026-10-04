@@ -13,7 +13,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $orders = Order::with(['user', 'product', 'plan', 'tool', 'payment'])
+        $orders = Order::with(['user', 'product', 'plan', 'tool', 'payment', 'subscription'])
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
             })

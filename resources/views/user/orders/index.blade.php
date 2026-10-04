@@ -45,7 +45,7 @@
                                     <span class="text-gray-400">-</span>
                                 @endif
                             </td>
-                            <td class="mbui-td"><x-mbui.status-badge :status="$order->status" /></td>
+                            <td class="mbui-td"><x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" /></td>
                             <td class="mbui-td">
                                 @if ($order->isPending())
                                     <a href="{{ route('user.payments.create', $order) }}" class="mbui-anchor text-sm">Submit payment</a>
