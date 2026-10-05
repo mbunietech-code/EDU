@@ -361,7 +361,7 @@ class FinanceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $validated['staff_number'] = $validated['staff_number'] ?: $this->nextStaffNumber();
+        $validated['staff_number'] = ($validated['staff_number'] ?? null) ?: $this->nextStaffNumber();
         $validated['basic_salary'] = $validated['basic_salary'] ?? 0;
         $validated['created_by'] = auth()->id();
 
@@ -672,6 +672,16 @@ class FinanceController extends Controller
 
     protected function nextStaffNumber(): string
     {
-        return 'STF-'.str_pad((string) (FinanceStaff::withTrashed()->count() + 1), 5, '0', STR_PAD_LEFT);
+        $last = FinanceStaff::withTrashed()
+            ->where('staff_number', 'like', 'Mhub-%')
+            ->pluck('staff_number')
+            ->map(fn ($number) => (int) substr($number, 5))
+            ->max() ?? 0;
+
+        do {
+            $number = 'Mhub-'.str_pad((string) ++$last, 3, '0', STR_PAD_LEFT);
+        } while (FinanceStaff::withTrashed()->where('staff_number', $number)->exists());
+
+        return $number;
     }
 }

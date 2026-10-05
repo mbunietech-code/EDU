@@ -13,7 +13,7 @@
                 @csrf
                 <div><x-input-label for="first_name" value="First name" /><x-text-input id="first_name" name="first_name" class="mbui-input mt-1" required /></div>
                 <div><x-input-label for="last_name" value="Last name" /><x-text-input id="last_name" name="last_name" class="mbui-input mt-1" required /></div>
-                <div><x-input-label for="staff_number" value="Staff number" /><x-text-input id="staff_number" name="staff_number" class="mbui-input mt-1" placeholder="Auto if empty" /></div>
+                <div><x-input-label for="staff_number" value="Staff number" /><x-text-input id="staff_number" name="staff_number" class="mbui-input mt-1" placeholder="Auto: Mhub-001" /></div>
                 <div><x-input-label for="phone" value="Phone" /><x-text-input id="phone" name="phone" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="email" value="Email" /><x-text-input id="email" type="email" name="email" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="hire_date" value="Hire date" /><x-text-input id="hire_date" type="date" name="hire_date" class="mbui-input mt-1" /></div>
@@ -48,6 +48,8 @@
                 </div>
                 <div><x-input-label for="basic_salary" value="Basic salary" /><x-text-input id="basic_salary" type="number" min="0" step="0.01" name="basic_salary" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="bank_name" value="Bank name" /><x-text-input id="bank_name" name="bank_name" class="mbui-input mt-1" /></div>
+                <div><x-input-label for="bank_account_number" value="Bank account number" /><x-text-input id="bank_account_number" name="bank_account_number" class="mbui-input mt-1" /></div>
+                <div><x-input-label for="mobile_money" value="Mobile money number" /><x-text-input id="mobile_money" name="mobile_money" class="mbui-input mt-1" placeholder="e.g. 0712 345 678" /></div>
                 <div class="sm:col-span-2"><x-input-label for="notes" value="Notes" /><textarea id="notes" name="notes" rows="2" class="mbui-input mt-1"></textarea></div>
                 <div class="sm:col-span-2"><x-mbui.button type="submit">Save staff</x-mbui.button></div>
             </form>
