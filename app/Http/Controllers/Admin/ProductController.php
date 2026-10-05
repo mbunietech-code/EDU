@@ -135,7 +135,7 @@ class ProductController extends Controller
     public function uploadSoftwareFile(Request $request)
     {
         $validated = $request->validate([
-            'software_file' => ['required', 'file', 'mimes:exe,zip,msi,rar,apk', 'max:153600'],
+            'software_file' => ['required', 'file', 'extensions:exe,zip,msi,rar,apk,dmg', 'max:153600'],
         ]);
 
         $path = $this->storeSoftwareFile($request->file('software_file'));

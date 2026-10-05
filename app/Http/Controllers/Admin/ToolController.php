@@ -117,7 +117,7 @@ class ToolController extends Controller
     public function uploadFile(Request $request)
     {
         $validated = $request->validate([
-            'tool_file' => ['required', 'file', 'mimes:exe,zip,msi,rar,apk', 'max:153600'],
+            'tool_file' => ['required', 'file', 'extensions:exe,zip,msi,rar,apk,dmg', 'max:153600'],
         ]);
 
         $file = $this->storeFile($request->file('tool_file'));

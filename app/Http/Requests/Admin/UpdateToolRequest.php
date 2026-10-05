@@ -25,7 +25,7 @@ class UpdateToolRequest extends FormRequest
             'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
             'is_featured' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
-            'tool_file' => ['nullable', 'file', 'mimes:exe,zip,msi,rar,apk', 'max:153600'],
+            'tool_file' => ['nullable', 'file', 'extensions:exe,zip,msi,rar,apk,dmg', 'max:153600'],
             'tool_file_path' => ['nullable', 'string', 'max:500'],
             'tool_filename' => ['nullable', 'string', 'max:255'],
             'remove_file' => ['nullable', 'boolean'],

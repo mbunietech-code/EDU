@@ -56,7 +56,7 @@
                     <x-input-error :messages="$errors->get('software_version')" class="mt-2" />
                 </div>
                 <div>
-                    <x-input-label for="software_file" value="Software file (exe / zip - leave empty to keep current)" />
+                    <x-input-label for="software_file" value="Software file (exe / zip / msi / rar / apk / dmg - leave empty to keep current)" />
                     <div x-data="{ uploading: false, progress: 0, filePath: '', fileName: '',
                         onFileChange(ev) {
                             const file = ev.target.files[0];
@@ -79,7 +79,7 @@
                                     this.filePath = r.path;
                                     this.fileName = r.filename;
                                 } else {
-                                    alert('Upload failed. Use an exe/zip/msi/rar/apk file under 150MB.');
+                                    alert('Upload failed. Use an exe/zip/msi/rar/apk/dmg file under 150MB.');
                                 }
                             };
                             xhr.onerror = () => { this.uploading = false; alert('Upload failed. Check your connection.'); };
@@ -87,7 +87,7 @@
                         },
                         detach() { this.filePath = ''; this.fileName = ''; }
                     }">
-                        <input type="file" accept=".exe,.zip,.msi,.rar,.apk"
+                        <input type="file" accept=".exe,.zip,.msi,.rar,.apk,.dmg"
                             class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
                             @change="onFileChange($event)">
                         <template x-if="uploading">
