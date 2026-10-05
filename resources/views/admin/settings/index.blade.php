@@ -96,13 +96,15 @@
                             <div>
                                 <x-input-label :for="'url_'.$platform" value="Link (URL)" />
                                 <x-text-input :id="'url_'.$platform" type="url" :name="'url_'.$platform" class="mbui-input mt-1"
-                                    :value="old('url_'.$platform, $row['url'])" placeholder="https://github.com/.../MHub-Setup.exe" />
+                                    :value="old('url_'.$platform, $row['url'])" placeholder="{{ in_array($platform, ['ios', 'macos'], true) ? 'https://github.com/.../MHub.dmg' : 'https://github.com/.../MHub-Setup.exe' }}" />
                                 <x-input-error :messages="$errors->get('url_'.$platform)" class="mt-1" />
                             </div>
                             <div>
                                 <x-input-label :for="'file_'.$platform" value="…or upload a file" />
                                 <input :id="'file_'.$platform" type="file" name="file_{{ $platform }}"
+                                    accept=".apk,.zip,.exe,.msi,.dmg,.deb,.appimage,.gz,.tar"
                                     class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                                <p class="mt-1 text-xs text-gray-500">APK, ZIP, EXE, MSI, DMG, DEB, AppImage, GZ or TAR. Max 256 MB.</p>
                                 <x-input-error :messages="$errors->get('file_'.$platform)" class="mt-1" />
                             </div>
                             <div>

@@ -25,6 +25,7 @@ class AppDownloads
      */
     public const PLATFORMS = [
         'android' => 'Android',
+        'ios' => 'iPhone (iOS)',
         'windows' => 'Windows',
         'macos' => 'macOS',
         'linux' => 'Linux',
