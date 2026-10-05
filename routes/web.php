@@ -399,6 +399,14 @@ Route::prefix('admin')
             Route::get('finance/expenses/{expense}/edit', [FinanceController::class, 'expenseEdit'])->name('finance.expenses.edit');
             Route::put('finance/expenses/{expense}', [FinanceController::class, 'expenseUpdate'])->name('finance.expenses.update');
             Route::delete('finance/expenses/{expense}', [FinanceController::class, 'expenseDestroy'])->name('finance.expenses.destroy');
+            Route::get('finance/staff-dashboard', [FinanceController::class, 'staffDashboard'])->name('finance.staff.dashboard');
+            Route::get('finance/staff', [FinanceController::class, 'staffIndex'])->name('finance.staff.index');
+            Route::post('finance/staff', [FinanceController::class, 'staffStore'])->name('finance.staff.store');
+            Route::post('finance/staff/settings', [FinanceController::class, 'directorySettings'])->name('finance.staff.settings.store');
+            Route::get('finance/contracts', [FinanceController::class, 'contractsIndex'])->name('finance.contracts.index');
+            Route::post('finance/contracts', [FinanceController::class, 'contractsStore'])->name('finance.contracts.store');
+            Route::get('finance/payroll', [FinanceController::class, 'payrollIndex'])->name('finance.payroll.index');
+            Route::post('finance/payroll', [FinanceController::class, 'payrollStore'])->name('finance.payroll.store');
         });
         });
 
@@ -425,4 +433,3 @@ Route::prefix('admin')
 require __DIR__.'/learning.php';
 
 require __DIR__.'/auth.php';
-

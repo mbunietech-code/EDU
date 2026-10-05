@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\FinanceCapitalEntry;
+use App\Models\FinanceDepartment;
+use App\Models\FinanceEmploymentType;
 use App\Models\FinanceExpense;
+use App\Models\FinancePayrollPeriod;
+use App\Models\FinancePosition;
+use App\Models\FinanceStaff;
+use App\Models\FinanceStaffContract;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Tool;
 use App\Services\DeletionService;
 use App\Services\FinanceOverviewService;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -276,6 +283,234 @@ class FinanceController extends Controller
         return back()->with('success', 'Expense removed.');
     }
 
+    public function staffDashboard()
+    {
+        $today = now()->toDateString();
+        $soon = now()->addDays(30)->toDateString();
+
+        $metrics = [
+            'total_staff' => FinanceStaff::count(),
+            'active_staff' => FinanceStaff::where('status', 'active')->count(),
+            'departments' => FinanceDepartment::count(),
+            'active_contracts' => FinanceStaffContract::where('status', 'active')->count(),
+            'expiring_contracts' => FinanceStaffContract::where('status', 'active')->whereBetween('end_date', [$today, $soon])->count(),
+            'expired_contracts' => FinanceStaffContract::whereNotNull('end_date')->where('end_date', '<', $today)->whereNotIn('status', ['renewed', 'terminated', 'cancelled'])->count(),
+            'current_payroll_net' => (float) FinancePayrollPeriod::latest('period_month')->value('net_pay'),
+        ];
+
+        $recentStaff = FinanceStaff::with(['department', 'position'])->latest()->limit(6)->get();
+        $expiringContracts = FinanceStaffContract::with(['staff', 'department', 'position'])
+            ->where('status', 'active')
+            ->whereBetween('end_date', [$today, $soon])
+            ->orderBy('end_date')
+            ->limit(8)
+            ->get();
+        $payrolls = FinancePayrollPeriod::latest('period_month')->limit(5)->get();
+
+        return view('admin.finance.staff-dashboard', compact('metrics', 'recentStaff', 'expiringContracts', 'payrolls'));
+    }
+
+    public function staffIndex(Request $request)
+    {
+        $query = FinanceStaff::with(['department', 'position', 'employmentType'])->latest();
+
+        if ($search = trim((string) $request->query('q'))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('staff_number', 'like', "%{$search}%")
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('middle_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->query('status'));
+        }
+
+        $staff = $query->paginate(20)->withQueryString();
+        $departments = FinanceDepartment::orderBy('name')->get();
+        $positions = FinancePosition::orderBy('name')->get();
+        $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
+
+        return view('admin.finance.staff', compact('staff', 'departments', 'positions', 'employmentTypes'));
+    }
+
+    public function staffStore(Request $request)
+    {
+        $validated = $request->validate([
+            'staff_number' => ['nullable', 'string', 'max:40', 'unique:finance_staff,staff_number'],
+            'first_name' => ['required', 'string', 'max:120'],
+            'middle_name' => ['nullable', 'string', 'max:120'],
+            'last_name' => ['required', 'string', 'max:120'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
+            'email' => ['nullable', 'email:rfc,dns', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
+            'finance_position_id' => ['nullable', 'exists:finance_positions,id'],
+            'finance_employment_type_id' => ['nullable', 'exists:finance_employment_types,id'],
+            'hire_date' => ['nullable', 'date'],
+            'status' => ['required', Rule::in(['active', 'on_leave', 'suspended', 'resigned', 'terminated', 'retired', 'inactive'])],
+            'basic_salary' => ['nullable', 'numeric', 'min:0'],
+            'bank_name' => ['nullable', 'string', 'max:120'],
+            'bank_account_number' => ['nullable', 'string', 'max:120'],
+            'mobile_money' => ['nullable', 'string', 'max:120'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $validated['staff_number'] = $validated['staff_number'] ?: $this->nextStaffNumber();
+        $validated['basic_salary'] = $validated['basic_salary'] ?? 0;
+        $validated['created_by'] = auth()->id();
+
+        $staff = FinanceStaff::create($validated);
+
+        ActivityLog::log('finance_staff_created', 'FinanceStaff', $staff->id, [
+            'staff_number' => $staff->staff_number,
+            'name' => $staff->fullName(),
+        ]);
+
+        return back()->with('success', 'Staff member added.');
+    }
+
+    public function directorySettings(Request $request)
+    {
+        $type = $request->validate([
+            'type' => ['required', Rule::in(['department', 'position', 'employment_type'])],
+            'name' => ['required', 'string', 'max:160'],
+            'code' => ['nullable', 'string', 'max:40'],
+            'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
+            'salary_grade' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        if ($type['type'] === 'department') {
+            FinanceDepartment::firstOrCreate(
+                ['name' => $type['name']],
+                ['code' => $type['code'] ?: null, 'status' => 'active']
+            );
+        } elseif ($type['type'] === 'position') {
+            FinancePosition::firstOrCreate(
+                ['name' => $type['name']],
+                [
+                    'code' => $type['code'] ?: null,
+                    'finance_department_id' => $type['finance_department_id'] ?? null,
+                    'salary_grade' => $type['salary_grade'] ?? null,
+                    'status' => 'active',
+                ]
+            );
+        } else {
+            FinanceEmploymentType::firstOrCreate(
+                ['name' => $type['name']],
+                ['code' => $type['code'] ?: null, 'status' => 'active']
+            );
+        }
+
+        ActivityLog::log('finance_hr_setting_created', 'Finance', null, ['type' => $type['type'], 'name' => $type['name']]);
+
+        return back()->with('success', 'HR setting saved.');
+    }
+
+    public function contractsIndex()
+    {
+        $contracts = FinanceStaffContract::with(['staff', 'department', 'position'])->latest('start_date')->paginate(20);
+        $staff = FinanceStaff::orderBy('first_name')->orderBy('last_name')->get();
+        $departments = FinanceDepartment::orderBy('name')->get();
+        $positions = FinancePosition::orderBy('name')->get();
+        $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
+
+        return view('admin.finance.contracts', compact('contracts', 'staff', 'departments', 'positions', 'employmentTypes'));
+    }
+
+    public function contractsStore(Request $request)
+    {
+        $validated = $request->validate([
+            'finance_staff_id' => ['required', 'exists:finance_staff,id'],
+            'contract_number' => ['nullable', 'string', 'max:80', 'unique:finance_staff_contracts,contract_number'],
+            'contract_type' => ['nullable', 'string', 'max:120'],
+            'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
+            'finance_position_id' => ['nullable', 'exists:finance_positions,id'],
+            'finance_employment_type_id' => ['nullable', 'exists:finance_employment_types,id'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'basic_salary' => ['required', 'numeric', 'min:0'],
+            'salary_grade' => ['nullable', 'string', 'max:80'],
+            'leave_entitlement_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'status' => ['required', Rule::in(['draft', 'active', 'expiring', 'expired', 'renewed', 'terminated', 'cancelled'])],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $staff = FinanceStaff::findOrFail($validated['finance_staff_id']);
+        $validated['contract_number'] = $validated['contract_number'] ?: 'CNT-'.now()->format('Ymd').'-'.str_pad((string) (FinanceStaffContract::count() + 1), 4, '0', STR_PAD_LEFT);
+        $validated['finance_department_id'] ??= $staff->finance_department_id;
+        $validated['finance_position_id'] ??= $staff->finance_position_id;
+        $validated['finance_employment_type_id'] ??= $staff->finance_employment_type_id;
+        $validated['created_by'] = auth()->id();
+
+        $contract = FinanceStaffContract::create($validated);
+
+        if ($contract->status === 'active') {
+            FinanceStaffContract::where('finance_staff_id', $staff->id)
+                ->where('id', '!=', $contract->id)
+                ->where('status', 'active')
+                ->update(['status' => 'renewed']);
+
+            $staff->update([
+                'basic_salary' => $contract->basic_salary,
+                'finance_department_id' => $contract->finance_department_id,
+                'finance_position_id' => $contract->finance_position_id,
+                'finance_employment_type_id' => $contract->finance_employment_type_id,
+                'status' => 'active',
+            ]);
+        }
+
+        ActivityLog::log('finance_contract_created', 'FinanceStaffContract', $contract->id, [
+            'contract_number' => $contract->contract_number,
+            'staff_id' => $staff->staff_number,
+        ]);
+
+        return back()->with('success', 'Contract saved.');
+    }
+
+    public function payrollIndex()
+    {
+        $payrolls = FinancePayrollPeriod::latest('period_month')->paginate(20);
+        $activeStaffCount = FinanceStaff::where('status', 'active')->count();
+        $activeSalaryTotal = (float) FinanceStaff::where('status', 'active')->sum('basic_salary');
+
+        return view('admin.finance.payroll', compact('payrolls', 'activeStaffCount', 'activeSalaryTotal'));
+    }
+
+    public function payrollStore(Request $request)
+    {
+        $validated = $request->validate([
+            'period_month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $month = Carbon::createFromFormat('Y-m', $validated['period_month'])->startOfMonth();
+        $activeStaff = FinanceStaff::where('status', 'active')->get(['id', 'basic_salary']);
+        $gross = (float) $activeStaff->sum('basic_salary');
+
+        $payroll = FinancePayrollPeriod::updateOrCreate([
+            'period_month' => $month->toDateString(),
+        ], [
+            'name' => $month->format('F Y'),
+            'status' => 'draft',
+            'staff_count' => $activeStaff->count(),
+            'gross_pay' => $gross,
+            'total_deductions' => 0,
+            'net_pay' => $gross,
+            'created_by' => auth()->id(),
+        ]);
+
+        ActivityLog::log('finance_payroll_created', 'FinancePayrollPeriod', $payroll->id, [
+            'period' => $payroll->name,
+            'staff_count' => $payroll->staff_count,
+            'net_pay' => $payroll->net_pay,
+        ]);
+
+        return back()->with('success', 'Payroll period prepared from active staff salaries.');
+    }
+
     protected function deleteReceiptFile(?string $path): void
     {
         if (filled($path) && Storage::disk('private')->exists($path)) {
@@ -309,5 +544,10 @@ class FinanceController extends Controller
         }
 
         return $validated['label'];
+    }
+
+    protected function nextStaffNumber(): string
+    {
+        return 'STF-'.str_pad((string) (FinanceStaff::withTrashed()->count() + 1), 5, '0', STR_PAD_LEFT);
     }
 }
