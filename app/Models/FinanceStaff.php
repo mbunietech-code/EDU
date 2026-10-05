@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -78,6 +79,18 @@ class FinanceStaff extends Model
     public function activeContract(): HasMany
     {
         return $this->contracts()->where('status', 'active')->latest('start_date');
+    }
+
+    /**
+     * Most senior first (by position seniority), staff without a position last.
+     */
+    public function scopeOrderByRank(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw('COALESCE((SELECT seniority FROM finance_positions WHERE finance_positions.id = finance_staff.finance_position_id), 999)')
+            ->orderBy('hire_date')
+            ->orderBy('first_name')
+            ->orderBy('last_name');
     }
 
     public function fullName(): string

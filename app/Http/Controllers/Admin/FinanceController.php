@@ -367,7 +367,7 @@ class FinanceController extends Controller
             'current_payroll_net' => (float) FinancePayrollPeriod::latest('period_month')->value('net_pay'),
         ];
 
-        $recentStaff = FinanceStaff::with(['department', 'position'])->latest()->limit(6)->get();
+        $recentStaff = FinanceStaff::with(['department', 'position'])->orderByRank()->limit(8)->get();
         $expiringContracts = FinanceStaffContract::with(['staff', 'department', 'position'])
             ->where('status', 'active')
             ->whereBetween('end_date', [$today, $soon])
@@ -381,7 +381,7 @@ class FinanceController extends Controller
 
     public function staffIndex(Request $request)
     {
-        $query = FinanceStaff::with(['department', 'position', 'employmentType'])->latest();
+        $query = FinanceStaff::with(['department', 'position', 'employmentType'])->orderByRank();
 
         if ($search = trim((string) $request->query('q'))) {
             $query->where(function ($q) use ($search) {
@@ -400,7 +400,7 @@ class FinanceController extends Controller
 
         $staff = $query->paginate(20)->withQueryString();
         $departments = FinanceDepartment::orderBy('name')->get();
-        $positions = FinancePosition::orderBy('name')->get();
+        $positions = FinancePosition::orderBy('seniority')->orderBy('name')->get();
         $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
 
         $nextStaffNumber = $this->nextStaffNumber();
@@ -457,27 +457,34 @@ class FinanceController extends Controller
             'code' => ['nullable', 'string', 'max:40'],
             'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
             'salary_grade' => ['nullable', 'string', 'max:80'],
+            'seniority' => ['nullable', 'integer', 'min:1', 'max:999'],
         ]);
 
         if ($type['type'] === 'department') {
             FinanceDepartment::firstOrCreate(
                 ['name' => $type['name']],
-                ['code' => $type['code'] ?: null, 'status' => 'active']
+                ['code' => ($type['code'] ?? null) ?: null, 'status' => 'active']
             );
         } elseif ($type['type'] === 'position') {
-            FinancePosition::firstOrCreate(
+            $position = FinancePosition::firstOrCreate(
                 ['name' => $type['name']],
                 [
-                    'code' => $type['code'] ?: null,
+                    'code' => ($type['code'] ?? null) ?: null,
                     'finance_department_id' => $type['finance_department_id'] ?? null,
                     'salary_grade' => $type['salary_grade'] ?? null,
+                    'seniority' => $type['seniority'] ?? FinancePosition::guessSeniority($type['name']),
                     'status' => 'active',
                 ]
             );
+
+            // Re-adding an existing position with a seniority updates its rank.
+            if (! $position->wasRecentlyCreated && isset($type['seniority'])) {
+                $position->update(['seniority' => $type['seniority']]);
+            }
         } else {
             FinanceEmploymentType::firstOrCreate(
                 ['name' => $type['name']],
-                ['code' => $type['code'] ?: null, 'status' => 'active']
+                ['code' => ($type['code'] ?? null) ?: null, 'status' => 'active']
             );
         }
 
@@ -491,7 +498,7 @@ class FinanceController extends Controller
         $contracts = FinanceStaffContract::with(['staff', 'department', 'position'])->latest('start_date')->paginate(20);
         $staff = FinanceStaff::orderBy('first_name')->orderBy('last_name')->get();
         $departments = FinanceDepartment::orderBy('name')->get();
-        $positions = FinancePosition::orderBy('name')->get();
+        $positions = FinancePosition::orderBy('seniority')->orderBy('name')->get();
         $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
 
         return view('admin.finance.contracts', compact('contracts', 'staff', 'departments', 'positions', 'employmentTypes'));

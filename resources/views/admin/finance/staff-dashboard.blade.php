@@ -46,7 +46,8 @@
                 <p class="mt-1 text-xs text-gray-400">Draft payroll currently sums active staff basic salaries only.</p>
             </x-mbui.card>
             <x-mbui.card class="p-5">
-                <h2 class="text-base font-semibold text-gray-900">Recent staff</h2>
+                <h2 class="text-base font-semibold text-gray-900">Staff by rank</h2>
+                <p class="mt-1 text-xs text-gray-400">Most senior position first.</p>
                 <div class="mt-3 space-y-3">
                     @forelse ($recentStaff as $person)
                         <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3 last:border-0 last:pb-0">

@@ -79,6 +79,12 @@
                 <div><x-input-label for="setting_name" value="Name" /><x-text-input id="setting_name" name="name" class="mbui-input mt-1" required /></div>
                 <div><x-input-label for="code" value="Code" /><x-text-input id="code" name="code" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="salary_grade" value="Salary grade" /><x-text-input id="salary_grade" name="salary_grade" class="mbui-input mt-1" /></div>
+                <div class="sm:col-span-2">
+                    <x-input-label for="seniority" value="Seniority (positions only)" />
+                    <x-text-input id="seniority" type="number" min="1" max="999" name="seniority" class="mbui-input mt-1" placeholder="Auto from title" />
+                    <p class="mt-1 text-xs text-gray-500">Lower number = more senior, e.g. 10 Chairman, 20 CEO, 30 Managing Director, 50 Director, 70 Manager, 90 Officer. Re-add an existing position with a number to change its rank.</p>
+                    <x-input-error :messages="$errors->get('seniority')" class="mt-2" />
+                </div>
                 <div class="sm:col-span-2"><x-mbui.button type="submit" variant="secondary">Add setting</x-mbui.button></div>
             </form>
         </x-mbui.card>
