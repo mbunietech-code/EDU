@@ -1,27 +1,49 @@
 <x-layouts.public title="AI Access Management" metaDescription="MbunieEduHub - Authorized AI tools and access management for Tanzania. Simple payments, managed subscriptions, professional support.">
 
-    <section class="relative overflow-hidden bg-gray-900">
-        <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-gray-900 to-gray-900"></div>
-        <div class="relative mbui-container py-20 sm:py-28">
-            <div class="max-w-3xl">
-                <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                    Premium AI tools,<br>
-                    <span class="text-indigo-400">managed for you.</span>
-                </h1>
-                <p class="mt-6 max-w-2xl text-lg text-gray-300">
-                    MbunieEduHub gives you authorized access to leading AI tools with transparent pricing and subscriptions that just work.
-                </p>
-                <div class="mt-8 flex flex-col sm:flex-row gap-3">
-                    <a href="{{ route('public.products.index') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        Explore AI Tools
-                    </a>
-                    <a href="{{ route('public.about') }}" class="inline-flex items-center justify-center rounded-lg bg-white/10 px-6 py-3 text-sm font-semibold text-white ring-1 ring-inset ring-white/20 hover:bg-white/20">
-                        Learn more
-                    </a>
+    <section class="relative overflow-hidden border-b border-gray-200 bg-slate-950">
+        <div class="absolute inset-x-0 top-0 h-px bg-white/20"></div>
+        <div class="mbui-container relative py-16 sm:py-20 lg:py-24">
+            <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+                <div class="max-w-3xl">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-100">
+                        <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                        Learning, AI access and research support
+                    </div>
+                    <h1 class="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                        MbunieEduHub
+                    </h1>
+                    <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+                        A managed education hub for AI tools, live classes, research resources and account access, built for learners and teams who need reliable service without the noise.
+                    </p>
+                    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+                        <a href="{{ route('public.products.index') }}" class="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-slate-100">
+                            Browse tools
+                        </a>
+                        <a href="#live-classes" class="inline-flex items-center justify-center rounded-lg border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10">
+                            View live classes
+                        </a>
+                    </div>
                 </div>
-                <p class="mt-6 text-sm text-gray-400">
-                    Also new: <a href="#live-classes" class="font-medium text-gray-200 underline decoration-gray-500 underline-offset-4 hover:text-white">live classes and online meetings</a>
-                </p>
+
+                <div class="rounded-xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-slate-950/40">
+                    <div class="grid grid-cols-2 gap-3">
+                        @foreach ([
+                            ['AI Tools', 'Managed access'],
+                            ['Live Classes', number_format((int) ($liveClasses['live'] ?? 0)).' live now'],
+                            ['Research', 'Library and reviews'],
+                            ['Payments', 'Manual verification'],
+                        ] as [$label, $value])
+                            <div class="rounded-lg border border-white/10 bg-slate-900/80 p-4">
+                                <p class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ $label }}</p>
+                                <p class="mt-2 text-base font-semibold text-white">{{ $value }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="mt-4 rounded-lg border border-sky-400/20 bg-sky-400/10 p-4">
+                        <p class="text-sm font-semibold text-sky-100">One account for learning and access</p>
+                        <p class="mt-1 text-sm leading-6 text-slate-300">Track orders, payments, subscriptions, live rooms and research activity from one dashboard.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
