@@ -41,7 +41,7 @@
                         request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
                         request()->routeIs('admin.orders.*', 'admin.payments.*', 'admin.chat.*', 'admin.team-chat.*', 'admin.contact-messages.*', 'admin.payment-methods.*', 'admin.subscriptions.*') => 'operations',
                         request()->routeIs('admin.reports.*', 'admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.notifications.*') => 'insights',
-                        default => 'management',
+                        default => null,
                     };
                 @endphp
 
