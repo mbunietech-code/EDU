@@ -30,7 +30,7 @@
             selectedMethod: "{{ $defaultMethod }}",
             methods: @json($methodsArray),
             preview: null,
-            selectedProofName: '',
+            selectedProofName: "",
             selectedProofIsImage: false,
             submitting: false,
             selected() { return this.methods.find(m => m.code === this.selectedMethod) || {}; },
