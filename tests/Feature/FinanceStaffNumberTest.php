@@ -28,13 +28,23 @@ class FinanceStaffNumberTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         $this->addStaff($admin);
-        $this->addStaff($admin, ['staff_number' => 'Mhub-007']);
+        $this->addStaff($admin, ['staff_number' => 'CUSTOM-99']);
         $this->addStaff($admin);
 
         $this->assertSame(
-            ['Mhub-001', 'Mhub-007', 'Mhub-008'],
+            ['Mhub-001', 'Mhub-002', 'Mhub-003'],
             FinanceStaff::orderBy('id')->pluck('staff_number')->all()
         );
+    }
+
+    public function test_staff_numbers_continue_after_the_highest_existing_number(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        FinanceStaff::create(['staff_number' => 'Mhub-007', 'first_name' => 'Old', 'last_name' => 'Staff', 'status' => 'active', 'basic_salary' => 0]);
+
+        $this->addStaff($admin);
+
+        $this->assertSame('Mhub-008', FinanceStaff::latest('id')->value('staff_number'));
     }
 
     public function test_bank_account_and_mobile_money_are_saved(): void
@@ -60,6 +70,8 @@ class FinanceStaffNumberTest extends TestCase
             ->withSession(['finance_unlocked' => true])
             ->get(route('admin.finance.staff.index'))
             ->assertOk()
+            ->assertSee('Mhub-001')
+            ->assertDontSee('name="staff_number"', false)
             ->assertSee('<option value="CRDB Bank">', false)
             ->assertSee('<option value="NMB Bank">', false)
             ->assertSee('Other (type name)');

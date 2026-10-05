@@ -13,7 +13,7 @@
                 @csrf
                 <div><x-input-label for="first_name" value="First name" /><x-text-input id="first_name" name="first_name" class="mbui-input mt-1" required /></div>
                 <div><x-input-label for="last_name" value="Last name" /><x-text-input id="last_name" name="last_name" class="mbui-input mt-1" required /></div>
-                <div><x-input-label for="staff_number" value="Staff number" /><x-text-input id="staff_number" name="staff_number" class="mbui-input mt-1" placeholder="Auto: Mhub-001" /></div>
+                <div><x-input-label for="staff_number" value="Staff number" /><x-text-input id="staff_number" :value="$nextStaffNumber" class="mbui-input mt-1 bg-gray-50 font-mono text-gray-600" readonly disabled /><p class="mt-1 text-xs text-gray-500">Assigned automatically.</p></div>
                 <div><x-input-label for="phone" value="Phone" /><x-text-input id="phone" name="phone" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="email" value="Email" /><x-text-input id="email" type="email" name="email" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="hire_date" value="Hire date" /><x-text-input id="hire_date" type="date" name="hire_date" class="mbui-input mt-1" /></div>

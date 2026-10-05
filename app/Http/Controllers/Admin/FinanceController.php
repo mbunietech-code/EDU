@@ -336,13 +336,14 @@ class FinanceController extends Controller
         $positions = FinancePosition::orderBy('name')->get();
         $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
 
-        return view('admin.finance.staff', compact('staff', 'departments', 'positions', 'employmentTypes'));
+        $nextStaffNumber = $this->nextStaffNumber();
+
+        return view('admin.finance.staff', compact('staff', 'departments', 'positions', 'employmentTypes', 'nextStaffNumber'));
     }
 
     public function staffStore(Request $request)
     {
         $validated = $request->validate([
-            'staff_number' => ['nullable', 'string', 'max:40', 'unique:finance_staff,staff_number'],
             'first_name' => ['required', 'string', 'max:120'],
             'middle_name' => ['nullable', 'string', 'max:120'],
             'last_name' => ['required', 'string', 'max:120'],
@@ -367,7 +368,7 @@ class FinanceController extends Controller
         }
         unset($validated['bank_name_other']);
 
-        $validated['staff_number'] = ($validated['staff_number'] ?? null) ?: $this->nextStaffNumber();
+        $validated['staff_number'] = $this->nextStaffNumber();
         $validated['basic_salary'] = $validated['basic_salary'] ?? 0;
         $validated['created_by'] = auth()->id();
 
