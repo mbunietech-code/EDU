@@ -70,6 +70,11 @@ class FinanceStaff extends Model
         return $this->hasMany(FinanceStaffContract::class);
     }
 
+    public function payrollItems(): HasMany
+    {
+        return $this->hasMany(FinancePayrollItem::class);
+    }
+
     public function activeContract(): HasMany
     {
         return $this->contracts()->where('status', 'active')->latest('start_date');
