@@ -51,4 +51,26 @@ class FinanceStaffNumberTest extends TestCase
         $this->assertSame('0150123456789', $staff->bank_account_number);
         $this->assertSame('0712345678', $staff->mobile_money);
     }
+
+    public function test_staff_form_lists_tanzanian_banks(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)
+            ->withSession(['finance_unlocked' => true])
+            ->get(route('admin.finance.staff.index'))
+            ->assertOk()
+            ->assertSee('<option value="CRDB Bank">', false)
+            ->assertSee('<option value="NMB Bank">', false)
+            ->assertSee('Other (type name)');
+    }
+
+    public function test_other_bank_uses_the_typed_name(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->addStaff($admin, ['bank_name' => 'other', 'bank_name_other' => 'Mwalimu Commercial Bank']);
+
+        $this->assertSame('Mwalimu Commercial Bank', FinanceStaff::firstOrFail()->bank_name);
+    }
 }

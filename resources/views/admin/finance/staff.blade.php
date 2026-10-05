@@ -47,7 +47,16 @@
                     </select>
                 </div>
                 <div><x-input-label for="basic_salary" value="Basic salary" /><x-text-input id="basic_salary" type="number" min="0" step="0.01" name="basic_salary" class="mbui-input mt-1" /></div>
-                <div><x-input-label for="bank_name" value="Bank name" /><x-text-input id="bank_name" name="bank_name" class="mbui-input mt-1" /></div>
+                <div x-data="{ bank: @js(old('bank_name', '')) }">
+                    <x-input-label for="bank_name" value="Bank name" />
+                    <select id="bank_name" name="bank_name" x-model="bank" class="mbui-input mt-1">
+                        <option value="">None</option>
+                        @foreach (config('finance.banks') as $bank)<option value="{{ $bank }}">{{ $bank }}</option>@endforeach
+                        <option value="other">Other (type name)</option>
+                    </select>
+                    <x-text-input x-show="bank === 'other'" x-cloak x-bind:required="bank === 'other'" name="bank_name_other" :value="old('bank_name_other')" class="mbui-input mt-2" placeholder="Bank name" />
+                    <x-input-error :messages="$errors->get('bank_name_other')" class="mt-2" />
+                </div>
                 <div><x-input-label for="bank_account_number" value="Bank account number" /><x-text-input id="bank_account_number" name="bank_account_number" class="mbui-input mt-1" /></div>
                 <div><x-input-label for="mobile_money" value="Mobile money number" /><x-text-input id="mobile_money" name="mobile_money" class="mbui-input mt-1" placeholder="e.g. 0712 345 678" /></div>
                 <div class="sm:col-span-2"><x-input-label for="notes" value="Notes" /><textarea id="notes" name="notes" rows="2" class="mbui-input mt-1"></textarea></div>

@@ -356,10 +356,16 @@ class FinanceController extends Controller
             'status' => ['required', Rule::in(['active', 'on_leave', 'suspended', 'resigned', 'terminated', 'retired', 'inactive'])],
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
             'bank_name' => ['nullable', 'string', 'max:120'],
+            'bank_name_other' => ['nullable', 'required_if:bank_name,other', 'string', 'max:120'],
             'bank_account_number' => ['nullable', 'string', 'max:120'],
             'mobile_money' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if (($validated['bank_name'] ?? null) === 'other') {
+            $validated['bank_name'] = $validated['bank_name_other'];
+        }
+        unset($validated['bank_name_other']);
 
         $validated['staff_number'] = ($validated['staff_number'] ?? null) ?: $this->nextStaffNumber();
         $validated['basic_salary'] = $validated['basic_salary'] ?? 0;
