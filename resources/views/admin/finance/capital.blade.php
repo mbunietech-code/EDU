@@ -7,6 +7,23 @@
         </div>
     </div>
 
+    @if ($loanTotals['borrowed'] > 0)
+        <div class="mt-6 grid gap-5 sm:grid-cols-3">
+            <x-mbui.card class="p-6">
+                <p class="text-sm font-medium text-gray-500">Total borrowed</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS {{ number_format($loanTotals['borrowed']) }}</p>
+            </x-mbui.card>
+            <x-mbui.card class="p-6">
+                <p class="text-sm font-medium text-gray-500">Repaid</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-emerald-600">TZS {{ number_format($loanTotals['repaid']) }}</p>
+            </x-mbui.card>
+            <x-mbui.card class="p-6">
+                <p class="text-sm font-medium text-gray-500">Still owed</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight {{ $loanTotals['outstanding'] > 0 ? 'text-amber-600' : 'text-gray-900' }}">TZS {{ number_format($loanTotals['outstanding']) }}</p>
+            </x-mbui.card>
+        </div>
+    @endif
+
     <div class="mt-6 mbui-card p-6">
         <h2 class="text-base font-semibold text-gray-900">Add capital entry</h2>
         <form method="POST" action="{{ route('admin.finance.capital.store') }}" class="mt-4 space-y-4">
@@ -88,7 +105,17 @@
                         <td class="mbui-td">{{ $entry->source }}</td>
                         <td class="mbui-td">
                             @if ($entry->is_loan)
-                                <x-mbui.badge appearance="warning">Loan — repay</x-mbui.badge>
+                                @if ($entry->isFullyRepaid())
+                                    <x-mbui.badge appearance="success">Repaid</x-mbui.badge>
+                                @else
+                                    <x-mbui.badge appearance="warning">Owes TZS {{ number_format($entry->outstandingAmount()) }}</x-mbui.badge>
+                                    @if ($entry->repaidAmount() > 0)
+                                        <p class="mt-1 text-xs text-gray-500">Paid TZS {{ number_format($entry->repaidAmount()) }}</p>
+                                    @endif
+                                @endif
+                                <a href="{{ route('admin.finance.capital.repayments.index', $entry) }}" class="mt-1 block text-xs font-semibold text-indigo-600 hover:text-indigo-500">
+                                    {{ $entry->isFullyRepaid() ? 'View repayments' : 'Repay' }} &rarr;
+                                </a>
                             @else
                                 <span class="text-gray-400">-</span>
                             @endif

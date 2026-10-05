@@ -8,6 +8,7 @@ use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceDepartment;
 use App\Models\FinanceEmploymentType;
 use App\Models\FinanceExpense;
+use App\Models\FinanceLoanRepayment;
 use App\Models\FinancePayrollItem;
 use App\Models\FinancePayrollPeriod;
 use App\Models\FinancePosition;
@@ -88,11 +89,20 @@ class FinanceController extends Controller
 
     public function capitalIndex()
     {
-        $entries = FinanceCapitalEntry::with(['product', 'tool', 'creator'])->latest()->paginate(20);
+        $entries = FinanceCapitalEntry::with(['product', 'tool', 'creator'])
+            ->withSum('repayments', 'amount')
+            ->latest()
+            ->paginate(20);
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.finance.capital', compact('entries', 'products', 'tools'));
+        $loanTotals = [
+            'borrowed' => (float) FinanceCapitalEntry::where('is_loan', true)->sum('amount'),
+            'repaid' => (float) FinanceLoanRepayment::sum('amount'),
+        ];
+        $loanTotals['outstanding'] = max(0, $loanTotals['borrowed'] - $loanTotals['repaid']);
+
+        return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals'));
     }
 
     public function capitalStore(Request $request)
@@ -139,6 +149,14 @@ class FinanceController extends Controller
 
         $validated['label'] = $this->resolveLabel($validated);
 
+        $repaid = $capitalEntry->repaidAmount();
+        if ($repaid > 0 && ! ($validated['is_loan'] ?? false)) {
+            return back()->withInput()->withErrors(['is_loan' => 'This loan already has repayments. Remove them before unmarking it as a loan.']);
+        }
+        if ($repaid > (float) $validated['amount']) {
+            return back()->withInput()->withErrors(['amount' => 'Amount cannot be less than what has already been repaid (TZS '.number_format($repaid).').']);
+        }
+
         $capitalEntry->update($validated);
 
         ActivityLog::log('finance_capital_updated', 'FinanceCapitalEntry', $capitalEntry->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
@@ -155,6 +173,55 @@ class FinanceController extends Controller
         $deletionService->delete($capitalEntry, $validated['reason']);
 
         return back()->with('success', 'Capital entry removed.');
+    }
+
+    public function repaymentIndex(FinanceCapitalEntry $capitalEntry)
+    {
+        abort_unless($capitalEntry->is_loan, 404);
+
+        $capitalEntry->load(['repayments.creator', 'creator']);
+
+        return view('admin.finance.repayments', compact('capitalEntry'));
+    }
+
+    public function repaymentStore(Request $request, FinanceCapitalEntry $capitalEntry)
+    {
+        abort_unless($capitalEntry->is_loan, 404);
+
+        $outstanding = $capitalEntry->outstandingAmount();
+
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:'.$outstanding],
+            'paid_at' => ['required', 'date', 'before_or_equal:today'],
+            'method' => ['nullable', 'string', 'max:120'],
+            'reference' => ['nullable', 'string', 'max:120'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'amount.max' => 'Amount cannot be more than the outstanding balance (TZS '.number_format($outstanding).').',
+        ]);
+
+        $repayment = $capitalEntry->repayments()->create($validated + ['created_by' => auth()->id()]);
+
+        ActivityLog::log('finance_loan_repaid', 'FinanceCapitalEntry', $capitalEntry->id, [
+            'repayment_id' => $repayment->id,
+            'amount' => $validated['amount'],
+            'outstanding' => $capitalEntry->outstandingAmount(),
+        ]);
+
+        return back()->with('success', $capitalEntry->isFullyRepaid() ? 'Repayment recorded. The loan is fully repaid.' : 'Repayment recorded.');
+    }
+
+    public function repaymentDestroy(Request $request, FinanceCapitalEntry $capitalEntry, FinanceLoanRepayment $repayment, DeletionService $deletionService)
+    {
+        abort_unless((int) $repayment->finance_capital_entry_id === (int) $capitalEntry->id, 404);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($repayment, $validated['reason']);
+
+        return back()->with('success', 'Repayment removed.');
     }
 
     public function expenseIndex()

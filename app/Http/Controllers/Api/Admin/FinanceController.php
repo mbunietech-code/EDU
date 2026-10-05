@@ -110,12 +110,14 @@ class FinanceController extends Controller
                 'capital' => (float) $r['capital'],
                 'income' => (float) $r['income'],
                 'expenses' => (float) $r['expenses'],
+                'repaid' => (float) $r['repaid'],
                 'balance' => (float) $r['balance'],
             ])->values(),
             'totals' => [
                 'capital' => (float) $totals['capital'],
                 'income' => (float) $totals['income'],
                 'expenses' => (float) $totals['expenses'],
+                'repaid' => (float) $totals['repaid'],
                 'balance' => (float) $totals['balance'],
             ],
         ]]);

@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Finance Overview</h1>
-            <p class="mt-1 text-sm text-gray-500">Capital, income, expenses and balance for each software.</p>
+            <p class="mt-1 text-sm text-gray-500">Capital, income, expenses, loan repayments and balance for each software.</p>
         </div>
         <div class="flex items-center gap-3">
             <a href="{{ route('admin.finance.capital.index') }}" class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Add capital</a>
@@ -27,6 +27,9 @@
         <x-mbui.card class="p-6">
             <p class="text-sm font-medium text-gray-500">Balance</p>
             <p class="mt-2 text-2xl font-bold tracking-tight {{ $totals['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($totals['balance']) }}</p>
+            @if ($totals['repaid'] > 0)
+                <p class="mt-1 text-xs text-gray-500">After TZS {{ number_format($totals['repaid']) }} in loan repayments</p>
+            @endif
         </x-mbui.card>
     </div>
 
@@ -43,6 +46,7 @@
                     <th class="mbui-th">Capital</th>
                     <th class="mbui-th">Income</th>
                     <th class="mbui-th">Expenses</th>
+                    <th class="mbui-th">Loans repaid</th>
                     <th class="mbui-th">Balance</th>
                 </tr>
             </thead>
@@ -54,10 +58,11 @@
                         <td class="mbui-td">TZS {{ number_format($row['capital']) }}</td>
                         <td class="mbui-td text-emerald-600">TZS {{ number_format($row['income']) }}</td>
                         <td class="mbui-td text-red-600">TZS {{ number_format($row['expenses']) }}</td>
+                        <td class="mbui-td text-amber-600">TZS {{ number_format($row['repaid']) }}</td>
                         <td class="mbui-td font-semibold {{ $row['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($row['balance']) }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="mbui-td text-center text-gray-400">No software tracked yet</td></tr>
+                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No software tracked yet</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

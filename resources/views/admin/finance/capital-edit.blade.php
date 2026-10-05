@@ -53,6 +53,7 @@
                 <input type="checkbox" name="is_loan" value="1" @checked(old('is_loan', $capitalEntry->is_loan)) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                 This is a loan and needs to be repaid
             </label>
+            <x-input-error :messages="$errors->get('is_loan')" class="mt-2" />
             <div>
                 <x-input-label for="cap-notes" value="Notes (optional)" />
                 <textarea id="cap-notes" name="notes" rows="2" class="mbui-input mt-1">{{ old('notes', $capitalEntry->notes) }}</textarea>

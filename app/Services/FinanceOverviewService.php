@@ -12,7 +12,8 @@ class FinanceOverviewService
 {
     /**
      * Build a per-software finance summary: capital, income (from real
-     * approved payments), expenses and the resulting balance, plus totals.
+     * approved payments), expenses, loan repayments and the resulting
+     * balance, plus totals.
      */
     public function rows(): array
     {
@@ -27,6 +28,7 @@ class FinanceOverviewService
                 'capital' => 0,
                 'income' => 0,
                 'expenses' => 0,
+                'repaid' => 0,
             ];
         }
 
@@ -39,6 +41,7 @@ class FinanceOverviewService
                 'capital' => 0,
                 'income' => 0,
                 'expenses' => 0,
+                'repaid' => 0,
             ];
         }
 
@@ -77,10 +80,16 @@ class FinanceOverviewService
             $rows[$key]['expenses'] += (float) $expense->amount;
         }
 
+        // Loan repayments: money paid back out, counted against the software that borrowed it.
+        foreach (FinanceCapitalEntry::where('is_loan', true)->withSum('repayments', 'amount')->get() as $entry) {
+            $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
+            $rows[$key]['repaid'] += (float) $entry->repayments_sum_amount;
+        }
+
         $rows = array_values($rows);
 
         foreach ($rows as &$row) {
-            $row['balance'] = $row['capital'] + $row['income'] - $row['expenses'];
+            $row['balance'] = $row['capital'] + $row['income'] - $row['expenses'] - $row['repaid'];
         }
 
         usort($rows, fn ($a, $b) => strcmp($a['label'], $b['label']));
@@ -94,6 +103,7 @@ class FinanceOverviewService
             'capital' => array_sum(array_column($rows, 'capital')),
             'income' => array_sum(array_column($rows, 'income')),
             'expenses' => array_sum(array_column($rows, 'expenses')),
+            'repaid' => array_sum(array_column($rows, 'repaid')),
             'balance' => array_sum(array_column($rows, 'balance')),
         ];
     }
@@ -120,6 +130,7 @@ class FinanceOverviewService
             'capital' => 0,
             'income' => 0,
             'expenses' => 0,
+            'repaid' => 0,
         ];
     }
 }
