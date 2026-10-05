@@ -6,11 +6,7 @@
         <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/25"></div>
         <div class="mbui-container relative py-16 sm:py-20 lg:py-24">
             <div class="max-w-3xl">
-                <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-100">
-                    <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-                    Learning, AI access and research support
-                </div>
-                <h1 class="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
                     MbunieEduHub
                 </h1>
                 <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-100">
