@@ -30,6 +30,8 @@
             selectedMethod: "{{ $defaultMethod }}",
             methods: @json($methodsArray),
             preview: null,
+            selectedProofName: '',
+            selectedProofIsImage: false,
             submitting: false,
             selected() { return this.methods.find(m => m.code === this.selectedMethod) || {}; },
             payHref() {
@@ -120,15 +122,21 @@
 
                 <div class="grid gap-5 sm:grid-cols-2">
                     <div>
-                        <x-input-label for="payment_proof" value="Payment proof image" />
-                        <input id="payment_proof" type="file" name="payment_proof" accept="image/*"
+                        <x-input-label for="payment_proof" value="Payment proof" />
+                        <input id="payment_proof" type="file" name="payment_proof" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,image/jpeg,image/png,image/gif,image/webp,application/pdf"
                             class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                            @change="const f = $event.target.files[0]; if (f) preview = URL.createObjectURL(f)" required>
+                            @change="const f = $event.target.files[0]; selectedProofName = f ? f.name : ''; selectedProofIsImage = !!(f && f.type && f.type.startsWith('image/')); preview = selectedProofIsImage ? URL.createObjectURL(f) : null" required>
+                        <p class="mt-1 text-xs text-gray-500">Upload JPG, PNG, GIF, WebP, or PDF. Max 12 MB.</p>
                         <x-input-error :messages="$errors->get('payment_proof')" class="mt-2" />
 
                         <template x-if="preview">
                             <div class="mt-3">
                                 <img :src="preview" alt="Payment proof preview" class="max-h-48 rounded-lg border border-gray-200">
+                            </div>
+                        </template>
+                        <template x-if="selectedProofName && ! selectedProofIsImage">
+                            <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                <span class="font-medium">Selected file:</span> <span x-text="selectedProofName"></span>
                             </div>
                         </template>
                     </div>

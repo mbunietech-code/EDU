@@ -75,7 +75,7 @@ class PaymentController extends Controller
             'payment_method' => ['required', 'string', Rule::exists('payment_methods', 'code')],
             'transaction_reference' => ['nullable', 'string', 'max:255'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'payment_proof' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
+            'payment_proof' => ['required', 'file', 'mimes:jpeg,png,jpg,gif,webp,pdf', 'max:12288'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 

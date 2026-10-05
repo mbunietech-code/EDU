@@ -111,6 +111,6 @@ class PaymentController extends Controller
             abort(404);
         }
 
-        return Storage::disk('private')->download($proof->image_path);
+        return Storage::disk('private')->response($proof->image_path);
     }
 }

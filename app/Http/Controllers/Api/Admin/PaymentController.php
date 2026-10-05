@@ -116,7 +116,7 @@ class PaymentController extends Controller
 
         abort_unless(Storage::disk('private')->exists($proof->image_path), 404);
 
-        return Storage::disk('private')->download($proof->image_path);
+        return Storage::disk('private')->response($proof->image_path);
     }
 
     private function row(Payment $p): array

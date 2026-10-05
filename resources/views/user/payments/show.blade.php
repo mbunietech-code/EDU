@@ -48,8 +48,20 @@
                     <h2 class="mbui-section-label">Payment proof</h2>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">
                         @foreach ($payment->paymentProofs as $proof)
+                            @php
+                                $isPdf = \Illuminate\Support\Str::endsWith(strtolower($proof->image_path), '.pdf');
+                            @endphp
                             <div class="mbui-card overflow-hidden">
-                                <img src="{{ route('user.payments.proof', [$payment, $proof]) }}" alt="Payment proof {{ $loop->iteration }}" class="w-full max-h-64 object-cover">
+                                <a href="{{ route('user.payments.proof', [$payment, $proof]) }}" target="_blank" rel="noopener">
+                                    @if ($isPdf)
+                                        <div class="flex h-40 flex-col items-center justify-center gap-2 bg-gray-50 px-4 text-center text-sm text-gray-600">
+                                            <span class="rounded-lg bg-white px-3 py-2 font-semibold text-gray-900 shadow-sm ring-1 ring-gray-200">PDF proof</span>
+                                            <span>Open payment proof</span>
+                                        </div>
+                                    @else
+                                        <img src="{{ route('user.payments.proof', [$payment, $proof]) }}" alt="Payment proof {{ $loop->iteration }}" class="w-full max-h-64 object-cover">
+                                    @endif
+                                </a>
                                 @if ($proof->caption)
                                     <p class="px-4 py-2 text-xs text-gray-500">{{ $proof->caption }}</p>
                                 @endif
