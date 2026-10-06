@@ -97,21 +97,27 @@ class DatabaseBackupService
         $pdo = DB::connection()->getPdo();
 
         ob_start();
-        $this->line('-- Optimization backup for table: '.$table);
-        $this->line('-- Generated: '.now()->toDateTimeString());
-        $this->line('SET NAMES utf8mb4;');
-        $this->line('');
-
-        $create = DB::selectOne("SHOW CREATE TABLE {$quoted}");
-        $createSql = $create->{'Create Table'} ?? null;
-        if ($createSql) {
-            $this->line('-- DROP TABLE IF EXISTS '.$quoted.';');
-            $this->line($createSql.';');
+        try {
+            $this->line('-- Optimization backup for table: '.$table);
+            $this->line('-- Generated: '.now()->toDateTimeString());
+            $this->line('SET NAMES utf8mb4;');
             $this->line('');
-        }
 
-        $rows = DB::select("SELECT * FROM {$quoted} WHERE {$whereSql}", $bindings);
-        $this->dumpRowValues($pdo, $quoted, $rows);
+            $create = DB::selectOne("SHOW CREATE TABLE {$quoted}");
+            $createSql = $create->{'Create Table'} ?? null;
+            if ($createSql) {
+                $this->line('-- DROP TABLE IF EXISTS '.$quoted.';');
+                $this->line($createSql.';');
+                $this->line('');
+            }
+
+            $rows = DB::select("SELECT * FROM {$quoted} WHERE {$whereSql}", $bindings);
+            $this->dumpRowValues($pdo, $quoted, $rows);
+        } catch (\Throwable $e) {
+            // Close the buffer so a failed backup never leaks into the response.
+            ob_end_clean();
+            throw $e;
+        }
         $content = (string) ob_get_clean();
 
         $filename = 'optimization-backups/'.now()->format('Y-m-d_His').'_'.$tag.'_'.$table.'.sql';

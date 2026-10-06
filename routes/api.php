@@ -268,6 +268,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index']);
 
+        // Platform settings: alerts + AI optimization (super admin), email, Finance PIN
+        Route::controller(\App\Http\Controllers\Api\Admin\PlatformSettingsController::class)->group(function () {
+            Route::get('/alerts', 'alerts');
+            Route::put('/alerts', 'updateAlerts');
+            Route::post('/alerts/test', 'testAlerts')->middleware('throttle:5,1');
+            Route::get('/optimization', 'optimization');
+            Route::post('/optimization/scan', 'scan')->middleware('throttle:5,1');
+            Route::post('/optimization/{recommendation}/approve', 'approve')->whereNumber('recommendation');
+            Route::post('/optimization/{recommendation}/reject', 'reject')->whereNumber('recommendation');
+            Route::post('/optimization/{recommendation}/execute', 'execute')->whereNumber('recommendation');
+            Route::get('/settings/mail', 'mail');
+            Route::put('/settings/mail', 'updateMail');
+            Route::post('/settings/mail/test', 'testMail')->middleware('throttle:5,1');
+            Route::post('/settings/finance-pin', 'financePin')->middleware('throttle:10,1');
+        });
+
         // Learning management (learning.view / learning.manage / learning.trash)
         Route::controller(\App\Http\Controllers\Api\Admin\LearningAdminController::class)->prefix('learning')->group(function () {
             Route::get('/', 'overview');

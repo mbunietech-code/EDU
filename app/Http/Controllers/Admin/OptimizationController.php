@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\OptimizationRecommendation;
 use App\Models\OptimizationScan;
-use App\Services\DatabaseBackupService;
 use App\Services\DatabaseOptimizationService;
+use App\Services\OptimizationExecutor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 /**
@@ -87,95 +87,16 @@ class OptimizationController extends Controller
         return back()->with('success', 'Recommendation rejected.');
     }
 
-    public function execute(OptimizationRecommendation $recommendation, DatabaseBackupService $backup)
+    public function execute(OptimizationRecommendation $recommendation, OptimizationExecutor $executor)
     {
-        abort_unless($recommendation->isExecutable(), 400, 'This recommendation is not approved, or its finding is detection-only and requires manual action.');
-
         try {
-            $result = match ($recommendation->operation) {
-                'delete' => $this->executeDelete($recommendation, $backup),
-                'update' => $this->executeUpdate($recommendation, $backup),
-                'create_index' => $this->executeCreateIndex($recommendation),
-                default => null,
-            };
+            $result = $executor->execute($recommendation, auth()->id());
+        } catch (HttpException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            ActivityLog::log('optimization_recommendation_execute_failed', 'OptimizationRecommendation', $recommendation->id, [
-                'error' => $e->getMessage(),
-            ]);
-
             return back()->with('error', 'Execution failed: '.$e->getMessage().'. No changes were made beyond the backup step, if reached.');
         }
 
-        $recommendation->update([
-            'status' => 'executed',
-            'executed_by' => auth()->id(),
-            'executed_at' => now(),
-            'executed_count' => $result['count'],
-            'backup_path' => $result['backup_path'],
-        ]);
-
-        ActivityLog::log('optimization_recommendation_executed', 'OptimizationRecommendation', $recommendation->id, [
-            'table' => $recommendation->table_name,
-            'operation' => $recommendation->operation,
-            'affected' => $result['count'],
-            'backup_path' => $result['backup_path'],
-        ]);
-
         return back()->with('success', "Executed. {$result['count']} row(s) affected.".($result['backup_path'] ? ' Backup saved.' : ''));
-    }
-
-    /**
-     * @return array{count:int,backup_path:?string}
-     */
-    private function executeDelete(OptimizationRecommendation $recommendation, DatabaseBackupService $backup): array
-    {
-        $whereSql = (string) $recommendation->where_sql;
-        $bindings = $recommendation->where_bindings ?? [];
-
-        $backupPath = $backup->backupRows($recommendation->table_name, $whereSql, $bindings, 'rec'.$recommendation->id);
-
-        $count = DB::transaction(function () use ($recommendation, $whereSql, $bindings) {
-            return DB::table($recommendation->table_name)->whereRaw($whereSql, $bindings)->delete();
-        });
-
-        return ['count' => $count, 'backup_path' => $backupPath];
-    }
-
-    /**
-     * @return array{count:int,backup_path:?string}
-     */
-    private function executeUpdate(OptimizationRecommendation $recommendation, DatabaseBackupService $backup): array
-    {
-        $whereSql = (string) $recommendation->where_sql;
-        $bindings = $recommendation->where_bindings ?? [];
-        $values = $recommendation->update_values ?? [];
-
-        abort_if($values === [], 400, 'No update values recorded for this recommendation.');
-
-        $backupPath = $backup->backupRows($recommendation->table_name, $whereSql, $bindings, 'rec'.$recommendation->id);
-
-        $count = DB::transaction(function () use ($recommendation, $whereSql, $bindings, $values) {
-            return DB::table($recommendation->table_name)->whereRaw($whereSql, $bindings)->update($values);
-        });
-
-        return ['count' => $count, 'backup_path' => $backupPath];
-    }
-
-    /**
-     * @return array{count:int,backup_path:?string}
-     */
-    private function executeCreateIndex(OptimizationRecommendation $recommendation): array
-    {
-        try {
-            DB::statement((string) $recommendation->index_sql);
-        } catch (Throwable $e) {
-            if (! str_contains($e->getMessage(), 'Duplicate key name')) {
-                throw $e;
-            }
-            // Index already exists — treat as already applied, matching the
-            // benign-error convention used by SchemaAlterService.
-        }
-
-        return ['count' => 0, 'backup_path' => null];
     }
 }
