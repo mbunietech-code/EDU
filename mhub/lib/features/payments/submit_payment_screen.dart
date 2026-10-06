@@ -20,11 +20,15 @@ class SubmitPaymentScreen extends ConsumerStatefulWidget {
     required this.orderId,
     required this.orderTitle,
     required this.amountLabel,
+    this.embedded = false,
   });
 
   final int orderId;
   final String orderTitle;
   final String amountLabel;
+
+  /// Shown as the "Pay manually" tab inside the pay screen (no own app bar).
+  final bool embedded;
 
   @override
   ConsumerState<SubmitPaymentScreen> createState() => _SubmitPaymentScreenState();
@@ -97,10 +101,7 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
   Widget build(BuildContext context) {
     final methods = ref.watch(paymentMethodsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.pageBackground,
-      appBar: AppBar(title: const Text('Submit payment')),
-      body: AsyncValueView<List<PaymentMethod>>(
+    final body = AsyncValueView<List<PaymentMethod>>(
         value: methods,
         onRefresh: () async => ref.refresh(paymentMethodsProvider.future),
         data: (list) => ListView(
@@ -216,7 +217,14 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
             ),
           ],
         ),
-      ),
+    );
+
+    if (widget.embedded) return body;
+
+    return Scaffold(
+      backgroundColor: AppColors.pageBackground,
+      appBar: AppBar(title: const Text('Submit payment')),
+      body: body,
     );
   }
 }

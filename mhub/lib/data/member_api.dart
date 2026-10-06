@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
+import '../models/gateway_payment.dart';
 import '../models/payment.dart';
 import '../models/scholarship.dart';
 import '../models/subscription.dart';
@@ -41,7 +42,47 @@ class PaymentsRepository {
     });
     await _api.post('/orders/$orderId/payments', data: form);
   }
+
+  // --- Automatic payments (mobile money, card, PayPal) ---
+
+  Future<PaymentOptions> options(int orderId) async => PaymentOptions.fromJson(
+      (await _api.get('/orders/$orderId/payment-options') as Map<String, dynamic>)['data']
+          as Map<String, dynamic>);
+
+  Future<GatewayPayment> startMobile({
+    required int orderId,
+    required String gateway,
+    required String phone,
+    String? network,
+  }) async =>
+      _gateway(await _api.post('/orders/$orderId/payments/mobile', data: {
+        'gateway': gateway,
+        'phone': phone,
+        'network': ?network,
+      }));
+
+  Future<GatewayPayment> startCard({
+    required int orderId,
+    required String nameOnCard,
+    required String phone,
+  }) async =>
+      _gateway(await _api.post('/orders/$orderId/payments/card', data: {
+        'card_name': nameOnCard,
+        'card_phone': phone,
+      }));
+
+  Future<GatewayPayment> startPayPal(int orderId) async =>
+      _gateway(await _api.post('/orders/$orderId/payments/paypal'));
+
+  Future<GatewayPayment> gatewayStatus(int id) async =>
+      _gateway(await _api.get('/gateway-payments/$id'));
+
+  GatewayPayment _gateway(dynamic body) =>
+      GatewayPayment.fromJson((body as Map<String, dynamic>)['data'] as Map<String, dynamic>);
 }
+
+final paymentOptionsProvider = FutureProvider.autoDispose
+    .family<PaymentOptions, int>((ref, orderId) => ref.watch(paymentsRepositoryProvider).options(orderId));
 
 final paymentsRepositoryProvider =
     Provider((ref) => PaymentsRepository(ref.watch(apiClientProvider)));

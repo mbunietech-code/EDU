@@ -7,7 +7,7 @@ import '../../models/order.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../../widgets/status_chip.dart';
-import '../payments/submit_payment_screen.dart';
+import '../payments/pay_order_screen.dart';
 import 'orders_repository.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -101,12 +101,12 @@ class OrderDetailScreen extends ConsumerWidget {
             if (o.isPending && !o.payments.any((p) => p.status == 'pending')) ...[
               const SizedBox(height: 24),
               MbuiButton(
-                label: o.payments.isEmpty ? 'Submit payment' : 'Submit another payment',
-                icon: Icons.receipt_long_outlined,
+                label: o.payments.isEmpty ? 'Pay now' : 'Pay again',
+                icon: Icons.payments_outlined,
                 fullWidth: true,
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => SubmitPaymentScreen(
+                    builder: (_) => PayOrderScreen(
                       orderId: o.id,
                       orderTitle: o.title,
                       amountLabel: o.amountLabel,
