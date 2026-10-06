@@ -51,7 +51,11 @@ class CatProductDetail {
     this.softwareKey,
     this.imageUrl,
     this.plans = const [],
+    this.installerName,
   });
+
+  /// Uploaded installer (software products only); null when none.
+  final String? installerName;
 
   final int id;
   final String name;
@@ -81,6 +85,9 @@ class CatProductDetail {
         softwareVersion: j['software_version'] as String?,
         softwareKey: j['software_key'] as String?,
         imageUrl: j['image_url'] as String?,
+        installerName: (j['software_file'] as Map<String, dynamic>?)?['has_file'] == true
+            ? ((j['software_file'] as Map<String, dynamic>)['name'] as String? ?? 'Installer')
+            : null,
         plans: (j['plans'] as List?)
                 ?.map((e) => CatPlan.fromJson(e as Map<String, dynamic>))
                 .toList() ??
@@ -173,7 +180,11 @@ class CatToolDetail {
     this.isFeatured = false,
     this.sortOrder,
     this.imageUrl,
+    this.installerName,
   });
+
+  /// Uploaded tool file; null when none.
+  final String? installerName;
 
   final int id;
   final String name;
@@ -199,6 +210,9 @@ class CatToolDetail {
         isFeatured: j['is_featured'] == true,
         sortOrder: (j['sort_order'] as num?)?.toInt(),
         imageUrl: j['image_url'] as String?,
+        installerName: (j['file'] as Map<String, dynamic>?)?['has_file'] == true
+            ? ((j['file'] as Map<String, dynamic>)['name'] as String? ?? 'Tool file')
+            : null,
       );
 }
 

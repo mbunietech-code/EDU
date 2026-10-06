@@ -41,6 +41,17 @@ class AdminCatalogueRepository {
     await _api.post('/admin/catalogue/$kind/$id/image', data: form);
   }
 
+  /// Installer for a software product (kind "products") or a tool ("tools").
+  Future<void> uploadInstaller(String kind, int id, String filePath) async {
+    final form = FormData.fromMap({'file': await MultipartFile.fromFile(filePath)});
+    await _api.post(_installerPath(kind, id), data: form);
+  }
+
+  Future<void> deleteInstaller(String kind, int id) => _api.delete(_installerPath(kind, id));
+
+  String _installerPath(String kind, int id) =>
+      '/admin/catalogue/$kind/$id/${kind == 'products' ? 'software-file' : 'file'}';
+
   // Plans
   Future<void> createPlan(int productId, Map<String, dynamic> body) =>
       _api.post('/admin/catalogue/products/$productId/plans', data: body);

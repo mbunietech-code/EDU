@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -204,6 +205,13 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
                 value: _featured,
                 onChanged: (v) => setState(() => _featured = v),
               ),
+              if (!isNew && _type == 'software' && d!.type == 'software')
+                _InstallerField(
+                  kind: 'products',
+                  id: d!.id,
+                  current: d!.installerName,
+                  onChanged: () => ref.invalidate(adminCatProductProvider(d!.id)),
+                ),
               if (!isNew)
                 ImageUploadField(
                   label: 'Product image',
@@ -606,6 +614,13 @@ class _ToolFormState extends ConsumerState<_ToolForm> {
         FeaturedSwitch(
             value: _featured, onChanged: (v) => setState(() => _featured = v)),
         if (!isNew)
+          _InstallerField(
+            kind: 'tools',
+            id: d!.id,
+            current: d!.installerName,
+            onChanged: () => ref.invalidate(adminCatToolProvider(d!.id)),
+          ),
+        if (!isNew)
           ImageUploadField(
             label: 'Tool image',
             currentUrl: d!.imageUrl,
@@ -618,6 +633,99 @@ class _ToolFormState extends ConsumerState<_ToolForm> {
             },
           ),
       ],
+    );
+  }
+}
+
+/// The downloadable installer buyers get after paying (exe, dmg, apk …).
+class _InstallerField extends ConsumerStatefulWidget {
+  const _InstallerField({
+    required this.kind,
+    required this.id,
+    required this.current,
+    required this.onChanged,
+  });
+
+  final String kind;
+  final int id;
+  final String? current;
+  final VoidCallback onChanged;
+
+  @override
+  ConsumerState<_InstallerField> createState() => _InstallerFieldState();
+}
+
+class _InstallerFieldState extends ConsumerState<_InstallerField> {
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() action, String done) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+      widget.onChanged();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.errors?['file']?.first ?? e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pick() async {
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['exe', 'zip', 'msi', 'rar', 'apk', 'dmg'],
+    );
+    final path = picked?.files.single.path;
+    if (path == null) return;
+    await _run(
+      () => ref.read(adminCatalogueRepositoryProvider).uploadInstaller(widget.kind, widget.id, path),
+      'Installer uploaded.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final has = widget.current != null;
+    return LabeledInput(
+      label: 'Download file (exe, dmg, apk, zip, msi, rar · max 150 MB)',
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.gray200),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          children: [
+            Icon(has ? Icons.inventory_2_outlined : Icons.cloud_upload_outlined, color: AppColors.gray500),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                has ? widget.current! : 'No file yet. Buyers get it after paying.',
+                style: TextStyle(fontSize: 13, color: has ? AppColors.gray900 : AppColors.gray500),
+              ),
+            ),
+            if (_busy)
+              const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            else ...[
+              TextButton(onPressed: _pick, child: Text(has ? 'Replace' : 'Upload')),
+              if (has)
+                IconButton(
+                  tooltip: 'Remove',
+                  icon: const Icon(Icons.delete_outline, color: AppColors.red600),
+                  onPressed: () => _run(
+                    () => ref.read(adminCatalogueRepositoryProvider).deleteInstaller(widget.kind, widget.id),
+                    'Installer removed.',
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
