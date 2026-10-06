@@ -19,6 +19,7 @@ use App\Models\LearningVideoComment;
 use App\Models\LearningVideoProgress;
 use App\Models\LearningVideoResource;
 use App\Models\User;
+use App\Services\Learning\GuestAccessService;
 use App\Services\Learning\LearningStorage;
 use App\Services\Learning\LiveProvider;
 use App\Services\Learning\ProgressService;
@@ -820,6 +821,21 @@ class LearningController extends Controller
         $me = collect($feed['participants'] ?? [])->firstWhere('is_me', true);
         $feed['hand_raised'] = ($me['hand_raised_at'] ?? null) !== null;
         $feed['is_manager'] = $room->isManageableBy($user);
+
+        // The host's door: guests waiting to be let in, and the guest link.
+        if ($feed['is_manager']) {
+            $guests = app(GuestAccessService::class);
+            $feed['guests'] = [
+                'enabled' => $guests->enabled(),
+                'link' => $guests->enabled() ? $room->guestUrl() : null,
+                'waiting_room' => (bool) $room->guest_waiting_room,
+                'waiting' => $guests->waiting($room)->map(fn (User $g) => [
+                    'user_id' => $g->id,
+                    'name' => $g->name,
+                    'since' => $g->created_at?->toIso8601String(),
+                ])->values()->all(),
+            ];
+        }
 
         return response()->json($feed);
     }

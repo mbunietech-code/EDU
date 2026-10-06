@@ -159,6 +159,24 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/rooms/{slug}/end', 'end')->middleware('throttle:10,1')->name('rooms.end');
         });
 
+    // Host controls in a live class: one participant, guests, breakout rooms
+    Route::controller(\App\Http\Controllers\Api\LiveHostController::class)
+        ->prefix('learning/rooms/{slug}')
+        ->middleware('throttle:60,1')
+        ->group(function () {
+            Route::post('/participants/{user}/permissions', 'permissions')->whereNumber('user');
+            Route::post('/participants/{user}/mute', 'mute')->whereNumber('user');
+            Route::post('/participants/{user}/lower-hand', 'lowerHand')->whereNumber('user');
+            Route::post('/participants/{user}/remove', 'remove')->whereNumber('user');
+            Route::post('/guest-link', 'guestLink');
+            Route::post('/guests/admit-all', 'admit');
+            Route::post('/guests/{user}/admit', 'admit')->whereNumber('user');
+            Route::post('/guests/{user}/deny', 'deny')->whereNumber('user');
+            Route::post('/breakouts', 'breakouts');
+            Route::post('/breakouts/open', 'openBreakouts');
+            Route::post('/breakouts/close', 'closeBreakouts');
+        });
+
     // Orders
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
