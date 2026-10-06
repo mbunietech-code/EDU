@@ -9,6 +9,7 @@ import '../admin/admin_finance_screen.dart';
 import '../admin/admin_orders_screen.dart';
 import '../admin/admin_payments_screen.dart';
 import '../admin/admin_reports_screen.dart';
+import '../admin/admin_learning_screen.dart';
 import '../admin/admin_research_screen.dart';
 import '../admin/admin_system_screen.dart';
 import '../admin/admin_users_screen.dart';
@@ -103,6 +104,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           AdminFinanceScreen(),
         ),
         _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
+        _Destination(
+          'Learning admin',
+          Icons.cast_for_education_outlined,
+          AdminLearningScreen(),
+        ),
         _Destination(
           'Teaching Studio',
           Icons.video_settings_outlined,
