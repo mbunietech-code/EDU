@@ -6,16 +6,48 @@ use App\Models\Subscription;
 use App\Models\Account;
 use App\Models\Order;
 use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
+    /** "year, month" columns of created_at (MySQL in production, SQLite in tests). */
+    private function yearMonth(): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%Y', created_at) AS INTEGER) as year, CAST(strftime('%m', created_at) AS INTEGER) as month"
+            : 'YEAR(created_at) as year, MONTH(created_at) as month';
+    }
+
+    /**
+     * Approved payments per product and per research tool since $months ago.
+     *
+     * @return array{products: array<int,float>, tools: array<int,float>}
+     */
+    public function getRevenueByItem(int $months = 12): array
+    {
+        $startDate = now(config('app.timezone'))->subMonths($months)->startOfMonth();
+        $base = fn () => Payment::query()
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->where('payments.status', 'approved')
+            ->whereDate('payments.created_at', '>=', $startDate);
+
+        return [
+            'products' => $base()->whereNotNull('orders.product_id')->groupBy('orders.product_id')
+                ->selectRaw('orders.product_id as id, SUM(payments.amount) as total')->pluck('total', 'id')
+                ->map(fn ($v) => (float) $v)->all(),
+            'tools' => $base()->whereNotNull('orders.tool_id')->groupBy('orders.tool_id')
+                ->selectRaw('orders.tool_id as id, SUM(payments.amount) as total')->pluck('total', 'id')
+                ->map(fn ($v) => (float) $v)->all(),
+        ];
+    }
+
     public function getRevenueReport(int $months = 12): array
     {
         $startDate = now(config('app.timezone'))->subMonths($months)->startOfMonth();
 
         $revenue = Payment::where('status', 'approved')
             ->whereDate('created_at', '>=', $startDate)
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
+            ->selectRaw($this->yearMonth().', SUM(amount) as total')
             ->groupBy('year', 'month')
             ->orderBy('year', 'desc')
             ->orderBy('month', 'desc')
@@ -29,7 +61,7 @@ class ReportService
         $startDate = now(config('app.timezone'))->subMonths($months)->startOfMonth();
 
         $orders = Order::whereDate('created_at', '>=', $startDate)
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as total, status')
+            ->selectRaw($this->yearMonth().', COUNT(*) as total, status')
             ->groupBy('year', 'month', 'status')
             ->orderBy('year', 'desc')
             ->orderBy('month', 'desc')

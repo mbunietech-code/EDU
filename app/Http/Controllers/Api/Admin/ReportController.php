@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tool;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,8 +16,9 @@ class ReportController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $months = (int) $request->input('months', 6);
+        $months = max(1, min(24, (int) $request->input('months', 6)));
         $metrics = $this->reports->getDashboardMetrics();
+        $byItem = $this->reports->getRevenueByItem($months);
 
         $monthName = fn ($row) => \Carbon\Carbon::create($row['year'], $row['month'], 1)->format('M Y');
 
@@ -36,6 +38,13 @@ class ReportController extends Controller
             ])->values();
 
         return response()->json([
+            'months' => $months,
+            'totals' => [
+                'revenue' => (float) $revenue->sum('value'),
+                'revenue_label' => 'TZS '.number_format((float) $revenue->sum('value')),
+                'orders' => (int) $orders->sum('total'),
+                'approved_payments' => (int) $metrics['approved_payments'],
+            ],
             'metrics' => [
                 ['label' => 'Users', 'value' => $metrics['total_users']],
                 ['label' => 'Products', 'value' => $metrics['total_products']],
@@ -51,8 +60,16 @@ class ReportController extends Controller
             'orders' => $orders,
             'products' => collect($this->reports->getProductsReport())->map(fn ($p) => [
                 'name' => $p['name'] ?? '—',
+                'status' => $p['status'] ?? null,
                 'orders' => $p['orders_count'] ?? 0,
                 'subscriptions' => $p['subscriptions_count'] ?? 0,
+                'revenue' => $byItem['products'][$p['id']] ?? 0.0,
+            ])->sortByDesc('orders')->values(),
+            'tools' => Tool::withCount('orders')->get(['id', 'name', 'status'])->map(fn (Tool $t) => [
+                'name' => $t->name,
+                'status' => $t->status,
+                'orders' => (int) $t->orders_count,
+                'revenue' => $byItem['tools'][$t->id] ?? 0.0,
             ])->sortByDesc('orders')->values(),
             'subscriptions' => collect($this->reports->getSubscriptionsReport())
                 ->mapWithKeys(fn ($r) => [$r['status'] => $r['count']])->all(),
