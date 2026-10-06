@@ -28,6 +28,7 @@ import '../tools/tools_screen.dart';
 import '../support/help_screen.dart';
 import '../admin/ai_assistant_screen.dart';
 import '../admin/team_chat_screen.dart';
+import '../studio/studio_screen.dart';
 
 class _Destination {
   const _Destination(this.label, this.icon, this.screen, {this.primary = false});
@@ -50,6 +51,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   List<_Destination> _destinationsFor({
     required bool isAdmin,
     bool canWriteResearch = false,
+    bool canAccessStudio = false,
   }) {
     if (isAdmin) {
       return const [
@@ -62,6 +64,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
         _Destination('Finance', Icons.account_balance_outlined, AdminFinanceScreen()),
         _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
+        _Destination('Teaching Studio', Icons.video_settings_outlined, StudioScreen()),
         _Destination('Team chat', Icons.forum_outlined, TeamChatScreen()),
         _Destination('AI Assistant', Icons.smart_toy_outlined, AiAssistantScreen()),
         _Destination('System', Icons.tune, AdminSystemScreen()),
@@ -76,6 +79,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
       const _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
       const _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
+      if (canAccessStudio)
+        const _Destination('Teaching Studio', Icons.video_settings_outlined, StudioScreen()),
       const _Destination('Research', Icons.menu_book_outlined, ResearchScreen()),
       if (canWriteResearch)
         const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
@@ -124,6 +129,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final all = _destinationsFor(
       isAdmin: isAdmin,
       canWriteResearch: user?.canWriteResearch ?? false,
+      canAccessStudio: user?.canAccessStudio ?? false,
     );
     final safeIndex = _index.clamp(0, all.length - 1);
 

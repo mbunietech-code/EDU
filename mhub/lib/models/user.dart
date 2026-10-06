@@ -7,6 +7,7 @@ class AppUser {
     required this.status,
     this.emailVerified = false,
     this.canWriteResearch = false,
+    this.canAccessStudio = false,
   });
 
   final int id;
@@ -16,6 +17,9 @@ class AppUser {
   final String status;
   final bool emailVerified;
   final bool canWriteResearch;
+
+  /// Teachers and learning staff: may open the Teaching Studio.
+  final bool canAccessStudio;
 
   bool get isActive => status == 'active';
 
@@ -28,6 +32,7 @@ class AppUser {
       status: json['status'] as String? ?? 'active',
       emailVerified: json['email_verified_at'] != null,
       canWriteResearch: json['can_write_research'] == true,
+      canAccessStudio: json['can_access_studio'] == true,
     );
   }
 
@@ -37,6 +42,7 @@ class AppUser {
         'email': email,
         'is_admin': isAdmin,
         'can_write_research': canWriteResearch,
+        'can_access_studio': canAccessStudio,
         'status': status,
         'email_verified_at': emailVerified ? 'verified' : null,
       };
