@@ -216,6 +216,9 @@ class LearningRepository {
     data: {'uid': uid, 'c': color, 'w': width, 'p': points},
   );
 
+  Future<void> deleteBoardStroke(String slug, int strokeId) =>
+      _api.delete('/learning/rooms/$slug/board/strokes/$strokeId');
+
   Future<LiveBoardState> updateBoard(
     String slug, {
     bool? active,

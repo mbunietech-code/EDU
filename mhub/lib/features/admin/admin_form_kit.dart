@@ -7,10 +7,14 @@ import '../../core/api_client.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/mbui/mbui.dart';
 
-/// Small building blocks shared by the admin create/edit forms so they all
-/// read like the website's form pages.
+/// Small building blocks shared by the admin create/edit forms.
 class LabeledInput extends StatelessWidget {
-  const LabeledInput({super.key, required this.label, required this.child, this.hint});
+  const LabeledInput({
+    super.key,
+    required this.label,
+    required this.child,
+    this.hint,
+  });
   final String label;
   final Widget child;
   final String? hint;
@@ -22,17 +26,22 @@ class LabeledInput extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.gray700)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.gray700,
+            ),
+          ),
           const SizedBox(height: 6),
           child,
           if (hint != null) ...[
             const SizedBox(height: 4),
-            Text(hint!,
-                style: const TextStyle(fontSize: 11, color: AppColors.gray400)),
+            Text(
+              hint!,
+              style: const TextStyle(fontSize: 11, color: AppColors.gray400),
+            ),
           ],
         ],
       ),
@@ -69,7 +78,11 @@ class StatusDropdown extends StatelessWidget {
 }
 
 class FeaturedSwitch extends StatelessWidget {
-  const FeaturedSwitch({super.key, required this.value, required this.onChanged});
+  const FeaturedSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -78,7 +91,10 @@ class FeaturedSwitch extends StatelessWidget {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: const Text('Featured', style: TextStyle(fontSize: 14)),
-      subtitle: const Text('Highlight on the site', style: TextStyle(fontSize: 12)),
+      subtitle: const Text(
+        'Highlight on the site',
+        style: TextStyle(fontSize: 12),
+      ),
       value: value,
       onChanged: onChanged,
     );
@@ -140,21 +156,26 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.label,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.gray700)),
+          Text(
+            widget.label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.gray700,
+            ),
+          ),
           const SizedBox(height: 8),
           if (hasImage)
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.md),
               child: _local != null
                   ? Image.file(_local!, height: 140, fit: BoxFit.cover)
-                  : Image.network(widget.currentUrl!,
+                  : Image.network(
+                      widget.currentUrl!,
                       height: 140,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox.shrink()),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
             ),
           const SizedBox(height: 8),
           MbuiButton(
@@ -166,8 +187,10 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 4),
-            Text(_error!,
-                style: const TextStyle(fontSize: 12, color: AppColors.red700)),
+            Text(
+              _error!,
+              style: const TextStyle(fontSize: 12, color: AppColors.red700),
+            ),
           ],
         ],
       ),
@@ -175,7 +198,7 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
   }
 }
 
-/// A page scaffold for an admin form with a sticky primary save button.
+/// A mobile-first admin form with native sections and a sticky save action.
 class AdminFormScaffold extends StatelessWidget {
   const AdminFormScaffold({
     super.key,
@@ -210,17 +233,27 @@ class AdminFormScaffold extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          MbuiCard(child: Column(children: children)),
-          const SizedBox(height: 16),
-          MbuiButton(
-            label: saveLabel,
-            loading: saving,
-            fullWidth: true,
-            onPressed: onSave,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.gray200),
+            ),
+            child: Column(children: children),
           ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: MbuiButton(
+          label: saveLabel,
+          loading: saving,
+          fullWidth: true,
+          onPressed: onSave,
+        ),
       ),
     );
   }

@@ -228,6 +228,29 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
     }
   }
 
+  Future<void> _undoBoardStroke() async {
+    final me = _feed?.participants.cast<LiveParticipant?>().firstWhere(
+      (p) => p?.isMe ?? false,
+      orElse: () => null,
+    );
+    final visible = _feed?.isManager == true
+        ? _boardStrokes
+        : _boardStrokes.where((s) => s.userId == me?.userId).toList();
+    if (visible.isEmpty) {
+      _snack('Nothing to undo on the board.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await _repo.deleteBoardStroke(widget.slug, visible.last.id);
+      await _loadBoard();
+    } on ApiException catch (e) {
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _setBoard({bool? active, bool? allCanDraw, bool? clear}) async {
     setState(() => _busy = true);
     try {
@@ -613,6 +636,7 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
                       onColor: (value) => setState(() => _boardColor = value),
                       onWidth: (value) => setState(() => _boardWidth = value),
                       onStroke: _addBoardStroke,
+                      onUndo: _undoBoardStroke,
                       onOpen: () => _setBoard(active: !feed.board.active),
                       onClear: () => _setBoard(clear: true),
                       onAllCanDraw: (value) => _setBoard(allCanDraw: value),
@@ -956,6 +980,7 @@ class _BoardPanel extends StatefulWidget {
     required this.onColor,
     required this.onWidth,
     required this.onStroke,
+    required this.onUndo,
     required this.onOpen,
     required this.onClear,
     required this.onAllCanDraw,
@@ -969,6 +994,7 @@ class _BoardPanel extends StatefulWidget {
   final ValueChanged<String> onColor;
   final ValueChanged<int> onWidth;
   final ValueChanged<List<int>> onStroke;
+  final VoidCallback onUndo;
   final VoidCallback onOpen;
   final VoidCallback onClear;
   final ValueChanged<bool> onAllCanDraw;
@@ -1013,6 +1039,13 @@ class _BoardPanelState extends State<_BoardPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final me = widget.feed.participants.cast<LiveParticipant?>().firstWhere(
+      (p) => p?.isMe ?? false,
+      orElse: () => null,
+    );
+    final canUndo = widget.feed.isManager
+        ? widget.strokes.isNotEmpty
+        : widget.strokes.any((s) => s.userId == me?.userId);
     return Column(
       children: [
         if (widget.feed.isManager)
@@ -1099,53 +1132,82 @@ class _BoardPanelState extends State<_BoardPanel> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Row(
-            children: [
-              for (final c in const [
-                '#111827',
-                '#dc2626',
-                '#2563eb',
-                '#16a34a',
-                '#f59e0b',
-                '#ffffff',
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () => widget.onColor(c),
-                    child: CircleAvatar(
-                      radius: 12,
-                      backgroundColor: _hex(c),
-                      child: widget.color == c
-                          ? const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: Colors.white,
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              DropdownButton<int>(
-                value: widget.width,
-                dropdownColor: AppColors.gray900,
-                items: const [4, 8, 16, 32]
-                    .map(
-                      (w) => DropdownMenuItem(
-                        value: w,
-                        child: Text(
-                          '$w',
-                          style: TextStyle(color: Colors.white),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.gray900,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.gray700),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  for (final c in const [
+                    '#111827',
+                    '#dc2626',
+                    '#2563eb',
+                    '#16a34a',
+                    '#f59e0b',
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () => widget.onColor(c),
+                        customBorder: const CircleBorder(),
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: _hex(c),
+                          child: widget.color == c
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Colors.white,
+                                )
+                              : null,
                         ),
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) widget.onWidth(v);
-                },
+                    ),
+                  IconButton(
+                    tooltip: 'Eraser',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => widget.onColor('#ffffff'),
+                    icon: Icon(
+                      Icons.cleaning_services_outlined,
+                      color: widget.color == '#ffffff'
+                          ? AppColors.amber700
+                          : Colors.white70,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Undo',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: widget.busy || !canUndo ? null : widget.onUndo,
+                    icon: const Icon(Icons.undo, color: Colors.white70),
+                  ),
+                  const Spacer(),
+                  DropdownButton<int>(
+                    value: widget.width,
+                    dropdownColor: AppColors.gray900,
+                    underline: const SizedBox.shrink(),
+                    iconEnabledColor: Colors.white70,
+                    items: const [4, 8, 16, 32]
+                        .map(
+                          (w) => DropdownMenuItem(
+                            value: w,
+                            child: Text(
+                              '$w px',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) widget.onWidth(v);
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ],

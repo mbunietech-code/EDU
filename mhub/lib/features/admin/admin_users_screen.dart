@@ -63,8 +63,10 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               data: (users) {
                 if (users.isEmpty) {
                   return const Center(
-                    child: Text('No users found.',
-                        style: TextStyle(color: AppColors.gray500)),
+                    child: Text(
+                      'No users found.',
+                      style: TextStyle(color: AppColors.gray500),
+                    ),
                   );
                 }
                 return ListView.builder(
@@ -87,10 +89,13 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                               radius: 20,
                               backgroundColor: AppColors.indigo50,
                               child: Text(
-                                u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
+                                u.name.isNotEmpty
+                                    ? u.name[0].toUpperCase()
+                                    : '?',
                                 style: const TextStyle(
-                                    color: AppColors.indigo700,
-                                    fontWeight: FontWeight.w700),
+                                  color: AppColors.indigo700,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -101,26 +106,34 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                                   Row(
                                     children: [
                                       Flexible(
-                                        child: Text(u.name,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.gray900)),
+                                        child: Text(
+                                          u.name,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.gray900,
+                                          ),
+                                        ),
                                       ),
                                       if (u.isAdmin) ...[
                                         const SizedBox(width: 6),
-                                        const MbuiBadge('Admin',
-                                            appearance: MbuiAppearance.info),
+                                        const MbuiBadge(
+                                          'Admin',
+                                          appearance: MbuiAppearance.info,
+                                        ),
                                       ],
                                     ],
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(u.email,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.gray500)),
+                                  Text(
+                                    u.email,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.gray500,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -155,25 +168,16 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
   Future<void> _toggleStatus(AdminUser u) async {
     final target = u.isSuspended ? 'active' : 'suspended';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(target == 'suspended' ? 'Suspend user?' : 'Reactivate user?'),
-        content: Text(target == 'suspended'
-            ? '${u.name} will not be able to sign in.'
-            : '${u.name} will be able to sign in again.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(target == 'suspended' ? 'Suspend' : 'Reactivate'),
-          ),
-        ],
-      ),
+    final ok = await confirmAdminAction(
+      context,
+      title: target == 'suspended' ? 'Suspend user?' : 'Reactivate user?',
+      message: target == 'suspended'
+          ? '${u.name} will not be able to sign in.'
+          : '${u.name} will be able to sign in again.',
+      actionLabel: target == 'suspended' ? 'Suspend' : 'Reactivate',
+      variant: target == 'suspended' ? MbuiVariant.danger : MbuiVariant.success,
     );
-    if (ok != true) return;
+    if (!ok) return;
 
     setState(() => _busy = true);
     try {
@@ -183,13 +187,15 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       ref.invalidate(adminUserProvider(widget.userId));
       ref.invalidate(adminUsersProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('User updated.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User updated.')));
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -216,8 +222,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                   AdminRow('Name', u.name),
                   AdminRow('Email', u.email),
                   AdminRow('Role', u.role ?? (u.isAdmin ? 'Admin' : 'Member')),
-                  AdminRow('Status', '',
-                      valueWidget: MbuiStatusBadge(u.status)),
+                  AdminRow(
+                    'Status',
+                    '',
+                    valueWidget: MbuiStatusBadge(u.status),
+                  ),
                   AdminRow('Orders', '${u.ordersCount}'),
                   AdminRow('Active subs', '${u.activeSubscriptionsCount}'),
                 ],
@@ -260,8 +269,10 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text('${o.title} · ${o.orderNumber}',
-                              style: const TextStyle(fontSize: 13)),
+                          child: Text(
+                            '${o.title} · ${o.orderNumber}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
                         MbuiStatusBadge(o.status),
                       ],

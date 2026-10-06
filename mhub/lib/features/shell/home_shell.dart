@@ -31,7 +31,12 @@ import '../admin/team_chat_screen.dart';
 import '../studio/studio_screen.dart';
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.screen, {this.primary = false});
+  const _Destination(
+    this.label,
+    this.icon,
+    this.screen, {
+    this.primary = false,
+  });
   final String label;
   final IconData icon;
   final Widget screen;
@@ -55,40 +60,128 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }) {
     if (isAdmin) {
       return const [
-        _Destination('Overview', Icons.dashboard_outlined, AdminDashboardScreen(), primary: true),
-        _Destination('Payments', Icons.payments_outlined, AdminPaymentsScreen(), primary: true),
-        _Destination('Orders', Icons.receipt_long_outlined, AdminOrdersScreen(), primary: true),
-        _Destination('Messages', Icons.chat_bubble_outline, AdminChatScreen(), primary: true),
-        _Destination('Catalogue', Icons.inventory_2_outlined, AdminCatalogueScreen()),
+        _Destination(
+          'Overview',
+          Icons.dashboard_outlined,
+          AdminDashboardScreen(),
+          primary: true,
+        ),
+        _Destination(
+          'Payments',
+          Icons.payments_outlined,
+          AdminPaymentsScreen(),
+          primary: true,
+        ),
+        _Destination(
+          'Orders',
+          Icons.receipt_long_outlined,
+          AdminOrdersScreen(),
+          primary: true,
+        ),
+        _Destination(
+          'Messages',
+          Icons.chat_bubble_outline,
+          AdminChatScreen(),
+          primary: true,
+        ),
+        _Destination(
+          'Catalogue',
+          Icons.inventory_2_outlined,
+          AdminCatalogueScreen(),
+        ),
         _Destination('Users', Icons.group_outlined, AdminUsersScreen()),
         _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
-        _Destination('Finance', Icons.account_balance_outlined, AdminFinanceScreen()),
+        _Destination(
+          'Finance',
+          Icons.account_balance_outlined,
+          AdminFinanceScreen(),
+        ),
         _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
-        _Destination('Teaching Studio', Icons.video_settings_outlined, StudioScreen()),
+        _Destination(
+          'Teaching Studio',
+          Icons.video_settings_outlined,
+          StudioScreen(),
+        ),
         _Destination('Team chat', Icons.forum_outlined, TeamChatScreen()),
-        _Destination('AI Assistant', Icons.smart_toy_outlined, AiAssistantScreen()),
+        _Destination(
+          'AI Assistant',
+          Icons.smart_toy_outlined,
+          AiAssistantScreen(),
+        ),
         _Destination('System', Icons.tune, AdminSystemScreen()),
-        _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
+        _Destination(
+          'Notifications',
+          Icons.notifications_none,
+          NotificationsScreen(),
+        ),
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
         _Destination('Help & contact', Icons.support_agent, HelpScreen()),
       ];
     }
     return [
-      const _Destination('Home', Icons.home_outlined, UserDashboardScreen(), primary: true),
-      const _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen(), primary: true),
-      const _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
-      const _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
-      const _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
+      const _Destination(
+        'Home',
+        Icons.home_outlined,
+        UserDashboardScreen(),
+        primary: true,
+      ),
+      const _Destination(
+        'AI Tools',
+        Icons.smart_toy_outlined,
+        ProductsScreen(),
+        primary: true,
+      ),
+      const _Destination(
+        'My Orders',
+        Icons.shopping_bag_outlined,
+        OrdersScreen(),
+        primary: true,
+      ),
+      const _Destination(
+        'Messages',
+        Icons.chat_bubble_outline,
+        ChatScreen(),
+        primary: true,
+      ),
+      const _Destination(
+        'Learning',
+        Icons.school_outlined,
+        LearningHomeScreen(),
+      ),
       if (canAccessStudio)
-        const _Destination('Teaching Studio', Icons.video_settings_outlined, StudioScreen()),
-      const _Destination('Research', Icons.menu_book_outlined, ResearchScreen()),
+        const _Destination(
+          'Teaching Studio',
+          Icons.video_settings_outlined,
+          StudioScreen(),
+        ),
+      const _Destination(
+        'Research',
+        Icons.menu_book_outlined,
+        ResearchScreen(),
+      ),
       if (canWriteResearch)
         const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
       const _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
-      const _Destination('Subscriptions', Icons.autorenew, SubscriptionsScreen()),
-      const _Destination('Research Tools', Icons.science_outlined, ToolsScreen()),
-      const _Destination('Scholarships', Icons.school_outlined, ScholarshipsScreen()),
-      const _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
+      const _Destination(
+        'Subscriptions',
+        Icons.autorenew,
+        SubscriptionsScreen(),
+      ),
+      const _Destination(
+        'Research Tools',
+        Icons.science_outlined,
+        ToolsScreen(),
+      ),
+      const _Destination(
+        'Scholarships',
+        Icons.school_outlined,
+        ScholarshipsScreen(),
+      ),
+      const _Destination(
+        'Notifications',
+        Icons.notifications_none,
+        NotificationsScreen(),
+      ),
       const _Destination('Profile', Icons.person_outline, ProfileScreen()),
       const _Destination('Help & contact', Icons.support_agent, HelpScreen()),
     ];
@@ -99,27 +192,87 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       for (var i = 0; i < all.length; i++)
         if (!all[i].primary) i,
     ];
+    final grouped = <String, List<int>>{};
+    for (final i in extra) {
+      final section = _sectionFor(all[i].label);
+      grouped.putIfAbsent(section, () => []).add(i);
+    }
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
-            for (final i in extra)
-              ListTile(
-                leading: Icon(all[i].icon),
-                title: Text(all[i].label),
-                selected: i == _index,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _index = i);
-                },
+            for (final entry in grouped.entries) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
+                child: Text(
+                  entry.key,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                    color: AppColors.gray500,
+                  ),
+                ),
               ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.gray200),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final i in entry.value)
+                      ListTile(
+                        leading: Icon(all[i].icon),
+                        title: Text(all[i].label),
+                        trailing: i == _index
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: AppColors.indigo600,
+                              )
+                            : const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pop(context);
+                          setState(() => _index = i);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _sectionFor(String label) {
+    if (const {'Catalogue', 'Users', 'Reports'}.contains(label)) {
+      return 'Management';
+    }
+    if (const {'Finance', 'Payments', 'Subscriptions'}.contains(label)) {
+      return 'Finance';
+    }
+    if (const {
+      'Learning',
+      'Teaching Studio',
+      'Research',
+      'My Research',
+      'Research Tools',
+      'Scholarships',
+    }.contains(label)) {
+      return 'Learning';
+    }
+    if (const {'Team chat', 'AI Assistant', 'Messages'}.contains(label)) {
+      return 'Collaboration';
+    }
+    return 'System';
   }
 
   @override
@@ -153,7 +306,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
               destinations: [
                 for (final d in all)
-                  NavigationRailDestination(icon: Icon(d.icon), label: Text(d.label)),
+                  NavigationRailDestination(
+                    icon: Icon(d.icon),
+                    label: Text(d.label),
+                  ),
               ],
             ),
             const VerticalDivider(width: 1),
@@ -208,8 +364,14 @@ class _RailBadge extends StatelessWidget {
         color: AppColors.indigo600,
       ),
       alignment: Alignment.center,
-      child: const Text('M',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
+      child: const Text(
+        'M',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 20,
+        ),
+      ),
     );
   }
 }

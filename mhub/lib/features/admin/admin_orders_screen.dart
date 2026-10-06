@@ -44,8 +44,10 @@ class AdminOrdersScreen extends ConsumerWidget {
               data: (list) {
                 if (list.items.isEmpty) {
                   return const Center(
-                    child: Text('No orders here.',
-                        style: TextStyle(color: AppColors.gray500)),
+                    child: Text(
+                      'No orders here.',
+                      style: TextStyle(color: AppColors.gray500),
+                    ),
                   );
                 }
                 return ListView.builder(
@@ -58,7 +60,8 @@ class AdminOrdersScreen extends ConsumerWidget {
                       child: MbuiCard(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => AdminOrderDetailScreen(orderId: o.id),
+                            builder: (_) =>
+                                AdminOrderDetailScreen(orderId: o.id),
                           ),
                         ),
                         padding: const EdgeInsets.all(14),
@@ -68,32 +71,46 @@ class AdminOrdersScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(o.title,
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.gray900)),
+                                  child: Text(
+                                    o.title,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.gray900,
+                                    ),
+                                  ),
                                 ),
                                 MbuiStatusBadge(o.status),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text('${o.customerName} · ${o.orderNumber}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.gray500)),
+                            Text(
+                              '${o.customerName} · ${o.orderNumber}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.gray500,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Text(o.amountLabel,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.gray700)),
+                                Text(
+                                  o.amountLabel,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.gray700,
+                                  ),
+                                ),
                                 const Spacer(),
                                 if (o.createdAgo != null)
-                                  Text(o.createdAgo!,
-                                      style: const TextStyle(
-                                          fontSize: 12, color: AppColors.gray400)),
+                                  Text(
+                                    o.createdAgo!,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.gray400,
+                                    ),
+                                  ),
                               ],
                             ),
                           ],
@@ -116,29 +133,12 @@ class AdminOrderDetailScreen extends ConsumerWidget {
   final int orderId;
 
   Future<void> _edit(BuildContext context, WidgetRef ref, AdminOrder o) async {
-    final controller = TextEditingController(text: o.paymentInstructions ?? '');
-    final newValue = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit payment instructions'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          minLines: 2,
-          maxLines: 6,
-          decoration: const InputDecoration(hintText: 'Shown to the customer'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    final newValue = await promptAdminText(
+      context,
+      title: 'Edit payment instructions',
+      actionLabel: 'Save',
+      initialValue: o.paymentInstructions ?? '',
+      hint: 'Shown to the customer',
     );
     if (newValue == null) return;
 
@@ -147,25 +147,32 @@ class AdminOrderDetailScreen extends ConsumerWidget {
       ref.invalidate(adminOrderProvider(o.id));
       ref.invalidate(adminOrdersProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Order updated.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order updated.')));
       }
     } on ApiException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
 
-  Future<void> _downloadReceipt(BuildContext context, WidgetRef ref, int id) async {
+  Future<void> _downloadReceipt(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+  ) async {
     try {
       final url = await ref.read(adminRepositoryProvider).orderReceiptUrl(id);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } on ApiException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -207,7 +214,8 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                 children: [
                   AdminRow('Order number', o.orderNumber),
                   AdminRow('Customer', o.customerName),
-                  if (o.customerEmail != null) AdminRow('Email', o.customerEmail!),
+                  if (o.customerEmail != null)
+                    AdminRow('Email', o.customerEmail!),
                   if (o.plan != null) AdminRow('Plan', o.plan!),
                   AdminRow('Amount', o.amountLabel),
                   if (o.createdAgo != null) AdminRow('Placed', o.createdAgo!),
@@ -222,8 +230,13 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                   children: [
                     const MbuiSectionLabel('Rejection reason'),
                     const SizedBox(height: 6),
-                    Text(o.rejectionReason!,
-                        style: const TextStyle(fontSize: 13, color: AppColors.red700)),
+                    Text(
+                      o.rejectionReason!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.red700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -243,13 +256,21 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${p.amountLabel} · ${p.method}',
-                                  style: const TextStyle(
-                                      fontSize: 13, fontWeight: FontWeight.w600)),
+                              Text(
+                                '${p.amountLabel} · ${p.method}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               if (p.reference != null)
-                                Text('Ref: ${p.reference}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: AppColors.gray500)),
+                                Text(
+                                  'Ref: ${p.reference}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.gray500,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -269,7 +290,9 @@ class AdminOrderDetailScreen extends ConsumerWidget {
                 onPressed: () => _downloadReceipt(context, ref, o.id),
               ),
             ],
-            if (!o.isConfirmed && o.status != 'rejected' && o.status != 'cancelled') ...[
+            if (!o.isConfirmed &&
+                o.status != 'rejected' &&
+                o.status != 'cancelled') ...[
               const SizedBox(height: 24),
               _RejectOrderButton(orderId: o.id),
               const SizedBox(height: 6),
@@ -310,17 +333,21 @@ class _RejectOrderButtonState extends ConsumerState<_RejectOrderButton> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(adminRepositoryProvider).rejectOrder(widget.orderId, reason);
+      await ref
+          .read(adminRepositoryProvider)
+          .rejectOrder(widget.orderId, reason);
       ref.invalidate(adminOrderProvider(widget.orderId));
       ref.invalidate(adminOrdersProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Order disapproved.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order disapproved.')));
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -362,17 +389,21 @@ class _DeleteOrderButtonState extends ConsumerState<_DeleteOrderButton> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(adminRepositoryProvider).deleteOrder(widget.orderId, reason);
+      await ref
+          .read(adminRepositoryProvider)
+          .deleteOrder(widget.orderId, reason);
       ref.invalidate(adminOrdersProvider);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Order deleted.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order deleted.')));
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

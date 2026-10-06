@@ -44,8 +44,10 @@ class AdminPaymentsScreen extends ConsumerWidget {
               data: (list) {
                 if (list.items.isEmpty) {
                   return const Center(
-                    child: Text('Nothing to review.',
-                        style: TextStyle(color: AppColors.gray500)),
+                    child: Text(
+                      'Nothing to review.',
+                      style: TextStyle(color: AppColors.gray500),
+                    ),
                   );
                 }
                 return ListView.builder(
@@ -69,32 +71,46 @@ class AdminPaymentsScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(p.title,
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.gray900)),
+                                  child: Text(
+                                    p.title,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.gray900,
+                                    ),
+                                  ),
                                 ),
                                 MbuiStatusBadge(p.status),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text('${p.customerName} · ${p.method}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.gray500)),
+                            Text(
+                              '${p.customerName} · ${p.method}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.gray500,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Text(p.amountLabel,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.gray700)),
+                                Text(
+                                  p.amountLabel,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.gray700,
+                                  ),
+                                ),
                                 const Spacer(),
                                 if (p.createdAgo != null)
-                                  Text(p.createdAgo!,
-                                      style: const TextStyle(
-                                          fontSize: 12, color: AppColors.gray400)),
+                                  Text(
+                                    p.createdAgo!,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.gray400,
+                                    ),
+                                  ),
                               ],
                             ),
                           ],
@@ -126,27 +142,16 @@ class _AdminPaymentDetailScreenState
   bool _busy = false;
 
   Future<void> _approve() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Approve payment?'),
-        content: const Text(
-          'This confirms the order and activates the subscription / delivers '
-          'the tool. It cannot be undone here.',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.emerald600),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
+    final ok = await confirmAdminAction(
+      context,
+      title: 'Approve payment?',
+      message:
+          'This confirms the order and activates the subscription or '
+          'delivers the tool. It cannot be undone here.',
+      actionLabel: 'Approve',
+      variant: MbuiVariant.success,
     );
-    if (ok != true) return;
+    if (!ok) return;
 
     setState(() => _busy = true);
     try {
@@ -222,11 +227,13 @@ class _AdminPaymentDetailScreenState
                 children: [
                   AdminRow('Product', p.title),
                   AdminRow('Customer', p.customerName),
-                  if (p.customerEmail != null) AdminRow('Email', p.customerEmail!),
+                  if (p.customerEmail != null)
+                    AdminRow('Email', p.customerEmail!),
                   AdminRow('Method', p.method),
                   if (p.reference != null) AdminRow('Reference', p.reference!),
                   if (p.orderNumber != null) AdminRow('Order', p.orderNumber!),
-                  if (p.createdAgo != null) AdminRow('Submitted', p.createdAgo!),
+                  if (p.createdAgo != null)
+                    AdminRow('Submitted', p.createdAgo!),
                   if (p.adminNote != null) AdminRow('Note', p.adminNote!),
                 ],
               ),
@@ -290,8 +297,9 @@ class _ProofImageState extends ConsumerState<_ProofImage> {
 
   Future<void> _load() async {
     try {
-      final data =
-          await ref.read(adminRepositoryProvider).proofBytes(widget.path);
+      final data = await ref
+          .read(adminRepositoryProvider)
+          .proofBytes(widget.path);
       if (mounted) setState(() => _bytes = Uint8List.fromList(data));
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -308,8 +316,10 @@ class _ProofImageState extends ConsumerState<_ProofImage> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text('Could not load proof: $_error',
-                  style: const TextStyle(fontSize: 12, color: AppColors.red700)),
+              child: Text(
+                'Could not load proof: $_error',
+                style: const TextStyle(fontSize: 12, color: AppColors.red700),
+              ),
             )
           else if (_bytes == null)
             const SizedBox(
@@ -326,15 +336,20 @@ class _ProofImageState extends ConsumerState<_ProofImage> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Image.memory(_bytes!,
-                    width: double.infinity, fit: BoxFit.cover),
+                child: Image.memory(
+                  _bytes!,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           if (widget.caption != null && widget.caption!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(8),
-              child: Text(widget.caption!,
-                  style: const TextStyle(fontSize: 12, color: AppColors.gray500)),
+              child: Text(
+                widget.caption!,
+                style: const TextStyle(fontSize: 12, color: AppColors.gray500),
+              ),
             ),
         ],
       ),
