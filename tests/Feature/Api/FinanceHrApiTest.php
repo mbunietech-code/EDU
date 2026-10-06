@@ -45,6 +45,33 @@ class FinanceHrApiTest extends TestCase
         $this->api('GET', '/staff')->assertOk();
     }
 
+    public function test_contracts_list_expiring_ones_and_a_new_active_contract_replaces_the_old(): void
+    {
+        $this->api('GET', '/contracts')->assertStatus(423);
+        $this->unlock();
+        $staff = FinanceStaff::create(['staff_number' => 'Mhub-001', 'first_name' => 'Asha', 'last_name' => 'Juma', 'status' => 'active', 'basic_salary' => 500000]);
+
+        $old = $this->api('POST', '/contracts', [
+            'finance_staff_id' => $staff->id, 'start_date' => now()->subYear()->toDateString(),
+            'end_date' => now()->addDays(10)->toDateString(), 'basic_salary' => 500000, 'status' => 'active',
+        ])->assertCreated()->json('data');
+        $this->assertStringStartsWith('CNT-', $old['contract_number']);
+
+        $this->api('GET', '/contracts?filter=expiring')->assertOk()
+            ->assertJsonPath('meta.counts.expiring', 1)
+            ->assertJsonPath('data.0.staff', 'Asha Juma')
+            ->assertJsonPath('data.0.days_left', 10);
+
+        $this->api('POST', '/contracts', [
+            'finance_staff_id' => $staff->id, 'start_date' => now()->addDays(11)->toDateString(),
+            'end_date' => now()->addYears(2)->toDateString(), 'basic_salary' => 650000, 'status' => 'active',
+        ])->assertCreated();
+
+        $this->assertSame('renewed', \App\Models\FinanceStaffContract::find($old['id'])->status);
+        $this->assertEquals(650000, $staff->fresh()->basic_salary);
+        $this->api('POST', '/contracts', ['finance_staff_id' => $staff->id, 'status' => 'active'])->assertStatus(422);
+    }
+
     public function test_staff_can_be_added_and_listed_by_rank(): void
     {
         $this->unlock();

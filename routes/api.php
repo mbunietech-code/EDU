@@ -397,6 +397,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/loans/{capitalEntry}/repayments', 'repay');
             Route::delete('/loans/{capitalEntry}/repayments/{repayment}', 'destroyRepayment');
         });
+        Route::get('/finance/contracts', [\App\Http\Controllers\Api\Admin\FinanceContractController::class, 'index']);
+        Route::post('/finance/contracts', [\App\Http\Controllers\Api\Admin\FinanceContractController::class, 'store']);
 
         // AI assistant (each admin sees only their own conversations).
         Route::controller(\App\Http\Controllers\Api\Admin\AiAssistantController::class)->prefix('ai-assistant')->group(function () {
