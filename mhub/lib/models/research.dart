@@ -212,6 +212,7 @@ class ResearchChapterContent {
 
 class MyResearchRow {
   const MyResearchRow({
+    this.id = 0,
     required this.slug,
     required this.title,
     this.category,
@@ -222,6 +223,7 @@ class MyResearchRow {
     this.updatedAgo,
   });
 
+  final int id;
   final String slug;
   final String title;
   final String? category;
@@ -232,6 +234,7 @@ class MyResearchRow {
   final String? updatedAgo;
 
   factory MyResearchRow.fromJson(Map<String, dynamic> j) => MyResearchRow(
+        id: (j['id'] as num?)?.toInt() ?? 0,
         slug: j['slug'] as String? ?? '',
         title: j['title'] as String? ?? '',
         category: j['category'] as String?,

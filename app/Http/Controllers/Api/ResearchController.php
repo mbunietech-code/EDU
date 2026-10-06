@@ -173,6 +173,7 @@ class ResearchController extends Controller
             ->with('category:id,name')->withCount('chapters')
             ->latest()->get()
             ->map(fn (Research $r) => [
+                'id' => $r->id,
                 'slug' => $r->slug,
                 'title' => $r->title,
                 'category' => $r->category->name ?? null,
