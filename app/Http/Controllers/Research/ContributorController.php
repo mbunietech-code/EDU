@@ -251,9 +251,13 @@ class ContributorController extends Controller
             'ids.*' => ['integer'],
         ]);
 
-        $model = $data['type'] === 'chapter' ? ResearchChapter::class : ResearchSection::class;
+        // Scope to this research so ids from someone else's work are ignored.
+        $query = $data['type'] === 'chapter'
+            ? ResearchChapter::where('research_id', $research->id)
+            : ResearchSection::whereIn('research_chapter_id', $research->chapters()->select('id'));
+
         foreach (array_values($data['ids']) as $pos => $id) {
-            $model::where('id', $id)->update(['position' => $pos + 1]);
+            (clone $query)->whereKey($id)->update(['position' => $pos + 1]);
         }
 
         return response()->json(['ok' => true]);

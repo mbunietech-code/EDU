@@ -58,6 +58,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/research/{slug}/chapters/{chapter}', [\App\Http\Controllers\Api\ResearchController::class, 'chapter']);
     Route::post('/research/{slug}/progress', [\App\Http\Controllers\Api\ResearchController::class, 'markSection']);
 
+    // Writing research from the app (contributors).
+    Route::controller(\App\Http\Controllers\Api\ResearchAuthorController::class)->prefix('my-research')->group(function () {
+        Route::get('/categories', 'categories');
+        Route::post('/', 'store');
+        Route::get('/{research}', 'show')->whereNumber('research');
+        Route::put('/{research}', 'update')->whereNumber('research');
+        Route::delete('/{research}', 'destroy')->whereNumber('research');
+        Route::post('/{research}/submit', 'submit')->whereNumber('research');
+        Route::post('/{research}/import', 'import')->whereNumber('research');
+        Route::post('/{research}/reorder', 'reorder')->whereNumber('research');
+        Route::post('/{research}/chapters', 'storeChapter')->whereNumber('research');
+        Route::put('/chapters/{chapter}', 'updateChapter');
+        Route::delete('/chapters/{chapter}', 'destroyChapter');
+        Route::post('/chapters/{chapter}/sections', 'storeSection');
+        Route::get('/sections/{section}', 'showSection');
+        Route::put('/sections/{section}', 'updateSection');
+        Route::delete('/sections/{section}', 'destroySection');
+    });
+
     // Learning (ROOM) — lessons, courses and live rooms; media streams via signed URLs
     Route::controller(\App\Http\Controllers\Api\LearningController::class)
         ->prefix('learning')
