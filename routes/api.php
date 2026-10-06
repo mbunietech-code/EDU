@@ -28,6 +28,11 @@ Route::post('/webhooks/livekit', \App\Http\Controllers\Api\LiveKitWebhookControl
     ->middleware('throttle:600,1')
     ->name('api.webhooks.livekit');
 
+// AzamPay / ClickPesa payment results — authenticated by the secret token in the URL.
+Route::post('/payments/callback/{gateway}/{token}', \App\Http\Controllers\Api\PaymentCallbackController::class)
+    ->middleware('throttle:120,1')
+    ->name('api.payments.callback');
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);

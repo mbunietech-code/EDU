@@ -82,6 +82,8 @@ class Payment extends Model
             $methods = PaymentMethod::pluck('name', 'code')->all();
         }
 
-        return $methods[$this->payment_method] ?? ucwords(str_replace('_', ' ', $this->payment_method));
+        return $methods[$this->payment_method]
+            ?? config("payments.gateways.{$this->payment_method}.label")
+            ?? ucwords(str_replace('_', ' ', $this->payment_method));
     }
 }

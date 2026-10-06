@@ -98,6 +98,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/payments/{payment}/proof/{proof}', [UserPaymentController::class, 'showProof'])->name('user.payments.proof');
     Route::get('/orders/{order}/pay', [UserPaymentController::class, 'create'])->name('user.payments.create');
     Route::post('/orders/{order}/pay', [UserPaymentController::class, 'store'])->name('user.payments.store');
+    Route::post('/orders/{order}/pay/mobile', [\App\Http\Controllers\User\MobilePaymentController::class, 'store'])
+        ->middleware('throttle:6,1')->name('user.payments.mobile.store');
+    Route::get('/orders/{order}/pay/mobile/{gatewayPayment}', [\App\Http\Controllers\User\MobilePaymentController::class, 'show'])->name('user.payments.mobile.show');
+    Route::get('/orders/{order}/pay/mobile/{gatewayPayment}/status', [\App\Http\Controllers\User\MobilePaymentController::class, 'status'])
+        ->middleware('throttle:60,1')->name('user.payments.mobile.status');
 
     Route::get('/messages', [UserChatController::class, 'index'])->name('user.chat.index');
     Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');

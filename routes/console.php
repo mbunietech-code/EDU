@@ -22,4 +22,6 @@ Schedule::command(\App\Console\Commands\LearningPurgeTrashCommand::class)->daily
 
 Schedule::command(\App\Console\Commands\LearningCleanupUploadsCommand::class)->hourly();
 
+Schedule::command(\App\Console\Commands\PaymentsSyncGatewayCommand::class)->everyMinute()->withoutOverlapping();
+
 Schedule::command('inspire')->hourly();

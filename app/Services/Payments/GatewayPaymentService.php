@@ -1,0 +1,268 @@
+<?php
+
+namespace App\Services\Payments;
+
+use App\Models\ActivityLog;
+use App\Models\GatewayPayment;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\User;
+use App\Services\NotificationService;
+use App\Services\PaymentApprovalService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class GatewayPaymentService
+{
+    /** @var array<string, MobileMoneyGateway> */
+    protected array $gateways;
+
+    public function __construct(
+        AzamPayGateway $azamPay,
+        ClickPesaGateway $clickPesa,
+        protected PaymentApprovalService $approvals,
+        protected NotificationService $notifications,
+    ) {
+        $this->gateways = [
+            $azamPay->key() => $azamPay,
+            $clickPesa->key() => $clickPesa,
+        ];
+    }
+
+    /**
+     * @return array<string, MobileMoneyGateway>
+     */
+    public function enabled(): array
+    {
+        return array_filter($this->gateways, fn (MobileMoneyGateway $gateway) => $gateway->isEnabled());
+    }
+
+    public function gateway(string $key): ?MobileMoneyGateway
+    {
+        return $this->gateways[$key] ?? null;
+    }
+
+    /**
+     * Normalise a Tanzanian mobile number to 2557XXXXXXXX / 2556XXXXXXXX.
+     */
+    public static function normalizePhone(string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+
+        if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
+            $digits = '255'.substr($digits, 1);
+        } elseif (strlen($digits) === 9) {
+            $digits = '255'.$digits;
+        }
+
+        return preg_match('/^255[67]\d{8}$/', $digits) ? $digits : null;
+    }
+
+    /**
+     * A push for this order that is still waiting for the customer's PIN.
+     */
+    public function activeFor(Order $order): ?GatewayPayment
+    {
+        return GatewayPayment::where('order_id', $order->id)
+            ->where('status', 'pending')
+            ->where('created_at', '>=', now()->subMinutes($this->timeoutMinutes()))
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * @throws GatewayException
+     */
+    public function start(Order $order, User $user, MobileMoneyGateway $gateway, string $phone, ?string $network): GatewayPayment
+    {
+        $payment = GatewayPayment::create([
+            'order_id' => $order->id,
+            'user_id' => $user->id,
+            'gateway' => $gateway->key(),
+            'network' => $network,
+            'phone' => $phone,
+            'amount' => $order->amount,
+            'currency' => 'TZS',
+            'external_id' => 'MH'.$order->id.'T'.strtoupper(Str::random(10)),
+            'status' => 'pending',
+        ]);
+
+        try {
+            $transactionId = $gateway->initiate($payment);
+        } catch (GatewayException $e) {
+            $payment->update(['status' => 'failed', 'message' => Str::limit($e->getMessage(), 250), 'completed_at' => now()]);
+
+            throw $e;
+        }
+
+        $payment->update(['provider_transaction_id' => $transactionId]);
+
+        ActivityLog::log('gateway_payment_started', 'Order', $order->id, [
+            'gateway' => $gateway->key(),
+            'gateway_payment_id' => $payment->id,
+            'amount' => $payment->amount,
+        ]);
+
+        return $payment;
+    }
+
+    /**
+     * Handle a provider callback. Returns the gateway payment it applied to.
+     */
+    public function handleCallback(MobileMoneyGateway $gateway, Request $request): ?GatewayPayment
+    {
+        $data = $gateway->parseCallback($request);
+
+        if (blank($data['external_id'])) {
+            return null;
+        }
+
+        $payment = GatewayPayment::where('gateway', $gateway->key())
+            ->where('external_id', $data['external_id'])
+            ->first();
+
+        if (! $payment) {
+            return null;
+        }
+
+        $payment->update(['callback_payload' => Str::limit(json_encode($request->all()), 60000, '')]);
+
+        if ($data['verify']) {
+            $this->refresh($payment);
+        } elseif ($data['status'] === 'success') {
+            $this->markSuccessful($payment, $data['reference'], $data['amount']);
+        } elseif ($data['status'] === 'failed') {
+            $this->markFailed($payment, $request->input('message') ?: 'The payment was not completed.');
+        }
+
+        return $payment->fresh();
+    }
+
+    /**
+     * Ask the provider for the latest result, and expire pushes nobody answered.
+     */
+    public function refresh(GatewayPayment $payment): GatewayPayment
+    {
+        if ($payment->isFinal()) {
+            return $payment;
+        }
+
+        $gateway = $this->gateway($payment->gateway);
+        $result = $gateway?->fetchStatus($payment);
+        $payment->update(['last_checked_at' => now()]);
+
+        if ($result && $result['status'] === 'success') {
+            $this->markSuccessful($payment, $result['reference'], $result['amount']);
+        } elseif ($result && $result['status'] === 'failed') {
+            $this->markFailed($payment, 'The payment was declined or cancelled.');
+        } elseif ($payment->isPending() && $payment->created_at->lt(now()->subMinutes($this->timeoutMinutes()))) {
+            // Still accept a late success callback after this.
+            $payment->update(['status' => 'expired', 'message' => 'No confirmation received in time.']);
+        }
+
+        return $payment->fresh();
+    }
+
+    public function markSuccessful(GatewayPayment $gatewayPayment, ?string $reference, ?float $paidAmount): void
+    {
+        $result = DB::transaction(function () use ($gatewayPayment, $reference, $paidAmount) {
+            $locked = GatewayPayment::whereKey($gatewayPayment->id)->lockForUpdate()->first();
+
+            if ($locked->isSuccessful()) {
+                return null;
+            }
+
+            $order = $locked->order()->lockForUpdate()->first();
+            $amount = $paidAmount ?? (float) $locked->amount;
+            $fullyPaid = $amount + 0.009 >= (float) $order->amount;
+            $canAutoApprove = $fullyPaid && $order->isPending() && ! $order->payments()->where('status', 'approved')->exists();
+
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'user_id' => $locked->user_id,
+                'amount' => $amount,
+                'payment_method' => $locked->gateway,
+                'transaction_reference' => $reference ?: $locked->provider_transaction_id ?: $locked->external_id,
+                'status' => 'pending',
+                'admin_note' => $canAutoApprove ? null : ($fullyPaid
+                    ? 'Paid through '.$locked->gateway.' but the order was no longer awaiting payment. Check for a double payment.'
+                    : 'Paid through '.$locked->gateway.' but the amount is less than the order total.'),
+            ]);
+
+            $locked->update([
+                'status' => 'success',
+                'payment_id' => $payment->id,
+                'provider_reference' => $reference,
+                'message' => null,
+                'completed_at' => now(),
+            ]);
+
+            return [$payment, $canAutoApprove];
+        });
+
+        if (! $result) {
+            return;
+        }
+
+        [$payment, $canAutoApprove] = $result;
+
+        ActivityLog::log('gateway_payment_succeeded', 'Payment', $payment->id, [
+            'gateway' => $gatewayPayment->gateway,
+            'reference' => $payment->transaction_reference,
+            'auto_approved' => $canAutoApprove,
+        ]);
+
+        if (! $canAutoApprove) {
+            $this->notifications->notifyAdminNewPaymentProof($payment);
+
+            return;
+        }
+
+        $this->approve($payment);
+    }
+
+    public function markFailed(GatewayPayment $payment, string $message): void
+    {
+        GatewayPayment::whereKey($payment->id)
+            ->whereIn('status', ['pending', 'expired'])
+            ->update(['status' => 'failed', 'message' => Str::limit($message, 250), 'completed_at' => now(), 'updated_at' => now()]);
+    }
+
+    /**
+     * Approve exactly like an admin would, including customer notifications.
+     */
+    protected function approve(Payment $payment): void
+    {
+        try {
+            $this->approvals->approve($payment);
+        } catch (\RuntimeException $e) {
+            // Paid, but delivery needs an admin (e.g. no shared account free).
+            report($e);
+            $payment->update(['admin_note' => 'Paid online, but automatic delivery failed: '.Str::limit($e->getMessage(), 200)]);
+            if ($payment->order->product) {
+                $this->notifications->notifyAdminAccountUnavailable($payment->order->product);
+            }
+            $this->notifications->notifyAdminNewPaymentProof($payment);
+
+            return;
+        }
+
+        $payment->refresh();
+        $order = $payment->order;
+        $this->notifications->notifyPaymentApproved($payment->user, $payment);
+
+        if ($order->isToolOrder()) {
+            $this->notifications->notifyToolKeyDelivered($payment->user, $order);
+        } elseif ($order->isSoftware()) {
+            $this->notifications->notifySoftwareDelivered($payment->user, $order);
+        } elseif ($order->subscription) {
+            $this->notifications->notifySubscriptionActivated($payment->user, $order->subscription);
+        }
+    }
+
+    public function timeoutMinutes(): int
+    {
+        return max(1, (int) config('payments.pending_timeout_minutes', 10));
+    }
+}

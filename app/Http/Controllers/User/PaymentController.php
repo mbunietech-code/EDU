@@ -54,7 +54,11 @@ class PaymentController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        return view('user.payments.create', compact('order', 'paymentMethods'));
+        $mobileGateways = collect(app(\App\Services\Payments\GatewayPaymentService::class)->enabled())
+            ->map(fn ($gateway) => ['label' => $gateway->label(), 'networks' => $gateway->networks()])
+            ->all();
+
+        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways'));
     }
 
     public function store(UploadPaymentProofRequest $request, Order $order)

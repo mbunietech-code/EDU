@@ -25,6 +25,64 @@
         <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor text-sm">Back to order</a>
     </div>
 
+    @if (! empty($mobileGateways))
+        <div class="mt-6 mbui-card p-6" x-data="{ gateway: @js(old('gateway', array_key_first($mobileGateways))), gateways: @js($mobileGateways), sending: false }">
+            <h2 class="text-base font-semibold text-gray-900">Pay instantly with mobile money</h2>
+            <p class="mt-1 text-sm text-gray-500">We send a payment request to your phone. Enter your PIN and your order is confirmed automatically, with no screenshot needed.</p>
+
+            <form method="POST" action="{{ route('user.payments.mobile.store', $order) }}" class="mt-5 space-y-4" @submit="sending = true">
+                @csrf
+
+                @if (count($mobileGateways) > 1)
+                    <div>
+                        <x-input-label value="Pay with" />
+                        <div class="mt-1 flex flex-wrap gap-3">
+                            @foreach ($mobileGateways as $key => $gateway)
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-900">
+                                    <input type="radio" name="gateway" value="{{ $key }}" x-model="gateway" class="h-4 w-4 text-indigo-600">
+                                    {{ $gateway['label'] }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <x-input-error :messages="$errors->get('gateway')" class="mt-2" />
+                    </div>
+                @else
+                    <input type="hidden" name="gateway" value="{{ array_key_first($mobileGateways) }}">
+                @endif
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div x-show="Object.keys(gateways[gateway]?.networks || {}).length" x-cloak>
+                        <x-input-label for="mm-network" value="Network" />
+                        <select id="mm-network" name="network" class="mbui-input mt-1" x-bind:required="Object.keys(gateways[gateway]?.networks || {}).length > 0">
+                            <option value="">Choose network</option>
+                            <template x-for="(label, value) in (gateways[gateway]?.networks || {})" :key="value">
+                                <option :value="value" x-text="label" :selected="value === @js(old('network'))"></option>
+                            </template>
+                        </select>
+                        <x-input-error :messages="$errors->get('network')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="mm-phone" value="Mobile money number" />
+                        <x-text-input id="mm-phone" name="phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="old('phone')" placeholder="0712 345 678" required />
+                        <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end border-t border-gray-100 pt-4">
+                    <x-mbui.button type="submit" x-bind:disabled="sending">
+                        <span x-show="! sending">Pay TZS {{ number_format($order->amount) }}</span>
+                        <span x-show="sending" x-cloak>Sending request...</span>
+                    </x-mbui.button>
+                </div>
+            </form>
+        </div>
+
+        @if ($paymentMethods->isNotEmpty())
+            <p class="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">Or pay manually and upload proof</p>
+        @endif
+    @endif
+
+    @if ($paymentMethods->isNotEmpty() || empty($mobileGateways))
     <div class="mt-6 mbui-card p-6"
         x-data='{
             selectedMethod: "{{ $defaultMethod }}",
@@ -155,5 +213,6 @@
             </form>
         @endif
     </div>
+    @endif
 
 </x-layouts.user>
