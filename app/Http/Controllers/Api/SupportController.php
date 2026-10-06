@@ -40,7 +40,7 @@ class SupportController extends Controller
 
         $user->sendEmailVerificationNotification();
 
-        return response()->json(['message' => 'A new verification link has been sent to '.$user->email.'.', 'verified' => false]);
+        return response()->json(['message' => 'A new 6-digit verification code has been sent to '.$user->email.'.', 'verified' => false]);
     }
 
     /** Verify the email with the 6-digit code from the inbox (same as the web). */

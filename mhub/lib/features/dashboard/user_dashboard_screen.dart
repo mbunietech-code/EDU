@@ -7,6 +7,7 @@ import '../../widgets/mbui/mbui.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/stat_grid.dart';
 import '../auth/auth_controller.dart';
+import '../auth/verify_email_banner.dart';
 import 'dashboard_repository.dart';
 
 class UserDashboardScreen extends ConsumerWidget {
@@ -29,6 +30,7 @@ class UserDashboardScreen extends ConsumerWidget {
         data: (data) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            const VerifyEmailBanner(),
             MbuiPageHeader(
               title: 'Welcome back${user != null ? ', ${user.name}' : ''}',
               subtitle: 'Your access and orders at a glance.',
