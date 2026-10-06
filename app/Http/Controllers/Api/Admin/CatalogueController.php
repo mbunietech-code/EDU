@@ -54,6 +54,7 @@ class CatalogueController extends Controller
             'is_featured' => (bool) $product->is_featured,
             'software_version' => $product->software_version,
             'software_key' => $product->software_key,
+            'software_file' => CatalogueFileController::productFile($product),
             'image_url' => $product->imageUrl(),
             'plans' => $product->plans->map(fn (Plan $pl) => $this->planRow($pl))->all(),
         ]]);
@@ -170,6 +171,7 @@ class CatalogueController extends Controller
             'is_featured' => (bool) $tool->is_featured,
             'sort_order' => $tool->sort_order,
             'image_url' => $tool->imageUrl(),
+            'file' => CatalogueFileController::toolFile($tool),
         ]]);
     }
 

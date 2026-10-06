@@ -428,6 +428,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/tools/{tool}', [$c, 'toolShow']);
             Route::put('/tools/{tool}', [$c, 'toolUpdate']);
             Route::post('/tools/{tool}/image', [$c, 'toolImage']);
+
+            // Installers (exe, dmg, apk …) on the private disk
+            $f = \App\Http\Controllers\Api\Admin\CatalogueFileController::class;
+            Route::post('/products/{product}/software-file', [$f, 'storeProductFile']);
+            Route::delete('/products/{product}/software-file', [$f, 'destroyProductFile']);
+            Route::post('/tools/{tool}/file', [$f, 'storeToolFile']);
+            Route::delete('/tools/{tool}/file', [$f, 'destroyToolFile']);
             Route::delete('/tools/{tool}', [$c, 'toolDestroy']);
 
             Route::get('/scholarships', [$c, 'scholarships']);
