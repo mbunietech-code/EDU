@@ -19,6 +19,10 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Tool;
 use App\Services\DeletionService;
+use App\Services\Finance\FinanceException;
+use App\Services\Finance\LoanService;
+use App\Services\Finance\PayrollService;
+use App\Services\Finance\StaffService;
 use App\Services\FinanceOverviewService;
 use App\Services\StatutoryPayrollService;
 use Illuminate\Support\Carbon;
@@ -98,11 +102,7 @@ class FinanceController extends Controller
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
-        $loanTotals = [
-            'borrowed' => (float) FinanceCapitalEntry::where('is_loan', true)->sum('amount'),
-            'repaid' => (float) FinanceLoanRepayment::sum('amount'),
-        ];
-        $loanTotals['outstanding'] = max(0, $loanTotals['borrowed'] - $loanTotals['repaid']);
+        $loanTotals = app(LoanService::class)->totals();
 
         return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals'));
     }
@@ -186,29 +186,12 @@ class FinanceController extends Controller
         return view('admin.finance.repayments', compact('capitalEntry'));
     }
 
-    public function repaymentStore(Request $request, FinanceCapitalEntry $capitalEntry)
+    public function repaymentStore(Request $request, FinanceCapitalEntry $capitalEntry, LoanService $loans)
     {
         abort_unless($capitalEntry->is_loan, 404);
 
-        $outstanding = $capitalEntry->outstandingAmount();
-
-        $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'min:0.01', 'max:'.$outstanding],
-            'paid_at' => ['required', 'date', 'before_or_equal:today'],
-            'method' => ['nullable', 'string', 'max:120'],
-            'reference' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'amount.max' => 'Amount cannot be more than the outstanding balance (TZS '.number_format($outstanding).').',
-        ]);
-
-        $repayment = $capitalEntry->repayments()->create($validated + ['created_by' => auth()->id()]);
-
-        ActivityLog::log('finance_loan_repaid', 'FinanceCapitalEntry', $capitalEntry->id, [
-            'repayment_id' => $repayment->id,
-            'amount' => $validated['amount'],
-            'outstanding' => $capitalEntry->outstandingAmount(),
-        ]);
+        [$rules, $messages] = $loans->repaymentRules($capitalEntry);
+        $loans->repay($capitalEntry, $request->validate($rules, $messages), auth()->id());
 
         return back()->with('success', $capitalEntry->isFullyRepaid() ? 'Repayment recorded. The loan is fully repaid.' : 'Repayment recorded.');
     }
@@ -405,92 +388,21 @@ class FinanceController extends Controller
         $positions = FinancePosition::orderBy('seniority')->orderBy('name')->get();
         $employmentTypes = FinanceEmploymentType::orderBy('name')->get();
 
-        $nextStaffNumber = $this->nextStaffNumber();
+        $nextStaffNumber = app(StaffService::class)->nextStaffNumber();
 
         return view('admin.finance.staff', compact('staff', 'departments', 'positions', 'employmentTypes', 'nextStaffNumber'));
     }
 
-    public function staffStore(Request $request)
+    public function staffStore(Request $request, StaffService $staffService)
     {
-        $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:120'],
-            'middle_name' => ['nullable', 'string', 'max:120'],
-            'last_name' => ['required', 'string', 'max:120'],
-            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'email' => ['nullable', 'email:rfc,dns', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:40'],
-            'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
-            'finance_position_id' => ['nullable', 'exists:finance_positions,id'],
-            'finance_employment_type_id' => ['nullable', 'exists:finance_employment_types,id'],
-            'hire_date' => ['nullable', 'date'],
-            'status' => ['required', Rule::in(['active', 'on_leave', 'suspended', 'resigned', 'terminated', 'retired', 'inactive'])],
-            'basic_salary' => ['nullable', 'numeric', 'min:0'],
-            'bank_name' => ['nullable', 'string', 'max:120'],
-            'bank_name_other' => ['nullable', 'required_if:bank_name,other', 'string', 'max:120'],
-            'bank_account_number' => ['nullable', 'string', 'max:120'],
-            'mobile_money' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        if (($validated['bank_name'] ?? null) === 'other') {
-            $validated['bank_name'] = $validated['bank_name_other'];
-        }
-        unset($validated['bank_name_other']);
-
-        $validated['staff_number'] = $this->nextStaffNumber();
-        $validated['basic_salary'] = $validated['basic_salary'] ?? 0;
-        $validated['created_by'] = auth()->id();
-
-        $staff = FinanceStaff::create($validated);
-
-        ActivityLog::log('finance_staff_created', 'FinanceStaff', $staff->id, [
-            'staff_number' => $staff->staff_number,
-            'name' => $staff->fullName(),
-        ]);
+        $staffService->create($request->validate(StaffService::rules()), auth()->id());
 
         return back()->with('success', 'Staff member added.');
     }
 
-    public function directorySettings(Request $request)
+    public function directorySettings(Request $request, StaffService $staffService)
     {
-        $type = $request->validate([
-            'type' => ['required', Rule::in(['department', 'position', 'employment_type'])],
-            'name' => ['required', 'string', 'max:160'],
-            'code' => ['nullable', 'string', 'max:40'],
-            'finance_department_id' => ['nullable', 'exists:finance_departments,id'],
-            'salary_grade' => ['nullable', 'string', 'max:80'],
-            'seniority' => ['nullable', 'integer', 'min:1', 'max:999'],
-        ]);
-
-        if ($type['type'] === 'department') {
-            FinanceDepartment::firstOrCreate(
-                ['name' => $type['name']],
-                ['code' => ($type['code'] ?? null) ?: null, 'status' => 'active']
-            );
-        } elseif ($type['type'] === 'position') {
-            $position = FinancePosition::firstOrCreate(
-                ['name' => $type['name']],
-                [
-                    'code' => ($type['code'] ?? null) ?: null,
-                    'finance_department_id' => $type['finance_department_id'] ?? null,
-                    'salary_grade' => $type['salary_grade'] ?? null,
-                    'seniority' => $type['seniority'] ?? FinancePosition::guessSeniority($type['name']),
-                    'status' => 'active',
-                ]
-            );
-
-            // Re-adding an existing position with a seniority updates its rank.
-            if (! $position->wasRecentlyCreated && isset($type['seniority'])) {
-                $position->update(['seniority' => $type['seniority']]);
-            }
-        } else {
-            FinanceEmploymentType::firstOrCreate(
-                ['name' => $type['name']],
-                ['code' => ($type['code'] ?? null) ?: null, 'status' => 'active']
-            );
-        }
-
-        ActivityLog::log('finance_hr_setting_created', 'Finance', null, ['type' => $type['type'], 'name' => $type['name']]);
+        $staffService->createSetting($request->validate(StaffService::settingRules()));
 
         return back()->with('success', 'HR setting saved.');
     }
@@ -584,237 +496,47 @@ class FinanceController extends Controller
         return view('admin.finance.payroll', compact('payrolls', 'activeStaffCount', 'activeSalaryTotal', 'activeStaff', 'latestPayroll', 'payrollTotals', 'rates'));
     }
 
-    public function payrollStore(Request $request, StatutoryPayrollService $statutory)
+    public function payrollStore(Request $request, PayrollService $payrolls)
     {
-        $validated = $request->validate([
-            'period_month' => ['required', 'date_format:Y-m'],
-            'transport_allowance' => ['nullable', 'numeric', 'min:0'],
-            'meal_allowance' => ['nullable', 'numeric', 'min:0'],
-            'housing_allowance' => ['nullable', 'numeric', 'min:0'],
-            'overtime_pay' => ['nullable', 'numeric', 'min:0'],
-            'bonus_pay' => ['nullable', 'numeric', 'min:0'],
-            'insurance_amount' => ['nullable', 'numeric', 'min:0'],
-            'loan_deductions' => ['nullable', 'numeric', 'min:0'],
-            'other_deductions' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $month = Carbon::createFromFormat('Y-m', $validated['period_month'])->startOfMonth();
-        $existing = FinancePayrollPeriod::whereDate('period_month', $month->toDateString())->first();
-
-        if ($existing && $existing->status !== 'draft') {
-            return back()->with('error', "{$existing->name} payroll is already {$existing->status} and cannot be regenerated.");
+        try {
+            $payrolls->prepare($request->validate(PayrollService::RULES), auth()->id());
+        } catch (FinanceException $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        $activeStaff = FinanceStaff::with(['department', 'position'])
-            ->where('status', 'active')
-            ->orderByRank()
-            ->get();
-
-        if ($activeStaff->isEmpty()) {
-            return back()->with('error', 'Add active staff before preparing payroll.');
-        }
-
-        $staffCount = $activeStaff->count();
-        $rates = $statutory->rates();
-        $allowancePerStaff = $this->money($validated['transport_allowance'] ?? 0)
-            + $this->money($validated['meal_allowance'] ?? 0)
-            + $this->money($validated['housing_allowance'] ?? 0);
-        $overtimePerStaff = $this->money($validated['overtime_pay'] ?? 0);
-        $bonusPerStaff = $this->money($validated['bonus_pay'] ?? 0);
-        $insurancePerStaff = $this->money($validated['insurance_amount'] ?? 0);
-        $loanPerStaff = $this->money($validated['loan_deductions'] ?? 0);
-        $otherDeductionPerStaff = $this->money($validated['other_deductions'] ?? 0);
-
-        $rows = $activeStaff->map(function (FinanceStaff $staff) use ($statutory, $rates, $staffCount, $allowancePerStaff, $overtimePerStaff, $bonusPerStaff, $insurancePerStaff, $loanPerStaff, $otherDeductionPerStaff) {
-            $basic = $this->money($staff->basic_salary);
-            $gross = $basic + $allowancePerStaff + $overtimePerStaff + $bonusPerStaff;
-            $s = $statutory->forStaff($basic, $gross, $staffCount, $rates);
-            $deductions = $s['paye'] + $s['nssf_employee'] + $insurancePerStaff + $loanPerStaff + $otherDeductionPerStaff;
-
-            return [
-                'finance_staff_id' => $staff->id,
-                'staff_number' => $staff->staff_number,
-                'staff_name' => $staff->fullName(),
-                'department_name' => $staff->department?->name,
-                'position_name' => $staff->position?->name,
-                'basic_pay' => $basic,
-                'allowances' => $allowancePerStaff,
-                'overtime_pay' => $overtimePerStaff,
-                'bonus_pay' => $bonusPerStaff,
-                'gross_pay' => $gross,
-                'taxable_pay' => $s['taxable_pay'],
-                'tax_amount' => $s['paye'],
-                'pension_amount' => $s['nssf_employee'],
-                'insurance_amount' => $insurancePerStaff,
-                'loan_deduction' => $loanPerStaff,
-                'other_deduction' => $otherDeductionPerStaff,
-                'total_deductions' => $deductions,
-                'net_pay' => max(0, $gross - $deductions),
-                'nssf_employer' => $s['nssf_employer'],
-                'sdl_amount' => $s['sdl'],
-                'wcf_amount' => $s['wcf'],
-                'leave_provision' => $s['leave_provision'],
-                'severance_provision' => $s['severance_provision'],
-                'gratuity_provision' => $s['gratuity_provision'],
-                'employer_cost' => $s['employer_cost'],
-                'payment_channel' => $staff->bank_account_number ? 'bank' : ($staff->mobile_money ? 'mobile_money' : null),
-                'bank_name' => $staff->bank_name,
-                'bank_account_number' => $staff->bank_account_number,
-                'mobile_money' => $staff->mobile_money,
-            ];
-        });
-
-        $totals = [
-            'basic_pay' => $rows->sum('basic_pay'),
-            'total_allowances' => $rows->sum('allowances'),
-            'overtime_pay' => $rows->sum('overtime_pay'),
-            'bonus_pay' => $rows->sum('bonus_pay'),
-            'gross_pay' => $rows->sum('gross_pay'),
-            'taxable_pay' => $rows->sum('taxable_pay'),
-            'tax_amount' => $rows->sum('tax_amount'),
-            'pension_amount' => $rows->sum('pension_amount'),
-            'insurance_amount' => $rows->sum('insurance_amount'),
-            'loan_deductions' => $rows->sum('loan_deduction'),
-            'other_deductions' => $rows->sum('other_deduction'),
-            'total_deductions' => $rows->sum('total_deductions'),
-            'net_pay' => $rows->sum('net_pay'),
-            'nssf_employer' => $rows->sum('nssf_employer'),
-            'sdl_amount' => $rows->sum('sdl_amount'),
-            'wcf_amount' => $rows->sum('wcf_amount'),
-            'leave_provision' => $rows->sum('leave_provision'),
-            'severance_provision' => $rows->sum('severance_provision'),
-            'gratuity_provision' => $rows->sum('gratuity_provision'),
-            'employer_cost' => $rows->sum('employer_cost'),
-        ];
-        $totals['total_provisions'] = $totals['leave_provision'] + $totals['severance_provision'] + $totals['gratuity_provision'];
-
-        $payroll = DB::transaction(function () use ($existing, $month, $staffCount, $totals, $validated, $rows, $statutory) {
-            $payroll = $existing ?? new FinancePayrollPeriod(['period_month' => $month->toDateString()]);
-            $payroll->fill($totals + [
-                'name' => $month->format('F Y'),
-                'status' => 'draft',
-                'staff_count' => $staffCount,
-                'notes' => $validated['notes'] ?? null,
-                'prepared_at' => now(),
-                'created_by' => auth()->id(),
-            ])->save();
-
-            FinancePayrollItem::where('finance_payroll_period_id', $payroll->id)->delete();
-            $payroll->items()->createMany($rows->all());
-
-            $this->syncStatutoryReturns($payroll, $month, $statutory);
-
-            return $payroll;
-        });
-
-        ActivityLog::log('finance_payroll_created', 'FinancePayrollPeriod', $payroll->id, [
-            'period' => $payroll->name,
-            'staff_count' => $payroll->staff_count,
-            'net_pay' => $payroll->net_pay,
-        ]);
 
         return back()->with('success', 'Payroll draft prepared with PAYE, NSSF, SDL, WCF and provisions. Statutory returns are listed under Returns.');
     }
 
-    /**
-     * Create or refresh the monthly PAYE / SDL / NSSF / WCF remittances for a
-     * payroll period. Returns already marked paid are never changed.
-     */
-    protected function syncStatutoryReturns(FinancePayrollPeriod $payroll, Carbon $month, StatutoryPayrollService $statutory): void
+    public function statutorySettingsUpdate(Request $request, PayrollService $payrolls)
     {
-        $amounts = [
-            'paye' => (float) $payroll->tax_amount,
-            'sdl' => (float) $payroll->sdl_amount,
-            'nssf' => (float) $payroll->pension_amount + (float) $payroll->nssf_employer,
-            'wcf' => (float) $payroll->wcf_amount,
-        ];
-
-        foreach ($amounts as $type => $amount) {
-            $return = $payroll->statutoryReturns()->where('type', $type)->first();
-
-            if ($return?->isPaid()) {
-                continue;
-            }
-
-            if ($amount <= 0) {
-                $return?->delete();
-
-                continue;
-            }
-
-            $payroll->statutoryReturns()->updateOrCreate(['type' => $type], [
-                'authority' => config("finance.statutory.returns.{$type}.authority"),
-                'amount' => round($amount, 2),
-                'due_date' => $statutory->dueDate($type, $month)->toDateString(),
-                'status' => 'pending',
-            ]);
-        }
-    }
-
-    public function statutorySettingsUpdate(Request $request, StatutoryPayrollService $statutory)
-    {
-        $rules = [];
-        foreach (array_keys(config('finance.statutory.rates')) as $key) {
-            $rules[$key] = $key === 'sdl_min_staff'
-                ? ['required', 'integer', 'min:0', 'max:100000']
-                : ['required', 'numeric', 'min:0', 'max:100'];
-        }
-
-        $validated = $request->validate($rules);
-        $statutory->saveRates($validated);
-
-        ActivityLog::log('finance_statutory_settings_updated', 'Finance', null, $validated);
+        $payrolls->saveRates($request->validate($payrolls->rateRules()));
 
         return back()->with('success', 'Statutory rates saved. They apply to the next payroll draft you prepare.');
     }
 
-    public function returnsIndex(StatutoryPayrollService $statutory)
+    public function returnsIndex(StatutoryPayrollService $statutory, PayrollService $payrolls)
     {
         $returns = FinanceStatutoryReturn::with(['payrollPeriod', 'payer'])
             ->orderByRaw("CASE WHEN status = 'paid' THEN 1 ELSE 0 END")
             ->orderBy('due_date')
             ->paginate(30);
 
-        $summary = [
-            'overdue' => (float) FinanceStatutoryReturn::where('status', '!=', 'paid')->whereDate('due_date', '<', today())->sum('amount'),
-            'pending' => (float) FinanceStatutoryReturn::where('status', '!=', 'paid')->whereDate('due_date', '>=', today())->sum('amount'),
-            'paid_this_year' => (float) FinanceStatutoryReturn::where('status', 'paid')->whereYear('paid_at', now()->year)->sum('amount'),
-            'provisions' => (float) FinancePayrollPeriod::sum('total_provisions'),
-            'leave_provision' => (float) FinancePayrollPeriod::sum('leave_provision'),
-            'severance_provision' => (float) FinancePayrollPeriod::sum('severance_provision'),
-            'gratuity_provision' => (float) FinancePayrollPeriod::sum('gratuity_provision'),
-        ];
-
+        $summary = $payrolls->returnsSummary();
         $rates = $statutory->rates();
 
         return view('admin.finance.returns', compact('returns', 'summary', 'rates'));
     }
 
-    public function returnMarkPaid(Request $request, FinanceStatutoryReturn $statutoryReturn)
+    public function returnMarkPaid(Request $request, FinanceStatutoryReturn $statutoryReturn, PayrollService $payrolls)
     {
-        $validated = $request->validate([
-            'paid_at' => ['required', 'date', 'before_or_equal:today'],
-            'reference' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $statutoryReturn->update($validated + ['status' => 'paid', 'paid_by' => auth()->id()]);
-
-        ActivityLog::log('finance_statutory_return_paid', 'FinanceStatutoryReturn', $statutoryReturn->id, [
-            'type' => $statutoryReturn->type,
-            'amount' => $statutoryReturn->amount,
-            'reference' => $validated['reference'] ?? null,
-        ]);
+        $payrolls->markReturnPaid($statutoryReturn, $request->validate(PayrollService::RETURN_PAID_RULES), auth()->id());
 
         return back()->with('success', $statutoryReturn->label().' marked as paid.');
     }
 
-    public function returnMarkPending(FinanceStatutoryReturn $statutoryReturn)
+    public function returnMarkPending(FinanceStatutoryReturn $statutoryReturn, PayrollService $payrolls)
     {
-        $statutoryReturn->update(['status' => 'pending', 'paid_at' => null, 'reference' => null, 'paid_by' => null]);
-
-        ActivityLog::log('finance_statutory_return_reopened', 'FinanceStatutoryReturn', $statutoryReturn->id, ['type' => $statutoryReturn->type]);
+        $payrolls->markReturnPending($statutoryReturn);
 
         return back()->with('success', $statutoryReturn->label().' moved back to pending.');
     }
@@ -859,18 +581,4 @@ class FinanceController extends Controller
         return $validated['label'];
     }
 
-    protected function nextStaffNumber(): string
-    {
-        $last = FinanceStaff::withTrashed()
-            ->where('staff_number', 'like', 'Mhub-%')
-            ->pluck('staff_number')
-            ->map(fn ($number) => (int) substr($number, 5))
-            ->max() ?? 0;
-
-        do {
-            $number = 'Mhub-'.str_pad((string) ++$last, 3, '0', STR_PAD_LEFT);
-        } while (FinanceStaff::withTrashed()->where('staff_number', $number)->exists());
-
-        return $number;
-    }
 }
