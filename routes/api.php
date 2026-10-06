@@ -268,6 +268,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index']);
 
+        // Learning management (learning.view / learning.manage / learning.trash)
+        Route::controller(\App\Http\Controllers\Api\Admin\LearningAdminController::class)->prefix('learning')->group(function () {
+            Route::get('/', 'overview');
+            Route::post('/guest-links', 'guestLinks');
+            Route::get('/categories', 'categories');
+            Route::post('/categories', 'storeCategory');
+            Route::put('/categories/{category}', 'updateCategory')->whereNumber('category');
+            Route::delete('/categories/{category}', 'destroyCategory')->whereNumber('category');
+            Route::get('/courses', 'courses');
+            Route::post('/courses', 'storeCourse');
+            Route::get('/courses/{course}', 'course')->whereNumber('course');
+            Route::post('/courses/{course}', 'updateCourse')->whereNumber('course'); // POST: may carry a thumbnail
+            Route::delete('/courses/{course}', 'destroyCourse')->whereNumber('course');
+            Route::post('/courses/{course}/enrolments', 'enrol')->whereNumber('course');
+            Route::delete('/courses/{course}/enrolments/{enrollment}', 'unenrol')->whereNumber(['course', 'enrollment']);
+            Route::get('/trash', 'trash');
+            Route::post('/trash/{type}/{id}/restore', 'restore')->whereIn('type', ['category', 'course', 'video', 'room'])->whereNumber('id');
+            Route::delete('/trash/{type}/{id}', 'purge')->whereIn('type', ['category', 'course', 'video', 'room'])->whereNumber('id');
+        });
+
         // Research review (research.view / research.manage)
         Route::controller(\App\Http\Controllers\Api\Admin\ResearchReviewController::class)->group(function () {
             Route::get('/research', 'index');
