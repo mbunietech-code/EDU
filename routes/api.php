@@ -268,6 +268,29 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/loans/{capitalEntry}/repayments/{repayment}', 'destroyRepayment');
         });
 
+        // AI assistant (each admin sees only their own conversations).
+        Route::controller(\App\Http\Controllers\Api\Admin\AiAssistantController::class)->prefix('ai-assistant')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::get('/{conversation}', 'show');
+            Route::post('/{conversation}', 'send')->middleware('throttle:30,1');
+            Route::delete('/{conversation}', 'destroy');
+        });
+
+        // Team chat between admins (private chats + groups).
+        Route::controller(\App\Http\Controllers\Api\Admin\TeamChatController::class)->prefix('team-chat')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/start/{admin}', 'start');
+            Route::post('/groups', 'storeGroup');
+            Route::put('/groups/{group}', 'updateGroup');
+            Route::delete('/groups/{group}', 'destroyGroup');
+            Route::get('/{group}/messages', 'messages')->whereNumber('group');
+            Route::post('/{group}/messages', 'send')->whereNumber('group');
+            Route::put('/{group}/messages/{message}', 'updateMessage')->whereNumber(['group', 'message']);
+            Route::delete('/{group}/messages/{message}', 'destroyMessage')->whereNumber(['group', 'message']);
+            Route::get('/{group}/messages/{message}/file', 'attachment')->whereNumber(['group', 'message']);
+        });
+
         // Automatic payment gateways (AzamPay, ClickPesa, card, PayPal).
         Route::controller(\App\Http\Controllers\Api\Admin\PaymentGatewayController::class)->prefix('payment-gateways')->group(function () {
             Route::get('/', 'index');
