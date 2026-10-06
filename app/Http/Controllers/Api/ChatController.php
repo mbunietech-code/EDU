@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
 use App\Models\User;
-use App\Services\NotificationService;
+use App\Services\ChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
@@ -41,27 +42,34 @@ class ChatController extends Controller
         ]);
     }
 
-    public function store(Request $request, NotificationService $notifications): JsonResponse
+    /**
+     * Send text, or an image / video / voice note (multipart "file" + "type"),
+     * through the same ChatService as the web chat.
+     */
+    public function store(Request $request, ChatService $chat): JsonResponse
     {
-        $data = $request->validate([
-            'body' => ['required', 'string', 'max:4000'],
-        ]);
+        // Older app versions send only "body": treat that as a text message.
+        $request->mergeIfMissing(['type' => 'text']);
 
-        $conversation = Conversation::firstOrCreate(['user_id' => $request->user()->id]);
-
-        $message = $conversation->messages()->create([
-            'is_from_admin' => false,
-            'type' => 'text',
-            'body' => $data['body'],
-        ]);
-
-        try {
-            $notifications->notifyAdminsNewChatMessage($conversation);
-        } catch (\Throwable $e) {
-            // non-fatal
+        if ($request->input('type') === 'text') {
+            $request->validate(['body' => ['required', 'string', 'max:4000']]);
         }
 
+        $conversation = Conversation::firstOrCreate(['user_id' => $request->user()->id]);
+        $message = $chat->send($conversation, $request, false);
+
         return response()->json(['data' => $this->row($message)]);
+    }
+
+    /** An attachment in the user's own support chat. */
+    public function attachment(Request $request, ChatMessage $message)
+    {
+        $conversation = $message->conversation;
+        abort_unless($conversation && (int) $conversation->user_id === (int) $request->user()->id, 404);
+        abort_if(! $message->file_path, 404);
+        abort_unless(Storage::disk('private')->exists($message->file_path), 404, 'This attachment is no longer available on the server.');
+
+        return Storage::disk('private')->download($message->file_path, $message->file_name ?: basename($message->file_path));
     }
 
     private function row(ChatMessage $m): array
@@ -71,6 +79,8 @@ class ChatController extends Controller
             'from_admin' => (bool) $m->is_from_admin,
             'type' => $m->type,
             'body' => $m->body,
+            'has_file' => (bool) $m->file_path,
+            'file_name' => $m->file_name,
             'created_at' => optional($m->created_at)->toIso8601String(),
             'time' => optional($m->created_at)->format('H:i'),
         ];

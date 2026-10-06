@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Services\NotificationService;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -26,6 +27,43 @@ class SupportController extends Controller
         $notifications->notifyAdminNewContactMessage(ContactMessage::create($validated));
 
         return response()->json(['message' => 'Your message has been sent. We will contact you soon.'], 201);
+    }
+
+    /** Send the "verify your email" link again (signed-in, unverified users). */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Your email is already verified.', 'verified' => true]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json(['message' => 'A new verification link has been sent to '.$user->email.'.', 'verified' => false]);
+    }
+
+    /** Verify the email with the 6-digit code from the inbox (same as the web). */
+    public function verifyEmailCode(Request $request): JsonResponse
+    {
+        $request->validate(['code' => ['required', 'string', 'regex:/^\d{6}$/']]);
+        $user = $request->user();
+
+        if (! $user->hasVerifiedEmail()) {
+            if (! $user->hasValidEmailVerificationCode($request->string('code')->toString())) {
+                return response()->json([
+                    'message' => 'The verification code is invalid or has expired. Please request a new one.',
+                    'errors' => ['code' => ['The verification code is invalid or has expired. Please request a new one.']],
+                ], 422);
+            }
+
+            if ($user->markEmailAsVerified()) {
+                $user->clearEmailVerificationCode();
+                event(new Verified($user));
+            }
+        }
+
+        return response()->json(['message' => 'Your email is verified.', 'verified' => true]);
     }
 
     /**

@@ -156,6 +156,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Support chat
     Route::get('/chat', [ChatController::class, 'show']);
     Route::post('/chat', [ChatController::class, 'store']);
+    Route::get('/chat/messages/{message}/file', [ChatController::class, 'attachment']);
+    Route::post('/email/verification-notification', [\App\Http\Controllers\Api\SupportController::class, 'resendVerification'])->middleware('throttle:3,1');
+    Route::post('/email/verify', [\App\Http\Controllers\Api\SupportController::class, 'verifyEmailCode'])->middleware('throttle:6,1');
 
     // Profile
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
