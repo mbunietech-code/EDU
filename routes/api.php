@@ -58,6 +58,31 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/research/{slug}/chapters/{chapter}', [\App\Http\Controllers\Api\ResearchController::class, 'chapter']);
     Route::post('/research/{slug}/progress', [\App\Http\Controllers\Api\ResearchController::class, 'markSection']);
 
+    // Teaching Studio: live classes and lessons (instructors / learning staff).
+    Route::controller(\App\Http\Controllers\Api\StudioController::class)->prefix('studio')->group(function () {
+        Route::get('/', 'home');
+        Route::post('/rooms', 'storeRoom');
+        Route::get('/rooms/{room:id}', 'room');
+        Route::put('/rooms/{room:id}', 'updateRoom');
+        Route::delete('/rooms/{room:id}', 'destroyRoom');
+        Route::post('/rooms/{room:id}/publish', 'publishRoom');
+        Route::post('/rooms/{room:id}/cancel', 'cancelRoom');
+        Route::post('/videos', 'storeVideo');
+        Route::get('/videos/{video:id}', 'video');
+        Route::post('/videos/{video:id}', 'updateVideo'); // POST: may carry a thumbnail file
+        Route::delete('/videos/{video:id}', 'destroyVideo');
+        Route::post('/videos/{video:id}/publish', 'publishVideo');
+        Route::post('/videos/{video:id}/unpublish', 'unpublishVideo');
+    });
+    // Chunked video upload (same endpoints the web Studio uses).
+    Route::controller(\App\Http\Controllers\Studio\UploadController::class)->prefix('studio/uploads')->group(function () {
+        Route::get('/config', 'config');
+        Route::post('/', 'init')->middleware('throttle:30,1');
+        Route::post('/{token}/chunk', 'chunk')->middleware('throttle:600,1');
+        Route::post('/{token}/complete', 'complete');
+        Route::delete('/{token}', 'abort');
+    });
+
     // Writing research from the app (contributors).
     Route::controller(\App\Http\Controllers\Api\ResearchAuthorController::class)->prefix('my-research')->group(function () {
         Route::get('/categories', 'categories');
