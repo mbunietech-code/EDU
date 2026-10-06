@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Admin\Concerns\FinanceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\FinanceCapitalEntry;
@@ -22,6 +23,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
+    use FinanceAccess;
+
     private const UNLOCK_MINUTES = 30;
 
     private const CATEGORIES = [
@@ -31,30 +34,6 @@ class FinanceController extends Controller
         'Depreciation & Amortization',
         'Miscellaneous',
     ];
-
-    private function gate(Request $request): void
-    {
-        $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin() || $user->hasPermission('finance.access'),
-            403,
-            'You do not have access to Finance.',
-        );
-    }
-
-    private function unlockKey(Request $request): string
-    {
-        return 'finance-unlock:token:'.optional($request->user()->currentAccessToken())->id;
-    }
-
-    private function assertUnlocked(Request $request): void
-    {
-        abort_unless(
-            Cache::get($this->unlockKey($request)) === true,
-            423,
-            'Finance is locked. Enter the PIN to unlock.',
-        );
-    }
 
     public function unlock(Request $request): JsonResponse
     {

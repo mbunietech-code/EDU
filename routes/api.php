@@ -230,6 +230,30 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/capital/{capitalEntry}', 'capitalDestroy');
         });
 
+        // Finance HR: staff, payroll (statutory), returns and loan repayments.
+        Route::controller(\App\Http\Controllers\Api\Admin\FinanceHrController::class)->prefix('finance')->group(function () {
+            Route::get('/staff', 'staff');
+            Route::post('/staff', 'storeStaff');
+            Route::post('/staff/settings', 'storeSetting');
+            Route::get('/payroll', 'payroll');
+            Route::post('/payroll', 'preparePayroll');
+            Route::put('/payroll/rates', 'updateRates');
+            Route::get('/returns', 'returns');
+            Route::post('/returns/{statutoryReturn}/paid', 'markReturnPaid');
+            Route::post('/returns/{statutoryReturn}/pending', 'markReturnPending');
+            Route::get('/loans', 'loans');
+            Route::get('/loans/{capitalEntry}', 'loan');
+            Route::post('/loans/{capitalEntry}/repayments', 'repay');
+            Route::delete('/loans/{capitalEntry}/repayments/{repayment}', 'destroyRepayment');
+        });
+
+        // Automatic payment gateways (AzamPay, ClickPesa, card, PayPal).
+        Route::controller(\App\Http\Controllers\Api\Admin\PaymentGatewayController::class)->prefix('payment-gateways')->group(function () {
+            Route::get('/', 'index');
+            Route::put('/{gateway}', 'update');
+            Route::post('/{gateway}/test', 'test');
+        });
+
         // Catalogue management
         Route::prefix('catalogue')->group(function () {
             $c = \App\Http\Controllers\Api\Admin\CatalogueController::class;
