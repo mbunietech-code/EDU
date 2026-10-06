@@ -90,6 +90,17 @@ class AzamPayGateway implements MobileMoneyGateway
         ];
     }
 
+    public function testConnection(): void
+    {
+        $this->forgetToken();
+        $this->token();
+    }
+
+    public function forgetToken(): void
+    {
+        Cache::forget('azampay_token_'.$this->config('environment'));
+    }
+
     protected function token(): string
     {
         return Cache::remember('azampay_token_'.$this->config('environment'), now()->addMinutes(50), function () {

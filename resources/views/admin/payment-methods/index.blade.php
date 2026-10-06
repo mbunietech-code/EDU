@@ -3,9 +3,113 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Payment Methods</h1>
-            <p class="mt-1 text-sm text-gray-500">Enable or disable payment methods shown at checkout and manage their QR codes and instructions.</p>
+            <p class="mt-1 text-sm text-gray-500">Automatic online payments (AzamPay, ClickPesa, PayPal) and manual QR payments shown at checkout.</p>
         </div>
     </div>
+
+    {{-- ================= Automatic (online) payments ================= --}}
+    <section class="mt-8">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Automatic payments</h2>
+                <p class="mt-1 text-sm text-gray-500">The customer pays online and the order is verified, marked paid and receipted by email automatically. Admins get an email for every payment.</p>
+            </div>
+        </div>
+
+        <div class="mt-4 grid gap-6 xl:grid-cols-3">
+            @foreach ($onlineGateways as $key => $gw)
+                <div class="mbui-card flex flex-col p-6" x-data="{ showKeys: {{ $gw['ready'] ? 'false' : 'true' }} }">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">{{ $gw['label'] }}</h3>
+                            <p class="mt-0.5 text-xs text-gray-500">
+                                @if ($key === 'azampay') M-Pesa, Mixx by Yas, Airtel, Halopesa, AzamPesa (USSD push)
+                                @elseif ($key === 'clickpesa') All Tanzanian mobile money (USSD push)
+                                @else PayPal balance or card, charged in USD
+                                @endif
+                            </p>
+                        </div>
+                        @if ($gw['ready'])
+                            <x-mbui.badge appearance="success">Live at checkout</x-mbui.badge>
+                        @elseif ($gw['values']['enabled'] ?? false)
+                            <x-mbui.badge appearance="warning">Missing keys</x-mbui.badge>
+                        @else
+                            <x-mbui.badge appearance="neutral">Off</x-mbui.badge>
+                        @endif
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.payment-methods.gateways.update', $key) }}" class="mt-5 flex flex-1 flex-col space-y-4">
+                        @csrf
+                        @method('PUT')
+
+                        @foreach ($gw['fields'] as $field => [$label, $type])
+                            @if ($type === 'toggle')
+                                <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <input type="hidden" name="{{ $field }}" value="0">
+                                    <input type="checkbox" name="{{ $field }}" value="1" @checked($gw['values'][$field]) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    Show at checkout
+                                </label>
+                            @elseif ($type === 'mode')
+                                <div>
+                                    <x-input-label :for="$key.'-'.$field" :value="$label" />
+                                    <select id="{{ $key }}-{{ $field }}" name="{{ $field }}" class="mbui-input mt-1">
+                                        <option value="sandbox" @selected(($gw['values'][$field] ?? 'sandbox') !== 'live')>Sandbox (testing)</option>
+                                        <option value="live" @selected(($gw['values'][$field] ?? '') === 'live')>Live (real money)</option>
+                                    </select>
+                                </div>
+                            @else
+                                <div x-show="showKeys" x-cloak>
+                                    <x-input-label :for="$key.'-'.$field" :value="$label" />
+                                    @if ($type === 'secret')
+                                        <input id="{{ $key }}-{{ $field }}" name="{{ $field }}" type="password" autocomplete="new-password" class="mbui-input mt-1"
+                                            placeholder="{{ $gw['values'][$field] ? 'Saved. Leave blank to keep' : 'Paste here' }}">
+                                    @else
+                                        <input id="{{ $key }}-{{ $field }}" name="{{ $field }}" type="text" autocomplete="off" class="mbui-input mt-1" value="{{ $gw['values'][$field] }}">
+                                    @endif
+                                </div>
+                            @endif
+                        @endforeach
+
+                        <button type="button" x-show="! showKeys" @click="showKeys = true" class="text-left text-xs font-semibold text-indigo-600 hover:text-indigo-500">Edit keys</button>
+
+                        @if ($gw['callback_url'])
+                            <div class="rounded-lg bg-gray-50 p-3" x-data="{ copied: false }">
+                                <p class="text-xs font-medium text-gray-600">Callback URL (paste on the {{ $gw['label'] }} dashboard)</p>
+                                <div class="mt-1 flex items-center gap-2">
+                                    <code class="block flex-1 truncate text-xs text-gray-800">{{ $gw['callback_url'] }}</code>
+                                    <button type="button" class="shrink-0 text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                                        @click="navigator.clipboard.writeText(@js($gw['callback_url'])).then(() => { copied = true; setTimeout(() => copied = false, 1500) })"
+                                        x-text="copied ? 'Copied' : 'Copy'"></button>
+                                </div>
+                            </div>
+                        @else
+                            <p class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">No callback URL needed: payments are confirmed with PayPal when the customer returns, and by the background check every minute.</p>
+                        @endif
+
+                        <div class="mt-auto flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+                            <button type="submit" form="test-{{ $key }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">Test connection</button>
+                            <x-mbui.button type="submit">Save</x-mbui.button>
+                        </div>
+                    </form>
+                    <form id="test-{{ $key }}" method="POST" action="{{ route('admin.payment-methods.gateways.test', $key) }}" class="hidden">@csrf</form>
+                </div>
+            @endforeach
+        </div>
+
+        <div class="mt-4 flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>Callback URLs contain a secret. If one leaks, make new ones and update them on the AzamPay and ClickPesa dashboards.</p>
+            <form method="POST" action="{{ route('admin.payment-methods.callback-token') }}" onsubmit="return confirm('Create new callback URLs? The old ones stop working immediately.')">
+                @csrf
+                <button type="submit" class="font-semibold text-red-600 hover:text-red-500">Create new callback URLs</button>
+            </form>
+        </div>
+    </section>
+
+    {{-- ================= Manual payments ================= --}}
+    <section class="mt-10">
+        <h2 class="text-lg font-semibold text-gray-900">Manual payments</h2>
+        <p class="mt-1 text-sm text-gray-500">The customer scans a QR code or types your number, pays, and uploads proof. An admin approves it from Payments.</p>
+    </section>
 
     <div class="mt-6 mbui-card p-6">
         <h2 class="text-base font-semibold text-gray-900">Add payment method</h2>

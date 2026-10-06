@@ -109,6 +109,17 @@ class ClickPesaGateway implements MobileMoneyGateway
         return Http::acceptJson()->timeout(30)->withHeaders(['Authorization' => $this->token()]);
     }
 
+    public function testConnection(): void
+    {
+        $this->forgetToken();
+        $this->token();
+    }
+
+    public function forgetToken(): void
+    {
+        Cache::forget('clickpesa_token');
+    }
+
     protected function token(): string
     {
         return Cache::remember('clickpesa_token', now()->addMinutes(50), function () {

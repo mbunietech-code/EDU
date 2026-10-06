@@ -226,13 +226,15 @@ class GatewayPaymentService
             'auto_approved' => $canAutoApprove,
         ]);
 
-        if (! $canAutoApprove) {
-            $this->notifications->notifyAdminNewPaymentProof($payment);
-
-            return;
+        if ($canAutoApprove) {
+            $this->approve($payment);
         }
 
-        $this->approve($payment);
+        // Money was received either way: receipt to the customer, heads-up to admins.
+        $payment->refresh();
+        $gatewayPayment->refresh();
+        $this->notifications->notifyPaymentReceipt($payment, $gatewayPayment);
+        $this->notifications->notifyAdminsOnlinePayment($payment, $gatewayPayment);
     }
 
     public function markFailed(GatewayPayment $payment, string $message): void
@@ -256,15 +258,14 @@ class GatewayPaymentService
             if ($payment->order->product) {
                 $this->notifications->notifyAdminAccountUnavailable($payment->order->product);
             }
-            $this->notifications->notifyAdminNewPaymentProof($payment);
 
             return;
         }
 
         $payment->refresh();
         $order = $payment->order;
-        $this->notifications->notifyPaymentApproved($payment->user, $payment);
 
+        // The receipt email replaces the generic "payment approved" message.
         if ($order->isToolOrder()) {
             $this->notifications->notifyToolKeyDelivered($payment->user, $order);
         } elseif ($order->isSoftware()) {

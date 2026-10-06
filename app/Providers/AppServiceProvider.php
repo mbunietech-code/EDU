@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         try {
             if (Schema::hasTable('settings')) {
                 $this->app->make(MailSettingsService::class)->apply();
+                $this->app->make(\App\Services\Payments\PaymentGatewaySettingsService::class)->apply();
             }
         } catch (\Throwable $e) {
             // Database not reachable/migrated yet (e.g. during initial setup) — skip.

@@ -43,6 +43,32 @@ class NotificationService
         Notification::send($user, new PaymentApproved($payment));
     }
 
+    /**
+     * Receipt email for an online payment. Never throws: a mail problem must
+     * not undo a payment that already went through.
+     */
+    public function notifyPaymentReceipt(\App\Models\Payment $payment, \App\Models\GatewayPayment $gatewayPayment): void
+    {
+        try {
+            Notification::sendNow($payment->user, new \App\Notifications\User\PaymentReceipt($payment, $gatewayPayment));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Email every admin about an online payment so they process the order.
+     */
+    public function notifyAdminsOnlinePayment(\App\Models\Payment $payment, \App\Models\GatewayPayment $gatewayPayment): void
+    {
+        try {
+            $admins = User::where('is_admin', true)->get();
+            Notification::sendNow($admins, new \App\Notifications\Admin\OnlinePaymentReceived($payment, $gatewayPayment));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     public function notifyPaymentRejected(User $user, $payment): void
     {
         Notification::send($user, new PaymentRejected($payment));

@@ -287,6 +287,9 @@ Route::prefix('admin')
 
         Route::middleware('can:payment_methods.manage')->group(function () {
             Route::get('payment-methods', [AdminPaymentMethodController::class, 'index'])->name('payment-methods.index');
+            Route::put('payment-methods/gateways/{gateway}', [AdminPaymentMethodController::class, 'updateGateway'])->name('payment-methods.gateways.update');
+            Route::post('payment-methods/gateways/{gateway}/test', [AdminPaymentMethodController::class, 'testGateway'])->name('payment-methods.gateways.test');
+            Route::post('payment-methods/callback-token', [AdminPaymentMethodController::class, 'regenerateCallbackToken'])->name('payment-methods.callback-token');
             Route::post('payment-methods', [AdminPaymentMethodController::class, 'store'])->name('payment-methods.store');
             Route::put('payment-methods/{paymentMethod}', [AdminPaymentMethodController::class, 'update'])->name('payment-methods.update');
             Route::post('payment-methods/{paymentMethod}/qr', [AdminPaymentMethodController::class, 'uploadQr'])->name('payment-methods.qr');

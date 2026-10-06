@@ -192,6 +192,17 @@ class PayPalGateway implements MobileMoneyGateway
         return Http::acceptJson()->timeout(30)->withToken($this->token());
     }
 
+    public function testConnection(): void
+    {
+        $this->forgetToken();
+        $this->token();
+    }
+
+    public function forgetToken(): void
+    {
+        Cache::forget('paypal_token_'.$this->mode());
+    }
+
     protected function token(): string
     {
         return Cache::remember('paypal_token_'.$this->mode(), now()->addMinutes(50), function () {

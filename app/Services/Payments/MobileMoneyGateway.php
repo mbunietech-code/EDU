@@ -20,6 +20,18 @@ interface MobileMoneyGateway
     public function usesRedirect(): bool;
 
     /**
+     * Fetch a fresh access token to prove the saved credentials work.
+     *
+     * @throws GatewayException
+     */
+    public function testConnection(): void;
+
+    /**
+     * Drop the cached access token (after credentials change).
+     */
+    public function forgetToken(): void;
+
+    /**
      * Networks the customer must choose from ([value => label]); empty when
      * the gateway detects the network from the phone number itself.
      */
