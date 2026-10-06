@@ -88,6 +88,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/videos/{video:id}/publish', 'publishVideo');
         Route::post('/videos/{video:id}/unpublish', 'unpublishVideo');
     });
+    // Studio class extras: recordings, materials, invited members, attendance.
+    Route::controller(\App\Http\Controllers\Api\StudioRoomExtrasController::class)->prefix('studio/rooms/{room:id}')->group(function () {
+        Route::get('/extras', 'show');
+        Route::get('/attendance', 'attendance');
+        Route::post('/recordings', 'storeRecording');
+        Route::post('/recordings/{recording}/share', 'shareRecording')->whereNumber('recording');
+        Route::post('/recordings/{recording}/publish', 'publishRecording')->whereNumber('recording');
+        Route::delete('/recordings/{recording}', 'destroyRecording')->whereNumber('recording');
+        Route::post('/materials', 'storeMaterial');
+        Route::delete('/materials/{material}', 'destroyMaterial')->whereNumber('material');
+        Route::post('/members', 'storeMembers');
+        Route::delete('/members/{member}', 'destroyMember')->whereNumber('member');
+    });
+    Route::get('/studio/users/search', [\App\Http\Controllers\Studio\UserSearchController::class, 'index'])
+        ->middleware(['can:learning.studio', 'throttle:60,1']);
+
     // Chunked video upload (same endpoints the web Studio uses).
     Route::controller(\App\Http\Controllers\Studio\UploadController::class)->prefix('studio/uploads')->group(function () {
         Route::get('/config', 'config');
