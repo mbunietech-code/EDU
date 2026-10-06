@@ -43,6 +43,21 @@ return [
             ],
         ],
 
+        'paypal' => [
+            'label' => 'PayPal',
+            'enabled' => (bool) env('PAYPAL_ENABLED', false),
+            'mode' => env('PAYPAL_MODE', 'sandbox'), // sandbox | live
+            'client_id' => env('PAYPAL_CLIENT_ID'),
+            'client_secret' => env('PAYPAL_CLIENT_SECRET'),
+            'currency' => env('PAYPAL_CURRENCY', 'USD'), // PayPal does not accept TZS
+            'urls' => [
+                'sandbox' => 'https://api-m.sandbox.paypal.com',
+                'live' => 'https://api-m.paypal.com',
+            ],
+            // Customers may take a while on PayPal's page before approving.
+            'timeout_minutes' => 180,
+        ],
+
         'clickpesa' => [
             'label' => 'ClickPesa',
             'enabled' => (bool) env('CLICKPESA_ENABLED', false),

@@ -34,6 +34,11 @@ class ClickPesaGateway implements MobileMoneyGateway
         return $this->config('enabled') && filled($this->config('client_id')) && filled($this->config('api_key'));
     }
 
+    public function usesRedirect(): bool
+    {
+        return false;
+    }
+
     public function networks(): array
     {
         return [];

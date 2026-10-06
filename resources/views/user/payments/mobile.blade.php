@@ -25,12 +25,21 @@
             <template x-if="status === 'pending'">
                 <div>
                     <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-                    <h1 class="mt-5 text-lg font-semibold text-gray-900">Check your phone</h1>
-                    <p class="mt-2 text-sm text-gray-600">
-                        A payment request of <span class="font-semibold">TZS {{ number_format($gatewayPayment->amount) }}</span>
-                        was sent to <span class="font-mono font-semibold">{{ $gatewayPayment->phone }}</span>.
-                        Enter your mobile money PIN to approve it.
-                    </p>
+                    @if ($gatewayPayment->gateway === 'paypal')
+                        <h1 class="mt-5 text-lg font-semibold text-gray-900">Confirming your PayPal payment</h1>
+                        <p class="mt-2 text-sm text-gray-600">
+                            PayPal is finalising your payment of
+                            <span class="font-semibold">{{ $gatewayPayment->charged_currency }} {{ number_format((float) $gatewayPayment->charged_amount, 2) }}</span>.
+                            You can leave this page; your order is confirmed automatically once PayPal finishes.
+                        </p>
+                    @else
+                        <h1 class="mt-5 text-lg font-semibold text-gray-900">Check your phone</h1>
+                        <p class="mt-2 text-sm text-gray-600">
+                            A payment request of <span class="font-semibold">TZS {{ number_format($gatewayPayment->amount) }}</span>
+                            was sent to <span class="font-mono font-semibold">{{ $gatewayPayment->phone }}</span>.
+                            Enter your mobile money PIN to approve it.
+                        </p>
+                    @endif
                     <p class="mt-3 text-xs text-gray-400">This page updates by itself. The request expires after about {{ $timeoutMinutes }} minutes.</p>
                 </div>
             </template>

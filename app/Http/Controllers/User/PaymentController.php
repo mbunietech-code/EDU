@@ -54,11 +54,16 @@ class PaymentController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        $mobileGateways = collect(app(\App\Services\Payments\GatewayPaymentService::class)->enabled())
+        $gatewayService = app(\App\Services\Payments\GatewayPaymentService::class);
+        $mobileGateways = collect($gatewayService->mobile())
             ->map(fn ($gateway) => ['label' => $gateway->label(), 'networks' => $gateway->networks()])
             ->all();
 
-        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways'));
+        $payPal = $gatewayService->gateway('paypal');
+        $payPalCharge = $payPal?->isEnabled() ? $payPal->chargeFor((float) $order->amount) : null;
+        $payPalOffer = $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $payPal->currency()] : null;
+
+        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways', 'payPalOffer'));
     }
 
     public function store(UploadPaymentProofRequest $request, Order $order)

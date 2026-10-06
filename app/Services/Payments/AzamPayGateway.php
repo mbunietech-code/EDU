@@ -34,6 +34,11 @@ class AzamPayGateway implements MobileMoneyGateway
             && filled($this->config('client_secret'));
     }
 
+    public function usesRedirect(): bool
+    {
+        return false;
+    }
+
     public function networks(): array
     {
         return $this->config('networks', []);

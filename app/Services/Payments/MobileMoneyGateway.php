@@ -14,6 +14,12 @@ interface MobileMoneyGateway
     public function isEnabled(): bool;
 
     /**
+     * True when the customer pays on the provider's own page (PayPal) instead
+     * of approving a push on their phone.
+     */
+    public function usesRedirect(): bool;
+
+    /**
      * Networks the customer must choose from ([value => label]); empty when
      * the gateway detects the network from the phone number itself.
      */

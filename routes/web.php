@@ -103,6 +103,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}', [\App\Http\Controllers\User\MobilePaymentController::class, 'show'])->name('user.payments.mobile.show');
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}/status', [\App\Http\Controllers\User\MobilePaymentController::class, 'status'])
         ->middleware('throttle:60,1')->name('user.payments.mobile.status');
+    Route::post('/orders/{order}/pay/paypal', [\App\Http\Controllers\User\PayPalPaymentController::class, 'start'])
+        ->middleware('throttle:6,1')->name('user.payments.paypal.start');
+    Route::get('/orders/{order}/pay/paypal/return', [\App\Http\Controllers\User\PayPalPaymentController::class, 'return'])->name('user.payments.paypal.return');
+    Route::get('/orders/{order}/pay/paypal/cancel', [\App\Http\Controllers\User\PayPalPaymentController::class, 'cancel'])->name('user.payments.paypal.cancel');
 
     Route::get('/messages', [UserChatController::class, 'index'])->name('user.chat.index');
     Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');

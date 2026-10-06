@@ -77,12 +77,34 @@
             </form>
         </div>
 
-        @if ($paymentMethods->isNotEmpty())
-            <p class="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">Or pay manually and upload proof</p>
-        @endif
     @endif
 
-    @if ($paymentMethods->isNotEmpty() || empty($mobileGateways))
+    @if ($payPalOffer)
+        <div class="mt-6 mbui-card p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900">Pay with PayPal or card</h2>
+                    <p class="mt-1 text-sm text-gray-500">
+                        You will be charged <span class="font-semibold text-gray-900">{{ $payPalOffer['currency'] }} {{ number_format($payPalOffer['amount'], 2) }}</span>
+                        (TZS {{ number_format($order->amount) }} at today's rate) on PayPal's secure page. Your order is confirmed as soon as you return.
+                    </p>
+                </div>
+                <form method="POST" action="{{ route('user.payments.paypal.start', $order) }}" x-data="{ sending: false }" @submit="sending = true" class="shrink-0">
+                    @csrf
+                    <button type="submit" x-bind:disabled="sending" class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-60" style="background-color: #FFC439; color: #003087;">
+                        <span x-show="! sending">Pay with PayPal</span>
+                        <span x-show="sending" x-cloak>Opening PayPal...</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if ((! empty($mobileGateways) || $payPalOffer) && $paymentMethods->isNotEmpty())
+        <p class="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">Or pay manually and upload proof</p>
+    @endif
+
+    @if ($paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer))
     <div class="mt-6 mbui-card p-6"
         x-data='{
             selectedMethod: "{{ $defaultMethod }}",

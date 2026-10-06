@@ -21,12 +21,14 @@ class GatewayPaymentService
     public function __construct(
         AzamPayGateway $azamPay,
         ClickPesaGateway $clickPesa,
+        PayPalGateway $payPal,
         protected PaymentApprovalService $approvals,
         protected NotificationService $notifications,
     ) {
         $this->gateways = [
             $azamPay->key() => $azamPay,
             $clickPesa->key() => $clickPesa,
+            $payPal->key() => $payPal,
         ];
     }
 
@@ -36,6 +38,16 @@ class GatewayPaymentService
     public function enabled(): array
     {
         return array_filter($this->gateways, fn (MobileMoneyGateway $gateway) => $gateway->isEnabled());
+    }
+
+    /**
+     * Enabled gateways that send a USSD push to the customer's phone.
+     *
+     * @return array<string, MobileMoneyGateway>
+     */
+    public function mobile(): array
+    {
+        return array_filter($this->enabled(), fn (MobileMoneyGateway $gateway) => ! $gateway->usesRedirect());
     }
 
     public function gateway(string $key): ?MobileMoneyGateway
@@ -66,6 +78,7 @@ class GatewayPaymentService
     {
         return GatewayPayment::where('order_id', $order->id)
             ->where('status', 'pending')
+            ->where('gateway', '!=', 'paypal')
             ->where('created_at', '>=', now()->subMinutes($this->timeoutMinutes()))
             ->latest('id')
             ->first();
@@ -156,7 +169,7 @@ class GatewayPaymentService
             $this->markSuccessful($payment, $result['reference'], $result['amount']);
         } elseif ($result && $result['status'] === 'failed') {
             $this->markFailed($payment, 'The payment was declined or cancelled.');
-        } elseif ($payment->isPending() && $payment->created_at->lt(now()->subMinutes($this->timeoutMinutes()))) {
+        } elseif ($payment->isPending() && $payment->created_at->lt(now()->subMinutes($this->timeoutMinutes($payment->gateway)))) {
             // Still accept a late success callback after this.
             $payment->update(['status' => 'expired', 'message' => 'No confirmation received in time.']);
         }
@@ -261,8 +274,10 @@ class GatewayPaymentService
         }
     }
 
-    public function timeoutMinutes(): int
+    public function timeoutMinutes(?string $gateway = null): int
     {
-        return max(1, (int) config('payments.pending_timeout_minutes', 10));
+        $minutes = $gateway ? config("payments.gateways.{$gateway}.timeout_minutes") : null;
+
+        return max(1, (int) ($minutes ?? config('payments.pending_timeout_minutes', 10)));
     }
 }

@@ -27,7 +27,7 @@ class MobilePaymentController extends Controller
             return redirect()->route('user.orders.show', $order)->with('error', 'This order is no longer pending payment.');
         }
 
-        $enabled = $this->gateways->enabled();
+        $enabled = $this->gateways->mobile();
 
         $validated = $request->validate([
             'gateway' => ['required', Rule::in(array_keys($enabled))],
@@ -72,7 +72,7 @@ class MobilePaymentController extends Controller
             'order' => $order,
             'gatewayPayment' => $gatewayPayment,
             'gatewayLabel' => $gatewayLabel,
-            'timeoutMinutes' => $this->gateways->timeoutMinutes(),
+            'timeoutMinutes' => $this->gateways->timeoutMinutes($gatewayPayment->gateway),
         ]);
     }
 

@@ -20,6 +20,10 @@ class GatewayPayment extends Model
         'phone',
         'amount',
         'currency',
+        'charged_amount',
+        'charged_currency',
+        'payer_email',
+        'redirect_url',
         'external_id',
         'provider_transaction_id',
         'provider_reference',
@@ -32,6 +36,7 @@ class GatewayPayment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'charged_amount' => 'decimal:2',
         'completed_at' => 'datetime',
         'last_checked_at' => 'datetime',
     ];
