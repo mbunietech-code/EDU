@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,9 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
   bool _panelOpen = false;
   bool _sending = false;
   _LivePanelTab _panelTab = _LivePanelTab.chat;
+  List<LiveBoardStroke> _boardStrokes = [];
+  String _boardColor = '#111827';
+  int _boardWidth = 8;
   Timer? _feedTimer;
   final _composeController = TextEditingController();
 
@@ -170,6 +174,85 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
       _snack(e.message);
     } catch (_) {
       _snack('Could not submit your poll answer.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _createPoll(String question, List<String> options) async {
+    setState(() => _busy = true);
+    try {
+      await _repo.createPoll(widget.slug, question: question, options: options);
+      await _loadFeed(silent: true);
+    } on ApiException catch (e) {
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _closePoll(LivePoll poll) async {
+    setState(() => _busy = true);
+    try {
+      await _repo.closePoll(widget.slug, poll.id);
+      await _loadFeed(silent: true);
+    } on ApiException catch (e) {
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loadBoard() async {
+    try {
+      final board = await _repo.board(widget.slug);
+      if (mounted) setState(() => _boardStrokes = board.strokes);
+    } catch (_) {}
+  }
+
+  Future<void> _addBoardStroke(List<int> points) async {
+    if (points.length < 4) return;
+    final uid =
+        '${DateTime.now().microsecondsSinceEpoch}${math.Random().nextInt(9999)}';
+    try {
+      await _repo.addBoardStroke(
+        widget.slug,
+        uid: uid,
+        color: _boardColor,
+        width: _boardWidth,
+        points: points,
+      );
+      await _loadBoard();
+    } on ApiException catch (e) {
+      _snack(e.message);
+    }
+  }
+
+  Future<void> _setBoard({bool? active, bool? allCanDraw, bool? clear}) async {
+    setState(() => _busy = true);
+    try {
+      await _repo.updateBoard(
+        widget.slug,
+        active: active,
+        allCanDraw: allCanDraw,
+        clear: clear,
+      );
+      await _loadFeed(silent: true);
+      await _loadBoard();
+    } on ApiException catch (e) {
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _moderate(Map<String, dynamic> body) async {
+    setState(() => _busy = true);
+    try {
+      await _repo.moderateRoom(widget.slug, body);
+      await _loadFeed(silent: true);
+    } on ApiException catch (e) {
+      _snack(e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -392,6 +475,19 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
                   onTap: () => _openPanel(_LivePanelTab.materials),
                 ),
                 _RoundButton(
+                  icon: Icons.draw_outlined,
+                  label: 'Board',
+                  selected: _panelOpen && _panelTab == _LivePanelTab.board,
+                  onTap: () => _openPanel(_LivePanelTab.board),
+                ),
+                if (_feed?.isManager ?? false)
+                  _RoundButton(
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: 'Host',
+                    selected: _panelOpen && _panelTab == _LivePanelTab.host,
+                    onTap: () => _openPanel(_LivePanelTab.host),
+                  ),
+                _RoundButton(
                   icon: Icons.people_alt_outlined,
                   label: '${_feed?.participantCount ?? everyone.length} here',
                   selected: _panelOpen && _panelTab == _LivePanelTab.people,
@@ -421,6 +517,7 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
       }
     });
     _loadFeed(silent: true);
+    if (tab == _LivePanelTab.board) _loadBoard();
   }
 
   Widget _buildLivePanel() {
@@ -430,6 +527,8 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
       _LivePanelTab.questions => 'Questions',
       _LivePanelTab.polls => 'Polls',
       _LivePanelTab.materials => 'Materials',
+      _LivePanelTab.board => 'Whiteboard',
+      _LivePanelTab.host => 'Host controls',
       _LivePanelTab.people => 'People',
     };
 
@@ -505,6 +604,26 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
                       materials: feed.materials,
                       onOpen: _openMaterial,
                     ),
+                    _LivePanelTab.board => _BoardPanel(
+                      feed: feed,
+                      strokes: _boardStrokes,
+                      color: _boardColor,
+                      width: _boardWidth,
+                      busy: _busy,
+                      onColor: (value) => setState(() => _boardColor = value),
+                      onWidth: (value) => setState(() => _boardWidth = value),
+                      onStroke: _addBoardStroke,
+                      onOpen: () => _setBoard(active: !feed.board.active),
+                      onClear: () => _setBoard(clear: true),
+                      onAllCanDraw: (value) => _setBoard(allCanDraw: value),
+                    ),
+                    _LivePanelTab.host => _HostPanel(
+                      feed: feed,
+                      busy: _busy,
+                      onModerate: _moderate,
+                      onCreatePoll: _createPoll,
+                      onClosePoll: _closePoll,
+                    ),
                     _LivePanelTab.people => _PeoplePanel(
                       participants: feed.participants,
                     ),
@@ -516,7 +635,7 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
   }
 }
 
-enum _LivePanelTab { chat, questions, polls, materials, people }
+enum _LivePanelTab { chat, questions, polls, materials, board, host, people }
 
 class _MessagePanel extends StatelessWidget {
   const _MessagePanel({
@@ -825,6 +944,434 @@ class _MaterialsPanel extends StatelessWidget {
       },
     );
   }
+}
+
+class _BoardPanel extends StatefulWidget {
+  const _BoardPanel({
+    required this.feed,
+    required this.strokes,
+    required this.color,
+    required this.width,
+    required this.busy,
+    required this.onColor,
+    required this.onWidth,
+    required this.onStroke,
+    required this.onOpen,
+    required this.onClear,
+    required this.onAllCanDraw,
+  });
+
+  final LiveRoomFeed feed;
+  final List<LiveBoardStroke> strokes;
+  final String color;
+  final int width;
+  final bool busy;
+  final ValueChanged<String> onColor;
+  final ValueChanged<int> onWidth;
+  final ValueChanged<List<int>> onStroke;
+  final VoidCallback onOpen;
+  final VoidCallback onClear;
+  final ValueChanged<bool> onAllCanDraw;
+
+  @override
+  State<_BoardPanel> createState() => _BoardPanelState();
+}
+
+class _BoardPanelState extends State<_BoardPanel> {
+  final List<int> _draft = [];
+
+  bool get _canDraw =>
+      widget.feed.board.active &&
+      (widget.feed.isManager || widget.feed.board.allCanDraw);
+
+  void _point(Offset local, Size size) {
+    final board = _boardRect(size);
+    final x = ((local.dx - board.left) / board.width * 10000).round().clamp(
+      0,
+      10000,
+    );
+    final y = ((local.dy - board.top) / board.height * 10000).round().clamp(
+      0,
+      10000,
+    );
+    if (_draft.length >= 2) {
+      final dx = x - _draft[_draft.length - 2];
+      final dy = y - _draft[_draft.length - 1];
+      if (dx * dx + dy * dy < 60) return;
+    }
+    setState(() {
+      _draft.add(x);
+      _draft.add(y);
+    });
+  }
+
+  Rect _boardRect(Size size) {
+    final width = size.width;
+    final height = math.min(size.height, width * 9 / 16);
+    return Rect.fromLTWH(0, (size.height - height) / 2, width, height);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (widget.feed.isManager)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: widget.busy ? null : widget.onOpen,
+                  icon: Icon(
+                    widget.feed.board.active
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
+                  label: Text(widget.feed.board.active ? 'Close' : 'Open'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: widget.busy ? null : widget.onClear,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Clear'),
+                ),
+                const Spacer(),
+                Switch(
+                  value: widget.feed.board.allCanDraw,
+                  onChanged: widget.busy ? null : widget.onAllCanDraw,
+                ),
+                const Text(
+                  'All draw',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = Size(constraints.maxWidth, constraints.maxHeight);
+                return GestureDetector(
+                  onPanStart: _canDraw
+                      ? (d) => _point(d.localPosition, size)
+                      : null,
+                  onPanUpdate: _canDraw
+                      ? (d) => _point(d.localPosition, size)
+                      : null,
+                  onPanEnd: _canDraw
+                      ? (_) {
+                          final points = [..._draft];
+                          setState(_draft.clear);
+                          widget.onStroke(points);
+                        }
+                      : null,
+                  child: CustomPaint(
+                    painter: _BoardPainter(
+                      strokes: widget.strokes,
+                      draft: LiveBoardStroke(
+                        id: 0,
+                        uid: 'draft',
+                        userId: 0,
+                        color: widget.color,
+                        width: widget.width,
+                        points: _draft,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.gray700),
+                      ),
+                      alignment: Alignment.center,
+                      child: widget.feed.board.active
+                          ? null
+                          : const Text(
+                              'Board is closed',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Row(
+            children: [
+              for (final c in const [
+                '#111827',
+                '#dc2626',
+                '#2563eb',
+                '#16a34a',
+                '#f59e0b',
+                '#ffffff',
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => widget.onColor(c),
+                    child: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: _hex(c),
+                      child: widget.color == c
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              DropdownButton<int>(
+                value: widget.width,
+                dropdownColor: AppColors.gray900,
+                items: const [4, 8, 16, 32]
+                    .map(
+                      (w) => DropdownMenuItem(
+                        value: w,
+                        child: Text(
+                          '$w',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) widget.onWidth(v);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BoardPainter extends CustomPainter {
+  const _BoardPainter({required this.strokes, required this.draft});
+  final List<LiveBoardStroke> strokes;
+  final LiveBoardStroke draft;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final board = _boardRect(size);
+    final bg = Paint()..color = Colors.white;
+    canvas.drawRect(board, bg);
+    for (final stroke in [...strokes, draft]) {
+      if (stroke.points.length < 4) continue;
+      final path = Path();
+      path.moveTo(_x(stroke.points[0], board), _y(stroke.points[1], board));
+      for (var i = 2; i < stroke.points.length; i += 2) {
+        path.lineTo(
+          _x(stroke.points[i], board),
+          _y(stroke.points[i + 1], board),
+        );
+      }
+      final paint = Paint()
+        ..color = _hex(stroke.color)
+        ..strokeWidth = math.max(1, board.width * stroke.width / 1000)
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  Rect _boardRect(Size size) {
+    final width = size.width;
+    final height = math.min(size.height, width * 9 / 16);
+    return Rect.fromLTWH(0, (size.height - height) / 2, width, height);
+  }
+
+  double _x(int x, Rect board) => board.left + board.width * x / 10000;
+  double _y(int y, Rect board) => board.top + board.height * y / 10000;
+
+  @override
+  bool shouldRepaint(covariant _BoardPainter oldDelegate) =>
+      oldDelegate.strokes != strokes ||
+      oldDelegate.draft.points != draft.points;
+}
+
+Color _hex(String value) {
+  final hex = value.replaceFirst('#', '');
+  return Color(int.parse('ff$hex', radix: 16));
+}
+
+class _HostPanel extends StatefulWidget {
+  const _HostPanel({
+    required this.feed,
+    required this.busy,
+    required this.onModerate,
+    required this.onCreatePoll,
+    required this.onClosePoll,
+  });
+
+  final LiveRoomFeed feed;
+  final bool busy;
+  final Future<void> Function(Map<String, dynamic> body) onModerate;
+  final Future<void> Function(String question, List<String> options)
+  onCreatePoll;
+  final Future<void> Function(LivePoll poll) onClosePoll;
+
+  @override
+  State<_HostPanel> createState() => _HostPanelState();
+}
+
+class _HostPanelState extends State<_HostPanel> {
+  final _question = TextEditingController();
+  final _options = TextEditingController(text: 'Yes\nNo');
+
+  @override
+  void dispose() {
+    _question.dispose();
+    _options.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.feed.isManager) {
+      return const Center(
+        child: Text(
+          'Host controls are only for room managers.',
+          style: TextStyle(color: Colors.white54),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _HostButton(
+              icon: Icons.lock_outline,
+              label: 'Lock',
+              onTap: () =>
+                  widget.onModerate({'action': 'lock', 'locked': true}),
+            ),
+            _HostButton(
+              icon: Icons.lock_open,
+              label: 'Unlock',
+              onTap: () =>
+                  widget.onModerate({'action': 'lock', 'locked': false}),
+            ),
+            _HostButton(
+              icon: Icons.front_hand,
+              label: 'Lower hands',
+              onTap: () => widget.onModerate({'action': 'lower_hands'}),
+            ),
+            _HostButton(
+              icon: Icons.mic_off,
+              label: 'Mute all',
+              onTap: () =>
+                  widget.onModerate({'action': 'mute_all', 'kind': 'audio'}),
+            ),
+            _HostButton(
+              icon: Icons.fiber_manual_record,
+              label: 'Record',
+              onTap: () =>
+                  widget.onModerate({'action': 'recording', 'recording': true}),
+            ),
+            _HostButton(
+              icon: Icons.stop_circle_outlined,
+              label: 'Stop rec',
+              onTap: () => widget.onModerate({
+                'action': 'recording',
+                'recording': false,
+              }),
+            ),
+            _HostButton(
+              icon: Icons.more_time,
+              label: '+15 min',
+              onTap: () =>
+                  widget.onModerate({'action': 'extend', 'minutes': 15}),
+            ),
+          ],
+        ),
+        const Divider(color: AppColors.gray800, height: 24),
+        const Text(
+          'New poll',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _question,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Question',
+            hintStyle: TextStyle(color: Colors.white38),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _options,
+          minLines: 2,
+          maxLines: 4,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Options, one per line',
+            hintStyle: TextStyle(color: Colors.white38),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: widget.busy
+              ? null
+              : () {
+                  final options = _options.text
+                      .split('\n')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList();
+                  widget.onCreatePoll(_question.text.trim(), options);
+                },
+          icon: const Icon(Icons.poll_outlined),
+          label: const Text('Publish poll'),
+        ),
+        for (final poll in widget.feed.polls)
+          if (poll.isOpen)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                poll.question,
+                style: const TextStyle(color: Colors.white),
+              ),
+              trailing: TextButton(
+                onPressed: () => widget.onClosePoll(poll),
+                child: const Text('Close'),
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+class _HostButton extends StatelessWidget {
+  const _HostButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+    onPressed: onTap,
+    icon: Icon(icon, size: 16),
+    label: Text(label),
+  );
 }
 
 class _PeoplePanel extends StatelessWidget {

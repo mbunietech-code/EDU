@@ -609,6 +609,7 @@ class LiveRoomFeed {
     required this.participants,
     required this.polls,
     required this.materials,
+    required this.board,
     required this.handRaised,
     required this.isManager,
     required this.chatEnabled,
@@ -623,6 +624,7 @@ class LiveRoomFeed {
   final List<LiveParticipant> participants;
   final List<LivePoll> polls;
   final List<LiveMaterial> materials;
+  final LiveBoardState board;
   final bool handRaised;
   final bool isManager;
   final bool chatEnabled;
@@ -645,6 +647,9 @@ class LiveRoomFeed {
       participants: _list(j['participants'], LiveParticipant.fromJson),
       polls: _list(j['polls'], LivePoll.fromJson),
       materials: _list(j['materials'], LiveMaterial.fromJson),
+      board: LiveBoardState.fromJson(
+        (j['board'] as Map<String, dynamic>?) ?? const {},
+      ),
       handRaised: j['hand_raised'] as bool? ?? false,
       isManager: j['is_manager'] as bool? ?? false,
       chatEnabled: room['chat_enabled'] as bool? ?? true,
@@ -654,6 +659,74 @@ class LiveRoomFeed {
       openQuestionsCount: _int(counts['questions_open']),
     );
   }
+}
+
+class LiveBoardState {
+  const LiveBoardState({
+    required this.active,
+    required this.allCanDraw,
+    required this.version,
+  });
+
+  final bool active;
+  final bool allCanDraw;
+  final int version;
+
+  factory LiveBoardState.fromJson(Map<String, dynamic> j) => LiveBoardState(
+    active: j['active'] as bool? ?? false,
+    allCanDraw: j['all_can_draw'] as bool? ?? false,
+    version: _int(j['version']),
+  );
+}
+
+class LiveBoardStroke {
+  const LiveBoardStroke({
+    required this.id,
+    required this.uid,
+    required this.userId,
+    required this.color,
+    required this.width,
+    required this.points,
+  });
+
+  final int id;
+  final String uid;
+  final int userId;
+  final String color;
+  final int width;
+  final List<int> points;
+
+  factory LiveBoardStroke.fromJson(Map<String, dynamic> j) => LiveBoardStroke(
+    id: _int(j['id']),
+    uid: j['uid'] as String? ?? '',
+    userId: _int(j['user_id']),
+    color: j['c'] as String? ?? '#111827',
+    width: _int(j['w']),
+    points: ((j['p'] as List?) ?? const []).map((e) => _int(e)).toList(),
+  );
+}
+
+class LiveBoardFeed {
+  const LiveBoardFeed({
+    required this.version,
+    required this.more,
+    required this.state,
+    required this.strokes,
+  });
+
+  final int version;
+  final bool more;
+  final LiveBoardState state;
+  final List<LiveBoardStroke> strokes;
+
+  factory LiveBoardFeed.fromJson(Map<String, dynamic> j) => LiveBoardFeed(
+    version: _int(j['version']),
+    more: j['more'] as bool? ?? false,
+    state: LiveBoardState.fromJson(
+      (j['state'] as Map<String, dynamic>?) ?? const {},
+    ),
+    strokes: _list(j['strokes'], LiveBoardStroke.fromJson),
+  );
 }
 
 class LearningCategoryCard {

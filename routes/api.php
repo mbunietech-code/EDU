@@ -143,7 +143,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/rooms/{slug}/messages', 'liveMessage')->middleware('throttle:30,1')->name('rooms.messages');
             Route::post('/rooms/{slug}/hand', 'liveHand')->middleware('throttle:30,1')->name('rooms.hand');
             Route::post('/rooms/{slug}/polls/{poll}/vote', 'livePollVote')->whereNumber('poll')->middleware('throttle:30,1')->name('rooms.polls.vote');
+            Route::post('/rooms/{slug}/polls', 'livePollCreate')->middleware('throttle:30,1')->name('rooms.polls.store');
+            Route::post('/rooms/{slug}/polls/{poll}/close', 'livePollClose')->whereNumber('poll')->middleware('throttle:30,1')->name('rooms.polls.close');
             Route::get('/rooms/{slug}/materials/{material}', 'liveMaterial')->whereNumber('material')->name('rooms.materials');
+            Route::get('/rooms/{slug}/board', 'liveBoard')->middleware('throttle:120,1')->name('rooms.board');
+            Route::post('/rooms/{slug}/board/strokes', 'liveBoardStroke')->middleware('throttle:240,1')->name('rooms.board.strokes');
+            Route::delete('/rooms/{slug}/board/strokes/{stroke}', 'liveBoardDelete')->whereNumber('stroke')->middleware('throttle:60,1')->name('rooms.board.strokes.destroy');
+            Route::post('/rooms/{slug}/board', 'liveBoardUpdate')->middleware('throttle:60,1')->name('rooms.board.update');
+            Route::post('/rooms/{slug}/moderate', 'liveModerate')->middleware('throttle:60,1')->name('rooms.moderate');
             Route::post('/rooms/{slug}/start', 'start')->middleware('throttle:10,1')->name('rooms.start');
             Route::post('/rooms/{slug}/end', 'end')->middleware('throttle:10,1')->name('rooms.end');
         });

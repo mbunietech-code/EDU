@@ -175,6 +175,66 @@ class LearningRepository {
         .map((e) => LivePoll.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<List<LivePoll>> createPoll(
+    String slug, {
+    required String question,
+    required List<String> options,
+  }) async {
+    final body =
+        await _api.post(
+              '/learning/rooms/$slug/polls',
+              data: {'question': question, 'options': options},
+            )
+            as Map<String, dynamic>;
+    return ((body['polls'] as List?) ?? const [])
+        .map((e) => LivePoll.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<LivePoll>> closePoll(String slug, int pollId) async {
+    final body =
+        await _api.post('/learning/rooms/$slug/polls/$pollId/close')
+            as Map<String, dynamic>;
+    return ((body['polls'] as List?) ?? const [])
+        .map((e) => LivePoll.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<LiveBoardFeed> board(String slug) async => LiveBoardFeed.fromJson(
+    await _api.get('/learning/rooms/$slug/board') as Map<String, dynamic>,
+  );
+
+  Future<void> addBoardStroke(
+    String slug, {
+    required String uid,
+    required String color,
+    required int width,
+    required List<int> points,
+  }) => _api.post(
+    '/learning/rooms/$slug/board/strokes',
+    data: {'uid': uid, 'c': color, 'w': width, 'p': points},
+  );
+
+  Future<LiveBoardState> updateBoard(
+    String slug, {
+    bool? active,
+    bool? allCanDraw,
+    bool? clear,
+  }) async => LiveBoardState.fromJson(
+    await _api.post(
+          '/learning/rooms/$slug/board',
+          data: {
+            'active': ?active,
+            'all_can_draw': ?allCanDraw,
+            'clear': ?clear,
+          },
+        )
+        as Map<String, dynamic>,
+  );
+
+  Future<void> moderateRoom(String slug, Map<String, dynamic> body) =>
+      _api.post('/learning/rooms/$slug/moderate', data: body);
 }
 
 final learningRepositoryProvider = Provider(

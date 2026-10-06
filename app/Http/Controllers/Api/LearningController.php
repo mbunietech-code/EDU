@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Learning\LearningStorage;
 use App\Services\Learning\LiveProvider;
 use App\Services\Learning\ProgressService;
+use App\Services\Learning\RoomBoardService;
 use App\Services\Learning\RoomPollService;
 use App\Services\Learning\RoomService;
 use Illuminate\Database\Eloquent\Builder;
@@ -776,7 +777,7 @@ class LearningController extends Controller
         return response()->json(['left' => true]);
     }
 
-    public function liveFeed(Request $request, string $slug, RoomPollService $polls): JsonResponse
+    public function liveFeed(Request $request, string $slug, RoomPollService $polls, RoomBoardService $board): JsonResponse
     {
         $user = $request->user();
         $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
@@ -814,6 +815,7 @@ class LearningController extends Controller
             ->values()
             ->all();
         $feed['polls'] = $polls->feed($room, $user);
+        $feed['board'] = $board->state($room);
         $me = collect($feed['participants'] ?? [])->firstWhere('is_me', true);
         $feed['hand_raised'] = ($me['hand_raised_at'] ?? null) !== null;
         $feed['is_manager'] = $room->isManageableBy($user);
@@ -877,6 +879,149 @@ class LearningController extends Controller
         $name = (Str::slug($material->title) ?: 'material').($extension !== '' ? '.'.$extension : '');
 
         return $storage->streamResponse($material->disk, $material->path, $material->mime ?: 'application/octet-stream', $name);
+    }
+
+    public function liveBoard(Request $request, string $slug, RoomBoardService $board): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+
+        $data = $request->validate(['after' => ['nullable', 'integer', 'min:0']]);
+
+        return response()->json($board->strokes($room, (int) ($data['after'] ?? 0)) + ['state' => $board->state($room)]);
+    }
+
+    public function liveBoardStroke(Request $request, string $slug, RoomBoardService $board): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'join', $room);
+
+        $stroke = $board->addStroke($room, $user, $request->only(['uid', 'c', 'w', 'p', 's', 'h', 'f', 't']));
+
+        return response()->json(['id' => $stroke->id, 'uid' => $stroke->uid], 201);
+    }
+
+    public function liveBoardDelete(Request $request, string $slug, \App\Models\LearningRoomBoardStroke $stroke, RoomBoardService $board): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'join', $room);
+        $board->deleteStroke($room, $user, $stroke);
+
+        return response()->json($board->state($room));
+    }
+
+    public function liveBoardUpdate(Request $request, string $slug, RoomBoardService $board): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'moderate', $room);
+
+        $data = $request->validate([
+            'active' => ['sometimes', 'boolean'],
+            'all_can_draw' => ['sometimes', 'boolean'],
+            'clear' => ['sometimes', 'boolean'],
+        ]);
+
+        $board->update($room, $data);
+
+        return response()->json($board->state($room));
+    }
+
+    public function liveModerate(Request $request, string $slug, RoomService $rooms): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'moderate', $room);
+
+        $data = $request->validate([
+            'action' => ['required', 'string', 'in:lock,media,lower_hands,mute_all,recording,extend'],
+            'locked' => ['nullable', 'boolean'],
+            'allow_participant_media' => ['nullable', 'boolean'],
+            'allow_screen_share' => ['nullable', 'boolean'],
+            'kind' => ['nullable', 'string', 'in:audio,video,screen'],
+            'recording' => ['nullable', 'boolean'],
+            'minutes' => ['nullable', 'integer', 'min:5', 'max:120'],
+        ]);
+
+        $message = 'Updated.';
+        $extra = [];
+
+        if ($data['action'] === 'lock') {
+            $rooms->setLocked($room, (bool) ($data['locked'] ?? false), $user);
+            $message = $room->is_locked ? 'Room locked.' : 'Room unlocked.';
+            $extra = ['is_locked' => (bool) $room->is_locked];
+        } elseif ($data['action'] === 'media') {
+            $rooms->setRoomMedia($room, array_filter([
+                'allow_participant_media' => $data['allow_participant_media'] ?? null,
+                'allow_screen_share' => $data['allow_screen_share'] ?? null,
+            ], fn ($v) => $v !== null), $user);
+            $message = 'Media settings updated.';
+            $extra = [
+                'allow_participant_media' => (bool) $room->allow_participant_media,
+                'allow_screen_share' => (bool) $room->allow_screen_share,
+            ];
+        } elseif ($data['action'] === 'lower_hands') {
+            $count = $rooms->lowerHands($room, null, $user);
+            $message = $count.' hands lowered.';
+            $extra = ['count' => $count];
+        } elseif ($data['action'] === 'mute_all') {
+            $kind = $data['kind'] ?? 'audio';
+            $count = $rooms->muteEveryone($room, $kind, $user);
+            abort_if($count === null, 503, 'The live video server could not be reached.');
+            $message = 'Muted all '.$kind.'.';
+            $extra = ['count' => $count];
+        } elseif ($data['action'] === 'recording') {
+            $recording = (bool) ($data['recording'] ?? false);
+            $recording ? $rooms->startRecording($room, $user) : $rooms->stopRecording($room, $user);
+            $message = $recording ? 'Recording started.' : 'Recording stopped.';
+            $extra = ['is_recording' => $recording];
+        } elseif ($data['action'] === 'extend') {
+            $endsAt = $rooms->extend($room, (int) ($data['minutes'] ?? 15), $user);
+            $message = 'Class extended.';
+            $extra = ['ends_at' => $endsAt->toIso8601String(), 'duration_minutes' => (int) $room->duration_minutes];
+        }
+
+        return response()->json(['message' => $message] + $extra);
+    }
+
+    public function livePollCreate(Request $request, string $slug, RoomPollService $polls): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'moderate', $room);
+
+        $data = $request->validate([
+            'question' => ['required', 'string', 'max:500'],
+            'options' => ['required', 'array', 'min:2', 'max:8'],
+            'options.*' => ['required', 'string', 'max:255'],
+            'correct_option' => ['nullable', 'integer'],
+        ]);
+
+        $polls->create($room, $user, $data['question'], $data['options'], isset($data['correct_option']) ? (int) $data['correct_option'] : null);
+
+        return response()->json(['polls' => $polls->feed($room, $user)], 201);
+    }
+
+    public function livePollClose(Request $request, string $slug, LearningRoomPoll $poll, RoomPollService $polls): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'moderate', $room);
+        abort_unless((int) $poll->learning_room_id === (int) $room->id, 404);
+
+        $polls->close($poll);
+
+        return response()->json(['polls' => $polls->feed($room, $user)]);
     }
 
     public function signedLiveMaterial(Request $request, string $slug, LearningRoomMaterial $material, LearningStorage $storage)
