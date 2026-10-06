@@ -60,7 +60,7 @@ class ClickPesaGateway implements MobileMoneyGateway
         if (! $response->successful()) {
             Log::warning('ClickPesa USSD push failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-            throw new GatewayException($response->json('message') ?: 'ClickPesa could not start the payment. Check the phone number.');
+            throw GatewayException::fromResponse($response, 'ClickPesa could not start the payment.');
         }
 
         return $response->json('id');
@@ -171,7 +171,7 @@ class ClickPesaGateway implements MobileMoneyGateway
             if (! $response->successful() || $token === '') {
                 Log::error('ClickPesa token request failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-                throw new GatewayException('Mobile money payments are temporarily unavailable.');
+                throw GatewayException::fromResponse($response, 'Mobile money payments are temporarily unavailable.');
             }
 
             return str_starts_with($token, 'Bearer ') ? $token : 'Bearer '.$token;

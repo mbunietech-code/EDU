@@ -104,7 +104,7 @@ class PayPalGateway implements MobileMoneyGateway
         if (! $response->successful() || ! $approveUrl) {
             Log::warning('PayPal order creation failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-            throw new GatewayException('PayPal could not start the payment. Please try again.');
+            throw GatewayException::fromResponse($response, 'PayPal could not start the payment.');
         }
 
         $payment->update([
@@ -219,7 +219,7 @@ class PayPalGateway implements MobileMoneyGateway
             if (! $response->successful() || blank($token)) {
                 Log::error('PayPal token request failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-                throw new GatewayException('PayPal is temporarily unavailable.');
+                throw GatewayException::fromResponse($response, 'PayPal is temporarily unavailable.');
             }
 
             return $token;

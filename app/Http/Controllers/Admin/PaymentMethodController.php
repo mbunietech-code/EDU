@@ -77,8 +77,8 @@ class PaymentMethodController extends Controller
 
         try {
             $driver->testConnection();
-        } catch (GatewayException) {
-            return back()->with('error', $driver->label().' rejected the connection. Check the keys and the environment (sandbox / live).');
+        } catch (GatewayException $e) {
+            return back()->with('error', $driver->label().' rejected the connection: '.$e->getMessage().' Check the keys and the environment (sandbox / live).');
         } catch (\Throwable $e) {
             report($e);
 

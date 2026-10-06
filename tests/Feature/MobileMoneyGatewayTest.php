@@ -256,6 +256,27 @@ class MobileMoneyGatewayTest extends TestCase
             ->assertJson(['status' => 'failed', 'message' => 'Insufficient balance']);
     }
 
+    public function test_clickpesa_rejection_with_a_list_of_errors_is_shown_not_crashed(): void
+    {
+        Http::fake([
+            'api.clickpesa.com/third-parties/generate-token' => Http::response(['token' => 'Bearer cp-token']),
+            'api.clickpesa.com/third-parties/payments/initiate-ussd-push-request' => Http::response([
+                'statusCode' => 400,
+                'message' => ['phoneNumber must be a valid phone number', 'Payment method not available'],
+                'error' => 'Bad Request',
+            ], 400),
+        ]);
+        $context = $this->createOrderContext();
+
+        $this->startPayment($context, 'clickpesa')
+            ->assertRedirect()
+            ->assertSessionHas('error', 'ClickPesa could not start the payment. (phoneNumber must be a valid phone number; Payment method not available)');
+
+        $gatewayPayment = GatewayPayment::firstOrFail();
+        $this->assertSame('failed', $gatewayPayment->status);
+        $this->assertStringContainsString('Payment method not available', $gatewayPayment->message);
+    }
+
     public function test_order_reference_fits_clickpesa_rules(): void
     {
         foreach ([1, 98765, 1234567890] as $id) {

@@ -66,7 +66,7 @@ class AzamPayGateway implements MobileMoneyGateway
         if (! $response->successful() || $response->json('success') === false) {
             Log::warning('AzamPay checkout failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-            throw new GatewayException($response->json('message') ?: 'AzamPay could not start the payment. Check the number and network.');
+            throw GatewayException::fromResponse($response, 'AzamPay could not start the payment.');
         }
 
         return $response->json('transactionId');
@@ -119,7 +119,7 @@ class AzamPayGateway implements MobileMoneyGateway
             if (! $response->successful() || blank($token)) {
                 Log::error('AzamPay token request failed', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
 
-                throw new GatewayException('Mobile money payments are temporarily unavailable.');
+                throw GatewayException::fromResponse($response, 'Mobile money payments are temporarily unavailable.');
             }
 
             return $token;
