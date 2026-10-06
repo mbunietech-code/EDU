@@ -28,6 +28,7 @@ mhub/lib/firebase_options.dart
 /prod/productions APP/
 mhub/build/
 mhub/installer/Output/
+mhub/installer/setup/work/
 mhub/android/app/*.jks
 mhub/android/key.properties
 *.jks

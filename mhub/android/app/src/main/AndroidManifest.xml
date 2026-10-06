@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+    <!-- Bluetooth is only for headsets in live classes; don't hide the app on Play from devices without it. -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false"/>
 
     <application
         android:label="MHub"
