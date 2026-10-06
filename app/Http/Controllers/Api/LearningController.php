@@ -10,12 +10,16 @@ use App\Models\LearningCategory;
 use App\Models\LearningCourse;
 use App\Models\LearningEnrollment;
 use App\Models\LearningRoom;
+use App\Models\LearningRoomMaterial;
+use App\Models\LearningRoomPoll;
 use App\Models\LearningVideo;
 use App\Models\LearningVideoProgress;
 use App\Models\LearningVideoResource;
 use App\Models\User;
+use App\Services\Learning\LearningStorage;
 use App\Services\Learning\LiveProvider;
 use App\Services\Learning\ProgressService;
+use App\Services\Learning\RoomPollService;
 use App\Services\Learning\RoomService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -505,6 +509,123 @@ class LearningController extends Controller
         app(RoomService::class)->leave($room, $user);
 
         return response()->json(['left' => true]);
+    }
+
+    public function liveFeed(Request $request, string $slug, RoomPollService $polls): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+
+        $data = $request->validate([
+            'after' => ['nullable', 'integer', 'min:0'],
+            'since' => ['nullable', 'date'],
+        ]);
+
+        $feed = app(RoomService::class)->feed(
+            $room,
+            $user,
+            (int) ($data['after'] ?? 0),
+            $data['since'] ?? null,
+        );
+
+        $feed['materials'] = $room->materials()
+            ->limit(50)
+            ->get()
+            ->map(fn (LearningRoomMaterial $material) => [
+                'id' => $material->id,
+                'title' => $material->title,
+                'original_name' => $material->original_name,
+                'mime' => $material->mime,
+                'size_bytes' => (int) $material->size_bytes,
+                'download_path' => "/learning/rooms/{$room->slug}/materials/{$material->id}",
+                'download_url' => URL::temporarySignedRoute(
+                    'api.signed.learning.rooms.materials',
+                    now()->addHours(self::STREAM_TTL_HOURS),
+                    ['slug' => $room->slug, 'material' => $material->id, 'u' => $user->id],
+                ),
+            ])
+            ->values()
+            ->all();
+        $feed['polls'] = $polls->feed($room, $user);
+        $me = collect($feed['participants'] ?? [])->firstWhere('is_me', true);
+        $feed['hand_raised'] = ($me['hand_raised_at'] ?? null) !== null;
+        $feed['is_manager'] = $room->isManageableBy($user);
+
+        return response()->json($feed);
+    }
+
+    public function liveMessage(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+
+        $data = $request->validate([
+            'type' => ['required', 'string', 'in:chat,question'],
+            'body' => ['required', 'string', 'max:'.RoomService::MAX_MESSAGE_LENGTH],
+        ]);
+
+        $message = app(RoomService::class)->postMessage($room, $user, $data['type'], $data['body']);
+
+        return response()->json(app(RoomService::class)->messagePayload($message->setRelation('room', $room), $user), 201);
+    }
+
+    public function liveHand(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'join', $room);
+
+        $data = $request->validate(['raised' => ['required', 'boolean']]);
+        app(RoomService::class)->setHand($room, $user, (bool) $data['raised']);
+
+        return response()->json(['raised' => (bool) $data['raised']]);
+    }
+
+    public function livePollVote(Request $request, string $slug, LearningRoomPoll $poll, RoomPollService $polls): JsonResponse
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'join', $room);
+        abort_unless((int) $poll->learning_room_id === (int) $room->id, 404);
+
+        $data = $request->validate(['option' => ['required', 'integer', 'min:0']]);
+        $polls->vote($poll->setRelation('room', $room), $user, (int) $data['option']);
+
+        return response()->json(['polls' => $polls->feed($room, $user)], 201);
+    }
+
+    public function liveMaterial(Request $request, string $slug, LearningRoomMaterial $material, LearningStorage $storage)
+    {
+        $user = $request->user();
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+        abort_unless((int) $material->learning_room_id === (int) $room->id, 404);
+
+        $extension = $material->extension();
+        $name = (Str::slug($material->title) ?: 'material').($extension !== '' ? '.'.$extension : '');
+
+        return $storage->streamResponse($material->disk, $material->path, $material->mime ?: 'application/octet-stream', $name);
+    }
+
+    public function signedLiveMaterial(Request $request, string $slug, LearningRoomMaterial $material, LearningStorage $storage)
+    {
+        $user = User::query()->findOrFail((int) $request->query('u'));
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+        abort_unless((int) $material->learning_room_id === (int) $room->id, 404);
+
+        $extension = $material->extension();
+        $name = (Str::slug($material->title) ?: 'material').($extension !== '' ? '.'.$extension : '');
+
+        return $storage->streamResponse($material->disk, $material->path, $material->mime ?: 'application/octet-stream', $name);
     }
 
     /** Host / room manager goes live (returns the running session when already live). */

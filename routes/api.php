@@ -35,6 +35,12 @@ Route::post('/payments/callback/{gateway}/{token}', \App\Http\Controllers\Api\Pa
     ->middleware('throttle:120,1')
     ->name('api.payments.callback');
 
+// Signed learning room materials for app clients (no browser session required).
+Route::get('/signed/learning/rooms/{slug}/materials/{material}', [\App\Http\Controllers\Api\LearningController::class, 'signedLiveMaterial'])
+    ->middleware(['signed', 'throttle:120,1'])
+    ->whereNumber('material')
+    ->name('api.signed.learning.rooms.materials');
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -122,6 +128,11 @@ Route::middleware('auth:sanctum')->group(function () {
             // Fresh short-lived media token for a reconnect (same checks as join).
             Route::post('/rooms/{slug}/token', 'join')->middleware('throttle:30,1')->name('rooms.token');
             Route::post('/rooms/{slug}/leave', 'leave')->middleware('throttle:30,1')->name('rooms.leave');
+            Route::get('/rooms/{slug}/feed', 'liveFeed')->middleware('throttle:120,1')->name('rooms.feed');
+            Route::post('/rooms/{slug}/messages', 'liveMessage')->middleware('throttle:30,1')->name('rooms.messages');
+            Route::post('/rooms/{slug}/hand', 'liveHand')->middleware('throttle:30,1')->name('rooms.hand');
+            Route::post('/rooms/{slug}/polls/{poll}/vote', 'livePollVote')->whereNumber('poll')->middleware('throttle:30,1')->name('rooms.polls.vote');
+            Route::get('/rooms/{slug}/materials/{material}', 'liveMaterial')->whereNumber('material')->name('rooms.materials');
             Route::post('/rooms/{slug}/start', 'start')->middleware('throttle:10,1')->name('rooms.start');
             Route::post('/rooms/{slug}/end', 'end')->middleware('throttle:10,1')->name('rooms.end');
         });
