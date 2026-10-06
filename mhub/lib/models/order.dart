@@ -12,6 +12,36 @@ class OrderPayment {
       );
 }
 
+/// Product key + download for software / tool orders (API "delivery").
+class OrderDelivery {
+  const OrderDelivery({required this.type, required this.state, this.key, this.fileName, this.downloadUrl, this.expiresAt});
+
+  /// software | tool
+  final String type;
+
+  /// waiting (not paid yet) | open | expired (software window closed)
+  final String state;
+  final String? key;
+  final String? fileName;
+
+  /// Short-lived signed link; fetch the order again for a fresh one.
+  final String? downloadUrl;
+  final DateTime? expiresAt;
+
+  static OrderDelivery? maybe(dynamic j) {
+    if (j == null) return null;
+    final m = j as Map<String, dynamic>;
+    return OrderDelivery(
+      type: m['type'] as String? ?? 'software',
+      state: m['state'] as String? ?? 'waiting',
+      key: m['key'] as String?,
+      fileName: m['file_name'] as String?,
+      downloadUrl: m['download_url'] as String?,
+      expiresAt: m['expires_at'] == null ? null : DateTime.tryParse(m['expires_at'] as String)?.toLocal(),
+    );
+  }
+}
+
 class Order {
   const Order({
     required this.id,
@@ -25,6 +55,7 @@ class Order {
     this.paymentInstructions,
     this.rejectionReason,
     this.payments = const [],
+    this.delivery,
   });
 
   final int id;
@@ -38,6 +69,7 @@ class Order {
   final String? paymentInstructions;
   final String? rejectionReason;
   final List<OrderPayment> payments;
+  final OrderDelivery? delivery;
 
   bool get isPending => status == 'pending';
   bool get isConfirmed => status == 'confirmed';
@@ -58,5 +90,6 @@ class Order {
                 ?.map((e) => OrderPayment.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
+        delivery: OrderDelivery.maybe(j['delivery']),
       );
 }

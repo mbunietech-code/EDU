@@ -5,6 +5,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/mbui/mbui.dart';
 import 'auth_controller.dart';
 import 'register_screen.dart';
+import '../support/help_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -123,7 +124,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fullWidth: true,
                       onPressed: _submit,
                     ),
-                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => showForgotPasswordDialog(context, ref, email: _email.text.trim()),
+                        child: const Text('Forgot password?'),
+                      ),
+                    ),
                     Center(
                       child: TextButton(
                         onPressed: () => Navigator.of(context).push(

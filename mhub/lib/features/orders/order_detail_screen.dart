@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../models/order.dart';
+import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../../widgets/status_chip.dart';
@@ -97,6 +99,10 @@ class OrderDetailScreen extends ConsumerWidget {
                     trailing: StatusChip(p.status),
                   ),
                 ),
+            ],
+            if (o.delivery != null) ...[
+              const SizedBox(height: 16),
+              _DeliveryCard(delivery: o.delivery!, onRefresh: () => ref.invalidate(orderDetailProvider(o.id))),
             ],
             if (o.isPending && !o.payments.any((p) => p.status == 'pending')) ...[
               const SizedBox(height: 24),
@@ -239,6 +245,83 @@ class _Banner extends StatelessWidget {
           Icon(icon, color: textColor, size: 20),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: TextStyle(color: textColor))),
+        ],
+      ),
+    );
+  }
+}
+
+/// Product key and download, revealed once the order is paid (software only
+/// while its access window is open), like the web order page.
+class _DeliveryCard extends StatelessWidget {
+  const _DeliveryCard({required this.delivery, required this.onRefresh});
+  final OrderDelivery delivery;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = delivery;
+    final title = d.type == 'tool' ? 'Tool access' : 'Software delivery';
+
+    return MbuiCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MbuiSectionLabel(title),
+          const SizedBox(height: 10),
+          if (d.state == 'waiting')
+            Text(
+              d.type == 'tool'
+                  ? 'Once your payment is approved, your product key appears here.'
+                  : 'Once your payment is approved, your product key and download open here for a short time.',
+              style: const TextStyle(fontSize: 13, color: AppColors.gray600),
+            )
+          else if (d.state == 'expired')
+            const Text('The download window has closed. Contact support to re-open it.',
+                style: TextStyle(fontSize: 13, color: AppColors.amber700))
+          else ...[
+            if (d.expiresAt != null)
+              Text('Open until ${TimeOfDay.fromDateTime(d.expiresAt!).format(context)}. Download now.',
+                  style: const TextStyle(fontSize: 12, color: AppColors.emerald700)),
+            const SizedBox(height: 8),
+            const Text('Product key', style: TextStyle(fontSize: 12, color: AppColors.gray500)),
+            const SizedBox(height: 4),
+            if (d.key != null && d.key!.isNotEmpty)
+              Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(d.key!,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy key',
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: d.key!));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product key copied.')));
+                      }
+                    },
+                  ),
+                ],
+              )
+            else
+              const Text('The key will appear here once the seller releases it.',
+                  style: TextStyle(fontSize: 13, color: AppColors.gray500)),
+            if (d.downloadUrl != null) ...[
+              const SizedBox(height: 12),
+              MbuiButton(
+                label: 'Download ${d.fileName ?? 'file'}',
+                icon: Icons.download,
+                variant: MbuiVariant.success,
+                fullWidth: true,
+                onPressed: () async {
+                  await launchUrl(Uri.parse(d.downloadUrl!), mode: LaunchMode.externalApplication);
+                  onRefresh(); // links expire after 5 minutes: fetch a fresh one
+                },
+              ),
+            ],
+          ],
         ],
       ),
     );

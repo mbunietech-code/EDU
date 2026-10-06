@@ -98,6 +98,11 @@ class SubscriptionsRepository {
 
   Future<List<Subscription>> list() async =>
       _list(await _api.get('/subscriptions'), Subscription.fromJson);
+
+  /// Account login details, only while the subscription is running.
+  Future<String?> credentials(int id) async =>
+      ((await _api.get('/subscriptions/$id') as Map<String, dynamic>)['data'] as Map<String, dynamic>)['credentials']
+          as String?;
 }
 
 final subscriptionsRepositoryProvider =

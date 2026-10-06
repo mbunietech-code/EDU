@@ -25,6 +25,7 @@ import '../research/research_screen.dart';
 import '../scholarships/scholarships_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../tools/tools_screen.dart';
+import '../support/help_screen.dart';
 
 class _Destination {
   const _Destination(this.label, this.icon, this.screen, {this.primary = false});
@@ -62,6 +63,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _Destination('System', Icons.tune, AdminSystemScreen()),
         _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
+        _Destination('Help & contact', Icons.support_agent, HelpScreen()),
       ];
     }
     return [
@@ -79,6 +81,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const _Destination('Scholarships', Icons.school_outlined, ScholarshipsScreen()),
       const _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
       const _Destination('Profile', Icons.person_outline, ProfileScreen()),
+      const _Destination('Help & contact', Icons.support_agent, HelpScreen()),
     ];
   }
 
