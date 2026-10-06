@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../learning/learning_home_screen.dart';
 import '../../theme/tokens.dart';
 import '../admin/admin_catalogue_screen.dart';
 import '../admin/admin_chat_screen.dart';
@@ -57,6 +58,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _Destination('Users', Icons.group_outlined, AdminUsersScreen()),
         _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
         _Destination('Finance', Icons.account_balance_outlined, AdminFinanceScreen()),
+        _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
         _Destination('System', Icons.tune, AdminSystemScreen()),
         _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
@@ -67,6 +69,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const _Destination('AI Tools', Icons.smart_toy_outlined, ProductsScreen(), primary: true),
       const _Destination('My Orders', Icons.shopping_bag_outlined, OrdersScreen(), primary: true),
       const _Destination('Messages', Icons.chat_bubble_outline, ChatScreen(), primary: true),
+      const _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
       const _Destination('Research', Icons.menu_book_outlined, ResearchScreen()),
       if (canWriteResearch)
         const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
