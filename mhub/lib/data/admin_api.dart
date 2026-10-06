@@ -109,8 +109,8 @@ class AdminRepository {
         .toList();
   }
 
-  Future<AdminReports> reports() async => AdminReports.fromJson(
-      await _api.get('/admin/reports') as Map<String, dynamic>);
+  Future<AdminReports> reports({int months = 6}) async => AdminReports.fromJson(
+      await _api.get('/admin/reports', query: {'months': months}) as Map<String, dynamic>);
 
   Future<ChatMessage> replyToConversation(int id, String body) async {
     final data =
@@ -154,5 +154,8 @@ final adminConversationsProvider =
     FutureProvider.autoDispose<List<AdminConversation>>(
         (ref) => ref.watch(adminRepositoryProvider).conversations());
 
-final adminReportsProvider = FutureProvider.autoDispose<AdminReports>(
-    (ref) => ref.watch(adminRepositoryProvider).reports());
+/// Months covered by the reports screen (3, 6, 12 or 24).
+final adminReportsMonthsProvider = StateProvider.autoDispose<int>((ref) => 6);
+
+final adminReportsProvider = FutureProvider.autoDispose<AdminReports>((ref) =>
+    ref.watch(adminRepositoryProvider).reports(months: ref.watch(adminReportsMonthsProvider)));

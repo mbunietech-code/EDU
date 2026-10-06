@@ -252,15 +252,22 @@ class AdminOrdersPoint {
 }
 
 class AdminProductStat {
-  const AdminProductStat(this.name, this.orders, this.subscriptions);
+  const AdminProductStat(this.name, this.orders, this.subscriptions,
+      {this.revenue = 0, this.status});
   final String name;
   final int orders;
   final int subscriptions;
+
+  /// Approved payments in the chosen period (TZS).
+  final double revenue;
+  final String? status;
 
   factory AdminProductStat.fromJson(Map<String, dynamic> j) => AdminProductStat(
         j['name'] as String? ?? '—',
         (j['orders'] as num?)?.toInt() ?? 0,
         (j['subscriptions'] as num?)?.toInt() ?? 0,
+        revenue: (j['revenue'] as num?)?.toDouble() ?? 0,
+        status: j['status'] as String?,
       );
 }
 
@@ -272,7 +279,18 @@ class AdminReports {
     required this.products,
     required this.subscriptions,
     required this.accounts,
+    this.months = 6,
+    this.revenueTotal = 0,
+    this.ordersTotal = 0,
+    this.tools = const [],
   });
+
+  final int months;
+  final double revenueTotal;
+  final int ordersTotal;
+
+  /// Research tools: orders and revenue in the period.
+  final List<AdminProductStat> tools;
 
   final List<AdminStat> metrics;
   final List<AdminRevenuePoint> revenue;
@@ -298,6 +316,12 @@ class AdminReports {
             .map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
         accounts: ((j['accounts'] as Map?) ?? {})
             .map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+        months: (j['months'] as num?)?.toInt() ?? 6,
+        revenueTotal: ((j['totals'] as Map?)?['revenue'] as num?)?.toDouble() ?? 0,
+        ordersTotal: ((j['totals'] as Map?)?['orders'] as num?)?.toInt() ?? 0,
+        tools: (j['tools'] as List? ?? [])
+            .map((e) => AdminProductStat.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 
