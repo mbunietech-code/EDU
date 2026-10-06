@@ -12,6 +12,7 @@ import 'admin_common.dart';
 import 'admin_database_screen.dart';
 import 'admin_form_kit.dart';
 import 'admin_team_screen.dart';
+import 'payment_gateways_tab.dart';
 
 class AdminSystemScreen extends ConsumerWidget {
   const AdminSystemScreen({super.key});
@@ -857,10 +858,29 @@ class AdminPaymentMethodsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.pageBackground,
+        appBar: AppBar(
+          title: const Text('Payment methods'),
+          bottom: const TabBar(tabs: [Tab(text: 'Automatic'), Tab(text: 'Manual')]),
+        ),
+        body: const TabBarView(children: [PaymentGatewaysTab(), _ManualPaymentMethodsTab()]),
+      ),
+    );
+  }
+}
+
+/// Manual methods: QR code + proof upload, approved by an admin.
+class _ManualPaymentMethodsTab extends ConsumerWidget {
+  const _ManualPaymentMethodsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(adminPaymentMethodsProvider);
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
-      appBar: AppBar(title: const Text('Payment methods')),
+      backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => const PaymentMethodFormScreen(),
