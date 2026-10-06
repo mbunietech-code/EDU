@@ -238,6 +238,13 @@ class LearningRepository {
 
   Future<void> moderateRoom(String slug, Map<String, dynamic> body) =>
       _api.post('/learning/rooms/$slug/moderate', data: body);
+
+  /// Host controls (participants/{id}/mute, guests/admit-all, breakouts/open …).
+  /// Returns the server's message.
+  Future<String> hostAction(String slug, String path, [Map<String, dynamic>? body]) async {
+    final res = await _api.post('/learning/rooms/$slug/$path', data: body ?? const {});
+    return (res is Map<String, dynamic> ? res['message'] as String? : null) ?? 'Done.';
+  }
 }
 
 final learningRepositoryProvider = Provider(

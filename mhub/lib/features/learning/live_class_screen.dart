@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -278,6 +279,91 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
       _snack(e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// One host control; shows the server's message and refreshes the feed.
+  Future<void> _host(String path, [Map<String, dynamic>? body]) async {
+    setState(() => _busy = true);
+    try {
+      _snack(await _repo.hostAction(widget.slug, path, body));
+      await _loadFeed(silent: true);
+    } on ApiException catch (e) {
+      _snack(e.errors?.values.firstOrNull?.firstOrNull ?? e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _personActions(LiveParticipant person) async {
+    final rights = person.permissions ?? const {};
+    final base = 'participants/${person.userId}';
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(person.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            for (final kind in const ['audio', 'video', 'screen'])
+              SwitchListTile(
+                title: Text(switch (kind) { 'audio' => 'May use microphone', 'video' => 'May use camera', _ => 'May share screen' }),
+                value: rights[kind] ?? false,
+                onChanged: (v) => Navigator.pop(ctx, 'rights:$kind:$v'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.mic_off),
+              title: const Text('Mute microphone'),
+              onTap: () => Navigator.pop(ctx, 'mute:audio'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_off),
+              title: const Text('Turn camera off'),
+              onTap: () => Navigator.pop(ctx, 'mute:video'),
+            ),
+            if (person.handRaised)
+              ListTile(
+                leading: const Icon(Icons.front_hand_outlined),
+                title: const Text('Lower hand'),
+                onTap: () => Navigator.pop(ctx, 'lower'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.person_remove_outlined, color: AppColors.red600),
+              title: const Text('Remove from class', style: TextStyle(color: AppColors.red600)),
+              subtitle: const Text('They cannot rejoin this session.'),
+              onTap: () => Navigator.pop(ctx, 'remove'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    final parts = action.split(':');
+    switch (parts.first) {
+      case 'rights':
+        await _host('$base/permissions', {parts[1]: parts[2] == 'true'});
+      case 'mute':
+        await _host('$base/mute', {'kind': parts[1]});
+      case 'lower':
+        await _host('$base/lower-hand');
+      case 'remove':
+        final sure = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Remove ${person.name}?'),
+            content: const Text('They will be disconnected and cannot rejoin this session.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+            ],
+          ),
+        );
+        if (sure == true) await _host('$base/remove');
     }
   }
 
@@ -647,9 +733,11 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
                       onModerate: _moderate,
                       onCreatePoll: _createPoll,
                       onClosePoll: _closePoll,
+                      onHost: _host,
                     ),
                     _LivePanelTab.people => _PeoplePanel(
                       participants: feed.participants,
+                      onManage: feed.isManager ? _personActions : null,
                     ),
                   },
           ),
@@ -1272,11 +1360,13 @@ class _HostPanel extends StatefulWidget {
     required this.onModerate,
     required this.onCreatePoll,
     required this.onClosePoll,
+    required this.onHost,
   });
 
   final LiveRoomFeed feed;
   final bool busy;
   final Future<void> Function(Map<String, dynamic> body) onModerate;
+  final Future<void> Function(String path, [Map<String, dynamic>? body]) onHost;
   final Future<void> Function(String question, List<String> options)
   onCreatePoll;
   final Future<void> Function(LivePoll poll) onClosePoll;
@@ -1288,12 +1378,147 @@ class _HostPanel extends StatefulWidget {
 class _HostPanelState extends State<_HostPanel> {
   final _question = TextEditingController();
   final _options = TextEditingController(text: 'Yes\nNo');
+  int _breakoutCount = 2;
 
   @override
   void dispose() {
     _question.dispose();
     _options.dispose();
     super.dispose();
+  }
+
+  static const _white = TextStyle(color: Colors.white, fontWeight: FontWeight.w700);
+  static const _muted = TextStyle(color: Colors.white54, fontSize: 12);
+
+  List<Widget> _guestSection() {
+    final g = widget.feed.guests;
+    if (g == null) return const [];
+    final on = g.link != null;
+    return [
+      const Text('Guests', style: _white),
+      if (!g.enabled)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('Guest links are turned off for this platform. An admin can turn them on.', style: _muted),
+        )
+      else ...[
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Guest link', style: TextStyle(color: Colors.white)),
+          subtitle: const Text('People without an account can join with the link.', style: _muted),
+          value: on,
+          onChanged: widget.busy ? null : (v) => widget.onHost('guest-link', {'enabled': v}),
+        ),
+        if (on) ...[
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Waiting room', style: TextStyle(color: Colors.white)),
+            subtitle: const Text('You let each guest in.', style: _muted),
+            value: g.waitingRoom,
+            onChanged: widget.busy ? null : (v) => widget.onHost('guest-link', {'enabled': true, 'waiting_room': v}),
+          ),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: g.link!));
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guest link copied.')));
+              }
+            },
+            icon: const Icon(Icons.link, size: 16),
+            label: const Text('Copy guest link'),
+          ),
+        ],
+        if (g.waiting.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: Text('${g.waiting.length} waiting', style: _white)),
+              TextButton(
+                onPressed: widget.busy ? null : () => widget.onHost('guests/admit-all'),
+                child: const Text('Let all in'),
+              ),
+            ],
+          ),
+          for (final guest in g.waiting)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(guest.name, style: const TextStyle(color: Colors.white)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Deny',
+                    icon: const Icon(Icons.close, color: AppColors.red600),
+                    onPressed: widget.busy ? null : () => widget.onHost('guests/${guest.userId}/deny'),
+                  ),
+                  IconButton(
+                    tooltip: 'Let in',
+                    icon: const Icon(Icons.check, color: AppColors.emerald600),
+                    onPressed: widget.busy ? null : () => widget.onHost('guests/${guest.userId}/admit'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    ];
+  }
+
+  List<Widget> _breakoutSection() {
+    final f = widget.feed;
+    return [
+      Text(
+        f.breakoutsOpen ? 'Breakout rooms · ${f.breakoutCount} open' : 'Breakout rooms',
+        style: _white,
+      ),
+      const SizedBox(height: 6),
+      if (f.breakoutsOpen)
+        _HostButton(
+          icon: Icons.meeting_room_outlined,
+          label: 'Bring everyone back',
+          onTap: () => widget.onHost('breakouts/close'),
+        )
+      else ...[
+        Row(
+          children: [
+            const Text('Rooms', style: TextStyle(color: Colors.white)),
+            IconButton(
+              color: Colors.white,
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: _breakoutCount > 1 ? () => setState(() => _breakoutCount--) : null,
+            ),
+            Text('$_breakoutCount', style: _white),
+            IconButton(
+              color: Colors.white,
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: _breakoutCount < 20 ? () => setState(() => _breakoutCount++) : null,
+            ),
+          ],
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _HostButton(
+              icon: Icons.shuffle,
+              label: 'Shuffle people',
+              onTap: () => widget.onHost('breakouts', {'count': _breakoutCount, 'shuffle': true}),
+            ),
+            _HostButton(
+              icon: Icons.call_split,
+              label: 'Open rooms',
+              onTap: () => widget.onHost('breakouts/open'),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('Shuffle first, then open. You can move people on the web.', style: _muted),
+        ),
+      ],
+    ];
   }
 
   @override
@@ -1359,6 +1584,10 @@ class _HostPanelState extends State<_HostPanel> {
             ),
           ],
         ),
+        const Divider(color: AppColors.gray800, height: 24),
+        ..._guestSection(),
+        const Divider(color: AppColors.gray800, height: 24),
+        ..._breakoutSection(),
         const Divider(color: AppColors.gray800, height: 24),
         const Text(
           'New poll',
@@ -1437,8 +1666,11 @@ class _HostButton extends StatelessWidget {
 }
 
 class _PeoplePanel extends StatelessWidget {
-  const _PeoplePanel({required this.participants});
+  const _PeoplePanel({required this.participants, this.onManage});
   final List<LiveParticipant> participants;
+
+  /// Hosts: tap a person to change their rights, mute or remove them.
+  final void Function(LiveParticipant person)? onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -1480,16 +1712,22 @@ class _PeoplePanel extends StatelessWidget {
             style: const TextStyle(color: Colors.white),
           ),
           subtitle: Text(
-            person.role,
+            [
+              person.isGuest ? 'guest' : person.role,
+              if (person.breakout != null) 'room ${person.breakout}',
+            ].join(' · '),
             style: const TextStyle(color: Colors.white54),
           ),
-          trailing: person.handRaised
-              ? const Icon(
-                  Icons.front_hand,
-                  color: AppColors.amber700,
-                  size: 18,
-                )
-              : null,
+          onTap: onManage != null && !person.isMe && !person.isHost ? () => onManage!(person) : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (person.handRaised)
+                const Icon(Icons.front_hand, color: AppColors.amber700, size: 18),
+              if (onManage != null && !person.isMe && !person.isHost)
+                const Icon(Icons.more_vert, color: Colors.white54, size: 18),
+            ],
+          ),
         );
       },
     );

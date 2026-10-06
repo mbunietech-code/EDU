@@ -507,6 +507,8 @@ class LiveParticipant {
     required this.isMe,
     required this.isGuest,
     this.handRaisedAt,
+    this.breakout,
+    this.permissions,
   });
 
   final int userId;
@@ -517,7 +519,14 @@ class LiveParticipant {
   final bool isGuest;
   final DateTime? handRaisedAt;
 
+  /// Breakout room number (null = main room).
+  final int? breakout;
+
+  /// Publish rights {audio, video, screen}; only sent to room managers.
+  final Map<String, bool>? permissions;
+
   bool get handRaised => handRaisedAt != null;
+  bool get isHost => role == 'host';
 
   factory LiveParticipant.fromJson(Map<String, dynamic> j) => LiveParticipant(
     userId: _int(j['user_id']),
@@ -527,6 +536,43 @@ class LiveParticipant {
     isMe: j['is_me'] as bool? ?? false,
     isGuest: j['is_guest'] as bool? ?? false,
     handRaisedAt: _date(j['hand_raised_at']),
+    breakout: j['breakout'] == null ? null : _int(j['breakout']),
+    permissions: (j['permissions'] as Map<String, dynamic>?)?.map(
+      (k, v) => MapEntry(k, v == true),
+    ),
+  );
+}
+
+/// A guest knocking at the waiting room.
+class LiveGuest {
+  const LiveGuest(this.userId, this.name);
+  final int userId;
+  final String name;
+}
+
+/// The host's guest door: link on/off, waiting room, who is waiting.
+class LiveGuests {
+  const LiveGuests({
+    required this.enabled,
+    required this.waitingRoom,
+    required this.waiting,
+    this.link,
+  });
+
+  /// Guest links allowed on this platform (an admin switch).
+  final bool enabled;
+  final bool waitingRoom;
+  final String? link;
+  final List<LiveGuest> waiting;
+
+  factory LiveGuests.fromJson(Map<String, dynamic> j) => LiveGuests(
+    enabled: j['enabled'] as bool? ?? false,
+    waitingRoom: j['waiting_room'] as bool? ?? true,
+    link: j['link'] as String?,
+    waiting: [
+      for (final g in (j['waiting'] as List? ?? const []).cast<Map<String, dynamic>>())
+        LiveGuest(_int(g['user_id']), g['name'] as String? ?? 'Guest'),
+    ],
   );
 }
 
@@ -622,6 +668,10 @@ class LiveRoomFeed {
     required this.participantCount,
     required this.handsCount,
     required this.openQuestionsCount,
+    this.guests,
+    this.breakoutsOpen = false,
+    this.breakoutCount = 0,
+    this.myBreakout,
   });
 
   final int cursor;
@@ -638,6 +688,14 @@ class LiveRoomFeed {
   final int handsCount;
   final int openQuestionsCount;
 
+  /// Host only: the guest door.
+  final LiveGuests? guests;
+  final bool breakoutsOpen;
+  final int breakoutCount;
+
+  /// The breakout room I am in (null = main room).
+  final int? myBreakout;
+
   List<LiveRoomMessage> get chatMessages =>
       messages.where((m) => !m.isQuestion).toList();
   List<LiveRoomMessage> get questions =>
@@ -646,6 +704,8 @@ class LiveRoomFeed {
   factory LiveRoomFeed.fromJson(Map<String, dynamic> j) {
     final room = (j['room'] as Map<String, dynamic>?) ?? const {};
     final counts = (j['counts'] as Map<String, dynamic>?) ?? const {};
+    final breakouts = (j['breakouts'] as Map<String, dynamic>?) ?? const {};
+    final me = (j['me'] as Map<String, dynamic>?) ?? const {};
     return LiveRoomFeed(
       cursor: _int(j['cursor']),
       messages: _list(j['messages'], LiveRoomMessage.fromJson),
@@ -662,6 +722,12 @@ class LiveRoomFeed {
       participantCount: _int(counts['participants']),
       handsCount: _int(counts['hands']),
       openQuestionsCount: _int(counts['questions_open']),
+      guests: j['guests'] is Map<String, dynamic>
+          ? LiveGuests.fromJson(j['guests'] as Map<String, dynamic>)
+          : null,
+      breakoutsOpen: breakouts['open'] as bool? ?? false,
+      breakoutCount: _int(breakouts['count']),
+      myBreakout: me['breakout'] == null ? null : _int(me['breakout']),
     );
   }
 }
