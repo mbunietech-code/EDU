@@ -256,6 +256,31 @@ class MobileMoneyGatewayTest extends TestCase
             ->assertJson(['status' => 'failed', 'message' => 'Insufficient balance']);
     }
 
+    public function test_clickpesa_amount_after_fees_still_confirms_the_order(): void
+    {
+        Http::fake([
+            'api.clickpesa.com/third-parties/generate-token' => Http::response(['token' => 'Bearer cp-token']),
+            'api.clickpesa.com/third-parties/payments/initiate-ussd-push-request' => Http::response(['id' => 'CP1', 'status' => 'PROCESSING']),
+            // TZS 45,000 paid; ClickPesa reports what is left after its fee.
+            'api.clickpesa.com/third-parties/payments/*' => Http::response([[
+                'status' => 'SUCCESS', 'paymentReference' => 'MP55', 'collectedAmount' => 43650, 'message' => 'success',
+            ]]),
+        ]);
+        $context = $this->createOrderContext();
+        $this->startPayment($context, 'clickpesa');
+
+        $this->postJson(route('api.payments.callback', ['clickpesa', self::TOKEN]), [
+            'event' => 'PAYMENT RECEIVED',
+            'data' => ['orderReference' => GatewayPayment::firstOrFail()->external_id, 'status' => 'SUCCESS', 'collectedAmount' => '43650'],
+        ])->assertOk();
+
+        $payment = Payment::firstOrFail();
+        $this->assertSame('approved', $payment->status);
+        $this->assertSame('45000.00', $payment->amount);
+        $this->assertNull($payment->admin_note);
+        $this->assertSame('confirmed', $context['order']->fresh()->status);
+    }
+
     public function test_clickpesa_rejection_with_a_list_of_errors_is_shown_not_crashed(): void
     {
         Http::fake([

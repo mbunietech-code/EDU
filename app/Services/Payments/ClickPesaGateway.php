@@ -89,7 +89,10 @@ class ClickPesaGateway implements MobileMoneyGateway
         return [
             'status' => in_array($status, self::SUCCESS, true) ? 'success' : (in_array($status, self::FAILED, true) ? 'failed' : 'pending'),
             'reference' => $record['paymentReference'] ?? $record['id'] ?? null,
-            'amount' => isset($record['collectedAmount']) ? (float) $record['collectedAmount'] : null,
+            // collectedAmount is what reaches us after ClickPesa's fee, so it is
+            // always below the order total. The push amount is fixed by us and
+            // the customer cannot change it: SUCCESS means the full amount.
+            'amount' => null,
             'message' => filled($record['message'] ?? null) && strtolower((string) $record['message']) !== 'success' ? (string) $record['message'] : null,
         ];
     }
