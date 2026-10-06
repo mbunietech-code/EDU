@@ -11,6 +11,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../learning/live_class_screen.dart';
+import 'studio_room_extras_screen.dart';
 
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -206,6 +207,18 @@ class _ClassesTab extends ConsumerWidget {
                             },
                             child: const Text('Edit'),
                           ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.folder_open_outlined, size: 18),
+                          label: const Text('Recordings & more'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => StudioRoomExtrasScreen(
+                                roomId: r.id,
+                                title: r.title,
+                              ),
+                            ),
+                          ),
+                        ),
                         if (r.canCancel && r.status == 'scheduled')
                           TextButton(
                             onPressed: () => _act(

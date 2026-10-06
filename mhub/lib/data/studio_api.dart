@@ -140,11 +140,13 @@ class StudioRepository {
       _message(await _api.post('/studio/videos/$id/${publish ? 'publish' : 'unpublish'}'), 'Saved.');
 
   /// Upload a video file in chunks (resumable size limits come from the
-  /// server). Returns the completed upload token to attach to a lesson.
-  Future<String> uploadVideo(File file, {void Function(double progress)? onProgress}) async {
+  /// server). Returns the completed upload token to attach to a lesson
+  /// (purpose "video") or to a class recording (purpose "recording").
+  Future<String> uploadVideo(File file,
+      {void Function(double progress)? onProgress, String purpose = 'video'}) async {
     final size = await file.length();
     final name = file.uri.pathSegments.isEmpty ? 'video.mp4' : file.uri.pathSegments.last;
-    final init = await _api.post('/studio/uploads', data: {'purpose': 'video', 'filename': name, 'size': size})
+    final init = await _api.post('/studio/uploads', data: {'purpose': purpose, 'filename': name, 'size': size})
         as Map<String, dynamic>;
     final token = init['token'] as String;
     final chunkBytes = math.max(64 * 1024, (init['chunk_bytes'] as num).toInt());
