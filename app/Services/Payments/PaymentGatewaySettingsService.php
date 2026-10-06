@@ -33,6 +33,7 @@ class PaymentGatewaySettingsService
             'enabled' => ['Enabled', 'toggle'],
             'client_id' => ['Client ID', 'text'],
             'api_key' => ['API key', 'secret'],
+            'checksum_key' => ['Checksum key (only if checksum is on)', 'secret'],
         ],
         'paypal' => [
             'enabled' => ['Enabled', 'toggle'],

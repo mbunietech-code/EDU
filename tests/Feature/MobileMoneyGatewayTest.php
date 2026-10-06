@@ -207,11 +207,80 @@ class MobileMoneyGatewayTest extends TestCase
         $context = $this->createOrderContext();
         $this->startPayment($context, 'clickpesa');
         $gatewayPayment = GatewayPayment::firstOrFail();
+        $this->travel(1)->minutes();
 
         $this->actingAs($context['user'])
             ->getJson(route('user.payments.mobile.status', [$context['order'], $gatewayPayment]))
             ->assertOk()
             ->assertJson(['status' => 'success', 'redirect' => route('user.orders.show', $context['order'])]);
+    }
+
+    public function test_clickpesa_status_is_checked_sparingly_to_save_the_daily_api_budget(): void
+    {
+        $this->fakeClickPesa('PROCESSING');
+        $context = $this->createOrderContext();
+        $this->startPayment($context, 'clickpesa');
+        $gatewayPayment = GatewayPayment::firstOrFail();
+        $statusUrl = route('user.payments.mobile.status', [$context['order'], $gatewayPayment]);
+        $lookups = fn () => count(Http::recorded(fn ($request) => $request->method() === 'GET'));
+
+        // Right after the push: no lookup yet, the customer is still typing the PIN.
+        $this->actingAs($context['user'])->getJson($statusUrl)->assertJson(['status' => 'pending']);
+        $this->assertSame(0, $lookups());
+
+        // The waiting page polls every 4 seconds, but ClickPesa is asked at most every 45.
+        $this->travel(1)->minutes();
+        foreach (range(1, 5) as $i) {
+            $this->actingAs($context['user'])->getJson($statusUrl);
+        }
+        $this->assertSame(1, $lookups());
+
+        $this->travel(46)->seconds();
+        $this->actingAs($context['user'])->getJson($statusUrl);
+        $this->assertSame(2, $lookups());
+    }
+
+    public function test_clickpesa_failure_reason_is_shown_to_the_customer(): void
+    {
+        Http::fake([
+            'api.clickpesa.com/third-parties/generate-token' => Http::response(['token' => 'Bearer cp-token']),
+            'api.clickpesa.com/third-parties/payments/initiate-ussd-push-request' => Http::response(['id' => 'CP1', 'status' => 'PROCESSING']),
+            'api.clickpesa.com/third-parties/payments/*' => Http::response([['status' => 'FAILED', 'message' => 'Insufficient balance']]),
+        ]);
+        $context = $this->createOrderContext();
+        $this->startPayment($context, 'clickpesa');
+        $this->travel(1)->minutes();
+
+        $this->actingAs($context['user'])
+            ->getJson(route('user.payments.mobile.status', [$context['order'], GatewayPayment::firstOrFail()]))
+            ->assertJson(['status' => 'failed', 'message' => 'Insufficient balance']);
+    }
+
+    public function test_order_reference_fits_clickpesa_rules(): void
+    {
+        foreach ([1, 98765, 1234567890] as $id) {
+            $order = new \App\Models\Order();
+            $order->id = $id;
+            $reference = GatewayPaymentService::externalId($order);
+
+            $this->assertMatchesRegularExpression('/^[A-Za-z0-9]+$/', $reference);
+            $this->assertLessThanOrEqual(20, strlen($reference));
+        }
+    }
+
+    public function test_clickpesa_checksum_is_added_only_when_a_key_is_set(): void
+    {
+        $gateway = app(\App\Services\Payments\ClickPesaGateway::class);
+        $payload = ['phoneNumber' => '255712345678', 'amount' => '1000', 'currency' => 'TZS', 'orderReference' => 'MH1TABC'];
+
+        $this->assertArrayNotHasKey('checksum', $gateway->withChecksum($payload));
+
+        config(['payments.gateways.clickpesa.checksum_key' => 'secret-key']);
+        $signed = $gateway->withChecksum($payload);
+
+        // Keys sorted alphabetically, compact JSON, HMAC-SHA256 hex.
+        $expected = hash_hmac('sha256', '{"amount":"1000","currency":"TZS","orderReference":"MH1TABC","phoneNumber":"255712345678"}', 'secret-key');
+        $this->assertSame($expected, $signed['checksum']);
     }
 
     public function test_unanswered_azampay_push_expires(): void

@@ -47,12 +47,12 @@ class ClickPesaGateway implements MobileMoneyGateway
     public function initiate(GatewayPayment $payment): ?string
     {
         try {
-            $response = $this->client()->post($this->url('/payments/initiate-ussd-push-request'), [
+            $response = $this->client()->post($this->url('/payments/initiate-ussd-push-request'), $this->withChecksum([
                 'amount' => (string) (int) round((float) $payment->amount),
                 'currency' => $payment->currency,
                 'orderReference' => $payment->external_id,
                 'phoneNumber' => $payment->phone,
-            ]);
+            ]));
         } catch (ConnectionException $e) {
             throw new GatewayException('Could not reach ClickPesa. Please try again.', previous: $e);
         }
@@ -90,7 +90,41 @@ class ClickPesaGateway implements MobileMoneyGateway
             'status' => in_array($status, self::SUCCESS, true) ? 'success' : (in_array($status, self::FAILED, true) ? 'failed' : 'pending'),
             'reference' => $record['paymentReference'] ?? $record['id'] ?? null,
             'amount' => isset($record['collectedAmount']) ? (float) $record['collectedAmount'] : null,
+            'message' => filled($record['message'] ?? null) && strtolower((string) $record['message']) !== 'success' ? (string) $record['message'] : null,
         ];
+    }
+
+    /**
+     * When "checksum" is switched on in the ClickPesa dashboard every request
+     * must carry one: HMAC-SHA256 (hex) of the payload with keys sorted at
+     * every level, as compact JSON, using the checksum key.
+     */
+    public function withChecksum(array $payload): array
+    {
+        $key = (string) $this->config('checksum_key');
+
+        if ($key === '') {
+            return $payload;
+        }
+
+        $payload['checksum'] = hash_hmac('sha256', json_encode(self::canonicalize($payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), $key);
+
+        return $payload;
+    }
+
+    protected static function canonicalize(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map([self::class, 'canonicalize'], $value);
+        }
+
+        ksort($value, SORT_STRING);
+
+        return array_map([self::class, 'canonicalize'], $value);
     }
 
     public function parseCallback(Request $request): array

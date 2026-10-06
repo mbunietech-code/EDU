@@ -113,6 +113,7 @@ class PayPalGatewayTest extends TestCase
         $context = $this->createOrderContext();
         $this->actingAs($context['user'])->post(route('user.payments.paypal.start', $context['order']));
 
+        $this->travel(1)->minutes();
         $this->artisan('payments:sync-gateway')->assertSuccessful();
 
         $this->assertSame('success', GatewayPayment::firstOrFail()->status);

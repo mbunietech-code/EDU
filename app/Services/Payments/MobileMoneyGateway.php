@@ -48,7 +48,7 @@ interface MobileMoneyGateway
      * Ask the provider for the latest status: 'success', 'failed', 'pending',
      * or null when the provider has no status lookup.
      *
-     * @return array{status: string, reference: ?string, amount: ?float}|null
+     * @return array{status: string, reference: ?string, amount: ?float, message?: ?string}|null
      */
     public function fetchStatus(GatewayPayment $payment): ?array;
 

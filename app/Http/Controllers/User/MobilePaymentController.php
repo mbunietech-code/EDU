@@ -80,10 +80,8 @@ class MobilePaymentController extends Controller
     {
         $this->authorizePayment($order, $gatewayPayment);
 
-        // Ask the provider at most every 10 seconds; callbacks usually arrive first.
-        if (! $gatewayPayment->isFinal() && (! $gatewayPayment->last_checked_at || $gatewayPayment->last_checked_at->lt(now()->subSeconds(10)))) {
-            $gatewayPayment = $this->gateways->refresh($gatewayPayment);
-        }
+        // The service limits how often the provider is actually asked.
+        $gatewayPayment = $this->gateways->refresh($gatewayPayment);
 
         return response()->json([
             'status' => $gatewayPayment->status,

@@ -44,7 +44,7 @@ class PayPalPaymentController extends Controller
     public function return(Request $request, Order $order)
     {
         $payment = $this->findForReturn($request, $order);
-        $payment = $this->gateways->refresh($payment);
+        $payment = $this->gateways->refresh($payment, force: true);
 
         if ($payment->isSuccessful()) {
             return redirect()->route('user.orders.show', $order)->with('success', 'Payment received through PayPal. Thank you!');

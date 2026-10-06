@@ -72,6 +72,17 @@ class GatewayPaymentService
     }
 
     /**
+     * Unique reference sent to the provider: letters and digits only, at most
+     * 20 characters (the mobile money limit ClickPesa enforces).
+     */
+    public static function externalId(Order $order): string
+    {
+        $prefix = 'MH'.$order->id.'T';
+
+        return $prefix.strtoupper(Str::random(max(4, 20 - strlen($prefix))));
+    }
+
+    /**
      * A push for this order that is still waiting for the customer's PIN.
      */
     public function activeFor(Order $order): ?GatewayPayment
@@ -97,7 +108,7 @@ class GatewayPaymentService
             'phone' => $phone,
             'amount' => $order->amount,
             'currency' => 'TZS',
-            'external_id' => 'MH'.$order->id.'T'.strtoupper(Str::random(10)),
+            'external_id' => self::externalId($order),
             'status' => 'pending',
         ]);
 
@@ -142,7 +153,7 @@ class GatewayPaymentService
         $payment->update(['callback_payload' => Str::limit(json_encode($request->all()), 60000, '')]);
 
         if ($data['verify']) {
-            $this->refresh($payment);
+            $this->refresh($payment, force: true);
         } elseif ($data['status'] === 'success') {
             $this->markSuccessful($payment, $data['reference'], $data['amount']);
         } elseif ($data['status'] === 'failed') {
@@ -155,20 +166,26 @@ class GatewayPaymentService
     /**
      * Ask the provider for the latest result, and expire pushes nobody answered.
      */
-    public function refresh(GatewayPayment $payment): GatewayPayment
+    /**
+     * $force skips the polling budget; used when a callback arrives.
+     */
+    public function refresh(GatewayPayment $payment, bool $force = false): GatewayPayment
     {
         if ($payment->isFinal()) {
             return $payment;
         }
 
-        $gateway = $this->gateway($payment->gateway);
-        $result = $gateway?->fetchStatus($payment);
-        $payment->update(['last_checked_at' => now()]);
+        $result = null;
+
+        if ($force || $this->dueForCheck($payment)) {
+            $result = $this->gateway($payment->gateway)?->fetchStatus($payment);
+            $payment->update(['last_checked_at' => now()]);
+        }
 
         if ($result && $result['status'] === 'success') {
             $this->markSuccessful($payment, $result['reference'], $result['amount']);
         } elseif ($result && $result['status'] === 'failed') {
-            $this->markFailed($payment, 'The payment was declined or cancelled.');
+            $this->markFailed($payment, $result['message'] ?? 'The payment was declined or cancelled.');
         } elseif ($payment->isPending() && $payment->created_at->lt(now()->subMinutes($this->timeoutMinutes($payment->gateway)))) {
             // Still accept a late success callback after this.
             $payment->update(['status' => 'expired', 'message' => 'No confirmation received in time.']);
@@ -273,6 +290,22 @@ class GatewayPaymentService
         } elseif ($order->subscription) {
             $this->notifications->notifySubscriptionActivated($payment->user, $order->subscription);
         }
+    }
+
+    /**
+     * Respect each provider's API budget (ClickPesa allows 100 calls a day
+     * before KYC): wait a little after the push, then check every
+     * poll_seconds. Callbacks bypass this and arrive instantly.
+     */
+    protected function dueForCheck(GatewayPayment $payment): bool
+    {
+        $interval = max(5, (int) config("payments.gateways.{$payment->gateway}.poll_seconds", 10));
+
+        if ($payment->created_at->gt(now()->subSeconds(min($interval, 20)))) {
+            return false;
+        }
+
+        return ! $payment->last_checked_at || $payment->last_checked_at->lte(now()->subSeconds($interval));
     }
 
     public function timeoutMinutes(?string $gateway = null): int

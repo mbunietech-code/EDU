@@ -64,6 +64,11 @@ return [
             'base_url' => env('CLICKPESA_BASE_URL', 'https://api.clickpesa.com/third-parties'),
             'client_id' => env('CLICKPESA_CLIENT_ID'),
             'api_key' => env('CLICKPESA_API_KEY'),
+            // Only if "checksum" is switched on in the ClickPesa dashboard.
+            'checksum_key' => env('CLICKPESA_CHECKSUM_KEY'),
+            // Before KYC ClickPesa allows only 100 API calls a day, so poll
+            // slowly and rely on the webhook.
+            'poll_seconds' => 45,
         ],
 
     ],
