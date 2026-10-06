@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Services\CredentialService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,12 +23,17 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function show(Request $request, Subscription $subscription): JsonResponse
+    public function show(Request $request, Subscription $subscription, CredentialService $credentialService): JsonResponse
     {
         abort_unless($subscription->user_id === $request->user()->id, 404);
-        $subscription->load(['product:id,name,slug', 'plan:id,name']);
+        $subscription->load(['product:id,name,slug', 'plan:id,name', 'account']);
 
-        return response()->json(['data' => $this->row($subscription)]);
+        // Same rule as the web page: login details only while the subscription runs.
+        $canView = $subscription->account && ($subscription->isActive() || $subscription->status === 'expiring_soon');
+
+        return response()->json(['data' => $this->row($subscription) + [
+            'credentials' => $canView ? $credentialService->decryptValue($subscription->account->credentials) : null,
+        ]]);
     }
 
     private function row(Subscription $s): array

@@ -55,6 +55,12 @@ Route::get('/', [HomeController::class, 'index'])->name('public.home');
 Route::get('/signed/orders/{order}/receipt', [ReceiptController::class, 'signedShow'])
     ->middleware('signed')
     ->name('signed.orders.receipt');
+Route::get('/signed/orders/{order}/download-software', [\App\Http\Controllers\SignedDownloadController::class, 'software'])
+    ->middleware('signed')
+    ->name('signed.orders.download-software');
+Route::get('/signed/orders/{order}/download-tool', [\App\Http\Controllers\SignedDownloadController::class, 'tool'])
+    ->middleware('signed')
+    ->name('signed.orders.download-tool');
 // Return pages for card / PayPal payments started in the app (opened in the
 // phone's browser, no web login): found by the payment's random reference.
 Route::middleware('throttle:30,1')->group(function () {

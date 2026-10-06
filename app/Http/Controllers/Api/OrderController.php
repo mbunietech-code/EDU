@@ -69,7 +69,7 @@ class OrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        $order->load(['product:id,name,slug,type', 'tool:id,name,slug', 'plan:id,name', 'payments:id,order_id,amount,status,created_at', 'subscription:id,order_id,status,expiry_date']);
+        $order->load(['product', 'tool.primaryDownload', 'plan:id,name', 'payments:id,order_id,amount,status,created_at', 'subscription:id,order_id,status,expiry_date']);
 
         return response()->json([
             'data' => array_merge($this->row($order), [
@@ -77,6 +77,7 @@ class OrderController extends Controller
                 'rejection_reason' => $order->rejection_reason,
                 'confirmed_at' => optional($order->confirmed_at)->toIso8601String(),
                 'software_access_expires_at' => optional($order->software_access_expires_at)->toIso8601String(),
+                'delivery' => $this->delivery($order),
                 'payments' => $order->payments->map(fn ($p) => [
                     'id' => $p->id,
                     'amount_label' => 'TZS '.number_format((float) $p->amount),
@@ -85,6 +86,44 @@ class OrderController extends Controller
                 ])->all(),
             ]),
         ]);
+    }
+
+    /**
+     * Product key and download for software / tool orders, revealed under
+     * the same rules as the web order page. Downloads are 5-minute signed links.
+     */
+    private function delivery(Order $order): ?array
+    {
+        $link = fn (string $route) => \Illuminate\Support\Facades\URL::temporarySignedRoute($route, now()->addMinutes(5), ['order' => $order->id]);
+
+        if ($order->isToolOrder() && $order->tool) {
+            $open = $order->isConfirmed();
+            $file = $order->tool->primaryDownload;
+
+            return [
+                'type' => 'tool',
+                'state' => $open ? 'open' : 'waiting',
+                'key' => $open ? $order->tool->license_key : null,
+                'file_name' => $file?->file_filename,
+                'download_url' => $open && $file ? $link('signed.orders.download-tool') : null,
+                'expires_at' => null,
+            ];
+        }
+
+        if ($order->isSoftware() && $order->product) {
+            $state = ! $order->isConfirmed() ? 'waiting' : ($order->softwareAccessActive() ? 'open' : 'expired');
+
+            return [
+                'type' => 'software',
+                'state' => $state,
+                'key' => $state === 'open' ? $order->product->software_key : null,
+                'file_name' => $order->product->software_filename,
+                'download_url' => $state === 'open' && $order->product->software_file ? $link('signed.orders.download-software') : null,
+                'expires_at' => $state === 'open' ? optional($order->software_access_expires_at)->toIso8601String() : null,
+            ];
+        }
+
+        return null;
     }
 
     public function receiptUrl(Request $request, Order $order): JsonResponse
