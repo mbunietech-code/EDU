@@ -11,6 +11,7 @@ import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import 'admin_common.dart';
 import 'admin_form_kit.dart';
+import 'finance_contracts_tab.dart';
 import 'finance_hr_tabs.dart';
 
 class AdminFinanceScreen extends ConsumerWidget {
@@ -148,7 +149,7 @@ class _FinanceTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 7,
+      length: 8,
       child: Column(
         children: [
           const Material(
@@ -161,6 +162,7 @@ class _FinanceTabs extends StatelessWidget {
               Tab(text: 'Staff'),
               Tab(text: 'Payroll'),
               Tab(text: 'Returns'),
+              Tab(text: 'Contracts'),
             ]),
           ),
           const Expanded(
@@ -172,6 +174,7 @@ class _FinanceTabs extends StatelessWidget {
               FinanceStaffTab(),
               FinancePayrollTab(),
               FinanceReturnsTab(),
+              FinanceContractsTab(),
             ]),
           ),
         ],
