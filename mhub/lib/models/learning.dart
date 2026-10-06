@@ -120,6 +120,7 @@ class LessonDetail {
     required this.sources,
     required this.resumeAt,
     required this.resources,
+    required this.comments,
     this.description,
     this.topic,
     this.webUrl,
@@ -130,6 +131,7 @@ class LessonDetail {
   final List<VideoSource> sources;
   final int resumeAt;
   final List<LessonResource> resources;
+  final List<LessonComment> comments;
   final String? description;
   final String? topic;
   final String? webUrl;
@@ -140,9 +142,42 @@ class LessonDetail {
     sources: _list(j['sources'], VideoSource.fromJson),
     resumeAt: _int(j['resume_at']),
     resources: _list(j['resources'], LessonResource.fromJson),
+    comments: _list(j['comments'], LessonComment.fromJson),
     description: _str(j['description']),
     topic: (j['topic'] as Map<String, dynamic>?)?['title'] as String?,
     webUrl: _str(j['web_url']),
+  );
+}
+
+class LessonComment {
+  const LessonComment({
+    required this.id,
+    required this.body,
+    required this.user,
+    required this.canDelete,
+    required this.replies,
+    this.parentId,
+    this.createdAt,
+  });
+
+  final int id;
+  final int? parentId;
+  final String body;
+  final LiveRoomUser user;
+  final bool canDelete;
+  final DateTime? createdAt;
+  final List<LessonComment> replies;
+
+  factory LessonComment.fromJson(Map<String, dynamic> j) => LessonComment(
+    id: _int(j['id']),
+    parentId: (j['parent_id'] as num?)?.toInt(),
+    body: j['body'] as String? ?? '',
+    user: LiveRoomUser.fromJson(
+      (j['user'] as Map<String, dynamic>?) ?? const {},
+    ),
+    canDelete: j['can_delete'] as bool? ?? false,
+    createdAt: _date(j['created_at']),
+    replies: _list(j['replies'], LessonComment.fromJson),
   );
 }
 
@@ -308,6 +343,7 @@ class RoomDetail {
     required this.card,
     required this.canJoin,
     required this.isManager,
+    required this.recordings,
     this.description,
     this.cancelReason,
     this.webUrl,
@@ -316,6 +352,7 @@ class RoomDetail {
   final RoomCard card;
   final bool canJoin;
   final bool isManager;
+  final List<RoomRecording> recordings;
   final String? description;
   final String? cancelReason;
   final String? webUrl;
@@ -324,9 +361,43 @@ class RoomDetail {
     card: RoomCard.fromJson(j),
     canJoin: j['can_join'] as bool? ?? false,
     isManager: j['is_manager'] as bool? ?? false,
+    recordings: _list(j['recordings'], RoomRecording.fromJson),
     description: _str(j['description']),
     cancelReason: _str(j['cancel_reason']),
     webUrl: _str(j['web_url']),
+  );
+}
+
+class RoomRecording {
+  const RoomRecording({
+    required this.id,
+    required this.title,
+    required this.streamUrl,
+    this.mime,
+    this.sizeLabel,
+    this.durationSeconds,
+    this.createdAt,
+    this.startedAt,
+  });
+
+  final int id;
+  final String title;
+  final String streamUrl;
+  final String? mime;
+  final String? sizeLabel;
+  final int? durationSeconds;
+  final DateTime? createdAt;
+  final DateTime? startedAt;
+
+  factory RoomRecording.fromJson(Map<String, dynamic> j) => RoomRecording(
+    id: _int(j['id']),
+    title: j['title'] as String? ?? 'Recording',
+    streamUrl: j['stream_url'] as String? ?? '',
+    mime: _str(j['mime']),
+    sizeLabel: _str(j['size_label']),
+    durationSeconds: (j['duration_seconds'] as num?)?.toInt(),
+    createdAt: _date(j['created_at']),
+    startedAt: _date(j['started_at']),
   );
 }
 
@@ -583,6 +654,179 @@ class LiveRoomFeed {
       openQuestionsCount: _int(counts['questions_open']),
     );
   }
+}
+
+class LearningCategoryCard {
+  const LearningCategoryCard({
+    required this.id,
+    required this.slug,
+    required this.name,
+    required this.coursesCount,
+    required this.lessonsCount,
+    this.description,
+    this.icon,
+  });
+
+  final int id;
+  final String slug;
+  final String name;
+  final int coursesCount;
+  final int lessonsCount;
+  final String? description;
+  final String? icon;
+
+  factory LearningCategoryCard.fromJson(Map<String, dynamic> j) =>
+      LearningCategoryCard(
+        id: _int(j['id']),
+        slug: j['slug'] as String? ?? '',
+        name: j['name'] as String? ?? 'Category',
+        coursesCount: _int(j['courses_count']),
+        lessonsCount: _int(j['lessons_count']),
+        description: _str(j['description']),
+        icon: _str(j['icon']),
+      );
+}
+
+class LearningCategoryDetail {
+  const LearningCategoryDetail({
+    required this.card,
+    required this.courses,
+    required this.lessons,
+    required this.rooms,
+  });
+
+  final LearningCategoryCard card;
+  final List<CourseCard> courses;
+  final List<LessonCard> lessons;
+  final List<RoomCard> rooms;
+
+  factory LearningCategoryDetail.fromJson(Map<String, dynamic> j) =>
+      LearningCategoryDetail(
+        card: LearningCategoryCard.fromJson(j),
+        courses: _list(j['courses'], CourseCard.fromJson),
+        lessons: _list(j['lessons'], LessonCard.fromJson),
+        rooms: _list(j['rooms'], RoomCard.fromJson),
+      );
+}
+
+class InstructorCard {
+  const InstructorCard({
+    required this.id,
+    required this.name,
+    required this.coursesCount,
+    required this.lessonsCount,
+    required this.roomsCount,
+    this.joinedAt,
+  });
+
+  final int id;
+  final String name;
+  final int coursesCount;
+  final int lessonsCount;
+  final int roomsCount;
+  final DateTime? joinedAt;
+
+  factory InstructorCard.fromJson(Map<String, dynamic> j) => InstructorCard(
+    id: _int(j['id']),
+    name: j['name'] as String? ?? 'Instructor',
+    coursesCount: _int(j['courses_count']),
+    lessonsCount: _int(j['lessons_count']),
+    roomsCount: _int(j['rooms_count']),
+    joinedAt: _date(j['joined_at']),
+  );
+}
+
+class InstructorDetail {
+  const InstructorDetail({
+    required this.card,
+    required this.courses,
+    required this.lessons,
+    required this.rooms,
+  });
+
+  final InstructorCard card;
+  final List<CourseCard> courses;
+  final List<LessonCard> lessons;
+  final List<RoomCard> rooms;
+
+  factory InstructorDetail.fromJson(Map<String, dynamic> j) => InstructorDetail(
+    card: InstructorCard.fromJson(j),
+    courses: _list(j['courses'], CourseCard.fromJson),
+    lessons: _list(j['lessons'], LessonCard.fromJson),
+    rooms: _list(j['rooms'], RoomCard.fromJson),
+  );
+}
+
+class LearningCalendar {
+  const LearningCalendar({
+    required this.month,
+    required this.prevMonth,
+    required this.nextMonth,
+    required this.events,
+    this.today,
+  });
+
+  final String month;
+  final String prevMonth;
+  final String nextMonth;
+  final String? today;
+  final List<RoomCard> events;
+
+  factory LearningCalendar.fromJson(Map<String, dynamic> j) => LearningCalendar(
+    month: j['month'] as String? ?? '',
+    prevMonth: j['prev_month'] as String? ?? '',
+    nextMonth: j['next_month'] as String? ?? '',
+    today: _str(j['today']),
+    events: _list(j['events'], RoomCard.fromJson),
+  );
+}
+
+class LearningProgressDashboard {
+  const LearningProgressDashboard({
+    required this.stats,
+    required this.courses,
+    required this.completedLessons,
+    required this.attendance,
+    required this.attendedSeconds,
+  });
+
+  final Map<String, dynamic> stats;
+  final List<CourseCard> courses;
+  final List<LessonCard> completedLessons;
+  final List<RoomAttendance> attendance;
+  final int attendedSeconds;
+
+  factory LearningProgressDashboard.fromJson(Map<String, dynamic> j) =>
+      LearningProgressDashboard(
+        stats: (j['stats'] as Map<String, dynamic>?) ?? const {},
+        courses: _list(j['courses'], CourseCard.fromJson),
+        completedLessons: _list(j['completed_lessons'], LessonCard.fromJson),
+        attendance: _list(j['attendance'], RoomAttendance.fromJson),
+        attendedSeconds: _int(j['attended_seconds']),
+      );
+}
+
+class RoomAttendance {
+  const RoomAttendance({
+    required this.id,
+    required this.totalSeconds,
+    this.firstJoinedAt,
+    this.room,
+  });
+
+  final int id;
+  final int totalSeconds;
+  final DateTime? firstJoinedAt;
+  final RoomCard? room;
+
+  factory RoomAttendance.fromJson(Map<String, dynamic> j) => RoomAttendance(
+    id: _int(j['id']),
+    totalSeconds: _int(j['total_seconds']),
+    firstJoinedAt: _date(j['first_joined_at']),
+    room: j['room'] == null
+        ? null
+        : RoomCard.fromJson(j['room'] as Map<String, dynamic>),
+  );
 }
 
 class LearningHome {

@@ -20,6 +20,40 @@ class LearningRepository {
     await _api.get('/learning') as Map<String, dynamic>,
   );
 
+  Future<LearningProgressDashboard> progressDashboard() async =>
+      LearningProgressDashboard.fromJson(
+        await _api.get('/learning/progress') as Map<String, dynamic>,
+      );
+
+  Future<LearningCalendar> calendar(String month) async =>
+      LearningCalendar.fromJson(
+        await _api.get('/learning/calendar', query: {'month': month})
+            as Map<String, dynamic>,
+      );
+
+  Future<List<LearningCategoryCard>> categories() async => _page(
+    await _api.get('/learning/categories'),
+    LearningCategoryCard.fromJson,
+  );
+
+  Future<LearningCategoryDetail> category(String slug) async =>
+      LearningCategoryDetail.fromJson(
+        _data(await _api.get('/learning/categories/$slug')),
+      );
+
+  Future<List<InstructorCard>> instructors({String? search}) async => _page(
+    await _api.get(
+      '/learning/instructors',
+      query: {if (search != null && search.isNotEmpty) 'q': search},
+    ),
+    InstructorCard.fromJson,
+  );
+
+  Future<InstructorDetail> instructor(int id) async =>
+      InstructorDetail.fromJson(
+        _data(await _api.get('/learning/instructors/$id')),
+      );
+
   Future<List<CourseCard>> courses({String? search, bool mine = false}) async =>
       _page(
         await _api.get(
@@ -78,6 +112,22 @@ class LearningRepository {
     data: {'completed': completed},
   );
 
+  Future<LessonComment> comment(
+    String slug,
+    String body, {
+    int? parentId,
+  }) async => LessonComment.fromJson(
+    _data(
+      await _api.post(
+        '/learning/videos/$slug/comments',
+        data: {'body': body, 'parent_id': ?parentId},
+      ),
+    ),
+  );
+
+  Future<void> deleteComment(String slug, int commentId) =>
+      _api.delete('/learning/videos/$slug/comments/$commentId');
+
   Future<List<RoomCard>> rooms(String tab) async => _page(
     await _api.get('/learning/rooms', query: {'tab': tab}),
     RoomCard.fromJson,
@@ -134,6 +184,35 @@ final learningRepositoryProvider = Provider(
 final learningHomeProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(learningRepositoryProvider).home(),
 );
+
+final learningProgressProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(learningRepositoryProvider).progressDashboard(),
+);
+
+final learningCalendarProvider = FutureProvider.autoDispose
+    .family<LearningCalendar, String>(
+      (ref, month) => ref.watch(learningRepositoryProvider).calendar(month),
+    );
+
+final learningCategoriesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(learningRepositoryProvider).categories(),
+);
+
+final learningCategoryProvider = FutureProvider.autoDispose
+    .family<LearningCategoryDetail, String>(
+      (ref, slug) => ref.watch(learningRepositoryProvider).category(slug),
+    );
+
+final instructorsProvider = FutureProvider.autoDispose
+    .family<List<InstructorCard>, String>(
+      (ref, search) =>
+          ref.watch(learningRepositoryProvider).instructors(search: search),
+    );
+
+final instructorProvider = FutureProvider.autoDispose
+    .family<InstructorDetail, int>(
+      (ref, id) => ref.watch(learningRepositoryProvider).instructor(id),
+    );
 
 final coursesProvider = FutureProvider.autoDispose
     .family<List<CourseCard>, ({String search, bool mine})>(

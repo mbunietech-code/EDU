@@ -10,9 +10,12 @@ use App\Models\LearningCategory;
 use App\Models\LearningCourse;
 use App\Models\LearningEnrollment;
 use App\Models\LearningRoom;
+use App\Models\LearningRoomAttendance;
 use App\Models\LearningRoomMaterial;
 use App\Models\LearningRoomPoll;
+use App\Models\LearningRoomRecording;
 use App\Models\LearningVideo;
+use App\Models\LearningVideoComment;
 use App\Models\LearningVideoProgress;
 use App\Models\LearningVideoResource;
 use App\Models\User;
@@ -27,6 +30,9 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
 /**
@@ -79,6 +85,100 @@ class LearningController extends Controller
         ]);
     }
 
+    public function progressDashboard(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $courses = LearnDashboard::myCoursesQuery($user)
+            ->with(['category:id,name,slug', 'instructor:id,name'])
+            ->withCount(['videos' => fn ($q) => $q->published()->visibleTo($user)])
+            ->orderBy('title')
+            ->limit(50)
+            ->get();
+
+        $completed = LearningVideoProgress::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('completed_at')
+            ->whereHas('video', fn (Builder $v) => $v->published()->visibleTo($user))
+            ->with(['video.category:id,name,slug', 'video.course:id,title,slug', 'video.instructor:id,name'])
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $attendance = LearningRoomAttendance::query()
+            ->where('user_id', $user->id)
+            ->whereHas('room')
+            ->with(['room.host:id,name', 'room.category:id,name,slug', 'room.course:id,title,slug', 'session:id,started_at,ended_at'])
+            ->orderByDesc('first_joined_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'stats' => $this->progress->stats($user),
+            'courses' => $courses->map(fn (LearningCourse $c) => $this->courseCard($c, $this->progress->courseProgress($user, $c)))->values(),
+            'completed_lessons' => $completed
+                ->filter(fn (LearningVideoProgress $p) => $p->video)
+                ->map(fn (LearningVideoProgress $p) => $this->videoCard($p->video, $p))
+                ->values(),
+            'attendance' => $attendance->map(fn (LearningRoomAttendance $a) => [
+                'id' => $a->id,
+                'first_joined_at' => $a->first_joined_at?->toIso8601String(),
+                'left_at' => $a->left_at?->toIso8601String(),
+                'total_seconds' => (int) $a->total_seconds,
+                'room' => $a->room ? $this->roomCard($a->room) : null,
+                'session' => $a->session ? [
+                    'id' => $a->session->id,
+                    'started_at' => $a->session->started_at?->toIso8601String(),
+                    'ended_at' => $a->session->ended_at?->toIso8601String(),
+                ] : null,
+            ])->values(),
+            'attended_seconds' => (int) LearningRoomAttendance::query()->where('user_id', $user->id)->whereHas('room')->sum('total_seconds'),
+        ]);
+    }
+
+    public function calendar(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), [
+            'month' => ['nullable', 'string', 'regex:/^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/'],
+        ]);
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $user = $request->user();
+        $monthParam = $validator->validated()['month'] ?? null;
+        $start = $monthParam
+            ? \Illuminate\Support\Carbon::createFromFormat('!Y-m', $monthParam)->startOfMonth()
+            : now()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $rooms = LearningRoom::query()
+            ->visibleTo($user)
+            ->where('status', '!=', 'draft')
+            ->where(fn (Builder $q) => $q
+                ->whereBetween('scheduled_at', [$start, $end])
+                ->orWhere(fn (Builder $w) => $w->whereNull('scheduled_at')->whereBetween('started_at', [$start, $end])))
+            ->with(['host:id,name', 'category:id,name,slug', 'course:id,title,slug'])
+            ->orderByRaw('case when scheduled_at is null then 1 else 0 end')
+            ->orderBy('scheduled_at')
+            ->orderBy('started_at')
+            ->limit(500)
+            ->get();
+
+        return response()->json([
+            'month' => $start->format('Y-m'),
+            'prev_month' => $start->copy()->subMonthNoOverflow()->format('Y-m'),
+            'next_month' => $start->copy()->addMonthNoOverflow()->format('Y-m'),
+            'today' => now()->format('Y-m-d'),
+            'events' => $rooms->map(fn (LearningRoom $r) => $this->roomCard($r) + [
+                'day' => ($r->scheduled_at ?? $r->started_at)?->format('Y-m-d'),
+                'calendar_url' => route('learn.rooms.ics', $r),
+            ])->values(),
+        ]);
+    }
+
     public function categories(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -103,6 +203,113 @@ class LearningController extends Controller
             'courses_count' => (int) $c->courses_count,
             'lessons_count' => (int) $c->videos_count,
         ]);
+    }
+
+    public function category(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $category = LearningCategory::query()->where('slug', $slug)->firstOrFail();
+
+        $courses = LearningCourse::query()
+            ->where('learning_category_id', $category->id)
+            ->published()
+            ->visibleTo($user)
+            ->with(['category:id,name,slug', 'instructor:id,name'])
+            ->withCount(['videos' => fn ($q) => $q->published()->visibleTo($user)])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $lessons = LearningVideo::query()
+            ->where('learning_category_id', $category->id)
+            ->published()
+            ->visibleTo($user)
+            ->with(['category:id,name,slug', 'course:id,title,slug', 'instructor:id,name', 'progress' => fn ($q) => $q->where('user_id', $user->id)])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $rooms = LearningRoom::query()
+            ->where('learning_category_id', $category->id)
+            ->whereIn('status', ['scheduled', 'live'])
+            ->visibleTo($user)
+            ->with(['host:id,name', 'category:id,name,slug', 'course:id,title,slug'])
+            ->orderByRaw("case when status = 'live' then 0 else 1 end")
+            ->orderBy('scheduled_at')
+            ->limit(12)
+            ->get();
+
+        return response()->json(['data' => [
+            'id' => $category->id,
+            'slug' => $category->slug,
+            'name' => $category->name,
+            'description' => $category->description,
+            'icon' => $category->icon,
+            'courses' => $courses->map(fn (LearningCourse $c) => $this->courseCard($c, $this->progress->courseProgress($user, $c)))->values(),
+            'lessons' => $lessons->map(fn (LearningVideo $v) => $this->videoCard($v, $v->progressFor($user)))->values(),
+            'rooms' => $rooms->map(fn (LearningRoom $r) => $this->roomCard($r))->values(),
+        ]]);
+    }
+
+    public function instructors(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $term = trim((string) ($data['q'] ?? ''));
+
+        $page = User::query()
+            ->realUsers()
+            ->select(['id', 'name', 'can_teach', 'created_at'])
+            ->where('status', 'active')
+            ->where(fn (Builder $q) => $q
+                ->where('can_teach', true)
+                ->orWhereIn('id', LearningRoom::query()->visibleTo($user)->where('status', '!=', 'draft')->whereNotNull('host_id')->select('host_id'))
+                ->orWhereIn('id', LearningCourse::query()->published()->visibleTo($user)->whereNotNull('instructor_id')->select('instructor_id')))
+            ->withCount([
+                'taughtCourses as courses_count' => fn ($c) => $c->published()->visibleTo($user),
+                'teachingVideos as lessons_count' => fn ($v) => $v->published()->visibleTo($user),
+            ])
+            ->when($term !== '', fn (Builder $q) => $q->where('name', 'like', '%'.addcslashes($term, '%_\\').'%'))
+            ->orderBy('name')
+            ->paginate(self::PER_PAGE);
+
+        return $this->paginated($page, fn (User $u) => $this->instructorCard($u));
+    }
+
+    public function instructor(Request $request, User $instructor): JsonResponse
+    {
+        $user = $request->user();
+
+        $coursesQuery = LearningCourse::query()->where('instructor_id', $instructor->id)->published()->visibleTo($user);
+        $lessonsQuery = LearningVideo::query()->where('instructor_id', $instructor->id)->published()->visibleTo($user);
+        $roomsQuery = LearningRoom::query()->where('host_id', $instructor->id)->whereIn('status', ['scheduled', 'live'])->visibleTo($user);
+
+        $counts = [
+            'courses' => (clone $coursesQuery)->count(),
+            'lessons' => (clone $lessonsQuery)->count(),
+            'rooms' => (clone $roomsQuery)->count(),
+        ];
+
+        abort_unless($instructor->isInstructor() || array_sum($counts) > 0, 404);
+
+        $courses = $coursesQuery
+            ->with(['category:id,name,slug', 'instructor:id,name'])
+            ->withCount(['videos' => fn ($q) => $q->published()->visibleTo($user)])
+            ->orderByDesc('published_at')->orderByDesc('id')->limit(12)->get();
+        $lessons = $lessonsQuery
+            ->with(['category:id,name,slug', 'course:id,title,slug', 'instructor:id,name', 'progress' => fn ($q) => $q->where('user_id', $user->id)])
+            ->orderByDesc('published_at')->orderByDesc('id')->limit(12)->get();
+        $rooms = $roomsQuery
+            ->with(['host:id,name', 'category:id,name,slug', 'course:id,title,slug'])
+            ->orderByRaw("case when status = 'live' then 0 else 1 end")->orderBy('scheduled_at')->limit(8)->get();
+
+        return response()->json(['data' => $this->instructorCard($instructor, $counts) + [
+            'courses' => $courses->map(fn (LearningCourse $c) => $this->courseCard($c, $this->progress->courseProgress($user, $c)))->values(),
+            'lessons' => $lessons->map(fn (LearningVideo $v) => $this->videoCard($v, $v->progressFor($user)))->values(),
+            'rooms' => $rooms->map(fn (LearningRoom $r) => $this->roomCard($r))->values(),
+        ]]);
     }
 
     public function courses(Request $request): JsonResponse
@@ -353,6 +560,15 @@ class LearningController extends Controller
                 'download_url' => null,
                 'size_label' => $r->isFile() ? $r->sizeLabel() : null,
             ])->values(),
+            'comments' => LearningVideoComment::query()
+                ->where('learning_video_id', $video->id)
+                ->whereNull('parent_id')
+                ->with(['user:id,name', 'replies.user:id,name'])
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get()
+                ->map(fn (LearningVideoComment $comment) => $this->commentPayload($comment, $video, $user))
+                ->values(),
             'progress_url' => route('api.learning.videos.progress', $video->slug),
             'complete_url' => route('api.learning.videos.complete', $video->slug),
         ]]);
@@ -398,6 +614,47 @@ class LearningController extends Controller
         $completed = array_key_exists('completed', $data) ? filter_var($data['completed'], FILTER_VALIDATE_BOOLEAN) : true;
 
         return response()->json($this->progressPayload($this->progress->setCompleted($user, $video, $completed)));
+    }
+
+    public function comment(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+        $video = LearningVideo::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $video);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'min:1', 'max:2000'],
+            'parent_id' => [
+                'nullable', 'integer',
+                Rule::exists('learning_video_comments', 'id')
+                    ->where('learning_video_id', $video->id)
+                    ->whereNull('parent_id')
+                    ->whereNull('deleted_at'),
+            ],
+        ]);
+
+        $comment = LearningVideoComment::create([
+            'learning_video_id' => $video->id,
+            'user_id' => $user->id,
+            'parent_id' => $data['parent_id'] ?? null,
+            'body' => trim($data['body']),
+        ])->load(['user:id,name', 'replies.user:id,name']);
+
+        return response()->json(['data' => $this->commentPayload($comment, $video, $user)], 201);
+    }
+
+    public function deleteComment(Request $request, string $slug, LearningVideoComment $comment): JsonResponse
+    {
+        $user = $request->user();
+        $video = LearningVideo::query()->where('slug', $slug)->firstOrFail();
+
+        abort_unless((int) $comment->learning_video_id === (int) $video->id, 404);
+        abort_unless((int) $comment->user_id === (int) $user->id || $user->hasPermission('learning.manage') || $video->isOwnedBy($user), 403);
+
+        $comment->delete();
+
+        return response()->json(['deleted' => true]);
     }
 
     // --- Live rooms ----------------------------------------------------------
@@ -459,6 +716,14 @@ class LearningController extends Controller
                 ->where('status', 'ready')->whereNotNull('path')
                 ->when(! $isManager, fn (Builder $q) => $q->where('is_shared', true))
                 ->count(),
+            'recordings' => $room->recordings()
+                ->where('status', 'ready')->whereNotNull('path')
+                ->when(! $isManager, fn (Builder $q) => $q->where('is_shared', true))
+                ->with('session:id,started_at,ended_at')
+                ->limit(20)
+                ->get()
+                ->map(fn (LearningRoomRecording $recording) => $this->recordingPayload($recording, $room, $user))
+                ->values(),
         ]]);
     }
 
@@ -628,6 +893,19 @@ class LearningController extends Controller
         return $storage->streamResponse($material->disk, $material->path, $material->mime ?: 'application/octet-stream', $name);
     }
 
+    public function signedRecording(Request $request, string $slug, LearningRoomRecording $recording, LearningStorage $storage)
+    {
+        $user = User::query()->findOrFail((int) $request->query('u'));
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        $this->authorizeFor($user, 'view', $room);
+        abort_unless((int) $recording->learning_room_id === (int) $room->id, 404);
+        abort_unless($recording->isReady() && $recording->disk && $recording->path, 404);
+        abort_unless($recording->is_shared || $room->isManageableBy($user), 403);
+
+        return $storage->streamResponse($recording->disk, $recording->path, $recording->mime ?: 'video/mp4');
+    }
+
     /** Host / room manager goes live (returns the running session when already live). */
     public function start(Request $request, string $slug): JsonResponse
     {
@@ -738,6 +1016,60 @@ class LearningController extends Controller
             'completed' => $p->isCompleted(),
             'completed_at' => $p->completed_at?->toIso8601String(),
             'last_watched_at' => $p->last_watched_at?->toIso8601String(),
+        ];
+    }
+
+    protected function commentPayload(LearningVideoComment $comment, LearningVideo $video, User $viewer): array
+    {
+        return [
+            'id' => $comment->id,
+            'parent_id' => $comment->parent_id,
+            'body' => $comment->body,
+            'created_at' => $comment->created_at?->toIso8601String(),
+            'can_delete' => (int) $comment->user_id === (int) $viewer->id
+                || $viewer->hasPermission('learning.manage')
+                || $video->isOwnedBy($viewer),
+            'user' => [
+                'id' => $comment->user?->id,
+                'name' => $comment->user?->name ?? 'User',
+            ],
+            'replies' => $comment->relationLoaded('replies')
+                ? $comment->replies->map(fn (LearningVideoComment $reply) => $this->commentPayload($reply, $video, $viewer))->values()
+                : [],
+        ];
+    }
+
+    protected function recordingPayload(LearningRoomRecording $recording, LearningRoom $room, User $viewer): array
+    {
+        return [
+            'id' => $recording->id,
+            'title' => $recording->original_name ?: $room->title,
+            'source' => $recording->source,
+            'mime' => $recording->mime ?: 'video/mp4',
+            'size_bytes' => (int) $recording->size_bytes,
+            'size_label' => $recording->sizeLabel(),
+            'duration_seconds' => (int) $recording->duration_seconds,
+            'created_at' => $recording->created_at?->toIso8601String(),
+            'started_at' => $recording->session?->started_at?->toIso8601String(),
+            'ended_at' => $recording->session?->ended_at?->toIso8601String(),
+            'stream_url' => URL::temporarySignedRoute(
+                'api.signed.learning.rooms.recordings',
+                now()->addHours(self::STREAM_TTL_HOURS),
+                ['slug' => $room->slug, 'recording' => $recording->id, 'u' => $viewer->id],
+            ),
+        ];
+    }
+
+    protected function instructorCard(User $user, ?array $counts = null): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'can_teach' => (bool) $user->can_teach,
+            'joined_at' => $user->created_at?->toIso8601String(),
+            'courses_count' => (int) ($counts['courses'] ?? $user->courses_count ?? 0),
+            'lessons_count' => (int) ($counts['lessons'] ?? $user->lessons_count ?? 0),
+            'rooms_count' => (int) ($counts['rooms'] ?? 0),
         ];
     }
 

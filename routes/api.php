@@ -40,6 +40,10 @@ Route::get('/signed/learning/rooms/{slug}/materials/{material}', [\App\Http\Cont
     ->middleware(['signed', 'throttle:120,1'])
     ->whereNumber('material')
     ->name('api.signed.learning.rooms.materials');
+Route::get('/signed/learning/rooms/{slug}/recordings/{recording}', [\App\Http\Controllers\Api\LearningController::class, 'signedRecording'])
+    ->middleware(['signed', 'throttle:240,1'])
+    ->whereNumber('recording')
+    ->name('api.signed.learning.rooms.recordings');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -115,6 +119,11 @@ Route::middleware('auth:sanctum')->group(function () {
         ->group(function () {
             Route::get('/', 'home')->name('home');
             Route::get('/categories', 'categories')->name('categories');
+            Route::get('/categories/{slug}', 'category')->name('categories.show');
+            Route::get('/progress', 'progressDashboard')->name('progress');
+            Route::get('/calendar', 'calendar')->name('calendar');
+            Route::get('/instructors', 'instructors')->name('instructors');
+            Route::get('/instructors/{instructor}', 'instructor')->whereNumber('instructor')->name('instructors.show');
             Route::get('/courses', 'courses')->name('courses');
             Route::get('/courses/{slug}', 'course')->name('courses.show');
             Route::post('/courses/{slug}/enroll', 'enroll')->name('courses.enroll');
@@ -122,6 +131,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/videos/{slug}', 'video')->name('videos.show');
             Route::post('/videos/{slug}/progress', 'progress')->middleware('throttle:120,1')->name('videos.progress');
             Route::post('/videos/{slug}/complete', 'complete')->name('videos.complete');
+            Route::post('/videos/{slug}/comments', 'comment')->middleware('throttle:20,1')->name('videos.comments.store');
+            Route::delete('/videos/{slug}/comments/{comment}', 'deleteComment')->whereNumber('comment')->name('videos.comments.destroy');
             Route::get('/rooms', 'rooms')->name('rooms');
             Route::get('/rooms/{slug}', 'room')->name('rooms.show');
             Route::post('/rooms/{slug}/join', 'join')->middleware('throttle:30,1')->name('rooms.join');
