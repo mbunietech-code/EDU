@@ -11,6 +11,7 @@ import 'admin_accounts_screen.dart';
 import 'admin_common.dart';
 import 'admin_database_screen.dart';
 import 'admin_form_kit.dart';
+import 'admin_platform_screens.dart';
 import 'admin_team_screen.dart';
 import 'payment_gateways_tab.dart';
 
@@ -41,6 +42,10 @@ class AdminSystemScreen extends ConsumerWidget {
           const AdminTeamScreen()),
       _SysTile('Database', Icons.storage_outlined, const AdminDatabaseScreen()),
       _SysTile('Settings', Icons.settings_outlined, const AdminSettingsScreen()),
+      _SysTile('Email settings', Icons.alternate_email, const AdminMailSettingsScreen()),
+      _SysTile('Alerts (email & SMS)', Icons.notifications_active_outlined, const AdminAlertsScreen()),
+      _SysTile('AI database optimization', Icons.auto_fix_high, const AdminOptimizationScreen()),
+      _SysTile('Finance PIN', Icons.pin_outlined, const AdminFinancePinScreen()),
     ];
 
     return Scaffold(
