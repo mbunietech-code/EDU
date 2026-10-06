@@ -97,12 +97,27 @@ class AuthController extends StateNotifier<AuthState> {
   }) async {
     state = state.copyWith(busy: true, clearError: true);
     try {
-      final result = await _repo.register(
+      await _repo.register(
         name: name,
         email: email,
         password: password,
         passwordConfirmation: passwordConfirmation,
       );
+      state = state.copyWith(busy: false);
+      return true;
+    } on ApiException catch (e) {
+      state = state.copyWith(busy: false, error: e.message);
+      return false;
+    }
+  }
+
+  Future<bool> verifyRegistration({
+    required String email,
+    required String code,
+  }) async {
+    state = state.copyWith(busy: true, clearError: true);
+    try {
+      final result = await _repo.verifyRegistration(email: email, code: code);
       await _tokens.write(result.token);
       state = state.copyWith(
         status: AuthStatus.authenticated,
@@ -145,7 +160,8 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref);
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(ref);
+  },
+);

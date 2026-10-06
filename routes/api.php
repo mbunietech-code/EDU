@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+Route::post('/register/verify', [AuthController::class, 'verifyRegistration'])->middleware('throttle:10,1');
 Route::post('/forgot-password', [\App\Http\Controllers\Api\SupportController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/contact', [\App\Http\Controllers\Api\SupportController::class, 'contact'])->middleware('throttle:5,1');
 

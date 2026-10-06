@@ -14,11 +14,14 @@ class AuthRepository {
     required String password,
     String? deviceName,
   }) async {
-    final data = await _api.post('/login', data: {
-      'email': email,
-      'password': password,
-      'device_name': deviceName ?? 'mhub-app',
-    });
+    final data = await _api.post(
+      '/login',
+      data: {
+        'email': email,
+        'password': password,
+        'device_name': deviceName ?? 'mhub-app',
+      },
+    );
     final map = data as Map<String, dynamic>;
     return (
       token: map['token'] as String,
@@ -26,22 +29,45 @@ class AuthRepository {
     );
   }
 
-  /// Creates an account and returns the plain-text token + user, same shape
-  /// as [login].
-  Future<({String token, AppUser user})> register({
+  /// Starts registration. The server sends a code and does not create the
+  /// real user row until [verifyRegistration] succeeds.
+  Future<({String email, String message})> register({
     required String name,
     required String email,
     required String password,
     required String passwordConfirmation,
     String? deviceName,
   }) async {
-    final data = await _api.post('/register', data: {
-      'name': name,
-      'email': email,
-      'password': password,
-      'password_confirmation': passwordConfirmation,
-      'device_name': deviceName ?? 'mhub-app',
-    });
+    final data = await _api.post(
+      '/register',
+      data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+        'device_name': deviceName ?? 'mhub-app',
+      },
+    );
+    final map = data as Map<String, dynamic>;
+    return (
+      email: map['email'] as String? ?? email,
+      message: map['message'] as String? ?? 'Verification code sent.',
+    );
+  }
+
+  Future<({String token, AppUser user})> verifyRegistration({
+    required String email,
+    required String code,
+    String? deviceName,
+  }) async {
+    final data = await _api.post(
+      '/register/verify',
+      data: {
+        'email': email,
+        'code': code,
+        'device_name': deviceName ?? 'mhub-app',
+      },
+    );
     final map = data as Map<String, dynamic>;
     return (
       token: map['token'] as String,
