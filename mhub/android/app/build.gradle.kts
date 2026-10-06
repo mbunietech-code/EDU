@@ -61,6 +61,11 @@ android {
             // Flutter plugins are sensitive to aggressive R8 stripping.
             isMinifyEnabled = false
             isShrinkResources = false
+            // Ship native symbol tables in the AAB so Play Console can
+            // symbolicate native crashes (no "missing debug symbols" warning).
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 }
