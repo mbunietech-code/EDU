@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
@@ -25,6 +26,17 @@ class ChatRepository {
 
   Future<ChatMessage> send(String body) async {
     final data = await _api.post('/chat', data: {'body': body}) as Map<String, dynamic>;
+    return ChatMessage.fromJson(data['data'] as Map<String, dynamic>);
+  }
+
+  /// Send a photo, video or voice note (type: image, video or audio).
+  Future<ChatMessage> sendFile(String path, String type, {String? caption}) async {
+    final form = FormData.fromMap({
+      'type': type,
+      if (caption != null && caption.isNotEmpty) 'body': caption,
+      'file': await MultipartFile.fromFile(path),
+    });
+    final data = await _api.post('/chat', data: form) as Map<String, dynamic>;
     return ChatMessage.fromJson(data['data'] as Map<String, dynamic>);
   }
 }

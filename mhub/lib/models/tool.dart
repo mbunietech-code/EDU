@@ -43,6 +43,9 @@ class ChatMessage {
     required this.fromAdmin,
     required this.body,
     this.time,
+    this.type = 'text',
+    this.hasFile = false,
+    this.fileName,
   });
 
   final int id;
@@ -50,10 +53,18 @@ class ChatMessage {
   final String? body;
   final String? time;
 
+  /// text, image, video or audio.
+  final String type;
+  final bool hasFile;
+  final String? fileName;
+
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         id: (j['id'] as num).toInt(),
         fromAdmin: j['from_admin'] == true,
         body: j['body'] as String?,
         time: j['time'] as String?,
+        type: j['type'] as String? ?? 'text',
+        hasFile: j['has_file'] == true,
+        fileName: j['file_name'] as String?,
       );
 }

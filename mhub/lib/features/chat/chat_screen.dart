@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../models/tool.dart' show ChatMessage;
 import '../../theme/tokens.dart';
+import 'chat_attachment.dart';
 import 'chat_repository.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -83,6 +85,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  /// Pick a photo or video and send it; any typed text goes as the caption.
+  Future<void> _attach() async {
+    if (_sending) return;
+    final type = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_outlined),
+              title: const Text('Photo'),
+              subtitle: const Text('JPG, PNG, GIF or WebP · up to 12 MB'),
+              onTap: () => Navigator.pop(context, 'image'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Video'),
+              subtitle: const Text('MP4, MOV, WebM · up to 60 MB'),
+              onTap: () => Navigator.pop(context, 'video'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.mic_none),
+              title: const Text('Audio / voice note'),
+              subtitle: const Text('MP3, M4A, WAV, OGG · up to 15 MB'),
+              onTap: () => Navigator.pop(context, 'audio'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (type == null) return;
+
+    final picked = await FilePicker.pickFiles(
+      type: switch (type) { 'image' => FileType.image, 'video' => FileType.video, _ => FileType.audio },
+    );
+    final path = picked?.files.single.path;
+    if (path == null || !mounted) return;
+
+    final caption = _controller.text.trim();
+    setState(() => _sending = true);
+    try {
+      final msg = await ref.read(chatRepositoryProvider).sendFile(path, type, caption: caption);
+      _controller.clear();
+      setState(() {
+        _messages = [..._messages, msg];
+        _sending = false;
+      });
+      _jumpToEnd();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _sending = false);
+        final detail = e.errors?['file']?.first ?? e.message;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,6 +195,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             controller: _controller,
             sending: _sending,
             onSend: _send,
+            onAttach: _attach,
           ),
         ],
       ),
@@ -166,8 +227,11 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(msg.body ?? '',
-                style: TextStyle(color: mine ? Colors.white : AppColors.gray900)),
+            if (msg.hasFile) ChatAttachmentView(msg: msg, mine: mine),
+            if (msg.hasFile && (msg.body ?? '').isNotEmpty) const SizedBox(height: 6),
+            if (!msg.hasFile || (msg.body ?? '').isNotEmpty)
+              Text(msg.body ?? '',
+                  style: TextStyle(color: mine ? Colors.white : AppColors.gray900)),
             if (msg.time != null) ...[
               const SizedBox(height: 2),
               Text(msg.time!,
@@ -183,10 +247,16 @@ class _Bubble extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.sending, required this.onSend});
+  const _Composer({
+    required this.controller,
+    required this.sending,
+    required this.onSend,
+    required this.onAttach,
+  });
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+  final VoidCallback onAttach;
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +268,11 @@ class _Composer extends StatelessWidget {
       ),
       child: Row(
         children: [
+          IconButton(
+            tooltip: 'Send a photo, video or voice note',
+            onPressed: sending ? null : onAttach,
+            icon: const Icon(Icons.attach_file),
+          ),
           Expanded(
             child: TextField(
               controller: controller,
