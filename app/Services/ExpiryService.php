@@ -35,7 +35,7 @@ class ExpiryService
         foreach ($expiringSoon as $subscription) {
             $subscription->update(['status' => 'expiring_soon']);
 
-            Notification::send($subscription->user, new ExpiryWarning($subscription));
+            $this->email($subscription, new ExpiryWarning($subscription));
 
             \App\Models\ActivityLog::log(
                 'subscription_expiring_soon',
@@ -50,7 +50,9 @@ class ExpiryService
     {
         $now = Carbon::now(config('app.timezone'))->toDateString();
 
-        $expired = Subscription::where('status', 'active')
+        // Include 'expiring_soon': the warning step moves subscriptions there
+        // first, and they must still expire (and email) when the date passes.
+        $expired = Subscription::whereIn('status', ['active', 'expiring_soon'])
             ->whereDate('expiry_date', '<', $now)
             ->get();
 
@@ -62,8 +64,6 @@ class ExpiryService
                     $subscription->account->release();
                 }
 
-                Notification::send($subscription->user, new SubscriptionExpired($subscription));
-
                 \App\Models\ActivityLog::log(
                     'subscription_expired',
                     'Subscription',
@@ -71,6 +71,25 @@ class ExpiryService
                     ['account_id' => $subscription->account_id, 'expiry_date' => $subscription->expiry_date->toDateString()]
                 );
             });
+
+            $this->email($subscription, new SubscriptionExpired($subscription));
+        }
+    }
+
+    /**
+     * Send straight away (the daily cron has no queue worker behind it). A mail
+     * failure is reported but never stops the rest of the expiry run.
+     */
+    protected function email(Subscription $subscription, $notification): void
+    {
+        if (! $subscription->user) {
+            return;
+        }
+
+        try {
+            Notification::sendNow($subscription->user, $notification);
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 
