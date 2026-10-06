@@ -9,6 +9,7 @@ import '../admin/admin_finance_screen.dart';
 import '../admin/admin_orders_screen.dart';
 import '../admin/admin_payments_screen.dart';
 import '../admin/admin_reports_screen.dart';
+import '../admin/admin_research_screen.dart';
 import '../admin/admin_system_screen.dart';
 import '../admin/admin_users_screen.dart';
 import '../auth/auth_controller.dart';
@@ -91,6 +92,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
         _Destination('Users', Icons.group_outlined, AdminUsersScreen()),
         _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
+        _Destination(
+          'Research review',
+          Icons.rate_review_outlined,
+          AdminResearchScreen(),
+        ),
         _Destination(
           'Finance',
           Icons.account_balance_outlined,
