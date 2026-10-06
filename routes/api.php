@@ -234,6 +234,21 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index']);
 
+        // Research review (research.view / research.manage)
+        Route::controller(\App\Http\Controllers\Api\Admin\ResearchReviewController::class)->group(function () {
+            Route::get('/research', 'index');
+            Route::get('/research-categories', 'categories');
+            Route::post('/research-categories', 'storeCategory');
+            Route::put('/research-categories/{category}', 'updateCategory');
+            Route::delete('/research-categories/{category}', 'destroyCategory');
+            Route::get('/research/{research}', 'show')->whereNumber('research');
+            Route::post('/research/{research}/approve', 'approve')->whereNumber('research');
+            Route::post('/research/{research}/request-changes', 'requestChanges')->whereNumber('research');
+            Route::post('/research/{research}/reject', 'reject')->whereNumber('research');
+            Route::post('/research/{research}/unpublish', 'unpublish')->whereNumber('research');
+            Route::delete('/research/{research}', 'destroy')->whereNumber('research');
+        });
+
         // Team / RBAC (super admin only)
         Route::controller(\App\Http\Controllers\Api\Admin\TeamController::class)->group(function () {
             Route::get('/team', 'index');
