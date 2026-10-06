@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart';
 import '../../data/currency_repository.dart';
 import '../../data/member_api.dart';
 import '../../models/tool.dart';
@@ -8,6 +9,9 @@ import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../../widgets/price_label.dart';
+import '../orders/order_detail_screen.dart';
+import '../orders/orders_repository.dart';
+import '../payments/pay_order_screen.dart';
 
 class ToolsScreen extends ConsumerWidget {
   const ToolsScreen({super.key});
@@ -120,28 +124,61 @@ class ToolDetailScreen extends ConsumerWidget {
               Text(t.description!,
                   style: const TextStyle(color: AppColors.gray700, height: 1.5)),
             const SizedBox(height: 24),
-            MbuiButton(
-              label: 'How to get this tool',
-              icon: Icons.info_outline,
-              variant: MbuiVariant.secondary,
-              fullWidth: true,
-              onPressed: () => showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Order on the web'),
-                  content: const Text(
-                      'Ordering research tools is available on the MbunieEduHub website for now.'),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK')),
-                  ],
-                ),
-              ),
+            _BuyToolButton(tool: t),
+            const SizedBox(height: 8),
+            const Text(
+              'After payment your product key and download appear on the order.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppColors.gray500),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Buy a research tool: create the order, then go straight to payment.
+class _BuyToolButton extends ConsumerStatefulWidget {
+  const _BuyToolButton({required this.tool});
+  final Tool tool;
+
+  @override
+  ConsumerState<_BuyToolButton> createState() => _BuyToolButtonState();
+}
+
+class _BuyToolButtonState extends ConsumerState<_BuyToolButton> {
+  bool _busy = false;
+
+  Future<void> _buy() async {
+    setState(() => _busy = true);
+    try {
+      final order = await ref.read(ordersRepositoryProvider).createForTool(widget.tool.id);
+      ref.invalidate(ordersProvider);
+      if (!mounted) return;
+      final paid = await Navigator.of(context).push<bool>(MaterialPageRoute(
+        builder: (_) => PayOrderScreen(orderId: order.id, orderTitle: widget.tool.name, amountLabel: order.amountLabel),
+      ));
+      if (mounted) {
+        // Paid or not, the order page shows its status, key and download.
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: order.id, title: widget.tool.name)));
+        if (paid == true) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment received. Your key is on the order.')));
+        }
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => MbuiButton(
+        label: 'Buy now · ${widget.tool.priceLabel}',
+        icon: Icons.shopping_cart_checkout,
+        fullWidth: true,
+        loading: _busy,
+        onPressed: _buy,
+      );
 }

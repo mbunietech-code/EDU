@@ -36,6 +36,12 @@ class OrdersRepository {
     });
     return Order.fromJson((data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
   }
+
+  /// Place an order for a research tool (one-off price).
+  Future<Order> createForTool(int toolId) async {
+    final data = await _api.post('/orders', data: {'tool_id': toolId});
+    return Order.fromJson((data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
+  }
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
