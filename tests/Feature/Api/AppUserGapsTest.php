@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Conversation;
+use App\Models\LearningRoom;
 use App\Models\Tool;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -75,6 +76,35 @@ class AppUserGapsTest extends TestCase
 
         $this->postJson('/api/chat', ['body' => ''])->assertStatus(422)->assertJsonValidationErrors('body');
         $this->postJson('/api/chat', ['body' => 'Hello'])->assertOk()->assertJsonPath('data.has_file', false);
+    }
+
+    // --- #6 Add a class to the phone calendar --------------------------------
+
+    public function test_app_gets_a_signed_calendar_link_for_a_scheduled_class(): void
+    {
+        Sanctum::actingAs($user = User::factory()->create());
+        $host = User::factory()->create(['can_teach' => true]);
+        $room = LearningRoom::create([
+            'title' => 'Maths live',
+            'host_id' => $host->id,
+            'created_by' => $host->id,
+            'status' => 'scheduled',
+            'access' => 'public',
+            'scheduled_at' => now()->addDay(),
+            'duration_minutes' => 60,
+        ]);
+
+        $url = $this->getJson("/api/learning/rooms/{$room->slug}")->assertOk()->json('data.calendar_url');
+        $this->assertNotNull($url);
+
+        // The phone opens it with no session or token.
+        $this->app['auth']->forgetGuards();
+        $this->get($url)->assertOk()
+            ->assertHeader('Content-Type', 'text/calendar; charset=utf-8')
+            ->assertSee('SUMMARY:Maths live', false);
+
+        // A tampered link is refused.
+        $this->get(str_replace('u='.$user->id, 'u='.$host->id, $url))->assertForbidden();
     }
 
     // --- #7 Email verification -----------------------------------------------

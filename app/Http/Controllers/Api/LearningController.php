@@ -175,7 +175,7 @@ class LearningController extends Controller
             'today' => now()->format('Y-m-d'),
             'events' => $rooms->map(fn (LearningRoom $r) => $this->roomCard($r) + [
                 'day' => ($r->scheduled_at ?? $r->started_at)?->format('Y-m-d'),
-                'calendar_url' => route('learn.rooms.ics', $r),
+                'calendar_url' => $this->calendarUrl($r, $user),
             ])->values(),
         ]);
     }
@@ -713,6 +713,7 @@ class LearningController extends Controller
             'can_join' => $room->isLive(),
             'join_url' => route('api.learning.rooms.join', $room->slug),
             'web_url' => route('learn.rooms.live', $room),
+            'calendar_url' => $this->calendarUrl($room, $user),
             'shared_recordings_count' => $room->recordings()
                 ->where('status', 'ready')->whereNotNull('path')
                 ->when(! $isManager, fn (Builder $q) => $q->where('is_shared', true))
@@ -1049,6 +1050,27 @@ class LearningController extends Controller
         abort_unless($recording->is_shared || $room->isManageableBy($user), 403);
 
         return $storage->streamResponse($recording->disk, $recording->path, $recording->mime ?: 'video/mp4');
+    }
+
+    /** "Add to calendar" from the app: the phone opens the .ics without a web session. */
+    public function signedIcs(Request $request, string $slug)
+    {
+        $user = User::query()->findOrFail((int) $request->query('u'));
+        $room = LearningRoom::query()->where('slug', $slug)->firstOrFail();
+
+        abort_unless($user->isActive(), 403);
+        $this->authorizeFor($user, 'view', $room);
+
+        return \App\Http\Controllers\Learn\RoomController::icsResponse($room);
+    }
+
+    protected function calendarUrl(LearningRoom $room, User $user): ?string
+    {
+        if ($room->scheduled_at === null || ! in_array($room->status, ['scheduled', 'live'], true)) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute('api.signed.learning.rooms.ics', now()->addDays(7), ['slug' => $room->slug, 'u' => $user->id]);
     }
 
     /** Host / room manager goes live (returns the running session when already live). */

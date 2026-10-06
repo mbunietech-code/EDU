@@ -115,6 +115,26 @@ class RoomDetailScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: AppColors.gray500),
                 ),
+              if (r.calendarUrl != null && c.status == 'scheduled') ...[
+                const SizedBox(height: 12),
+                MbuiButton(
+                  label: 'Add to my calendar',
+                  icon: Icons.event_available_outlined,
+                  variant: MbuiVariant.secondary,
+                  fullWidth: true,
+                  onPressed: () async {
+                    final opened = await launchUrl(
+                      Uri.parse(r.calendarUrl!),
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!opened && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open your calendar app.')),
+                      );
+                    }
+                  },
+                ),
+              ],
               if (r.recordings.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 const MbuiSectionLabel('Recordings'),

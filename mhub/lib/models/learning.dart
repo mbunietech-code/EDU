@@ -347,6 +347,7 @@ class RoomDetail {
     this.description,
     this.cancelReason,
     this.webUrl,
+    this.calendarUrl,
   });
 
   final RoomCard card;
@@ -357,6 +358,9 @@ class RoomDetail {
   final String? cancelReason;
   final String? webUrl;
 
+  /// Signed .ics link (scheduled classes) for "Add to my calendar".
+  final String? calendarUrl;
+
   factory RoomDetail.fromJson(Map<String, dynamic> j) => RoomDetail(
     card: RoomCard.fromJson(j),
     canJoin: j['can_join'] as bool? ?? false,
@@ -365,6 +369,7 @@ class RoomDetail {
     description: _str(j['description']),
     cancelReason: _str(j['cancel_reason']),
     webUrl: _str(j['web_url']),
+    calendarUrl: _str(j['calendar_url']),
   );
 }
 

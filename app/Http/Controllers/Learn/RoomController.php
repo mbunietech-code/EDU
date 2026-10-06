@@ -150,6 +150,12 @@ class RoomController extends Controller
     {
         $this->authorize('view', $room);
 
+        return self::icsResponse($room);
+    }
+
+    /** The .ics file itself; callers check that the viewer may see the room (web and app). */
+    public static function icsResponse(LearningRoom $room)
+    {
         abort_unless($room->scheduled_at !== null, 404);
 
         $start = $room->scheduled_at->copy()->utc();

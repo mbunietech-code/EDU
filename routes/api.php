@@ -45,6 +45,9 @@ Route::get('/signed/learning/rooms/{slug}/recordings/{recording}', [\App\Http\Co
     ->middleware(['signed', 'throttle:240,1'])
     ->whereNumber('recording')
     ->name('api.signed.learning.rooms.recordings');
+Route::get('/signed/learning/rooms/{slug}/calendar.ics', [\App\Http\Controllers\Api\LearningController::class, 'signedIcs'])
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('api.signed.learning.rooms.ics');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
