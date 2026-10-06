@@ -26,6 +26,13 @@ class FinancePayrollPeriod extends Model
         'other_deductions',
         'net_pay',
         'employer_cost',
+        'nssf_employer',
+        'sdl_amount',
+        'wcf_amount',
+        'leave_provision',
+        'severance_provision',
+        'gratuity_provision',
+        'total_provisions',
         'notes',
         'prepared_at',
         'approved_at',
@@ -49,6 +56,13 @@ class FinancePayrollPeriod extends Model
         'other_deductions' => 'decimal:2',
         'net_pay' => 'decimal:2',
         'employer_cost' => 'decimal:2',
+        'nssf_employer' => 'decimal:2',
+        'sdl_amount' => 'decimal:2',
+        'wcf_amount' => 'decimal:2',
+        'leave_provision' => 'decimal:2',
+        'severance_provision' => 'decimal:2',
+        'gratuity_provision' => 'decimal:2',
+        'total_provisions' => 'decimal:2',
         'prepared_at' => 'datetime',
         'approved_at' => 'datetime',
         'paid_at' => 'datetime',
@@ -57,5 +71,10 @@ class FinancePayrollPeriod extends Model
     public function items(): HasMany
     {
         return $this->hasMany(FinancePayrollItem::class, 'finance_payroll_period_id');
+    }
+
+    public function statutoryReturns(): HasMany
+    {
+        return $this->hasMany(FinanceStatutoryReturn::class, 'finance_payroll_period_id');
     }
 }

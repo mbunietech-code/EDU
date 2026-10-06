@@ -1,3 +1,7 @@
+@php
+    $pct = fn ($value) => rtrim(rtrim(number_format((float) $value, 2), '0'), '.');
+@endphp
+
 <x-layouts.finance title="Payroll" header="Finance">
     <div class="mbui-page-header">
         <div>
@@ -25,7 +29,7 @@
         <x-mbui.card class="p-5">
             <p class="text-sm text-gray-500">Latest Deductions</p>
             <p class="mt-2 text-2xl font-bold text-red-600">TZS {{ number_format($payrollTotals['latest_deductions']) }}</p>
-            <p class="mt-1 text-xs text-gray-500">Tax, pension, insurance, loans, other</p>
+            <p class="mt-1 text-xs text-gray-500">PAYE, NSSF, insurance, loans, other</p>
         </x-mbui.card>
     </div>
 
@@ -48,13 +52,10 @@
                         <input id="period_month" name="period_month" type="month" required class="mbui-input mt-1" value="{{ old('period_month', now()->format('Y-m')) }}">
                         <x-input-error :messages="$errors->get('period_month')" class="mt-1" />
                     </div>
-                    <div>
-                        <x-input-label for="tax_rate" value="Tax rate %" />
-                        <input id="tax_rate" name="tax_rate" type="number" min="0" max="100" step="0.01" class="mbui-input mt-1" value="{{ old('tax_rate', 0) }}">
-                    </div>
-                    <div>
-                        <x-input-label for="pension_rate" value="Pension rate %" />
-                        <input id="pension_rate" name="pension_rate" type="number" min="0" max="100" step="0.01" class="mbui-input mt-1" value="{{ old('pension_rate', 0) }}">
+                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900 sm:col-span-2">
+                        <p class="font-semibold">Statutory amounts are calculated automatically</p>
+                        <p class="mt-1">PAYE (TRA monthly bands) · NSSF {{ $pct($rates['nssf_employee']) }}% staff + {{ $pct($rates['nssf_employer']) }}% employer · SDL {{ $pct($rates['sdl']) }}% (from {{ (int) $rates['sdl_min_staff'] }} staff) · WCF {{ $pct($rates['wcf']) }}% · leave, severance and gratuity provisions.</p>
+                        <a href="#statutory-settings" class="mt-1 inline-block font-semibold text-indigo-700 hover:text-indigo-600">Change rates &darr;</a>
                     </div>
                 </div>
 
@@ -88,7 +89,7 @@
                     <h3 class="mbui-section-label">Deductions per staff</h3>
                     <div class="mt-3 grid gap-4 sm:grid-cols-3">
                         <div>
-                            <x-input-label for="insurance_amount" value="Insurance" />
+                            <x-input-label for="insurance_amount" value="Insurance / NHIF" />
                             <input id="insurance_amount" name="insurance_amount" type="number" min="0" step="0.01" class="mbui-input mt-1" value="{{ old('insurance_amount', 0) }}">
                         </div>
                         <div>
@@ -152,13 +153,31 @@
                 <div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">Staff</p><p class="mt-1 font-bold">{{ number_format($latestPayroll->staff_count) }}</p></div>
             </div>
 
+            <h3 class="mbui-section-label mt-6">Statutory &amp; employer costs</h3>
+            <div class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                <div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">PAYE (TRA)</p><p class="mt-1 font-bold">TZS {{ number_format((float) $latestPayroll->tax_amount) }}</p><p class="text-[11px] text-gray-400">Deducted from staff</p></div>
+                <div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">NSSF</p><p class="mt-1 font-bold">TZS {{ number_format((float) $latestPayroll->pension_amount + (float) $latestPayroll->nssf_employer) }}</p><p class="text-[11px] text-gray-400">Staff {{ number_format((float) $latestPayroll->pension_amount) }} · Employer {{ number_format((float) $latestPayroll->nssf_employer) }}</p></div>
+                <div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">SDL (TRA)</p><p class="mt-1 font-bold">TZS {{ number_format((float) $latestPayroll->sdl_amount) }}</p><p class="text-[11px] text-gray-400">{{ (float) $latestPayroll->sdl_amount > 0 ? 'Employer pays' : 'Below staff threshold' }}</p></div>
+                <div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">WCF</p><p class="mt-1 font-bold">TZS {{ number_format((float) $latestPayroll->wcf_amount) }}</p><p class="text-[11px] text-gray-400">Employer pays</p></div>
+                <div class="rounded-lg bg-amber-50 p-3"><p class="text-xs text-amber-700">Provisions</p><p class="mt-1 font-bold text-amber-800">TZS {{ number_format((float) $latestPayroll->total_provisions) }}</p><p class="text-[11px] text-amber-700">Leave, severance, gratuity</p></div>
+                <div class="rounded-lg bg-indigo-50 p-3"><p class="text-xs text-indigo-700">Employer cost</p><p class="mt-1 font-bold text-indigo-800">TZS {{ number_format((float) $latestPayroll->employer_cost) }}</p><p class="text-[11px] text-indigo-700">Gross + NSSF + SDL + WCF</p></div>
+            </div>
+            @if ($latestPayroll->statutoryReturns->isNotEmpty())
+                <p class="mt-3 text-sm text-gray-600">
+                    {{ $latestPayroll->statutoryReturns->where('status', '!=', 'paid')->count() }} of {{ $latestPayroll->statutoryReturns->count() }} returns still to pay for this month.
+                    <a href="{{ route('admin.finance.returns.index') }}" class="font-semibold text-indigo-600 hover:text-indigo-500">Open returns &rarr;</a>
+                </p>
+            @endif
+
             <div class="mt-5 overflow-hidden rounded-lg border border-gray-200">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="mbui-th">Staff</th>
                             <th class="mbui-th">Gross</th>
-                            <th class="mbui-th">Deductions</th>
+                            <th class="mbui-th">PAYE</th>
+                            <th class="mbui-th">NSSF</th>
+                            <th class="mbui-th">All deductions</th>
                             <th class="mbui-th">Net Pay</th>
                             <th class="mbui-th">Payment</th>
                         </tr>
@@ -171,6 +190,8 @@
                                     <p class="text-xs text-gray-500">{{ $item->department_name ?? 'No department' }} · {{ $item->position_name ?? 'No position' }}</p>
                                 </td>
                                 <td class="mbui-td">TZS {{ number_format((float) $item->gross_pay) }}</td>
+                                <td class="mbui-td">TZS {{ number_format((float) $item->tax_amount) }}</td>
+                                <td class="mbui-td">TZS {{ number_format((float) $item->pension_amount) }}</td>
                                 <td class="mbui-td text-red-600">TZS {{ number_format((float) $item->total_deductions) }}</td>
                                 <td class="mbui-td font-semibold text-emerald-700">TZS {{ number_format((float) $item->net_pay) }}</td>
                                 <td class="mbui-td">{{ $item->payment_channel ? ucfirst(str_replace('_', ' ', $item->payment_channel)) : 'Not set' }}</td>
@@ -218,4 +239,36 @@
         </x-mbui.table>
     </div>
     <div class="mt-6">{{ $payrolls->links() }}</div>
+
+    <x-mbui.card id="statutory-settings" class="mt-6 p-6">
+        <h2 class="text-base font-semibold text-gray-900">Statutory settings (Tanzania)</h2>
+        <p class="mt-1 text-sm text-gray-500">Rates in %. Change them here if the law changes; they apply to the next draft you prepare. PAYE uses the TRA monthly resident bands.</p>
+        @php
+            $rateFields = [
+                'nssf_employee' => ['NSSF (staff) %', 'Deducted from staff gross pay'],
+                'nssf_employer' => ['NSSF (employer) %', 'Paid by the company on gross pay'],
+                'sdl' => ['SDL %', 'Skills Development Levy, paid by the company to TRA'],
+                'sdl_min_staff' => ['SDL from staff count', 'SDL only applies at this many staff or more'],
+                'wcf' => ['WCF %', 'Workers Compensation Fund, paid by the company'],
+                'leave_provision' => ['Leave provision %', 'Of basic pay, to cover annual leave'],
+                'severance_provision' => ['Severance provision %', 'Of basic pay, to cover severance'],
+                'gratuity_provision' => ['Gratuity provision %', 'Of basic pay, only if contracts promise gratuity'],
+            ];
+        @endphp
+        <form method="POST" action="{{ route('admin.finance.payroll.statutory.update') }}" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @csrf
+            @method('PUT')
+            @foreach ($rateFields as $key => [$label, $help])
+                <div>
+                    <x-input-label :for="'rate_'.$key" :value="$label" />
+                    <input id="rate_{{ $key }}" name="{{ $key }}" type="number" min="0" step="{{ $key === 'sdl_min_staff' ? '1' : '0.01' }}" required class="mbui-input mt-1" value="{{ old($key, $key === 'sdl_min_staff' ? (int) $rates[$key] : $pct($rates[$key])) }}">
+                    <p class="mt-1 text-xs text-gray-500">{{ $help }}</p>
+                    <x-input-error :messages="$errors->get($key)" class="mt-1" />
+                </div>
+            @endforeach
+            <div class="flex justify-end border-t border-gray-100 pt-4 sm:col-span-2 lg:col-span-4">
+                <x-mbui.button type="submit" variant="secondary">Save statutory rates</x-mbui.button>
+            </div>
+        </form>
+    </x-mbui.card>
 </x-layouts.finance>

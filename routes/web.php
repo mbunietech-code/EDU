@@ -410,6 +410,10 @@ Route::prefix('admin')
             Route::post('finance/contracts', [FinanceController::class, 'contractsStore'])->name('finance.contracts.store');
             Route::get('finance/payroll', [FinanceController::class, 'payrollIndex'])->name('finance.payroll.index');
             Route::post('finance/payroll', [FinanceController::class, 'payrollStore'])->name('finance.payroll.store');
+            Route::put('finance/payroll/statutory', [FinanceController::class, 'statutorySettingsUpdate'])->name('finance.payroll.statutory.update');
+            Route::get('finance/returns', [FinanceController::class, 'returnsIndex'])->name('finance.returns.index');
+            Route::post('finance/returns/{statutoryReturn}/paid', [FinanceController::class, 'returnMarkPaid'])->name('finance.returns.paid');
+            Route::post('finance/returns/{statutoryReturn}/pending', [FinanceController::class, 'returnMarkPending'])->name('finance.returns.pending');
         });
         });
 
