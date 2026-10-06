@@ -53,6 +53,7 @@
                             <p class="mt-0.5 text-xs text-gray-500">
                                 @if ($key === 'azampay') M-Pesa, Mixx by Yas, Airtel, Halopesa, AzamPesa (USSD push)
                                 @elseif ($key === 'clickpesa') All Tanzanian mobile money (USSD push)
+                                @elseif ($key === 'clickpesa_card') Visa, Mastercard, Amex, UnionPay via ClickPesa, charged in USD
                                 @else PayPal balance or card, charged in USD
                                 @endif
                             </p>
@@ -100,7 +101,9 @@
 
                         <button type="button" x-show="! showKeys" @click="showKeys = true" class="text-left text-xs font-semibold text-indigo-600 hover:text-indigo-500">Edit keys</button>
 
-                        @if ($gw['callback_url'])
+                        @if ($key === 'clickpesa_card')
+                            <p class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Uses the ClickPesa keys and the ClickPesa callback URL above. Card payments only work after ClickPesa approves your KYC.</p>
+                        @elseif ($gw['callback_url'])
                             <div class="rounded-lg bg-gray-50 p-3" x-data="{ copied: false }">
                                 <p class="text-xs font-medium text-gray-600">Callback URL (paste on the {{ $gw['label'] }} dashboard)</p>
                                 <div class="mt-1 flex items-center gap-2">

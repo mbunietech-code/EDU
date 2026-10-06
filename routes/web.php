@@ -103,6 +103,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}', [\App\Http\Controllers\User\MobilePaymentController::class, 'show'])->name('user.payments.mobile.show');
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}/status', [\App\Http\Controllers\User\MobilePaymentController::class, 'status'])
         ->middleware('throttle:60,1')->name('user.payments.mobile.status');
+    Route::post('/orders/{order}/pay/card', [\App\Http\Controllers\User\CardPaymentController::class, 'store'])
+        ->middleware('throttle:6,1')->name('user.payments.card.store');
     Route::post('/orders/{order}/pay/paypal', [\App\Http\Controllers\User\PayPalPaymentController::class, 'start'])
         ->middleware('throttle:6,1')->name('user.payments.paypal.start');
     Route::get('/orders/{order}/pay/paypal/return', [\App\Http\Controllers\User\PayPalPaymentController::class, 'return'])->name('user.payments.paypal.return');

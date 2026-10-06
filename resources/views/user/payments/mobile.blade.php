@@ -25,7 +25,20 @@
             <template x-if="status === 'pending'">
                 <div>
                     <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-                    @if ($gatewayPayment->gateway === 'paypal')
+                    @if ($gatewayPayment->gateway === 'clickpesa_card')
+                        <h1 class="mt-5 text-lg font-semibold text-gray-900">Complete your card payment</h1>
+                        <p class="mt-2 text-sm text-gray-600">
+                            Open the secure card page and pay
+                            <span class="font-semibold">{{ $gatewayPayment->charged_currency }} {{ number_format((float) $gatewayPayment->charged_amount, 2) }}</span>.
+                            Keep this page open: your order is confirmed here automatically once the card is charged.
+                        </p>
+                        @if ($gatewayPayment->redirect_url)
+                            <a href="{{ $gatewayPayment->redirect_url }}" target="_blank" rel="noopener"
+                                class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
+                                Open secure card page
+                            </a>
+                        @endif
+                    @elseif ($gatewayPayment->gateway === 'paypal')
                         <h1 class="mt-5 text-lg font-semibold text-gray-900">Confirming your PayPal payment</h1>
                         <p class="mt-2 text-sm text-gray-600">
                             PayPal is finalising your payment of

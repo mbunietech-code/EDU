@@ -63,7 +63,11 @@ class PaymentController extends Controller
         $payPalCharge = $payPal?->isEnabled() ? $payPal->chargeFor((float) $order->amount) : null;
         $payPalOffer = $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $payPal->currency()] : null;
 
-        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways', 'payPalOffer'));
+        $card = $gatewayService->gateway('clickpesa_card');
+        $cardCharge = $card?->isEnabled() ? $card->chargeFor((float) $order->amount) : null;
+        $cardOffer = $cardCharge ? ['amount' => $cardCharge, 'currency' => $card->currency()] : null;
+
+        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways', 'payPalOffer', 'cardOffer'));
     }
 
     public function store(UploadPaymentProofRequest $request, Order $order)

@@ -21,6 +21,7 @@ class GatewayPaymentService
     public function __construct(
         AzamPayGateway $azamPay,
         ClickPesaGateway $clickPesa,
+        ClickPesaCardGateway $clickPesaCard,
         PayPalGateway $payPal,
         protected PaymentApprovalService $approvals,
         protected NotificationService $notifications,
@@ -28,6 +29,7 @@ class GatewayPaymentService
         $this->gateways = [
             $azamPay->key() => $azamPay,
             $clickPesa->key() => $clickPesa,
+            $clickPesaCard->key() => $clickPesaCard,
             $payPal->key() => $payPal,
         ];
     }
@@ -98,7 +100,7 @@ class GatewayPaymentService
     /**
      * @throws GatewayException
      */
-    public function start(Order $order, User $user, MobileMoneyGateway $gateway, string $phone, ?string $network): GatewayPayment
+    public function start(Order $order, User $user, MobileMoneyGateway $gateway, string $phone, ?string $network, array $details = []): GatewayPayment
     {
         $payment = GatewayPayment::create([
             'order_id' => $order->id,
@@ -111,6 +113,8 @@ class GatewayPaymentService
             'external_id' => self::externalId($order),
             'status' => 'pending',
         ]);
+
+        $payment->checkoutDetails = $details;
 
         try {
             $transactionId = $gateway->initiate($payment);
@@ -142,8 +146,14 @@ class GatewayPaymentService
             return null;
         }
 
-        $payment = GatewayPayment::where('gateway', $gateway->key())
-            ->where('external_id', $data['external_id'])
+        // One provider webhook serves all its products (ClickPesa mobile + card).
+        $family = array_values(array_filter(
+            array_keys($this->gateways),
+            fn (string $key) => $key === $gateway->key() || str_starts_with($key, $gateway->key().'_')
+        ));
+
+        $payment = GatewayPayment::where('external_id', $data['external_id'])
+            ->whereIn('gateway', $family)
             ->first();
 
         if (! $payment) {

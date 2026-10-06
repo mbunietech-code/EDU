@@ -100,11 +100,42 @@
         </div>
     @endif
 
-    @if ((! empty($mobileGateways) || $payPalOffer) && $paymentMethods->isNotEmpty())
+    @if ($cardOffer)
+        <div class="mt-6 mbui-card p-6">
+            <h2 class="text-base font-semibold text-gray-900">Pay by card (Visa / Mastercard)</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                You will be charged <span class="font-semibold text-gray-900">{{ $cardOffer['currency'] }} {{ number_format($cardOffer['amount'], 2) }}</span>
+                (TZS {{ number_format($order->amount) }} at today's rate) on ClickPesa's secure card page. We never see your card number.
+            </p>
+            <form method="POST" action="{{ route('user.payments.card.store', $order) }}" class="mt-5 space-y-4" x-data="{ sending: false }" @submit="sending = true">
+                @csrf
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <x-input-label for="card-name" value="Name on card" />
+                        <x-text-input id="card-name" name="card_name" class="mbui-input mt-1" :value="old('card_name', auth()->user()->name)" required />
+                        <x-input-error :messages="$errors->get('card_name')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="card-phone" value="Phone number" />
+                        <x-text-input id="card-phone" name="card_phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="old('card_phone')" placeholder="0712 345 678" required />
+                        <x-input-error :messages="$errors->get('card_phone')" class="mt-2" />
+                    </div>
+                </div>
+                <div class="flex items-center justify-end border-t border-gray-100 pt-4">
+                    <x-mbui.button type="submit" x-bind:disabled="sending">
+                        <span x-show="! sending">Pay {{ $cardOffer['currency'] }} {{ number_format($cardOffer['amount'], 2) }} by card</span>
+                        <span x-show="sending" x-cloak>Preparing secure card page...</span>
+                    </x-mbui.button>
+                </div>
+            </form>
+        </div>
+    @endif
+
+    @if ((! empty($mobileGateways) || $payPalOffer || $cardOffer) && $paymentMethods->isNotEmpty())
         <p class="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">Or pay manually and upload proof</p>
     @endif
 
-    @if ($paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer))
+    @if ($paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer && ! $cardOffer))
     <div class="mt-6 mbui-card p-6"
         x-data='{
             selectedMethod: "{{ $defaultMethod }}",

@@ -11,6 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class GatewayPayment extends Model
 {
+    /**
+     * Details only needed while starting the payment (e.g. name on card);
+     * passed to the gateway, never stored.
+     */
+    public array $checkoutDetails = [];
+
     protected $fillable = [
         'order_id',
         'user_id',

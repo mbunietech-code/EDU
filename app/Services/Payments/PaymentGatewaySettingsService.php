@@ -35,6 +35,9 @@ class PaymentGatewaySettingsService
             'api_key' => ['API key', 'secret'],
             'checksum_key' => ['Checksum key (only if checksum is on)', 'secret'],
         ],
+        'clickpesa_card' => [
+            'enabled' => ['Enabled', 'toggle'],
+        ],
         'paypal' => [
             'enabled' => ['Enabled', 'toggle'],
             'mode' => ['Environment', 'mode'],

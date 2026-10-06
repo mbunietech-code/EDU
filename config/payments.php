@@ -58,6 +58,14 @@ return [
             'timeout_minutes' => 180,
         ],
 
+        'clickpesa_card' => [
+            'label' => 'Card (Visa / Mastercard)',
+            // Uses the ClickPesa keys and webhook below; needs ClickPesa KYC.
+            'enabled' => (bool) env('CLICKPESA_CARD_ENABLED', false),
+            'timeout_minutes' => 60,
+            'poll_seconds' => 45,
+        ],
+
         'clickpesa' => [
             'label' => 'ClickPesa',
             'enabled' => (bool) env('CLICKPESA_ENABLED', false),
