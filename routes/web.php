@@ -55,6 +55,12 @@ Route::get('/', [HomeController::class, 'index'])->name('public.home');
 Route::get('/signed/orders/{order}/receipt', [ReceiptController::class, 'signedShow'])
     ->middleware('signed')
     ->name('signed.orders.receipt');
+// Return pages for card / PayPal payments started in the app (opened in the
+// phone's browser, no web login): found by the payment's random reference.
+Route::middleware('throttle:30,1')->group(function () {
+    Route::get('/pay/return/{reference}', [\App\Http\Controllers\GatewayReturnController::class, 'return'])->name('payments.gateway.return');
+    Route::get('/pay/cancel/{reference}', [\App\Http\Controllers\GatewayReturnController::class, 'cancel'])->name('payments.gateway.cancel');
+});
 Route::get('/ticker/feed', [\App\Http\Controllers\Public\TickerController::class, 'feed'])->name('public.ticker.feed');
 Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');

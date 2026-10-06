@@ -93,6 +93,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     Route::post('/orders/{order}/payments', [PaymentController::class, 'store']);
 
+    // Automatic payments (mobile money push, card, PayPal) from the app.
+    Route::get('/orders/{order}/payment-options', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'options']);
+    Route::middleware('throttle:6,1')->group(function () {
+        Route::post('/orders/{order}/payments/mobile', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'mobile']);
+        Route::post('/orders/{order}/payments/card', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'card']);
+        Route::post('/orders/{order}/payments/paypal', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'paypal']);
+    });
+    Route::get('/gateway-payments/{gatewayPayment}', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'status'])
+        ->middleware('throttle:60,1');
+
     // Subscriptions
     Route::get('/subscriptions', [SubscriptionController::class, 'index']);
     Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show']);

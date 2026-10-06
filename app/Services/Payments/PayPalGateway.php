@@ -90,8 +90,13 @@ class PayPalGateway implements MobileMoneyGateway
                         'brand_name' => config('app.name'),
                         'user_action' => 'PAY_NOW',
                         'shipping_preference' => 'NO_SHIPPING',
-                        'return_url' => route('user.payments.paypal.return', $payment->order_id),
-                        'cancel_url' => route('user.payments.paypal.cancel', $payment->order_id),
+                        // Payments started in the app return to a page that needs no web login.
+                        'return_url' => ($payment->checkoutDetails['from_app'] ?? false)
+                            ? route('payments.gateway.return', $payment->external_id)
+                            : route('user.payments.paypal.return', $payment->order_id),
+                        'cancel_url' => ($payment->checkoutDetails['from_app'] ?? false)
+                            ? route('payments.gateway.cancel', $payment->external_id)
+                            : route('user.payments.paypal.cancel', $payment->order_id),
                     ],
                 ]);
         } catch (ConnectionException $e) {
