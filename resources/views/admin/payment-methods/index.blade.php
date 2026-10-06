@@ -1,20 +1,48 @@
+@php
+    $activeTab = request('tab') === 'manual' ? 'manual' : 'automatic';
+    $liveGateways = collect($onlineGateways)->where('ready', true)->count();
+    $enabledManual = $paymentMethods->where('enabled', true)->count();
+@endphp
+
 <x-layouts.admin title="Payment Methods" header="Payment Methods">
 
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Payment Methods</h1>
-            <p class="mt-1 text-sm text-gray-500">Automatic online payments (AzamPay, ClickPesa, PayPal) and manual QR payments shown at checkout.</p>
+            <p class="mt-1 text-sm text-gray-500">Choose how customers pay at checkout.</p>
         </div>
     </div>
 
-    {{-- ================= Automatic (online) payments ================= --}}
-    <section class="mt-8">
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900">Automatic payments</h2>
-                <p class="mt-1 text-sm text-gray-500">The customer pays online and the order is verified, marked paid and receipted by email automatically. Admins get an email for every payment.</p>
-            </div>
+    <div x-data="{
+            tab: @js($activeTab),
+            show(name) {
+                this.tab = name;
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', name);
+                window.history.replaceState(null, '', url);
+            },
+        }">
+
+        <div class="mt-6 border-b border-gray-200">
+            <nav class="-mb-px flex gap-6" role="tablist" aria-label="Payment method types">
+                <button type="button" role="tab" @click="show('automatic')" :aria-selected="tab === 'automatic'"
+                    :class="tab === 'automatic' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                    class="inline-flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'automatic' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
+                    Automatic
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $liveGateways }} live</span>
+                </button>
+                <button type="button" role="tab" @click="show('manual')" :aria-selected="tab === 'manual'"
+                    :class="tab === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                    class="inline-flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
+                    Manual
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $enabledManual }} on</span>
+                </button>
+            </nav>
         </div>
+
+    {{-- ================= Automatic (online) payments ================= --}}
+    <section role="tabpanel" x-show="tab === 'automatic'" @if ($activeTab !== 'automatic') x-cloak @endif class="mt-6">
+        <p class="text-sm text-gray-500">The customer pays online and the order is verified, marked paid and receipted by email automatically. Admins get an email for every payment.</p>
 
         <div class="mt-4 grid gap-6 xl:grid-cols-3">
             @foreach ($onlineGateways as $key => $gw)
@@ -106,10 +134,8 @@
     </section>
 
     {{-- ================= Manual payments ================= --}}
-    <section class="mt-10">
-        <h2 class="text-lg font-semibold text-gray-900">Manual payments</h2>
-        <p class="mt-1 text-sm text-gray-500">The customer scans a QR code or types your number, pays, and uploads proof. An admin approves it from Payments.</p>
-    </section>
+    <section role="tabpanel" x-show="tab === 'manual'" @if ($activeTab !== 'manual') x-cloak @endif class="mt-6">
+        <p class="text-sm text-gray-500">The customer scans a QR code or types your number, pays, and uploads proof. An admin approves it from Payments.</p>
 
     <div class="mt-6 mbui-card p-6">
         <h2 class="text-base font-semibold text-gray-900">Add payment method</h2>
@@ -270,6 +296,9 @@
         @empty
             <p class="text-sm text-gray-500">No payment methods configured.</p>
         @endforelse
+    </div>
+    </section>
+
     </div>
 
 </x-layouts.admin>

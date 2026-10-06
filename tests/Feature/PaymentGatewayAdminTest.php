@@ -42,12 +42,25 @@ class PaymentGatewayAdminTest extends TestCase
         ], $overrides));
     }
 
-    public function test_page_separates_automatic_and_manual_payments(): void
+    public function test_page_separates_automatic_and_manual_payments_into_tabs(): void
     {
-        $this->actingAs($this->superAdmin())->get(route('admin.payment-methods.index'))
+        $admin = $this->superAdmin();
+
+        $html = $this->actingAs($admin)->get(route('admin.payment-methods.index'))
             ->assertOk()
-            ->assertSeeInOrder(['Automatic payments', 'AzamPay', 'ClickPesa', 'PayPal', 'Manual payments', 'Add payment method'])
-            ->assertSee(url('/api/payments/callback/azampay/'.config('payments.callback_token')));
+            ->assertSee('role="tablist"', false)
+            ->assertSeeInOrder(['Automatic', 'Manual', 'AzamPay', 'ClickPesa', 'PayPal', 'Add payment method'])
+            ->assertSee(url('/api/payments/callback/azampay/'.config('payments.callback_token')))
+            ->getContent();
+
+        // Automatic opens by default; the manual panel starts hidden.
+        $this->assertMatchesRegularExpression('/x-show="tab === \x27automatic\x27"\s+class/', $html);
+        $this->assertMatchesRegularExpression('/x-show="tab === \x27manual\x27"\s+x-cloak/', $html);
+
+        // ?tab=manual (kept in the URL after saving) reopens the manual tab.
+        $manual = $this->actingAs($admin)->get(route('admin.payment-methods.index', ['tab' => 'manual']))->getContent();
+        $this->assertMatchesRegularExpression('/x-show="tab === \x27automatic\x27"\s+x-cloak/', $manual);
+        $this->assertMatchesRegularExpression('/x-show="tab === \x27manual\x27"\s+class/', $manual);
     }
 
     public function test_admin_can_set_gateway_keys_from_the_panel(): void
