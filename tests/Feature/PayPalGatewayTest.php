@@ -100,7 +100,7 @@ class PayPalGatewayTest extends TestCase
 
         $this->actingAs($context['user'])
             ->get(route('user.payments.paypal.cancel', [$context['order'], 'token' => 'PPORDER1']))
-            ->assertRedirect(route('user.payments.create', $context['order']));
+            ->assertRedirect(route('user.payments.create', [$context['order'], 'tab' => 'paypal']));
 
         $this->assertSame('failed', GatewayPayment::firstOrFail()->status);
         $this->assertSame(0, Payment::count());

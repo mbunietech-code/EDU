@@ -25,7 +25,55 @@
         <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor text-sm">Back to order</a>
     </div>
 
+    @php
+        $showManual = $paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer && ! $cardOffer);
+        $tabs = array_filter([
+            'mobile' => ! empty($mobileGateways) ? ['Mobile money', 'M-Pesa, Mixx, Airtel, Halopesa'] : null,
+            'card' => $cardOffer ? ['Card', 'Visa, Mastercard'] : null,
+            'paypal' => $payPalOffer ? ['PayPal', 'PayPal balance or card'] : null,
+            'manual' => $showManual ? ['Pay manually', 'Scan QR and upload proof'] : null,
+        ]);
+
+        // Reopen the tab whose form came back with errors, else ?tab=, else the first.
+        $activeTab = match (true) {
+            $errors->hasAny(['card_name', 'card_phone']) => 'card',
+            $errors->hasAny(['gateway', 'network', 'phone']) => 'mobile',
+            $errors->hasAny(['payment_method', 'payment_proof', 'note', 'amount', 'transaction_reference']) => 'manual',
+            default => request('tab'),
+        };
+        if (! isset($tabs[$activeTab])) {
+            $activeTab = array_key_first($tabs);
+        }
+    @endphp
+
+    <div x-data="{
+            tab: @js($activeTab),
+            show(name) {
+                this.tab = name;
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', name);
+                window.history.replaceState(null, '', url);
+            },
+        }">
+
+    @if (count($tabs) > 1)
+        <div class="mt-6">
+            <p class="text-sm font-medium text-gray-700">How would you like to pay?</p>
+            <div class="mt-2 grid grid-cols-2 gap-2 {{ [2 => 'sm:grid-cols-2', 3 => 'sm:grid-cols-3', 4 => 'sm:grid-cols-4'][count($tabs)] ?? 'sm:grid-cols-4' }}" role="tablist" aria-label="Payment options">
+                @foreach ($tabs as $key => [$label, $hint])
+                    <button type="button" role="tab" @click="show(@js($key))" :aria-selected="tab === @js($key)"
+                        :class="tab === @js($key) ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white hover:border-gray-300'"
+                        class="rounded-lg border px-3 py-2.5 text-left transition {{ $activeTab === $key ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white' }}">
+                        <span class="block text-sm font-semibold text-gray-900">{{ $label }}</span>
+                        <span class="mt-0.5 block text-xs text-gray-500">{{ $hint }}</span>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     @if (! empty($mobileGateways))
+    <div role="tabpanel" x-show="tab === 'mobile'" @if ($activeTab !== 'mobile') x-cloak @endif>
         <div class="mt-6 mbui-card p-6" x-data="{ gateway: @js(old('gateway', array_key_first($mobileGateways))), gateways: @js($mobileGateways), sending: false }">
             <h2 class="text-base font-semibold text-gray-900">Pay instantly with mobile money</h2>
             <p class="mt-1 text-sm text-gray-500">We send a payment request to your phone. Enter your PIN and your order is confirmed automatically, with no screenshot needed.</p>
@@ -76,10 +124,11 @@
                 </div>
             </form>
         </div>
-
+    </div>
     @endif
 
     @if ($payPalOffer)
+    <div role="tabpanel" x-show="tab === 'paypal'" @if ($activeTab !== 'paypal') x-cloak @endif>
         <div class="mt-6 mbui-card p-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -98,9 +147,11 @@
                 </form>
             </div>
         </div>
+    </div>
     @endif
 
     @if ($cardOffer)
+    <div role="tabpanel" x-show="tab === 'card'" @if ($activeTab !== 'card') x-cloak @endif>
         <div class="mt-6 mbui-card p-6">
             <h2 class="text-base font-semibold text-gray-900">Pay by card (Visa / Mastercard)</h2>
             <p class="mt-1 text-sm text-gray-500">
@@ -129,13 +180,11 @@
                 </div>
             </form>
         </div>
+    </div>
     @endif
 
-    @if ((! empty($mobileGateways) || $payPalOffer || $cardOffer) && $paymentMethods->isNotEmpty())
-        <p class="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">Or pay manually and upload proof</p>
-    @endif
-
-    @if ($paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer && ! $cardOffer))
+    @if ($showManual)
+    <div role="tabpanel" x-show="tab === 'manual'" @if ($activeTab !== 'manual') x-cloak @endif>
     <div class="mt-6 mbui-card p-6"
         x-data='{
             selectedMethod: "{{ $defaultMethod }}",
@@ -266,6 +315,9 @@
             </form>
         @endif
     </div>
+    </div>
     @endif
+
+    </div>
 
 </x-layouts.user>

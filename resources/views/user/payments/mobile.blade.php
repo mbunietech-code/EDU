@@ -1,3 +1,7 @@
+@php
+    $retryTab = ['clickpesa_card' => 'card', 'paypal' => 'paypal'][$gatewayPayment->gateway] ?? 'mobile';
+@endphp
+
 <x-layouts.user title="Confirm Payment" header="Confirm Payment">
 
     <div class="mx-auto mt-6 max-w-lg">
@@ -70,7 +74,7 @@
                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600">&#10005;</div>
                     <h1 class="mt-5 text-lg font-semibold text-gray-900">Payment not completed</h1>
                     <p class="mt-2 text-sm text-gray-600" x-text="message || 'The payment was cancelled or declined.'"></p>
-                    <a href="{{ route('user.payments.create', $order) }}" class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Try again</a>
+                    <a href="{{ route('user.payments.create', [$order, 'tab' => $retryTab]) }}" class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Try again</a>
                 </div>
             </template>
 
@@ -79,7 +83,7 @@
                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-2xl text-amber-600">!</div>
                     <h1 class="mt-5 text-lg font-semibold text-gray-900">No confirmation yet</h1>
                     <p class="mt-2 text-sm text-gray-600">We did not get a reply in time. If money left your account, keep this page open for a moment: it is still checking. Otherwise, try again.</p>
-                    <a href="{{ route('user.payments.create', $order) }}" class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Try again</a>
+                    <a href="{{ route('user.payments.create', [$order, 'tab' => $retryTab]) }}" class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Try again</a>
                 </div>
             </template>
 

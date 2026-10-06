@@ -51,7 +51,7 @@ class PayPalPaymentController extends Controller
         }
 
         if ($payment->status === 'failed') {
-            return redirect()->route('user.payments.create', $order)->with('error', 'PayPal did not complete the payment. Please try again.');
+            return redirect()->route('user.payments.create', [$order, 'tab' => 'paypal'])->with('error', 'PayPal did not complete the payment. Please try again.');
         }
 
         // Approved but not settled yet: wait on the status page.
@@ -66,7 +66,7 @@ class PayPalPaymentController extends Controller
             $this->gateways->markFailed($payment, 'Cancelled on PayPal.');
         }
 
-        return redirect()->route('user.payments.create', $order)->with('error', 'PayPal payment was cancelled. You can try again or choose another method.');
+        return redirect()->route('user.payments.create', [$order, 'tab' => 'paypal'])->with('error', 'PayPal payment was cancelled. You can try again or choose another method.');
     }
 
     protected function findForReturn(Request $request, Order $order): GatewayPayment
