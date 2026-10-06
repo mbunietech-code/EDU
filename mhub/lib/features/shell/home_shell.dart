@@ -26,6 +26,8 @@ import '../scholarships/scholarships_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../tools/tools_screen.dart';
 import '../support/help_screen.dart';
+import '../admin/ai_assistant_screen.dart';
+import '../admin/team_chat_screen.dart';
 
 class _Destination {
   const _Destination(this.label, this.icon, this.screen, {this.primary = false});
@@ -60,6 +62,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _Destination('Reports', Icons.insights_outlined, AdminReportsScreen()),
         _Destination('Finance', Icons.account_balance_outlined, AdminFinanceScreen()),
         _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
+        _Destination('Team chat', Icons.forum_outlined, TeamChatScreen()),
+        _Destination('AI Assistant', Icons.smart_toy_outlined, AiAssistantScreen()),
         _Destination('System', Icons.tune, AdminSystemScreen()),
         _Destination('Notifications', Icons.notifications_none, NotificationsScreen()),
         _Destination('Profile', Icons.person_outline, ProfileScreen()),
