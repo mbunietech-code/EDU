@@ -109,14 +109,6 @@ class RoomDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (r.webUrl != null)
-                  TextButton(
-                    onPressed: () => launchUrl(
-                      Uri.parse(r.webUrl!),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    child: const Text('Open on the web instead'),
-                  ),
               ] else if (c.status == 'scheduled')
                 const Text(
                   'You can join here as soon as the host starts the class.',

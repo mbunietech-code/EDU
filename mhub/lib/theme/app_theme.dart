@@ -2,32 +2,33 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
-/// Light-only theme matching the MbunieEduHub website.
+/// Light-only native app theme using the MbunieEduHub brand colors.
 class AppTheme {
   const AppTheme._();
 
   static ThemeData light() {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.indigo600,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColors.indigo600,
-      surface: AppColors.pageBackground,
-      onSurface: AppColors.gray900,
-      error: AppColors.red600,
-      outline: AppColors.gray300,
-      outlineVariant: AppColors.gray200,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.indigo600,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.indigo600,
+          surface: AppColors.pageBackground,
+          onSurface: AppColors.gray900,
+          error: AppColors.red600,
+          outline: AppColors.gray300,
+          outlineVariant: AppColors.gray200,
+        );
 
     final baseText = ThemeData.light().textTheme.apply(
-          bodyColor: AppColors.gray900,
-          displayColor: AppColors.gray900,
-        );
+      bodyColor: AppColors.gray900,
+      displayColor: AppColors.gray900,
+    );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: AppColors.pageBackground,
+      scaffoldBackgroundColor: Colors.white,
       fontFamily: 'Roboto',
       textTheme: baseText.copyWith(
         titleLarge: baseText.titleLarge?.copyWith(
@@ -54,7 +55,7 @@ class AppTheme {
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        shape: Border(bottom: BorderSide(color: AppColors.gray200)),
+        shape: Border(bottom: BorderSide(color: AppColors.gray100)),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.gray200,
@@ -104,9 +105,11 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        fillColor: AppColors.gray50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         hintStyle: const TextStyle(color: AppColors.gray400, fontSize: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
