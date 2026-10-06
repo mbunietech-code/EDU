@@ -300,6 +300,49 @@ class RoomDetail {
       );
 }
 
+/// What the app needs to connect to a live class (LiveProvider::clientConfig).
+class LiveJoinConfig {
+  const LiveJoinConfig({
+    required this.serverUrl,
+    required this.token,
+    required this.iceServers,
+    required this.relayOnly,
+    required this.canSpeak,
+    required this.canVideo,
+    required this.isModerator,
+  });
+
+  final String serverUrl;
+  final String token;
+  final List<({List<String> urls, String? username, String? credential})> iceServers;
+  final bool relayOnly;
+  final bool canSpeak;
+  final bool canVideo;
+  final bool isModerator;
+
+  factory LiveJoinConfig.fromJson(Map<String, dynamic> j) {
+    final perms = (j['permissions'] as Map<String, dynamic>?) ?? const {};
+
+    return LiveJoinConfig(
+      serverUrl: j['server_url'] as String,
+      token: j['token'] as String,
+      iceServers: ((j['ice_servers'] as List?) ?? const []).map((e) {
+        final m = e as Map<String, dynamic>;
+        final urls = m['urls'];
+        return (
+          urls: urls is List ? urls.map((u) => u.toString()).toList() : [urls.toString()],
+          username: m['username'] as String?,
+          credential: m['credential'] as String?,
+        );
+      }).toList(),
+      relayOnly: j['ice_transport_policy'] == 'relay',
+      canSpeak: perms['audio'] as bool? ?? false,
+      canVideo: perms['video'] as bool? ?? false,
+      isModerator: j['moderator'] as bool? ?? false,
+    );
+  }
+}
+
 class LearningHome {
   const LearningHome({
     required this.live,

@@ -8,6 +8,7 @@ import '../../models/learning.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
+import 'live_class_screen.dart';
 
 class RoomDetailScreen extends ConsumerWidget {
   const RoomDetailScreen({super.key, required this.slug, required this.title});
@@ -62,14 +63,21 @@ class RoomDetailScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              if (r.canJoin && r.webUrl != null)
+              if (r.canJoin) ...[
                 MbuiButton(
                   label: 'Join live class',
                   icon: Icons.sensors,
                   fullWidth: true,
-                  onPressed: () => launchUrl(Uri.parse(r.webUrl!), mode: LaunchMode.externalApplication),
-                )
-              else if (c.status == 'scheduled')
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => LiveClassScreen(slug: c.slug, title: c.title),
+                  )),
+                ),
+                if (r.webUrl != null)
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse(r.webUrl!), mode: LaunchMode.externalApplication),
+                    child: const Text('Open on the web instead'),
+                  ),
+              ] else if (c.status == 'scheduled')
                 const Text('You can join here as soon as the host starts the class.',
                     textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.gray500)),
             ],

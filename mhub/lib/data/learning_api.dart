@@ -56,6 +56,12 @@ class LearningRepository {
       _page(await _api.get('/learning/rooms', query: {'tab': tab}), RoomCard.fromJson);
 
   Future<RoomDetail> room(String slug) async => RoomDetail.fromJson(_data(await _api.get('/learning/rooms/$slug')));
+
+  /// Server-issued LiveKit connection details for a live class.
+  Future<LiveJoinConfig> join(String slug) async => LiveJoinConfig.fromJson(
+      ((await _api.post('/learning/rooms/$slug/join')) as Map<String, dynamic>)['config'] as Map<String, dynamic>);
+
+  Future<void> leave(String slug) => _api.post('/learning/rooms/$slug/leave');
 }
 
 final learningRepositoryProvider = Provider((ref) => LearningRepository(ref.watch(apiClientProvider)));
