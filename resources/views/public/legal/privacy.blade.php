@@ -38,7 +38,7 @@
 
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">7. Your choices</h2>
-                    <p class="mt-2">You can update your profile information at any time from your account settings. To request deletion of your account or data, contact us using the details below.</p>
+                    <p class="mt-2">You can update your profile information at any time from your account settings. To delete your account and data, use <strong>Profile → Delete my account</strong> in the app, or follow the steps on the <a href="{{ route('public.account-deletion') }}" class="mbui-anchor">account deletion page</a>. We delete your personal data within 30 days; records we must keep by law (orders and payment references) are kept for up to 7 years without your profile.</p>
                 </div>
 
                 <div>

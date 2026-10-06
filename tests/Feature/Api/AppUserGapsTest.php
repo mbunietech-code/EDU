@@ -107,6 +107,22 @@ class AppUserGapsTest extends TestCase
         $this->get(str_replace('u='.$user->id, 'u='.$host->id, $url))->assertForbidden();
     }
 
+    // --- Account deletion (Google Play) ---------------------------------------
+
+    public function test_user_requests_account_deletion_with_their_password(): void
+    {
+        Notification::fake();
+        Sanctum::actingAs($user = User::factory()->create(['password' => bcrypt('secret-pass')]));
+
+        $this->postJson('/api/account/deletion-request', ['password' => 'wrong'])
+            ->assertStatus(422)->assertJsonValidationErrors('password');
+        $this->postJson('/api/account/deletion-request', ['password' => 'secret-pass', 'reason' => 'Not using it'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('contact_messages', ['email' => $user->email, 'subject' => 'Account deletion request']);
+        $this->get('/account/delete')->assertOk()->assertSee('Delete my account');
+    }
+
     // --- #7 Email verification -----------------------------------------------
 
     public function test_unverified_user_can_resend_and_verify_by_code_in_the_app(): void

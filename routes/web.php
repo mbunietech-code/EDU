@@ -74,6 +74,7 @@ Route::get('/contact', [ContactController::class, 'index'])->name('public.contac
 Route::post('/contact', [ContactController::class, 'store'])->name('public.contact.store');
 Route::view('/terms', 'public.legal.terms')->name('public.terms');
 Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
+Route::view('/account/delete', 'public.legal.account-deletion')->name('public.account-deletion');
 
 Route::get('/scholarships', [PublicScholarshipController::class, 'index'])->name('public.scholarships.index');
 Route::get('/scholarships/{scholarship:slug}', [PublicScholarshipController::class, 'show'])->name('public.scholarships.show');

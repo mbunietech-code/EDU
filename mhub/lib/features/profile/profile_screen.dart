@@ -83,6 +83,15 @@ class ProfileScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
                   ),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.person_remove_outlined, color: AppColors.red600),
+                  title: const Text('Delete my account'),
+                  trailing: const Icon(Icons.chevron_right, color: AppColors.gray400),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DeleteAccountScreen()),
+                  ),
+                ),
               ],
             ),
           ),

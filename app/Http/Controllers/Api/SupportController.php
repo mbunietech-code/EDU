@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\ContactMessage;
 use App\Services\NotificationService;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Contact form and "forgot password" for the app (same as the web forms).
@@ -64,6 +67,43 @@ class SupportController extends Controller
         }
 
         return response()->json(['message' => 'Your email is verified.', 'verified' => true]);
+    }
+
+    /**
+     * "Delete my account" in the app (Google Play requirement). The password
+     * confirms it is really the owner; the request reaches the admins like a
+     * contact message and is carried out within 30 days (see /account/delete).
+     */
+    public function accountDeletionRequest(Request $request, NotificationService $notifications): JsonResponse
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $user = $request->user();
+
+        if (! Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages(['password' => 'The password is not correct.']);
+        }
+
+        $message = ContactMessage::create([
+            'name' => $user->name,
+            'email' => $user->email,
+            'subject' => 'Account deletion request',
+            'message' => "User #{$user->id} ({$user->email}) asked to delete their account from the app."
+                .(filled($data['reason'] ?? null) ? "\n\nReason: ".$data['reason'] : ''),
+        ]);
+        ActivityLog::log('account_deletion_requested', 'User', $user->id);
+
+        try {
+            $notifications->notifyAdminNewContactMessage($message);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return response()->json([
+            'message' => 'We received your request. Your account and personal data will be deleted within 30 days, and we will email you when it is done.',
+        ], 201);
     }
 
     /**

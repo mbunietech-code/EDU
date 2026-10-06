@@ -230,6 +230,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Profile
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
     Route::match(['put', 'patch'], '/profile/password', [ProfileController::class, 'updatePassword']);
+    Route::post('/account/deletion-request', [\App\Http\Controllers\Api\SupportController::class, 'accountDeletionRequest'])->middleware('throttle:3,1');
 
     // Push notification device registration
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);

@@ -213,3 +213,107 @@ class _LabeledField extends StatelessWidget {
     );
   }
 }
+
+/// "Delete my account" (Google Play requirement): the password confirms the
+/// request; the account and personal data are deleted within 30 days.
+class DeleteAccountScreen extends ConsumerStatefulWidget {
+  const DeleteAccountScreen({super.key});
+
+  @override
+  ConsumerState<DeleteAccountScreen> createState() => _DeleteAccountScreenState();
+}
+
+class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
+  final _password = TextEditingController();
+  final _reason = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text('Your account and personal data will be deleted within 30 days. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.red600)),
+          ),
+        ],
+      ),
+    );
+    if (sure != true) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final body = await ref.read(apiClientProvider).post('/account/deletion-request', data: {
+        'password': _password.text,
+        'reason': _reason.text.trim(),
+      }) as Map<String, dynamic>;
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Request received'),
+          content: Text(body['message'] as String? ?? 'Your account will be deleted within 30 days.'),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+        ),
+      );
+      await ref.read(authControllerProvider.notifier).logout();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.errors?['password']?.first ?? e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: AppColors.pageBackground,
+        appBar: AppBar(title: const Text('Delete my account')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'We will delete your account and personal data (profile, messages, learning progress and uploads) '
+              'within 30 days. Order and payment records that the law requires us to keep are kept for up to '
+              '7 years without your profile. Active subscriptions end when the account is deleted.',
+              style: TextStyle(color: AppColors.gray700, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: InputDecoration(labelText: 'Your password', errorText: _error),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _reason,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Why are you leaving? (optional)'),
+            ),
+            const SizedBox(height: 20),
+            MbuiButton(
+              label: 'Delete my account',
+              variant: MbuiVariant.danger,
+              fullWidth: true,
+              loading: _busy,
+              onPressed: _busy ? null : _submit,
+            ),
+          ],
+        ),
+      );
+}
