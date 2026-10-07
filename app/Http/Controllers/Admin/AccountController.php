@@ -32,6 +32,19 @@ class AccountController extends Controller
         return view('admin.accounts.index', compact('accounts'));
     }
 
+    /** AI plans we bought: when each one was bought and when it ends. */
+    public function plans(Request $request)
+    {
+        $all = Account::forPlansPage()->get();
+        $counts = $all->countBy(fn (Account $a) => $a->planState());
+        $filter = in_array($request->query('filter'), ['active', 'expiring', 'expired', 'unknown'], true) ? $request->query('filter') : 'all';
+        $accounts = $filter === 'all' ? $all : $all->filter(fn (Account $a) => $a->planState() === $filter)->values();
+        $spent = $all->whereNotNull('cost')->groupBy(fn (Account $a) => $a->cost_currency ?: 'TZS')
+            ->map(fn ($group) => (float) $group->sum('cost'));
+
+        return view('admin.accounts.plans', compact('accounts', 'counts', 'filter', 'spent') + ['total' => $all->count()]);
+    }
+
     public function create()
     {
         $products = Product::all();

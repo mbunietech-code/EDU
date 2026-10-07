@@ -370,6 +370,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Shared account vault
         Route::controller(\App\Http\Controllers\Api\Admin\AccountController::class)->prefix('accounts')->group(function () {
+            Route::get('/plans', 'plans');
             Route::get('/', 'index');
             Route::get('/targets', 'targets');
             Route::post('/', 'store');

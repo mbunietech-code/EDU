@@ -19,6 +19,7 @@
                 <x-text-input id="name" class="mbui-input mt-1" type="text" name="name" :value="old('name', $account->name)" required />
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
+            @include('admin.accounts._plan-fields')
             <div>
                 <x-input-label for="description" value="Description" />
                 <textarea id="description" name="description" rows="2" class="mbui-input mt-1">{{ old('description', $account->description) }}</textarea>

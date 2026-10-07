@@ -269,6 +269,9 @@ Route::prefix('admin')
         });
 
         // --- Shared accounts -----------------------------------------
+        // Before the resource, so "plans" is never read as an account id.
+        Route::get('accounts/plans', [AdminAccountController::class, 'plans'])
+            ->middleware('can:accounts.view')->name('accounts.plans');
         Route::resource('accounts', AdminAccountController::class)
             ->middlewareFor(['index', 'show'], 'can:accounts.view')
             ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:accounts.manage');

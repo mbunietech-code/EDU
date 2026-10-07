@@ -12,9 +12,14 @@ class StoreAccountRequest extends FormRequest
         return auth()->check() && auth()->user()->is_admin;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['auto_renew' => $this->boolean('auto_renew')]);
+    }
+
     public function rules(): array
     {
-        return [
+        return \App\Models\Account::planRules() + [
             'product_id' => ['required', 'exists:products,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

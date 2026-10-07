@@ -47,6 +47,39 @@ class AccountController extends Controller
         ]);
     }
 
+    /**
+     * AI plans we bought: every account that is not archived, soonest end
+     * date first (no date last), with counts for the summary cards.
+     */
+    public function plans(Request $request): JsonResponse
+    {
+        $this->gate($request);
+        $filter = $request->query('filter', 'all');
+
+        $accounts = Account::forPlansPage()->get();
+
+        $counts = $accounts->countBy(fn (Account $a) => $a->planState());
+        if (in_array($filter, ['active', 'expiring', 'expired', 'unknown'], true)) {
+            $accounts = $accounts->filter(fn (Account $a) => $a->planState() === $filter)->values();
+        }
+
+        $spent = $accounts->whereNotNull('cost')->groupBy(fn (Account $a) => $a->cost_currency ?: 'TZS')
+            ->map(fn ($group) => (float) $group->sum('cost'));
+
+        return response()->json([
+            'data' => $accounts->map(fn (Account $a) => $this->row($a) + ['users' => (int) $a->users_count])->values(),
+            'meta' => [
+                'total' => array_sum($counts->all()),
+                'active' => (int) ($counts['active'] ?? 0),
+                'expiring' => (int) ($counts['expiring'] ?? 0),
+                'expired' => (int) ($counts['expired'] ?? 0),
+                'unknown' => (int) ($counts['unknown'] ?? 0),
+                'expiring_days' => Account::EXPIRING_DAYS,
+                'cost_by_currency' => $spent,
+            ],
+        ]);
+    }
+
     public function show(Request $request, Account $account): JsonResponse
     {
         $this->gate($request);
@@ -67,7 +100,7 @@ class AccountController extends Controller
     {
         $this->gate($request, 'accounts.manage');
 
-        $data = $request->validate([
+        $data = $request->validate(Account::planRules() + [
             'product_id' => ['required', 'exists:products,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -75,6 +108,7 @@ class AccountController extends Controller
             'status' => ['required', Rule::in(['available', 'suspended', 'maintenance', 'archived'])],
         ]);
 
+        $data['auto_renew'] = (bool) ($data['auto_renew'] ?? false);
         $data['credentials'] = ! empty($data['credentials'])
             ? $this->credentials->encrypt($data['credentials'])
             : null;
@@ -89,7 +123,7 @@ class AccountController extends Controller
     {
         $this->gate($request, 'accounts.manage');
 
-        $data = $request->validate([
+        $data = $request->validate(Account::planRules() + [
             'product_id' => ['required', 'exists:products,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -97,6 +131,9 @@ class AccountController extends Controller
             'status' => ['required', Rule::in(['available', 'assigned', 'suspended', 'maintenance', 'expired', 'archived'])],
         ]);
 
+        if (array_key_exists('auto_renew', $data)) {
+            $data['auto_renew'] = (bool) $data['auto_renew'];
+        }
         if (! empty($data['credentials'])) {
             $data['credentials'] = $this->credentials->encrypt($data['credentials']);
         } else {
@@ -160,6 +197,14 @@ class AccountController extends Controller
             'product_id' => $a->product_id,
             'status' => $a->status,
             'has_credentials' => $a->credentials !== null,
+            'plan_name' => $a->plan_name,
+            'purchased_at' => $a->purchased_at?->toDateString(),
+            'expires_at' => $a->expires_at?->toDateString(),
+            'days_left' => $a->planDaysLeft(),
+            'plan_state' => $a->planState(),
+            'cost' => $a->cost !== null ? (float) $a->cost : null,
+            'cost_currency' => $a->cost_currency,
+            'auto_renew' => (bool) $a->auto_renew,
         ];
     }
 }
