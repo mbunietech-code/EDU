@@ -1,37 +1,42 @@
-<x-layouts.public title="Delete your account" metaDescription="How to delete your MbunieEduHub account and data.">
+@php
+    $sections = [
+        'in-the-app' => 'In the app',
+        'without-the-app' => 'Without the app',
+        'what-happens' => 'What is deleted, and when',
+    ];
+@endphp
 
-    <section class="mbui-container py-16">
-        <div class="max-w-3xl">
-            <h1 class="text-3xl font-bold tracking-tight text-gray-900">Delete your MbunieEduHub account</h1>
-            <p class="mt-2 text-sm text-gray-500">MbunieEduHub (MHub app, Android and Windows) by MbunieEduHub, Dar es Salaam, Tanzania.</p>
+<x-legal.page
+    title="Delete your account"
+    updated="7 October 2026"
+    intro="How to delete your MbunieEduHub account and personal data. This applies to the website and the MHub apps for Android and Windows."
+    :sections="$sections">
 
-            <div class="mt-8 space-y-8 text-sm leading-relaxed text-gray-700">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">In the app</h2>
-                    <ol class="mt-2 list-decimal space-y-1 pl-5">
-                        <li>Open the MHub app and sign in.</li>
-                        <li>Go to <strong>Profile</strong> → <strong>Delete my account</strong>.</li>
-                        <li>Enter your password and confirm.</li>
-                    </ol>
-                </div>
+    <x-legal.section id="in-the-app" number="1" title="In the app">
+        <ol class="list-decimal space-y-1.5 pl-5">
+            <li>Open the MHub app and sign in.</li>
+            <li>Go to <strong>Profile</strong> → <strong>Delete my account</strong>.</li>
+            <li>Enter your password and confirm.</li>
+        </ol>
+        <p>You are signed out straight away and we confirm by email when the deletion is complete.</p>
+    </x-legal.section>
 
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Without the app</h2>
-                    <p class="mt-2">Send us a request from the <a href="{{ route('public.contact') }}" class="mbui-anchor">contact page</a> with the subject <strong>"Account deletion request"</strong>, using the email address of your account. We may ask you to confirm the request from that email address.</p>
-                </div>
+    <x-legal.section id="without-the-app" number="2" title="Without the app">
+        <p>Send us a request from the <a href="{{ route('public.contact') }}" class="mbui-anchor">contact page</a> with the subject <strong>"Account deletion request"</strong>, using the email address of your account. We may ask you to confirm the request from that email address.</p>
+    </x-legal.section>
 
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">What is deleted, and when</h2>
-                    <p class="mt-2">Within 30 days of your request we delete your account and your personal data: your name, email, phone number, profile, support messages, learning progress, comments and uploaded files.</p>
-                    <p class="mt-2">Records we must keep by law for accounting and fraud prevention (orders, payment references and receipts) are kept for up to 7 years, without your profile, and are then deleted.</p>
-                </div>
-
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Questions</h2>
-                    <p class="mt-2">See our <a href="{{ route('public.privacy') }}" class="mbui-anchor">Privacy Policy</a> or reach us through the <a href="{{ route('public.contact') }}" class="mbui-anchor">contact page</a>.</p>
-                </div>
+    <x-legal.section id="what-happens" number="3" title="What is deleted, and when">
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div class="rounded-xl border border-red-100 bg-red-50 p-4">
+                <p class="text-sm font-semibold text-red-800">Deleted within 30 days</p>
+                <p class="mt-1 text-sm text-red-700">Your account, name, email, phone number, profile, support messages, learning progress, comments and uploaded files.</p>
+            </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p class="text-sm font-semibold text-amber-800">Kept for up to 7 years</p>
+                <p class="mt-1 text-sm text-amber-700">Orders, payment references and receipts, without your profile, because tax and accounting law requires it. Then deleted.</p>
             </div>
         </div>
-    </section>
+        <p>Active subscriptions end when the account is deleted. More details are in our <a href="{{ route('public.privacy') }}" class="mbui-anchor">Privacy Policy</a>.</p>
+    </x-legal.section>
 
-</x-layouts.public>
+</x-legal.page>
