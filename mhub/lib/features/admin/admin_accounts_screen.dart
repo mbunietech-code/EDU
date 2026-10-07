@@ -8,6 +8,7 @@ import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import 'admin_common.dart';
 import 'admin_form_kit.dart';
+import 'ai_plans_screen.dart';
 
 class AdminAccountsScreen extends ConsumerWidget {
   const AdminAccountsScreen({super.key});
@@ -19,7 +20,18 @@ class AdminAccountsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
-      appBar: AppBar(title: const Text('Shared accounts')),
+      appBar: AppBar(
+        title: const Text('Shared accounts'),
+        actions: [
+          IconButton(
+            tooltip: 'AI plans we bought',
+            icon: const Icon(Icons.event_note_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiPlansScreen()),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => const AccountFormScreen(),
@@ -299,9 +311,31 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   final _name = TextEditingController();
   final _desc = TextEditingController();
   final _credentials = TextEditingController();
+  final _planName = TextEditingController();
+  final _cost = TextEditingController();
   int? _productId;
   String _status = 'available';
+  DateTime? _purchasedAt;
+  DateTime? _expiresAt;
+  String _currency = 'USD';
+  bool _autoRenew = false;
   bool _saving = false;
+
+  static const _currencies = ['TZS', 'USD', 'CNY', 'EUR', 'GBP', 'KES'];
+  String _ymd(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate(bool purchase) async {
+    final initial = (purchase ? _purchasedAt : _expiresAt) ??
+        (purchase ? DateTime.now() : (_purchasedAt ?? DateTime.now()).add(const Duration(days: 30)));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => purchase ? _purchasedAt = picked : _expiresAt = picked);
+  }
 
   VaultAccount? get a => widget.account;
   bool get isNew => a == null;
@@ -313,11 +347,17 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     _desc.text = a?.description ?? '';
     _productId = a?.productId;
     _status = a?.status ?? 'available';
+    _planName.text = a?.planName ?? '';
+    _purchasedAt = a?.purchasedAt;
+    _expiresAt = a?.expiresAt;
+    _cost.text = a?.cost == null ? '' : a!.cost!.toStringAsFixed(2);
+    _currency = a?.costCurrency ?? 'USD';
+    _autoRenew = a?.autoRenew ?? false;
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _desc, _credentials]) {
+    for (final c in [_name, _desc, _credentials, _planName, _cost]) {
       c.dispose();
     }
     super.dispose();
@@ -334,6 +374,12 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       'name': _name.text.trim(),
       'description': _desc.text.trim(),
       'status': _status,
+      'plan_name': _planName.text.trim(),
+      'purchased_at': _purchasedAt == null ? null : _ymd(_purchasedAt!),
+      'expires_at': _expiresAt == null ? null : _ymd(_expiresAt!),
+      'cost': double.tryParse(_cost.text.replaceAll(',', '').trim()),
+      'cost_currency': _currency,
+      'auto_renew': _autoRenew,
       if (_credentials.text.trim().isNotEmpty)
         'credentials': _credentials.text.trim(),
     };
@@ -387,6 +433,68 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           ),
         ),
         LabeledInput(label: 'Name / label', child: TextField(controller: _name)),
+        const Padding(
+          padding: EdgeInsets.only(top: 8, bottom: 4),
+          child: Text('Plan we bought', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.gray900)),
+        ),
+        LabeledInput(
+          label: 'Plan',
+          hint: 'e.g. ChatGPT Plus - monthly',
+          child: TextField(controller: _planName),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: LabeledInput(
+                label: 'Bought on',
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickDate(true),
+                  icon: const Icon(Icons.event, size: 18),
+                  label: Text(_purchasedAt == null ? 'Choose' : _ymd(_purchasedAt!)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: LabeledInput(
+                label: 'Ends on',
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickDate(false),
+                  icon: const Icon(Icons.event_busy, size: 18),
+                  label: Text(_expiresAt == null ? 'Choose' : _ymd(_expiresAt!)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: LabeledInput(
+                label: 'What we paid',
+                child: TextField(controller: _cost, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 110,
+              child: LabeledInput(
+                label: 'Currency',
+                child: DropdownButtonFormField<String>(
+                  initialValue: _currency,
+                  items: [for (final c in _currencies) DropdownMenuItem(value: c, child: Text(c))],
+                  onChanged: (v) => setState(() => _currency = v ?? 'USD'),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Renews automatically'),
+          value: _autoRenew,
+          onChanged: (v) => setState(() => _autoRenew = v),
+        ),
         LabeledInput(
             label: 'Notes',
             child: TextField(controller: _desc, maxLines: 2)),

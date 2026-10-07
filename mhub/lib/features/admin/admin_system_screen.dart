@@ -8,6 +8,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import 'admin_accounts_screen.dart';
+import 'ai_plans_screen.dart';
 import 'admin_common.dart';
 import 'admin_database_screen.dart';
 import 'admin_form_kit.dart';
@@ -31,6 +32,8 @@ class AdminSystemScreen extends ConsumerWidget {
       _SysTile('Subscriptions', Icons.autorenew, const AdminSubscriptionsScreen()),
       _SysTile('Shared accounts', Icons.vpn_key_outlined,
           const AdminAccountsScreen()),
+      _SysTile('AI plans we bought', Icons.event_note_outlined,
+          const AiPlansScreen()),
       _SysTile('Payment methods', Icons.account_balance_wallet_outlined,
           const AdminPaymentMethodsScreen()),
       _SysTile('Contact messages', Icons.mail_outline,
