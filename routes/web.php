@@ -222,6 +222,12 @@ Route::prefix('admin')
             Route::post('test', [\App\Http\Controllers\Admin\AlertSettingsController::class, 'test'])->name('test');
         });
 
+        // --- Mbunie VPN (vpn.mbuniehub.com) — super admin only ---------------
+        Route::middleware('can:vpn.view')->prefix('vpn')->name('vpn.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\VpnController::class, 'index'])->name('index');
+            Route::post('orders/{order}/retry', [\App\Http\Controllers\Admin\VpnController::class, 'retry'])->name('orders.retry');
+        });
+
         // --- AI Assistant chat — super admin only --------------------------
         Route::middleware('can:ai.access')->prefix('ai-assistant')->name('ai-assistant.')->group(function () {
             Route::get('/', [AiAssistantController::class, 'index'])->name('index');

@@ -24,4 +24,7 @@ Schedule::command(\App\Console\Commands\LearningCleanupUploadsCommand::class)->h
 
 Schedule::command(\App\Console\Commands\PaymentsSyncGatewayCommand::class)->everyMinute()->withoutOverlapping();
 
+// Paid Mbunie VPN orders the VPN server couldn't activate yet (it was unreachable).
+Schedule::command(\App\Console\Commands\MvpnRetryActivationsCommand::class)->everyFiveMinutes()->withoutOverlapping();
+
 Schedule::command('inspire')->hourly();

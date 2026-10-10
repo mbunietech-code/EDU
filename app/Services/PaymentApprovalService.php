@@ -40,6 +40,11 @@ class PaymentApprovalService
                 // nothing further to activate, it becomes visible now that the order is confirmed.
             } elseif ($order->product->isSoftware()) {
                 $this->softwareAccessService->activateForOrder($order);
+            } elseif ($order->product->isVpn()) {
+                // Remote call: only after the approval is committed, so a VPN
+                // outage never rolls back a verified payment. Failures are kept
+                // on the order and retried by mvpn:retry-activations.
+                DB::afterCommit(fn () => app(VpnAccessService::class)->activateForOrder($order->fresh()));
             } else {
                 $this->subscriptionService->createFromOrder($order);
             }

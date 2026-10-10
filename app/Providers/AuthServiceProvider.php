@@ -69,5 +69,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('database.access', fn (User $user) => $user->isSuperAdmin());
         Gate::define('team.manage', fn (User $user) => $user->isSuperAdmin());
         Gate::define('ai.access', fn (User $user) => $user->isSuperAdmin());
+        // Mbunie VPN dashboard (customers, payments, who is online) — super admin only.
+        Gate::define('vpn.view', fn (User $user) => $user->isSuperAdmin());
     }
 }

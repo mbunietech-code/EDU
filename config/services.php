@@ -43,4 +43,16 @@ return [
         'project_id' => env('FCM_PROJECT_ID'),
     ],
 
+    /*
+    | Mbunie VPN control plane (vpn.mbuniehub.com). partner_secret must equal
+    | EDUHUB_PARTNER_SECRET on the VPN side; it signs every partner API call.
+    */
+    'mvpn' => [
+        'url' => rtrim((string) env('MVPN_URL', 'https://vpn.mbuniehub.com'), '/'),
+        'partner_secret' => env('MVPN_PARTNER_SECRET'),
+        'timeout' => (int) env('MVPN_TIMEOUT', 20),
+        'download_android' => env('MVPN_DOWNLOAD_ANDROID', 'https://vpn.mbuniehub.com/storage/downloads/Mbunie-VPN-1.0.6.apk'),
+        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', 'https://vpn.mbuniehub.com/storage/downloads/Mbunie-VPN-Setup-1.0.6.exe'),
+    ],
+
 ];

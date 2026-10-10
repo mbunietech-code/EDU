@@ -31,6 +31,8 @@ class Order extends Model
         'amount' => 'decimal:2',
         'confirmed_at' => 'datetime',
         'software_access_expires_at' => 'datetime',
+        'vpn_activated_at' => 'datetime',
+        'vpn_expires_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

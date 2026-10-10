@@ -17,6 +17,7 @@ class Plan extends Model
         'description',
         'duration_type',
         'duration_days',
+        'mvpn_plan_code',
         'price',
         'status',
         'sort_order',

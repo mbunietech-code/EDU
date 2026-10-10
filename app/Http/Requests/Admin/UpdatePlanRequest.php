@@ -20,6 +20,8 @@ class UpdatePlanRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'duration_type' => ['required', Rule::in(['days', 'lifetime'])],
             'duration_days' => ['nullable', 'integer', 'min:1', 'required_if:duration_type,days'],
+            // Plan code on vpn.mbuniehub.com (e.g. m1) — only for products of type "vpn".
+            'mvpn_plan_code' => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9_-]+$/'],
             'price' => ['required', 'numeric', 'min:0'],
             'status' => ['required', Rule::in(['active', 'inactive'])],
             'sort_order' => ['nullable', 'integer', 'min:0'],

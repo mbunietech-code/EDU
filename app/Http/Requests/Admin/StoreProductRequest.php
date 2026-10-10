@@ -23,7 +23,7 @@ class StoreProductRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0'],
             'image' => ['nullable', 'mimes:jpg,jpeg,png,gif,bmp,webp,svg,avif,tiff,tif,ico,heic,heif', 'max:5120'],
             'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
-            'type' => ['required', Rule::in(['subscription', 'software'])],
+            'type' => ['required', Rule::in(['subscription', 'software', 'vpn'])],
             'software_version' => ['nullable', 'string', 'max:255'],
             'software_key' => ['nullable', 'string', 'max:1000', 'required_if:type,software'],
             'software_file' => ['nullable', 'file', 'extensions:exe,zip,msi,rar,apk,dmg', 'max:153600'],

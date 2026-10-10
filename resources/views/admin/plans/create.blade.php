@@ -55,6 +55,12 @@
                     <x-input-error :messages="$errors->get('price')" class="mt-2" />
                 </div>
             </div>
+            <div>
+                <x-input-label for="mvpn_plan_code" value="MVPN plan code (for Mbunie VPN products only)" />
+                <x-text-input id="mvpn_plan_code" class="mbui-input mt-1" type="text" name="mvpn_plan_code" :value="old('mvpn_plan_code')" placeholder="e.g. m1" />
+                <p class="mt-1 text-xs text-gray-500">The plan code on vpn.mbuniehub.com this plan activates. Leave empty for other products.</p>
+                <x-input-error :messages="$errors->get('mvpn_plan_code')" class="mt-2" />
+            </div>
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
                     <x-input-label for="status" value="Status" />

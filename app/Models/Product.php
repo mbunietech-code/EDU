@@ -39,6 +39,12 @@ class Product extends Model
         return $this->type === 'software';
     }
 
+    /** Mbunie VPN access, activated on vpn.mbuniehub.com when the order is confirmed. */
+    public function isVpn(): bool
+    {
+        return $this->type === 'vpn';
+    }
+
     public function imageUrl(): ?string
     {
         return $this->image ? asset('storage/'.$this->image) : null;

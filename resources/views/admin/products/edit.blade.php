@@ -44,6 +44,7 @@
                     <select id="type" name="type" class="mbui-input mt-1">
                         <option value="subscription" @selected(old('type', $product->type) === 'subscription')>Subscription (account access)</option>
                         <option value="software" @selected(old('type', $product->type) === 'software')>Software (product key + download)</option>
+                        <option value="vpn" @selected(old('type', $product->type) === 'vpn')>Mbunie VPN (activated on vpn.mbuniehub.com)</option>
                     </select>
                     <x-input-error :messages="$errors->get('type')" class="mt-2" />
                 </div>
