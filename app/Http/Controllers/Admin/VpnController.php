@@ -40,7 +40,10 @@ class VpnController extends Controller
 
         $failed = $orders->filter(fn (Order $o) => $o->status === 'confirmed' && ! $o->vpn_activated_at);
 
-        return view('admin.vpn.index', compact('stats', 'error', 'orders', 'failed'));
+        // 1 TZS in USD / CNY, to add up revenue taken in different currencies.
+        $rates = app(\App\Services\CurrencyRateService::class)->rates();
+
+        return view('admin.vpn.index', compact('stats', 'error', 'orders', 'failed', 'rates'));
     }
 
     public function retry(Order $order, VpnAccessService $vpn): RedirectResponse

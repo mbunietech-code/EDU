@@ -8,8 +8,26 @@
 
     @if ($stats)
         @php
-            $tzs = $stats['payments']['revenue_this_month']['tzs']['cents'] ?? 0;
-            $usd = $stats['payments']['revenue_this_month']['usd']['cents'] ?? 0;
+            // Every currency the VPN took this month, plus one total in TSh at today's rate.
+            $revenue = $stats['payments']['revenue_this_month'] ?? [];
+            $perTzs = ['tzs' => 1.0, 'usd' => (float) ($rates['USD'] ?? 0), 'cny' => (float) ($rates['CNY'] ?? 0)];
+            $totalTzs = 0.0;
+            $parts = [];
+            $count = 0;
+            foreach ($revenue as $cur => $r) {
+                $amount = $r['cents'] / 100;
+                $count += $r['count'];
+                if (($perTzs[$cur] ?? 0) > 0) {
+                    $totalTzs += $amount / $perTzs[$cur];
+                }
+                $parts[] = match ($cur) {
+                    'usd' => '$'.number_format($amount, 2),
+                    'cny' => '¥'.number_format($amount, $amount == floor($amount) ? 0 : 2),
+                    'tzs' => 'TSh '.number_format($amount),
+                    default => strtoupper($cur).' '.number_format($amount, 2),
+                };
+            }
+            $onlyTzs = array_keys($revenue) === [] || array_keys($revenue) === ['tzs'];
         @endphp
         <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <x-mbui.stats-card title="Using the VPN now" :value="$stats['online_now']['devices']"
@@ -18,8 +36,8 @@
                 :trend="$stats['subscriptions']['expiring_3d'].' end within 3 days'" />
             <x-mbui.stats-card title="All customers" :value="$stats['customers']"
                 :trend="$stats['subscriptions']['expired'].' expired · '.$stats['subscriptions']['suspended'].' suspended'" />
-            <x-mbui.stats-card title="Revenue this month" :value="'TSh '.number_format($tzs / 100)"
-                :trend="($usd ? '$'.number_format($usd / 100, 2).' · ' : '').$stats['payments']['pending'].' payments waiting'" />
+            <x-mbui.stats-card title="Revenue this month" :value="($onlyTzs ? '' : '≈ ').'TSh '.number_format(round($totalTzs))"
+                :trend="($parts ? implode(' + ', $parts).' · '.$count.' paid · ' : '').$stats['payments']['pending'].' payments waiting'" />
         </div>
 
         <x-mbui.table title="Online right now" class="mt-6">

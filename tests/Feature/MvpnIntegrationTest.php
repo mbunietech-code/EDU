@@ -142,7 +142,7 @@ class MvpnIntegrationTest extends TestCase
         Http::fake(['vpn.test/api/partner/stats' => Http::response([
             'customers' => 3,
             'subscriptions' => ['active' => 2, 'expiring_3d' => 1, 'expired' => 1, 'suspended' => 0],
-            'payments' => ['pending' => 0, 'failed_30d' => 0, 'revenue_this_month' => ['tzs' => ['cents' => 3000000, 'count' => 2]]],
+            'payments' => ['pending' => 0, 'failed_30d' => 0, 'revenue_this_month' => ['tzs' => ['cents' => 3000000, 'count' => 2], 'cny' => ['cents' => 63000, 'count' => 3]]],
             'online_now' => ['devices' => 1, 'customers' => 1, 'list' => [
                 ['customer' => 'buyer@example.com', 'platform' => 'android', 'protocol' => 'auto', 'connected_since' => now()->toIso8601String()],
             ]],
@@ -155,7 +155,7 @@ class MvpnIntegrationTest extends TestCase
         $customer = User::factory()->create(['email_verified_at' => now()]);
 
         $this->actingAs($super)->get(route('admin.vpn.index'))->assertOk()
-            ->assertSee('Using the VPN now')->assertSee('buyer@example.com')->assertSee('Kuala Lumpur 1');
+            ->assertSee('Using the VPN now')->assertSee('¥630')->assertSee('5 paid')->assertSee('buyer@example.com')->assertSee('Kuala Lumpur 1');
         $this->actingAs($plainAdmin)->get(route('admin.vpn.index'))->assertForbidden();
         $this->actingAs($customer)->get(route('admin.vpn.index'))->assertForbidden();
     }
