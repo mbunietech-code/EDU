@@ -6,10 +6,24 @@
         <x-mbui.alert type="warning" class="mt-4">{{ $error }}</x-mbui.alert>
     @endif
 
+    @php
+        $usdPerTzs = (float) ($rates['USD'] ?? 0);
+        $cnyPerTzs = (float) ($rates['CNY'] ?? 0);
+    @endphp
+    @if ($canManage && $usdPerTzs > 0 && $cnyPerTzs > 0)
+        <div class="mbui-card mt-4 vpn-row" style="padding:.75rem 1rem;justify-content:space-between">
+            <span class="text-sm text-gray-700">
+                Today's rate: <strong>$1 = ¥{{ number_format($cnyPerTzs / $usdPerTzs, 2) }} = TSh {{ number_format(1 / $usdPerTzs) }}</strong>
+            </span>
+            <label class="text-sm text-gray-700"><input type="checkbox" id="vpn-autoconvert" checked> Convert prices automatically</label>
+        </div>
+        <p class="mt-2 text-xs text-gray-500">Type a price in any currency and the other two fill in at today's rate (USD to the cent, CNY to the whole yuan, TZS to the nearest 100). You can still change any of them by hand before saving.</p>
+    @endif
+
     <div class="vpn-grid2 mt-4">
         @foreach ($plans as $p)
             <x-mbui.card>
-                <form method="POST" action="{{ route('admin.vpn.plans.update', $p['id']) }}">
+                <form method="POST" action="{{ route('admin.vpn.plans.update', $p['id']) }}" data-plan-prices>
                     @csrf
                     @method('PUT')
                     <div class="vpn-row" style="justify-content:space-between">
@@ -49,4 +63,30 @@
             </x-mbui.card>
         @endforeach
     </div>
+
+    @if ($canManage && $usdPerTzs > 0 && $cnyPerTzs > 0)
+        <script>
+            (() => {
+                const perTzs = { usd: {{ $usdPerTzs }}, cny: {{ $cnyPerTzs }}, tzs: 1 };
+                const round = {
+                    usd: v => Math.round(v * 100) / 100,
+                    cny: v => Math.max(1, Math.round(v)),
+                    tzs: v => Math.round(v / 100) * 100,
+                };
+                const auto = document.getElementById('vpn-autoconvert');
+                document.querySelectorAll('form[data-plan-prices]').forEach(form => {
+                    const field = cur => form.querySelector(`[name=price_${cur}]`);
+                    ['usd', 'cny', 'tzs'].forEach(from => {
+                        field(from).addEventListener('input', () => {
+                            const v = parseFloat(field(from).value);
+                            if (!auto.checked || !(v > 0)) return;
+                            const tzs = v / perTzs[from];
+                            ['usd', 'cny', 'tzs'].filter(to => to !== from)
+                                .forEach(to => field(to).value = round[to](tzs * perTzs[to]));
+                        });
+                    });
+                });
+            })();
+        </script>
+    @endif
 </x-layouts.admin>

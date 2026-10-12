@@ -76,7 +76,7 @@ class VpnManageTest extends TestCase
         $this->get(route('admin.vpn.customers.show', 5))->assertOk()->assertSee('samsung SM-G9960')->assertSee('Add days')->assertSee('Remove');
         $this->get(route('admin.vpn.devices', ['filter' => 'online']))->assertOk()->assertSee('samsung SM-G9960');
         $this->get(route('admin.vpn.payments'))->assertOk()->assertSee('CNY 55.00')->assertSee('Approve');
-        $this->get(route('admin.vpn.plans'))->assertOk()->assertSee('Monthly');
+        $this->get(route('admin.vpn.plans'))->assertOk()->assertSee('Monthly')->assertSee('Convert prices automatically')->assertSee('data-plan-prices', false);
 
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'customers?q=gao') && $this->signedOk($r));
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'devices?filter=online') && $this->signedOk($r));

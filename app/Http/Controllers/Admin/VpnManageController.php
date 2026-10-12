@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Services\CurrencyRateService;
 use App\Services\MvpnClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,11 +55,12 @@ class VpnManageController extends Controller
         return view('admin.vpn.payments', ['result' => $data, 'error' => $error, 'q' => $request->query('q'), 'status' => $status]);
     }
 
-    public function plans(): View
+    public function plans(CurrencyRateService $currency): View
     {
         [$data, $error] = $this->fetch(fn () => $this->vpn->admin('GET', 'plans'));
 
-        return view('admin.vpn.plans', ['plans' => $data['data'] ?? [], 'error' => $error]);
+        // Live rates (1 TZS in USD / CNY) so typing one price fills in the others.
+        return view('admin.vpn.plans', ['plans' => $data['data'] ?? [], 'error' => $error, 'rates' => $currency->rates()]);
     }
 
     /** Payment screenshot, streamed from the VPN server. */
