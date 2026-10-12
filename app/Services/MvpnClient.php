@@ -46,6 +46,50 @@ class MvpnClient
         return $this->send('GET', '/api/plans', signed: false);
     }
 
+    /**
+     * VPN management endpoints (/api/partner/admin/...).
+     *
+     * @param  array<string,mixed>  $query
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    public function admin(string $method, string $path, array $query = [], array $payload = []): array
+    {
+        $query = array_filter($query, fn ($v) => $v !== null && $v !== '');
+        $uri = '/api/partner/admin/'.ltrim($path, '/').($query ? '?'.http_build_query($query) : '');
+
+        return $this->send(strtoupper($method), $uri, $payload);
+    }
+
+    /**
+     * A file from the VPN (payment screenshot), streamed through EduHub so the
+     * reviewer never needs a VPN login.
+     *
+     * @return array{0:string,1:string} [bytes, content type]
+     */
+    public function adminFile(string $path): array
+    {
+        if (! $this->configured()) {
+            throw new RuntimeException('MVPN_PARTNER_SECRET is not set');
+        }
+        $uri = '/api/partner/admin/'.ltrim($path, '/');
+        $ts = time();
+
+        try {
+            $res = Http::withHeaders([
+                'X-Mvpn-Timestamp' => (string) $ts,
+                'X-Mvpn-Signature' => self::sign((string) config('services.mvpn.partner_secret'), $ts, 'GET', $uri, ''),
+            ])->timeout(config('services.mvpn.timeout'))->get(config('services.mvpn.url').$uri);
+        } catch (ConnectionException) {
+            throw new RuntimeException('VPN server unreachable');
+        }
+        if (! $res->successful()) {
+            throw new RuntimeException('VPN API error: HTTP '.$res->status(), $res->status());
+        }
+
+        return [$res->body(), $res->header('Content-Type') ?: 'application/octet-stream'];
+    }
+
     public static function sign(string $secret, int $ts, string $method, string $uri, string $body): string
     {
         return hash_hmac('sha256', implode("\n", [$ts, strtoupper($method), $uri, hash('sha256', $body)]), $secret);
@@ -82,7 +126,7 @@ class MvpnClient
         }
 
         if (! $res->successful()) {
-            $error = $res->json('error') ?? ('HTTP '.$res->status());
+            $error = $res->json('message') ?? $res->json('error') ?? ('HTTP '.$res->status());
             throw new RuntimeException("VPN API error: {$error}", $res->status());
         }
 

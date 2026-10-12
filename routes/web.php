@@ -226,6 +226,29 @@ Route::prefix('admin')
         Route::middleware('can:vpn.view')->prefix('vpn')->name('vpn.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\VpnController::class, 'index'])->name('index');
             Route::post('orders/{order}/retry', [\App\Http\Controllers\Admin\VpnController::class, 'retry'])->name('orders.retry');
+
+            // Manage the VPN from here (customers, devices, payments, plans).
+            Route::controller(\App\Http\Controllers\Admin\VpnManageController::class)->group(function () {
+                Route::get('customers', 'customers')->name('customers');
+                Route::get('customers/{id}', 'customer')->whereNumber('id')->name('customers.show');
+                Route::get('devices', 'devices')->name('devices');
+                Route::get('payments', 'payments')->name('payments');
+                Route::get('payments/{id}/proof', 'proof')->whereNumber('id')->name('payments.proof');
+                Route::get('plans', 'plans')->name('plans');
+
+                Route::middleware('can:vpn.manage')->group(function () {
+                    Route::post('customers/{id}/status', 'customerStatus')->whereNumber('id')->name('customers.status');
+                    Route::post('customers/{id}/grant', 'grant')->whereNumber('id')->name('customers.grant');
+                    Route::post('subscriptions/{id}/extend', 'extend')->whereNumber('id')->name('subscriptions.extend');
+                    Route::post('subscriptions/{id}/suspend', 'suspend')->whereNumber('id')->name('subscriptions.suspend');
+                    Route::post('subscriptions/{id}/restore', 'restore')->whereNumber('id')->name('subscriptions.restore');
+                    Route::post('devices/{id}/remove', 'removeDevice')->whereNumber('id')->name('devices.remove');
+                    Route::post('devices/{id}/allow', 'allowDevice')->whereNumber('id')->name('devices.allow');
+                    Route::post('payments/{id}/approve', 'approve')->whereNumber('id')->name('payments.approve');
+                    Route::post('payments/{id}/reject', 'reject')->whereNumber('id')->name('payments.reject');
+                    Route::put('plans/{id}', 'updatePlan')->whereNumber('id')->name('plans.update');
+                });
+            });
         });
 
         // --- AI Assistant chat — super admin only --------------------------

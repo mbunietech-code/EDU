@@ -155,7 +155,7 @@ class MvpnIntegrationTest extends TestCase
         $customer = User::factory()->create(['email_verified_at' => now()]);
 
         $this->actingAs($super)->get(route('admin.vpn.index'))->assertOk()
-            ->assertSee('Wanaotumia VPN sasa')->assertSee('buyer@example.com')->assertSee('Kuala Lumpur 1');
+            ->assertSee('Using the VPN now')->assertSee('buyer@example.com')->assertSee('Kuala Lumpur 1');
         $this->actingAs($plainAdmin)->get(route('admin.vpn.index'))->assertForbidden();
         $this->actingAs($customer)->get(route('admin.vpn.index'))->assertForbidden();
     }
@@ -168,7 +168,7 @@ class MvpnIntegrationTest extends TestCase
 
         $this->actingAs($user)->get(route('user.orders.show', $order))->assertOk()
             ->assertSee('VPN active')
-            ->assertSee('Sign in with MbunieHub')
+            ->assertSee('one-time code')
             ->assertSee('/download/qr.svg', false);
     }
 }

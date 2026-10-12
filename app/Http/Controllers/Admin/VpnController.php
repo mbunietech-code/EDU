@@ -23,12 +23,12 @@ class VpnController extends Controller
         $error = null;
 
         if (! $mvpn->configured()) {
-            $error = 'MVPN_PARTNER_SECRET haijawekwa kwenye .env ya EduHub.';
+            $error = 'MVPN_PARTNER_SECRET is not set in the EduHub .env.';
         } else {
             try {
                 $stats = $mvpn->stats();
             } catch (RuntimeException $e) {
-                $error = 'Haikuweza kufikia VPN server: '.$e->getMessage();
+                $error = 'Could not reach the VPN server: '.$e->getMessage();
             }
         }
 
@@ -51,7 +51,7 @@ class VpnController extends Controller
         $ok = $vpn->activateForOrder($order);
 
         return back()->with($ok ? 'success' : 'error', $ok
-            ? "VPN imewashwa kwa oda #{$order->order_number}."
-            : 'Bado imeshindwa: '.($order->fresh()->vpn_activation_error ?? 'kosa lisilojulikana'));
+            ? "VPN activated for order #{$order->order_number}."
+            : 'Still failing: '.($order->fresh()->vpn_activation_error ?? 'unknown error'));
     }
 }
