@@ -14,6 +14,9 @@ use RuntimeException;
  */
 class MvpnClient
 {
+    /** Per-call override of services.mvpn.timeout (seconds). */
+    private ?int $timeout = null;
+
     public function configured(): bool
     {
         return strlen((string) config('services.mvpn.partner_secret')) >= 32;
@@ -44,6 +47,31 @@ class MvpnClient
     public function plans(): array
     {
         return $this->send('GET', '/api/plans', signed: false);
+    }
+
+    /**
+     * VPN payment screenshots waiting for review, for the admin menu badge.
+     * Cached a minute; null when the VPN can't be reached (no badge shown).
+     */
+    public function paymentsToReview(): ?int
+    {
+        if (! $this->configured()) {
+            return null;
+        }
+
+        // -1 = VPN unreachable; cached too, so a VPN outage never slows the admin.
+        $n = \Illuminate\Support\Facades\Cache::remember('mvpn:payments_to_review', 60, function () {
+            $this->timeout = 3;
+            try {
+                return (int) ($this->admin('GET', 'invoices', ['status' => 'review'])['meta']['total'] ?? 0);
+            } catch (RuntimeException) {
+                return -1;
+            } finally {
+                $this->timeout = null;
+            }
+        });
+
+        return $n >= 0 ? $n : null;
     }
 
     /**
@@ -116,7 +144,7 @@ class MvpnClient
         }
 
         try {
-            $request = Http::withHeaders($headers)->timeout(config('services.mvpn.timeout'));
+            $request = Http::withHeaders($headers)->timeout($this->timeout ?? config('services.mvpn.timeout'));
             /** @var Response $res */
             $res = $method === 'GET'
                 ? $request->get(config('services.mvpn.url').$uri)

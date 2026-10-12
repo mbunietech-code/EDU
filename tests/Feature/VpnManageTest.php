@@ -111,6 +111,22 @@ class VpnManageTest extends TestCase
             ->assertSessionHas('error', 'VPN API error: Only pending payments can be rejected.');
     }
 
+    public function test_menu_badge_counts_payments_to_review(): void
+    {
+        Http::fake(['vpn.test/api/partner/admin/invoices*' => Http::response(['data' => [], 'meta' => ['page' => 1, 'last_page' => 1, 'total' => 3]])]);
+
+        $this->assertSame(3, app(MvpnClient::class)->paymentsToReview());
+    }
+
+    public function test_menu_badge_hides_and_caches_a_vpn_outage(): void
+    {
+        Http::fake(['vpn.test/*' => Http::response([], 500)]);
+
+        $this->assertNull(app(MvpnClient::class)->paymentsToReview());
+        $this->assertNull(app(MvpnClient::class)->paymentsToReview());
+        Http::assertSentCount(1); // the failure is cached, so pages stay fast
+    }
+
     public function test_only_super_admins_get_in(): void
     {
         Http::fake();

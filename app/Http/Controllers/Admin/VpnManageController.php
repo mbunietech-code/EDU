@@ -183,6 +183,7 @@ class VpnManageController extends Controller
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage())->withInput();
         }
+        \Illuminate\Support\Facades\Cache::forget('mvpn:payments_to_review');
         ActivityLog::log($log, 'Vpn', $id, $data);
 
         return back()->with('success', $ok);
