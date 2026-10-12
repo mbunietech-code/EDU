@@ -82,15 +82,21 @@
                                 <div class="space-y-2 text-sm text-emerald-900">
                                     <p class="font-medium">Get the app</p>
                                     <div class="flex flex-wrap gap-2">
-                                        <a href="{{ config('services.mvpn.download_android') }}" class="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Android</a>
-                                        <a href="{{ config('services.mvpn.download_windows') }}" class="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Windows</a>
+                                        <a href="{{ config('services.mvpn.download_android') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                                            <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor"><path d="M17 26a15 13 0 0 1 30 0z"/><rect x="17" y="28" width="30" height="21" rx="3"/><rect x="10" y="28" width="5" height="16" rx="2.5"/><rect x="49" y="28" width="5" height="16" rx="2.5"/><rect x="23" y="46" width="5" height="11" rx="2.5"/><rect x="36" y="46" width="5" height="11" rx="2.5"/></g></svg>
+                                            Android
+                                        </a>
+                                        <a href="{{ config('services.mvpn.download_windows') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                                            <svg width="16" height="16" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M6 12.2 27 9.3v20.3H6zM29.4 9 58 5v24.6H29.4zM6 32h21v20.3L6 49.4zM29.4 32H58v26.6l-28.6-4z"/></svg>
+                                            Windows
+                                        </a>
                                     </div>
-                                    <p class="text-xs text-emerald-700">Scan the QR on your phone to open the download page.</p>
+                                    <p class="text-xs text-emerald-700">Scan the QR on your phone to open the download page, or <a href="{{ rtrim(config('services.mvpn.url'), '/') }}/download" class="font-semibold underline">see all platforms</a>.</p>
                                 </div>
                             </div>
                             <ol class="mt-4 list-decimal space-y-1 pl-5 text-sm text-emerald-900">
                                 <li>Install and open Mbunie VPN.</li>
-                                <li>Tap <strong>Sign in with MbunieHub</strong> and use this account ({{ auth()->user()->email }}).</li>
+                                <li>Sign in with this account's email ({{ auth()->user()->email }}); we send you a one-time code.</li>
                                 <li>Tap <strong>Connect</strong>.</li>
                             </ol>
                         </div>
