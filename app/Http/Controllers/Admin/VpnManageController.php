@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Services\CurrencyRateService;
 use App\Services\MvpnClient;
+use App\Services\VpnPlanSync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -160,7 +161,31 @@ class VpnManageController extends Controller
         ]);
         $data['is_active'] = $request->boolean('is_active');
 
-        return $this->act('PUT', "plans/{$id}", $data, 'vpn_plan_updated', $id, "Plan \"{$data['name']}\" saved.");
+        $back = $this->act('PUT', "plans/{$id}", $data, 'vpn_plan_updated', $id, "Plan \"{$data['name']}\" saved.");
+        if (session()->has('error')) {
+            return $back;
+        }
+
+        // Keep the EduHub "Mbunie VPN" product plans the same.
+        try {
+            app(VpnPlanSync::class)->sync();
+
+            return $back->with('success', "Plan \"{$data['name']}\" saved, here and on the EduHub VPN product.");
+        } catch (RuntimeException $e) {
+            return $back->with('error', 'Saved on the VPN, but the EduHub product could not be updated: '.$e->getMessage());
+        }
+    }
+
+    /** Copy every VPN plan onto the EduHub VPN product now. */
+    public function syncPlans(): RedirectResponse
+    {
+        try {
+            $s = app(VpnPlanSync::class)->sync();
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "EduHub VPN product updated: {$s['created']} added, {$s['updated']} changed, {$s['disabled']} switched off.");
     }
 
     // ---- helpers -------------------------------------------------------

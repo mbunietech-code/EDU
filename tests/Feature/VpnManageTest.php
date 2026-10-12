@@ -127,6 +127,60 @@ class VpnManageTest extends TestCase
         Http::assertSentCount(1); // the failure is cached, so pages stay fast
     }
 
+    private function vpnPlans(): array
+    {
+        return ['data' => [
+            ['id' => 2, 'code' => 'm1', 'name' => '1 Month', 'days' => 30, 'max_devices' => 2, 'price_usd' => 1.49, 'price_cny' => 10, 'price_tzs' => 3900, 'is_active' => true],
+            ['id' => 4, 'code' => 'y1', 'name' => '1 Year', 'days' => 365, 'max_devices' => 3, 'price_usd' => 31.33, 'price_cny' => 210, 'price_tzs' => 82700, 'is_active' => true],
+            ['id' => 1, 'code' => 'trial7', 'name' => 'Trial', 'days' => 7, 'max_devices' => 1, 'price_usd' => 0, 'price_cny' => 0, 'price_tzs' => 0, 'is_active' => true],
+        ]];
+    }
+
+    public function test_vpn_plans_are_copied_onto_the_eduhub_vpn_product(): void
+    {
+        Http::fake(['vpn.test/api/partner/admin/plans' => Http::response($this->vpnPlans())]);
+        $product = \App\Models\Product::factory()->create(['type' => 'vpn', 'status' => 'published']);
+        $old = \App\Models\Plan::factory()->create(['product_id' => $product->id, 'mvpn_plan_code' => 'm1', 'name' => 'Vpn Basic', 'price' => 21664, 'duration_days' => 30, 'status' => 'active']);
+        $gone = \App\Models\Plan::factory()->create(['product_id' => $product->id, 'mvpn_plan_code' => 'm2', 'price' => 39389, 'status' => 'active']);
+        $other = \App\Models\Plan::factory()->create(['mvpn_plan_code' => null, 'price' => 1000, 'status' => 'active']); // another product
+
+        $s = app(\App\Services\VpnPlanSync::class)->sync();
+
+        $this->assertSame(['updated' => 1, 'created' => 2, 'disabled' => 1], $s);
+        $old->refresh();
+        $this->assertSame('1 Month', $old->name);
+        $this->assertEquals(3900, $old->price);
+        $this->assertSame('inactive', $gone->fresh()->status);
+        $this->assertSame('active', $other->fresh()->status);
+        $y1 = \App\Models\Plan::where('mvpn_plan_code', 'y1')->first();
+        $this->assertSame(365, $y1->duration_days);
+        $this->assertSame('inactive', \App\Models\Plan::where('mvpn_plan_code', 'trial7')->first()->status, 'no TZS price = not sold');
+
+        // Second run changes nothing.
+        $this->assertSame(['updated' => 0, 'created' => 0, 'disabled' => 0], app(\App\Services\VpnPlanSync::class)->sync());
+    }
+
+    public function test_saving_a_vpn_plan_updates_eduhub_and_eduhub_vpn_plans_cannot_be_edited_directly(): void
+    {
+        Http::fake([
+            'vpn.test/api/partner/admin/plans/2' => Http::response(['plan' => []]),
+            'vpn.test/api/partner/admin/plans' => Http::response($this->vpnPlans()),
+        ]);
+        $product = \App\Models\Product::factory()->create(['type' => 'vpn', 'status' => 'published']);
+        $plan = \App\Models\Plan::factory()->create(['product_id' => $product->id, 'mvpn_plan_code' => 'm1', 'price' => 100, 'duration_days' => 30, 'status' => 'active']);
+        $this->actingAs($this->super);
+
+        $this->put(route('admin.vpn.plans.update', 2), [
+            'name' => '1 Month', 'days' => 30, 'max_devices' => 2, 'price_usd' => 1.49, 'price_cny' => 10, 'price_tzs' => 3900, 'is_active' => '1',
+        ])->assertSessionHas('success');
+        $this->assertEquals(3900, $plan->fresh()->price);
+
+        $this->put(route('admin.plans.update', $plan), [
+            'product_id' => $product->id, 'name' => 'Hacked', 'duration_type' => 'days', 'duration_days' => 30, 'price' => 1, 'status' => 'active',
+        ])->assertRedirect(route('admin.vpn.plans'));
+        $this->assertEquals(3900, $plan->fresh()->price);
+    }
+
     public function test_only_super_admins_get_in(): void
     {
         Http::fake();

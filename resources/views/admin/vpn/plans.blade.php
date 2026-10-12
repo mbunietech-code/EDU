@@ -6,6 +6,23 @@
         <x-mbui.alert type="warning" class="mt-4">{{ $error }}</x-mbui.alert>
     @endif
 
+    @php $vpnProducts = \App\Models\Product::where('type', 'vpn')->get(['id', 'name']); @endphp
+    <div class="mbui-card mt-4 vpn-row" style="padding:.75rem 1rem;justify-content:space-between">
+        <span class="text-sm text-gray-700">
+            @if ($vpnProducts->isNotEmpty())
+                Sold on EduHub as <strong>{{ $vpnProducts->pluck('name')->implode(', ') }}</strong>: saving a plan here updates its name, days and TZS price there too. Plans off sale or without a TZS price are hidden on EduHub.
+            @else
+                No EduHub product of type “vpn” yet, so these plans are only sold in the app.
+            @endif
+        </span>
+        @if ($canManage && $vpnProducts->isNotEmpty())
+            <form method="POST" action="{{ route('admin.vpn.plans.sync') }}">
+                @csrf
+                <button class="vpn-btn" type="submit">Update EduHub now</button>
+            </form>
+        @endif
+    </div>
+
     @php
         $usdPerTzs = (float) ($rates['USD'] ?? 0);
         $cnyPerTzs = (float) ($rates['CNY'] ?? 0);

@@ -247,6 +247,7 @@ Route::prefix('admin')
                     Route::post('payments/{id}/approve', 'approve')->whereNumber('id')->name('payments.approve');
                     Route::post('payments/{id}/reject', 'reject')->whereNumber('id')->name('payments.reject');
                     Route::put('plans/{id}', 'updatePlan')->whereNumber('id')->name('plans.update');
+                    Route::post('plans/sync', 'syncPlans')->name('plans.sync');
                 });
             });
         });

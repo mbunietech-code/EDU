@@ -1,6 +1,12 @@
 <x-layouts.admin title="Edit Plan" header="Edit Plan">
 
     <div class="max-w-2xl">
+        @if ($plan->product?->isVpn())
+            <x-mbui.alert type="info" class="mb-4">
+                This is a Mbunie VPN plan. Its name, days and price are copied from
+                <a href="{{ route('admin.vpn.plans') }}" class="font-semibold underline">Mbunie VPN → Plans</a>; change them there.
+            </x-mbui.alert>
+        @endif
         <form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="mbui-card p-6 space-y-5">
             @csrf
             @method('PUT')

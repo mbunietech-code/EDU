@@ -62,6 +62,12 @@ class PlanController extends Controller
     {
         $this->authorize('update', $plan);
 
+        // VPN plans are copied from the VPN; editing them here would be undone.
+        if ($plan->product?->isVpn()) {
+            return redirect()->route('admin.vpn.plans')
+                ->with('error', 'VPN plans are edited in Mbunie VPN → Plans; this product copies them automatically.');
+        }
+
         $data = $request->validated();
 
         if ($data['duration_type'] === 'lifetime') {

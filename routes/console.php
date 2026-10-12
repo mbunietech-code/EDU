@@ -28,3 +28,5 @@ Schedule::command(\App\Console\Commands\PaymentsSyncGatewayCommand::class)->ever
 Schedule::command(\App\Console\Commands\MvpnRetryActivationsCommand::class)->everyFiveMinutes()->withoutOverlapping();
 
 Schedule::command('inspire')->hourly();
+// Copy the VPN's plans onto the EduHub "vpn" product (prices live in Mbunie VPN → Plans).
+Schedule::command('mvpn:sync-plans')->hourly()->withoutOverlapping();
