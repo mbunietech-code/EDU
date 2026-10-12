@@ -13,6 +13,7 @@ use RuntimeException;
  * type "vpn": name, days, TZS price, on sale or not. A VPN plan with no TZS
  * price, or switched off, is not sold here; EduHub VPN plans whose code the
  * VPN no longer has are switched off (never deleted: old orders keep them).
+ * The product's own price (shown on catalogue cards) follows its cheapest plan.
  */
 class VpnPlanSync
 {
@@ -53,6 +54,13 @@ class VpnPlanSync
                 ->where('status', 'active')
                 ->where(fn ($q) => $q->whereNull('mvpn_plan_code')->orWhereNotIn('mvpn_plan_code', $vpnPlans->keys()))
                 ->update(['status' => 'inactive']);
+
+            // Catalogue cards show the product price: the cheapest plan on sale.
+            $from = (float) (Plan::where('product_id', $product->id)->where('status', 'active')->min('price') ?? 0);
+            if ((float) $product->price !== $from) {
+                $product->forceFill(['price' => $from])->save();
+                $stats['updated']++;
+            }
         }
 
         if (array_sum($stats) > 0) {

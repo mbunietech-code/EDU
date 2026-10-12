@@ -146,7 +146,8 @@ class VpnManageTest extends TestCase
 
         $s = app(\App\Services\VpnPlanSync::class)->sync();
 
-        $this->assertSame(['updated' => 1, 'created' => 2, 'disabled' => 1], $s);
+        $this->assertSame(['updated' => 2, 'created' => 2, 'disabled' => 1], $s); // + product price
+        $this->assertEquals(3900, $product->fresh()->price, 'card shows the cheapest plan on sale');
         $old->refresh();
         $this->assertSame('1 Month', $old->name);
         $this->assertEquals(3900, $old->price);
