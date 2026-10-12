@@ -14,7 +14,11 @@
                     @endif
                 </div>
                 <div class="mt-4 prose prose-gray max-w-none">
-                    <p class="text-gray-600">{{ $product->description }}</p>
+                    @if (filled($product->description))
+                        <p class="text-gray-600">{{ $product->description }}</p>
+                    @elseif ($product->isVpn())
+                        <p class="text-gray-600">Fast, private internet that works in China and wherever you travel. Pay here once and your VPN switches on by itself; then install the app and sign in with the same email.</p>
+                    @endif
                 </div>
 
                 @if ($product->features)
@@ -31,6 +35,10 @@
                             @endforeach
                         </ul>
                     </div>
+                @endif
+
+                @if ($product->isVpn())
+                    @include('public.products._vpn-info')
                 @endif
             </div>
 

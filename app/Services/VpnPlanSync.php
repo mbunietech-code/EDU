@@ -39,9 +39,9 @@ class VpnPlanSync
                     'price' => (float) $vp['price_tzs'],
                     'status' => $vp['is_active'] && $vp['price_tzs'] > 0 ? 'active' : 'inactive',
                     'sort_order' => (int) $vp['days'],
+                    'description' => 'Use on up to '.$vp['max_devices'].' '.((int) $vp['max_devices'] === 1 ? 'device' : 'devices').' · Android & Windows',
                 ]);
                 if (! $plan->exists) {
-                    $plan->description = $vp['max_devices'].' '.($vp['max_devices'] === 1 ? 'device' : 'devices');
                     $plan->save();
                     $stats['created']++;
                 } elseif ($plan->isDirty()) {

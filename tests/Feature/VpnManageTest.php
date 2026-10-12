@@ -182,6 +182,24 @@ class VpnManageTest extends TestCase
         $this->assertEquals(3900, $plan->fresh()->price);
     }
 
+    public function test_vpn_product_page_explains_the_vpn_and_lists_its_plans(): void
+    {
+        Http::fake();
+        $product = \App\Models\Product::factory()->create(['type' => 'vpn', 'status' => 'published', 'slug' => 'vpn', 'name' => 'Mbunie VPN', 'description' => null, 'features' => null]);
+        \App\Models\Plan::factory()->create(['product_id' => $product->id, 'mvpn_plan_code' => 'm1', 'name' => '1 Month', 'price' => 3900, 'status' => 'active', 'description' => 'Use on up to 2 devices · Android & Windows']);
+        \App\Models\Plan::factory()->create(['product_id' => $product->id, 'mvpn_plan_code' => 'm2', 'name' => 'Old plan', 'status' => 'inactive']);
+
+        $this->actingAs(User::factory()->create(['email_verified_at' => now()]))
+            ->get(route('public.products.show', $product))
+            ->assertOk()
+            ->assertSee('works in China')
+            ->assertSee('How it works')
+            ->assertSee('Android app')
+            ->assertSee('1 Month')
+            ->assertSee('Use on up to 2 devices')
+            ->assertDontSee('Old plan');
+    }
+
     public function test_only_super_admins_get_in(): void
     {
         Http::fake();
