@@ -55,14 +55,7 @@ class CompanyAssetController extends Controller
             'soon' => CompanyAsset::query()->whereDate('expires_at', '>=', $today)->whereDate('expires_at', '<=', $soon)->count(),
         ];
 
-        // Yearly cost per currency (one-time purchases left out).
-        $perYear = ['monthly' => 12, 'quarterly' => 4, 'yearly' => 1, 'two_years' => 0.5];
-        $yearly = CompanyAsset::query()->whereNotNull('cost')->where('billing_cycle', '!=', 'one_time')->get(['cost', 'currency', 'billing_cycle'])
-            ->groupBy('currency')
-            ->map(fn ($rows) => $rows->sum(fn ($a) => (float) $a->cost * ($perYear[$a->billing_cycle] ?? 0)))
-            ->filter(fn ($sum) => $sum > 0);
-
-        return view('admin.assets.index', compact('assets', 'counts', 'yearly', 'status', 'category', 'search'));
+        return view('admin.assets.index', compact('assets', 'counts', 'status', 'category', 'search'));
     }
 
     public function create(): View

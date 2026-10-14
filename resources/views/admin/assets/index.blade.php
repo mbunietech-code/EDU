@@ -11,7 +11,7 @@
     </div>
 
     {{-- Summary --}}
-    <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="mt-6 grid gap-3 sm:grid-cols-3">
         <div class="mbui-card p-4">
             <p class="text-xs font-medium uppercase tracking-wide text-gray-500">All assets</p>
             <p class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format($counts['all']) }}</p>
@@ -24,14 +24,6 @@
             <p class="text-xs font-medium uppercase tracking-wide text-red-700">Ended</p>
             <p class="mt-1 text-2xl font-semibold text-red-700">{{ number_format($counts['expired']) }}</p>
         </a>
-        <div class="mbui-card p-4">
-            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Cost per year</p>
-            @forelse ($yearly as $currency => $sum)
-                <p class="mt-1 text-lg font-semibold text-gray-900">{{ $currency }} {{ number_format($sum, $sum < 1000 ? 2 : 0) }}</p>
-            @empty
-                <p class="mt-1 text-2xl font-semibold text-gray-400">—</p>
-            @endforelse
-        </div>
     </div>
 
     {{-- Filters --}}
