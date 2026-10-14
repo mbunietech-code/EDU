@@ -188,6 +188,30 @@ Route::prefix('admin')
             Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         });
 
+        // --- Company assets (what Mbunie pays for and when it ends) ---------
+        Route::middleware('can:assets.view')->group(function () {
+            $c = \App\Http\Controllers\Admin\CompanyAssetController::class;
+            Route::get('assets', [$c, 'index'])->name('assets.index');
+            Route::get('assets/create', [$c, 'create'])->name('assets.create');
+            Route::post('assets', [$c, 'store'])->name('assets.store');
+            Route::get('assets/{asset}/edit', [$c, 'edit'])->whereNumber('asset')->name('assets.edit');
+            Route::put('assets/{asset}', [$c, 'update'])->whereNumber('asset')->name('assets.update');
+            Route::post('assets/{asset}/renew', [$c, 'renew'])->whereNumber('asset')->name('assets.renew');
+            Route::delete('assets/{asset}', [$c, 'destroy'])->whereNumber('asset')->name('assets.destroy');
+        });
+
+        // --- Team tasks (every admin: tasks they give or get) ---------------
+        $tasks = \App\Http\Controllers\Admin\TaskController::class;
+        Route::get('tasks', [$tasks, 'index'])->name('tasks.index');
+        Route::get('tasks/create', [$tasks, 'create'])->name('tasks.create');
+        Route::post('tasks', [$tasks, 'store'])->name('tasks.store');
+        Route::get('tasks/{task}', [$tasks, 'show'])->whereNumber('task')->name('tasks.show');
+        Route::get('tasks/{task}/edit', [$tasks, 'edit'])->whereNumber('task')->name('tasks.edit');
+        Route::put('tasks/{task}', [$tasks, 'update'])->whereNumber('task')->name('tasks.update');
+        Route::post('tasks/{task}/status', [$tasks, 'status'])->whereNumber('task')->name('tasks.status');
+        Route::post('tasks/{task}/comments', [$tasks, 'comment'])->whereNumber('task')->middleware('throttle:30,1')->name('tasks.comment');
+        Route::delete('tasks/{task}', [$tasks, 'destroy'])->whereNumber('task')->name('tasks.destroy');
+
         // --- Team (admins & permissions) — super admin only ---------------
         Route::middleware('can:team.manage')->group(function () {
             Route::get('team', [AdminTeamController::class, 'index'])->name('team.index');

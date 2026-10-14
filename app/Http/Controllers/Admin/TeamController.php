@@ -59,11 +59,13 @@ class TeamController extends Controller
             'role' => ['required', Rule::in(array_keys(Permissions::assignableRoles()))],
             'permissions' => ['array'],
             'permissions.*' => ['string'],
+            'job_title' => ['nullable', 'string', 'max:80'],
         ]);
 
         $role = $this->cappedRole($data['role']);
 
         $user = new User();
+        $user->job_title = $this->jobTitle($data['job_title'] ?? null);
         $user->name = $data['name'];
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
@@ -105,9 +107,11 @@ class TeamController extends Controller
             'role' => ['required', Rule::in(array_keys(Permissions::assignableRoles()))],
             'permissions' => ['array'],
             'permissions.*' => ['string'],
+            'job_title' => ['nullable', 'string', 'max:80'],
         ]);
 
         $role = $this->cappedRole($data['role']);
+        $user->job_title = $this->jobTitle($data['job_title'] ?? null);
 
         // Never remove the last super admin.
         if ($user->role === Permissions::ROLE_SUPER_ADMIN && $role !== Permissions::ROLE_SUPER_ADMIN
@@ -172,5 +176,13 @@ class TeamController extends Controller
     private function superAdminCount(): int
     {
         return User::where('role', Permissions::ROLE_SUPER_ADMIN)->count();
+    }
+
+    /** "Developer", "CEO"…: trimmed, single spaces, empty = none. */
+    private function jobTitle(?string $title): ?string
+    {
+        $title = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $title)) ?? '');
+
+        return $title === '' ? null : mb_substr($title, 0, 80);
     }
 }

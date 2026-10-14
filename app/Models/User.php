@@ -310,6 +310,16 @@ class User extends Authenticatable implements MustVerifyEmail
         }
     }
 
+    /** Open tasks given to this admin (sidebar badge); 0 before the tasks table exists. */
+    public function openTasksCount(): int
+    {
+        try {
+            return AdminTask::query()->open()->where('assigned_to', $this->id)->count();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     public function unreadChatMessagesCount(): int
     {
         if ($this->is_admin) {

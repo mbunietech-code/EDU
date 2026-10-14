@@ -38,6 +38,7 @@
                     $me = auth()->user();
                     $systemSectionVisible = $canAny('settings.manage', 'finance.access', 'database.access', 'ai.access', 'team.manage');
                     $adminNavSection = match (true) {
+                        request()->routeIs('admin.tasks.*', 'admin.assets.*') => 'company',
                         request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
                         request()->routeIs('admin.orders.*', 'admin.payments.*', 'admin.chat.*', 'admin.team-chat.*', 'admin.contact-messages.*', 'admin.payment-methods.*', 'admin.subscriptions.*') => 'operations',
                         request()->routeIs('admin.reports.*', 'admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.notifications.*') => 'insights',
@@ -46,6 +47,42 @@
                 @endphp
 
                 <div class="mt-3 space-y-2" x-data="{ openSection: @js($adminNavSection) }">
+                    {{-- Company: team tasks and what Mbunie pays for --}}
+                    @php
+                        $myOpenTasks = auth()->user()->openTasksCount();
+                        $assetsAttention = 0;
+                        if (auth()->user()->can('assets.view')) {
+                            try {
+                                $assetsAttention = \App\Models\CompanyAsset::query()->endingWithin(\App\Models\CompanyAsset::SOON_DAYS)->count();
+                            } catch (\Throwable $e) {
+                                $assetsAttention = 0;
+                            }
+                        }
+                    @endphp
+                    <button type="button" @click="openSection = openSection === 'company' ? null : 'company'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span class="flex items-center gap-2">Company
+                            @if ($myOpenTasks + $assetsAttention > 0)
+                                <span class="rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold normal-case leading-4 text-white">{{ $myOpenTasks + $assetsAttention }}</span>
+                            @endif
+                        </span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'company' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div class="space-y-1 pl-1" x-show="openSection === 'company'" x-cloak>
+                        <x-admin.sidebar-link :route="route('admin.tasks.index')" :active="request()->routeIs('admin.tasks.*')" label="Tasks" :badge="$myOpenTasks">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                        </x-admin.sidebar-link>
+
+                        @can('assets.view')
+                        <x-admin.sidebar-link :route="route('admin.assets.index')" :active="request()->routeIs('admin.assets.*')" label="Company Assets" :badge="$assetsAttention">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </x-admin.sidebar-link>
+                        @endcan
+                    </div>
+
                     <button type="button" @click="openSection = openSection === 'management' ? null : 'management'"
                         class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
                         <span>Management</span>

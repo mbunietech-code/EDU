@@ -70,6 +70,12 @@ return [
             'rooms.manage'    => 'Create / start / end / delete any live room',
         ],
 
+        'Company & tasks' => [
+            'assets.view'   => 'View company assets (domains, hosting, software… and when they end)',
+            'assets.manage' => 'Add / edit / renew / delete company assets',
+            'tasks.manage'  => 'See and manage every task (everyone sees tasks they gave or got)',
+        ],
+
         'System' => [
             'settings.manage'  => 'Change site settings',
             'finance.access'   => 'Open the Finance area (PIN still required)',

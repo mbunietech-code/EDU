@@ -24,6 +24,19 @@
                 </div>
             </div>
 
+            {{-- Job title: tasks are given to people by name and title (CEO, MD, Developer…) --}}
+            <div>
+                <x-input-label for="job_title" value="Job title" />
+                <x-text-input id="job_title" name="job_title" list="job-titles" maxlength="80" class="mbui-input mt-1 sm:max-w-sm"
+                    :value="old('job_title', '')" placeholder="e.g. CEO, MD, Developer" />
+                <datalist id="job-titles">
+                    @foreach (['CEO', 'MD', 'CTO', 'CFO', 'Developer', 'Designer', 'Marketing', 'Sales', 'Finance', 'Support', 'Instructor coordinator'] as $title)
+                        <option value="{{ $title }}"></option>
+                    @endforeach
+                </datalist>
+                <x-input-error :messages="$errors->get('job_title')" class="mt-2" />
+            </div>
+
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <x-input-label for="password" value="Temporary password" />
