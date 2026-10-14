@@ -10,6 +10,13 @@
 
     RewriteEngine On
 
+    # Security: index.php is the only PHP file allowed to run. Any other PHP
+    # file under public/ (build, images, vendor, storage uploads...) is refused,
+    # so a dropped web shell cannot execute. Hidden files are refused too,
+    # except .well-known (TLS and app-link checks).
+    RewriteRule ^(?!index\.php$).*\.(php[0-9]?|phtml|phar|pht|phps)$ - [F,L,NC]
+    RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
