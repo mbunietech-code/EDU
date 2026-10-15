@@ -40,8 +40,8 @@
                         </dl>
                         <div class="flex items-center justify-between border-t border-gray-100 px-6 py-4">
                             <a href="{{ route('user.subscriptions.show', $subscription) }}" class="mbui-anchor text-sm">View details</a>
-                            @if ($subscription->isActive())
-                                <a href="{{ route('public.products.show', $subscription->product) }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Renew</a>
+                            @if ($subscription->order?->canBeRenewed())
+                                <a href="{{ route('user.orders.show', $subscription->order) }}#renew" class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">Renew</a>
                             @endif
                         </div>
                     </div>

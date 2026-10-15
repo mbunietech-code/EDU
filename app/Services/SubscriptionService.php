@@ -51,6 +51,59 @@ class SubscriptionService
         });
     }
 
+    /**
+     * Approve a renewal order. While the old subscription still holds its
+     * account, it is extended (from its end date, or today if that passed) and
+     * moves to the renewal order. Once it has expired, a new subscription
+     * starts today, on the same account when that one is still free.
+     */
+    public function renewFromOrder(Order $order): Subscription
+    {
+        return DB::transaction(function () use ($order) {
+            $previous = $order->renewsOrder?->subscription;
+            $tz = config('app.timezone');
+            $today = Carbon::now($tz);
+
+            if ($previous && $previous->status !== 'expired' && $previous->account_id) {
+                $from = $previous->expiry_date && $previous->expiry_date->gt($today)
+                    ? Carbon::parse($previous->expiry_date, $tz)
+                    : $today;
+                $endDate = $order->plan->isLifetime()
+                    ? Carbon::parse('2099-12-31', $tz)
+                    : $from->copy()->addDays($order->plan->duration_days);
+
+                $previous->update([
+                    'order_id' => $order->id,
+                    'plan_id' => $order->plan_id,
+                    'expiry_date' => $endDate,
+                    'status' => 'active',
+                ]);
+
+                \App\Models\ActivityLog::log('subscription_renewed', 'Subscription', $previous->id, [
+                    'order_id' => $order->id,
+                    'new_expiry_date' => $endDate->toDateString(),
+                ]);
+
+                return $previous->fresh();
+            }
+
+            $account = $previous?->account_id
+                ? Account::whereKey($previous->account_id)->where('status', 'available')->lockForUpdate()->first()
+                : null;
+            $account ??= $this->accountAssignmentService->findAvailableAccount($order->product_id);
+
+            if (! $account) {
+                throw new \RuntimeException('No available account for product: ' . $order->product->name);
+            }
+
+            $endDate = $order->plan->isLifetime()
+                ? Carbon::parse('2099-12-31', $tz)
+                : $today->copy()->addDays($order->plan->duration_days);
+
+            return $this->createSubscription->execute($order, $account, $today, $endDate);
+        });
+    }
+
     public function createFromOrderWithDates(Order $order, Carbon $startDate, Carbon $endDate): Subscription
     {
         return DB::transaction(function () use ($order, $startDate, $endDate) {

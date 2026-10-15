@@ -199,6 +199,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/orders/{order}/receipt-url', [OrderController::class, 'receiptUrl']);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
+    Route::post('/orders/{order}/renew', [OrderController::class, 'renew'])->middleware('throttle:10,1');
 
     // Payments
     Route::get('/payments', [PaymentController::class, 'index']);

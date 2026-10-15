@@ -45,6 +45,8 @@ class PaymentApprovalService
                 // outage never rolls back a verified payment. Failures are kept
                 // on the order and retried by mvpn:retry-activations.
                 DB::afterCommit(fn () => app(VpnAccessService::class)->activateForOrder($order->fresh()));
+            } elseif ($order->isRenewal()) {
+                $this->subscriptionService->renewFromOrder($order);
             } else {
                 $this->subscriptionService->createFromOrder($order);
             }

@@ -16,7 +16,7 @@ class SubscriptionController extends Controller
     {
         $subscriptions = auth()->user()
             ->subscriptions()
-            ->with(['product', 'plan', 'account'])
+            ->with(['product', 'plan', 'account', 'order.product', 'order.plan', 'order.subscription'])
             ->latest()
             ->paginate(15);
 

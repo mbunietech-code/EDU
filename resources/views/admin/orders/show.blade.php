@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">{{ $order->order_number }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ $order->user->name }} ({{ $order->user->email }}) &middot; {{ $order->created_at->format('d M Y H:i') }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ $order->user->name }} ({{ $order->user->email }}) &middot; {{ $order->created_at->format('d M Y H:i') }}@if ($order->renews_order_id && $order->renewsOrder) &middot; Renewal of <a href="{{ route('admin.orders.show', $order->renewsOrder) }}" class="mbui-anchor">{{ $order->renewsOrder->order_number }}</a>@endif</p>
         </div>
         <div class="flex items-center gap-3">
             @if ($order->isConfirmed())

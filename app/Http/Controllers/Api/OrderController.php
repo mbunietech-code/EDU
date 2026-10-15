@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\Product;
 use App\Models\Tool;
 use App\Services\NotificationService;
+use App\Services\OrderRenewalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -70,7 +71,8 @@ class OrderController extends Controller
     {
         $orders = $request->user()
             ->orders()
-            ->with(['product:id,name,slug,type', 'tool:id,name,slug', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
+            ->with(['product:id,name,slug,type,status', 'tool:id,name,slug', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
+            ->withCount(['renewals as confirmed_renewals_count' => fn ($q) => $q->where('status', 'confirmed')])
             ->latest()
             ->paginate(20);
 
@@ -179,6 +181,30 @@ class OrderController extends Controller
         return response()->json(['data' => $this->row($order->fresh())]);
     }
 
+    /**
+     * Renew like the web order page: optional plan_id (defaults to the same
+     * plan). A renewal already waiting for payment is returned instead of a
+     * duplicate. Pay the returned order like any other.
+     */
+    public function renew(Request $request, Order $order, OrderRenewalService $renewals): JsonResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+
+        if ($pending = $order->pendingRenewal()) {
+            return response()->json(['data' => $this->row($pending->load(['product', 'plan', 'tool']))]);
+        }
+
+        $data = $request->validate(['plan_id' => ['nullable', 'integer']]);
+
+        try {
+            $renewal = $renewals->start($order, $data['plan_id'] ?? null);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->row($renewal->fresh()->load(['product', 'plan', 'tool']))], 201);
+    }
+
     private function row(Order $o): array
     {
         return [
@@ -192,6 +218,9 @@ class OrderController extends Controller
             'display_status' => $o->displayStatus(),
             'display_status_label' => $o->displayStatusLabel(),
             'can_cancel' => $o->canBeCancelledByCustomer(),
+            'can_renew' => $o->canBeRenewed(),
+            'renews_order_id' => $o->renews_order_id,
+            'ends_at' => optional($o->serviceEndsAt())->toIso8601String(),
             'created_at' => optional($o->created_at)->toIso8601String(),
             'created_ago' => optional($o->created_at)->diffForHumans(),
         ];

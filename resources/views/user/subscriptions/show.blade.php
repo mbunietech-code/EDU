@@ -69,7 +69,7 @@
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600">
                             Access is currently <strong>{{ str_replace('_', ' ', $subscription->status) }}</strong>.
                             @if ($subscription->isExpired())
-                                <a href="{{ route('public.products.show', $subscription->product) }}" class="mbui-anchor">Renew now</a>.
+                                <a href="{{ $subscription->order?->canBeRenewed() ? route('user.orders.show', $subscription->order).'#renew' : route('public.products.show', $subscription->product) }}" class="mbui-anchor">Renew now</a>.
                             @endif
                         </div>
                     @endif
@@ -80,16 +80,25 @@
         <div class="space-y-6">
             <div class="mbui-card p-6">
                 <h2 class="mbui-section-label">Renewal</h2>
+                @php $canRenew = (bool) $subscription->order?->canBeRenewed(); @endphp
                 <p class="mt-2 text-sm text-gray-600">
-                    @if ($subscription->status === 'active' || $subscription->status === 'expiring_soon')
-                        Renew to extend your access to {{ $subscription->product->name }}.
+                    @if ($canRenew)
+                        Renew to extend your access to {{ $subscription->product->name }}. The new time is added after {{ $subscription->expiry_date->format('d M Y') }}.
+                    @elseif ($subscription->status === 'active' || $subscription->status === 'expiring_soon')
+                        You can renew from {{ \App\Models\Order::RENEW_WINDOW_DAYS }} days before {{ $subscription->expiry_date->format('d M Y') }}.
                     @else
                         This subscription is {{ str_replace('_', ' ', $subscription->status) }}. You can start a new subscription for the product.
                     @endif
                 </p>
-                <a href="{{ route('public.products.show', $subscription->product) }}" class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
-                    Renew subscription
-                </a>
+                @if ($canRenew)
+                    <a href="{{ route('user.orders.show', $subscription->order) }}#renew" class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                        Renew subscription
+                    </a>
+                @elseif (! in_array($subscription->status, ['active', 'expiring_soon'], true))
+                    <a href="{{ route('public.products.show', $subscription->product) }}" class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                        Order again
+                    </a>
+                @endif
             </div>
 
             <div class="mbui-card p-6">

@@ -8,6 +8,8 @@ use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Services\NotificationService;
+use App\Services\OrderRenewalService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -25,6 +27,7 @@ class OrderController extends Controller
         $orders = auth()->user()
             ->orders()
             ->with(['product', 'plan', 'tool', 'subscription'])
+            ->withCount(['renewals as confirmed_renewals_count' => fn ($q) => $q->where('status', 'confirmed')])
             ->latest()
             ->paginate(15);
 
@@ -87,9 +90,43 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load(['product', 'plan', 'tool.primaryDownload', 'payments.paymentProofs', 'subscription']);
+        $order->load(['product', 'plan', 'tool.primaryDownload', 'payments.paymentProofs', 'subscription', 'renewsOrder']);
 
-        return view('user.orders.show', compact('order'));
+        $isOwner = $order->user_id === auth()->id();
+        $renewPlans = $isOwner && $order->canBeRenewed()
+            ? $order->product->plans()->active()->orderBy('sort_order')->get()
+            : collect();
+        $pendingRenewal = $isOwner ? $order->pendingRenewal() : null;
+        $renewedBy = $order->isConfirmed() ? $order->renewals()->where('status', 'confirmed')->latest('id')->first() : null;
+
+        return view('user.orders.show', compact('order', 'renewPlans', 'pendingRenewal', 'renewedBy'));
+    }
+
+    /**
+     * Start a renewal: a new pending order for the same product (same plan
+     * unless the customer picks another one) that points at this order. Paying
+     * it extends the same subscription / VPN instead of starting a new one.
+     */
+    public function renew(Request $request, Order $order, OrderRenewalService $renewals)
+    {
+        abort_unless($order->user_id === auth()->id(), 403);
+
+        // Already started: send them to pay for that one instead of a duplicate.
+        if ($pending = $order->pendingRenewal()) {
+            return redirect()->route('user.payments.create', $pending)
+                ->with('success', 'Your renewal is waiting for payment.');
+        }
+
+        $data = $request->validate(['plan_id' => ['nullable', 'integer']]);
+
+        try {
+            $renewal = $renewals->start($order, $data['plan_id'] ?? null);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('user.payments.create', $renewal)
+            ->with('success', 'Renewal created. Pay to extend your access; the time is added to what you already have.');
     }
 
     public function cancel(Order $order)

@@ -48,6 +48,8 @@
                             <td class="mbui-td">
                                 @if ($order->isPending())
                                     <a href="{{ route('user.payments.create', $order) }}" class="mbui-anchor text-sm">Submit payment</a>
+                                @elseif ($order->canBeRenewed())
+                                    <a href="{{ route('user.orders.show', $order) }}#renew" class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">Renew</a>
                                 @else
                                     <a href="{{ route('user.orders.show', $order) }}" class="mbui-anchor text-sm">View</a>
                                 @endif

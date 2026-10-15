@@ -3,7 +3,12 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Order {{ $order->order_number }}</h1>
-            <p class="mt-1 text-sm text-gray-500">Placed on {{ $order->created_at->format('d M Y H:i') }}</p>
+            <p class="mt-1 text-sm text-gray-500">
+                Placed on {{ $order->created_at->format('d M Y H:i') }}
+                @if ($order->renewsOrder)
+                    · Renewal of <a href="{{ route('user.orders.show', $order->renewsOrder) }}" class="mbui-anchor">{{ $order->renewsOrder->order_number }}</a>
+                @endif
+            </p>
         </div>
         <div class="flex items-center gap-3">
             @if ($order->isConfirmed())
@@ -42,6 +47,41 @@
                     </div>
                 </dl>
             </x-mbui.card>
+
+            @if ($renewedBy)
+                <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                    This order was renewed by <a href="{{ route('user.orders.show', $renewedBy) }}" class="font-semibold underline">{{ $renewedBy->order_number }}</a>; your access continues there.
+                </div>
+            @elseif ($pendingRenewal)
+                <div id="renew" class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-amber-800">Your renewal <strong>{{ $pendingRenewal->order_number }}</strong> is waiting for payment.</p>
+                    <a href="{{ route('user.payments.create', $pendingRenewal) }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Pay for renewal</a>
+                </div>
+            @elseif ($renewPlans->isNotEmpty())
+                @php $endsAt = $order->serviceEndsAt(); @endphp
+                <div id="renew" class="mbui-card p-6">
+                    <h2 class="mbui-section-label">Renew</h2>
+                    <p class="mt-2 text-sm text-gray-600">
+                        @if ($endsAt && $endsAt->isPast())
+                            Your access ended on {{ $endsAt->format('d M Y') }}. Renew to switch it back on.
+                        @else
+                            Your access ends {{ $endsAt ? 'on '.$endsAt->format('d M Y') : 'soon' }}. Renew now and the new time is added after that date, so you lose nothing.
+                        @endif
+                    </p>
+                    <form method="POST" action="{{ route('user.orders.renew', $order) }}" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                        @csrf
+                        <div class="min-w-0 flex-1">
+                            <label for="renew_plan" class="mbui-label">Plan</label>
+                            <select id="renew_plan" name="plan_id" class="mbui-input mt-1">
+                                @foreach ($renewPlans as $p)
+                                    <option value="{{ $p->id }}" @selected($p->id === $order->plan_id)>{{ $p->name }} ({{ $p->durationLabel() }}) · TZS {{ number_format($p->price) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Renew now</button>
+                    </form>
+                </div>
+            @endif
 
             @if ($order->isToolOrder())
                 <x-mbui.card>

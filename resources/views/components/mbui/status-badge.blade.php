@@ -20,6 +20,7 @@
         'cancelled' => 'danger',
         'archived' => 'danger',
         'assigned' => 'info',
+        'renewed' => 'info',
         'scheduled' => 'info',
         'live' => 'danger',
         'completed' => 'success',

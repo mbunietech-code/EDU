@@ -39,7 +39,7 @@ class ExpiryWarning extends Notification implements ShouldQueue
             ->subject('Subscription Expiring Soon')
             ->line('Your subscription to ' . $this->subscription->product->name . ' will expire on ' . $this->subscription->expiry_date->toDateString() . '.')
             ->line('Days remaining: ' . $this->subscription->daysRemaining())
-            ->action('Renew Subscription', url('/my-subscriptions'))
+            ->action('Renew Subscription', $this->subscription->order_id ? route('user.orders.show', $this->subscription->order_id).'#renew' : url('/my-subscriptions'))
             ->line('Thank you for using MbunieEduHub!');
     }
 }

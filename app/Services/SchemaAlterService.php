@@ -23,6 +23,8 @@ class SchemaAlterService
         'Duplicate column name',
         'already exists',
         'Duplicate key name',
+        'Duplicate foreign key constraint name',
+        'duplicate key in table',
         'Multiple primary key defined',
         "check that column/key exists",
     ];
