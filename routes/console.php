@@ -31,6 +31,5 @@ Schedule::command(\App\Console\Commands\MvpnRetryActivationsCommand::class)->eve
 Schedule::command(\App\Console\Commands\AssetsRemindCommand::class)->dailyAt('07:00')->withoutOverlapping();
 Schedule::command(\App\Console\Commands\TasksRemindCommand::class)->dailyAt('07:05')->withoutOverlapping();
 
-Schedule::command('inspire')->hourly();
 // Copy the VPN's plans onto the EduHub "vpn" product (prices live in Mbunie VPN → Plans).
 Schedule::command('mvpn:sync-plans')->hourly()->withoutOverlapping();
