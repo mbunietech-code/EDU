@@ -87,7 +87,8 @@ class PaymentController extends Controller
             $this->notifications->notifyToolKeyDelivered($payment->user, $order);
         } elseif ($order->isSoftware()) {
             $this->notifications->notifySoftwareDelivered($payment->user, $order);
-        } else {
+        } elseif ($order->subscription) {
+            // VPN orders have no subscription row; the VPN side activates them.
             $this->notifications->notifySubscriptionActivated($payment->user, $order->subscription);
         }
 

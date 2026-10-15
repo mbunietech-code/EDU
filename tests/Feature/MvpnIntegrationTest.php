@@ -171,4 +171,22 @@ class MvpnIntegrationTest extends TestCase
             ->assertSee('one-time code')
             ->assertSee('/download/qr.svg', false);
     }
+
+    /** VPN orders have no subscription row: approving one must not crash on the "activated" email. */
+    public function test_admin_can_approve_a_vpn_payment_from_the_web_and_the_app(): void
+    {
+        $this->fakeVpnOk();
+        $super = User::factory()->create(['is_admin' => true, 'role' => 'super_admin', 'email_verified_at' => now()]);
+
+        ['order' => $web, 'payment' => $webPayment] = $this->vpnOrder();
+        $this->actingAs($super)->post(route('admin.payments.approve', $webPayment))
+            ->assertRedirect()->assertSessionHas('success', 'Payment approved and VPN activation started.');
+        $this->assertSame('confirmed', $web->fresh()->status);
+        $this->assertNotNull($web->fresh()->vpn_activated_at);
+
+        $web->user->update(['email' => 'first-buyer@example.com']); // vpnOrder() reuses one email
+        ['order' => $app, 'payment' => $appPayment] = $this->vpnOrder();
+        $this->actingAs($super, 'sanctum')->postJson("/api/admin/payments/{$appPayment->id}/approve")->assertOk();
+        $this->assertSame('confirmed', $app->fresh()->status);
+    }
 }

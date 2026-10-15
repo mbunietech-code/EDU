@@ -75,9 +75,15 @@ class PaymentController extends Controller
         } elseif ($order->isSoftware()) {
             $this->notificationService->notifySoftwareDelivered($payment->user, $order);
             $message = 'software delivered.';
-        } else {
+        } elseif ($order->product?->isVpn()) {
+            // VPN orders have no subscription row: the VPN side holds it, and the
+            // order page shows activation progress.
+            $message = 'VPN activation started.';
+        } elseif ($order->subscription) {
             $this->notificationService->notifySubscriptionActivated($payment->user, $order->subscription);
             $message = 'subscription activated.';
+        } else {
+            $message = 'order confirmed.';
         }
 
         return back()->with('success', 'Payment approved and ' . $message);
