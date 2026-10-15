@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">{{ $order->order_number }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ $order->user->name }} ({{ $order->user->email }}) &middot; {{ $order->created_at->format('d M Y H:i') }}@if ($order->renews_order_id && $order->renewsOrder) &middot; Renewal of <a href="{{ route('admin.orders.show', $order->renewsOrder) }}" class="mbui-anchor">{{ $order->renewsOrder->order_number }}</a>@endif</p>
+            <p class="mt-1 text-sm text-gray-500">{{ $order->user->name }} ({{ $order->user->email }}) &middot; {{ $order->created_at->format('d M Y H:i') }}</p>
         </div>
         <div class="flex items-center gap-3">
             @if ($order->isConfirmed())
@@ -22,6 +22,26 @@
             <x-mbui.status-badge :status="$order->displayStatus()" :label="$order->displayStatusLabel()" />
         </div>
     </div>
+
+    @if ($order->renews_order_id && $order->renewsOrder)
+        <div class="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+            <strong>Renewal.</strong> This order renews
+            <a href="{{ route('admin.orders.show', $order->renewsOrder) }}" class="font-semibold underline">{{ $order->renewsOrder->order_number }}</a>.
+            Approving its payment extends the customer's existing {{ $order->product?->isVpn() ? 'VPN' : 'subscription' }} instead of starting a new one.
+        </div>
+    @endif
+
+    @if ($renewedBy)
+        <div class="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+            <strong>Renewed.</strong> The customer renewed this order with
+            <a href="{{ route('admin.orders.show', $renewedBy) }}" class="font-semibold underline">{{ $renewedBy->order_number }}</a>; the service continues there.
+        </div>
+    @elseif ($pendingRenewal)
+        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <strong>Renewal waiting for payment:</strong>
+            <a href="{{ route('admin.orders.show', $pendingRenewal) }}" class="font-semibold underline">{{ $pendingRenewal->order_number }}</a>.
+        </div>
+    @endif
 
     @if ($order->rejection_reason)
         <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

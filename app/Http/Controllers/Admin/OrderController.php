@@ -11,32 +11,83 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
+    /** Status filter values: stored statuses plus the computed ones admins see on badges. */
+    public const STATUS_FILTERS = ['pending', 'paid', 'confirmed', 'active', 'expired', 'renewed', 'rejected', 'cancelled'];
+
+    public const SORTS = ['newest', 'oldest', 'amount_desc', 'amount_asc'];
+
     public function index(Request $request)
     {
-        $orders = Order::with(['user', 'product', 'plan', 'tool', 'payment', 'subscription'])
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->input('status'));
+        $renewalsReady = Order::renewalsReady();
+        $f = $request->only(['search', 'status', 'user', 'product', 'plan', 'device', 'type', 'sort']);
+
+        $orders = Order::with(array_merge(
+                ['user', 'product', 'plan', 'tool', 'payment', 'subscription'],
+                $renewalsReady ? ['renewsOrder:id,order_number'] : []
+            ))
+            ->withConfirmedRenewalsCount()
+            ->when($f['search'] ?? null, function ($query, $term) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('order_number', 'like', "%{$term}%")
+                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
+                });
             })
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $term = $request->input('search');
-                $query->where('order_number', 'like', "%{$term}%")
-                      ->orWhereHas('user', function ($q) use ($term) {
-                          $q->where('name', 'like', "%{$term}%")
-                            ->orWhere('email', 'like', "%{$term}%");
-                      });
+            ->when(in_array($f['status'] ?? null, self::STATUS_FILTERS, true), fn ($q) => $this->filterStatus($q, $f['status'], $renewalsReady))
+            ->when(ctype_digit((string) ($f['user'] ?? '')), fn ($q) => $q->where('user_id', $f['user']))
+            ->when(ctype_digit((string) ($f['product'] ?? '')), fn ($q) => $q->where('product_id', $f['product']))
+            ->when(ctype_digit((string) ($f['plan'] ?? '')), fn ($q) => $q->where('plan_id', $f['plan']))
+            ->when(($f['device'] ?? '') !== '', fn ($q) => $f['device'] === 'none'
+                ? $q->where(fn ($d) => $d->whereNull('device')->orWhere('device', ''))
+                : $q->where('device', $f['device']))
+            ->when($renewalsReady && ($f['type'] ?? null) === 'renewal', fn ($q) => $q->whereNotNull('renews_order_id'))
+            ->when($renewalsReady && ($f['type'] ?? null) === 'new', fn ($q) => $q->whereNull('renews_order_id'))
+            ->when(true, fn ($q) => match ($f['sort'] ?? 'newest') {
+                'oldest' => $q->oldest(),
+                'amount_desc' => $q->orderByDesc('amount')->latest(),
+                'amount_asc' => $q->orderBy('amount')->latest(),
+                default => $q->latest(),
             })
-            ->latest()
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.orders.index', compact('orders'));
+        $products = \App\Models\Product::orderBy('name')->get(['id', 'name']);
+        $plans = ctype_digit((string) ($f['product'] ?? ''))
+            ? \App\Models\Plan::where('product_id', $f['product'])->orderBy('sort_order')->get(['id', 'name'])
+            : collect();
+        $devices = Order::whereNotNull('device')->where('device', '!=', '')->distinct()->orderBy('device')->pluck('device');
+        $filterUser = ctype_digit((string) ($f['user'] ?? '')) ? \App\Models\User::find($f['user'], ['id', 'name']) : null;
+
+        return view('admin.orders.index', compact('orders', 'products', 'plans', 'devices', 'filterUser', 'renewalsReady'));
+    }
+
+    /** "active" / "expired" / "renewed" follow the same rules as Order::displayStatus(). */
+    private function filterStatus($query, string $status, bool $renewalsReady)
+    {
+        $expired = function ($q) {
+            $q->whereHas('subscription', fn ($s) => $s->where(fn ($e) => $e->where('status', 'expired')->orWhereDate('expiry_date', '<=', now()->toDateString())))
+                ->orWhere(fn ($v) => $v->whereNotNull('vpn_expires_at')->where('vpn_expires_at', '<', now()))
+                ->orWhere(fn ($s) => $s->whereHas('product', fn ($p) => $p->where('type', 'software'))
+                    ->where(fn ($w) => $w->whereNull('software_access_expires_at')->orWhere('software_access_expires_at', '<', now())));
+        };
+        $renewed = fn ($q) => $q->whereHas('renewals', fn ($r) => $r->where('status', 'confirmed'));
+
+        return match ($status) {
+            'renewed' => $renewalsReady ? $query->where('status', 'confirmed')->where($renewed) : $query->whereRaw('1 = 0'),
+            'expired' => $query->where('status', 'confirmed')->where($expired)
+                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
+            'active' => $query->whereIn('status', ['confirmed', 'paid'])->whereNot($expired)
+                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
+            default => $query->where('status', $status),
+        };
     }
 
     public function show(Order $order)
     {
         $order->load(['user', 'product', 'plan', 'tool', 'payments.paymentProofs', 'payments.reviewer', 'subscription']);
+        $renewedBy = $order->isConfirmed() ? $order->confirmedRenewal() : null;
+        $pendingRenewal = $order->pendingRenewal();
 
-        return view('admin.orders.show', compact('order'));
+        return view('admin.orders.show', compact('order', 'renewedBy', 'pendingRenewal'));
     }
 
     public function edit(Order $order)
