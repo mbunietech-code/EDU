@@ -46,11 +46,61 @@ class SubscriptionController extends Controller
                       ->orWhere('email', 'like', "%{$term}%");
                 });
             })
-            ->latest()
+            // Each value in the table is a link that adds one of these.
+            ->when($this->id($request, 'user'), fn ($q, $id) => $q->where('user_id', $id))
+            ->when($this->id($request, 'product'), fn ($q, $id) => $q->where('product_id', $id))
+            ->when($this->id($request, 'plan'), fn ($q, $id) => $q->where('plan_id', $id))
+            ->when($request->input('account') === 'none', fn ($q) => $q->whereNull('account_id'))
+            ->when($this->id($request, 'account'), fn ($q, $id) => $q->where('account_id', $id))
+            ->when($request->filled('device'), function ($q) use ($request) {
+                $device = (string) $request->input('device');
+                $device === 'none'
+                    ? $q->whereDoesntHave('order', fn ($o) => $o->whereNotNull('device')->where('device', '!=', ''))
+                    : $q->whereHas('order', fn ($o) => $o->where('device', $device));
+            })
+            ->when($request->input('expires'), fn ($q, $window) => $this->filterExpiry($q, (string) $window))
+            ->when(true, fn ($q) => match ($request->input('sort')) {
+                'expires_asc' => $q->orderBy('expiry_date')->latest('id'),
+                'expires_desc' => $q->orderByDesc('expiry_date')->latest('id'),
+                default => $q->latest(),
+            })
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.subscriptions.index', compact('subscriptions'));
+        $products = \App\Models\Product::orderBy('name')->get(['id', 'name']);
+        $plans = $this->id($request, 'product')
+            ? \App\Models\Plan::where('product_id', $this->id($request, 'product'))->orderBy('sort_order')->get(['id', 'name'])
+            : collect();
+        $devices = \App\Models\Order::whereNotNull('device')->where('device', '!=', '')
+            ->whereIn('id', Subscription::whereNotNull('order_id')->select('order_id'))
+            ->distinct()->orderBy('device')->pluck('device');
+        $filterUser = $this->id($request, 'user') ? \App\Models\User::find($this->id($request, 'user'), ['id', 'name']) : null;
+
+        return view('admin.subscriptions.index', compact('subscriptions', 'products', 'plans', 'devices', 'filterUser'));
+    }
+
+    /** Positive integer query value, or null. */
+    private function id(Request $request, string $key): ?int
+    {
+        $value = (string) $request->input($key, '');
+
+        return ctype_digit($value) && (int) $value > 0 ? (int) $value : null;
+    }
+
+    /** Expiry windows, or one exact day (Y-m-d) when a date in the table is clicked. */
+    private function filterExpiry($query, string $window)
+    {
+        $tz = config('app.timezone');
+        $today = now($tz)->toDateString();
+
+        return match (true) {
+            $window === 'past' => $query->whereDate('expiry_date', '<', $today),
+            $window === '7d' => $query->whereDate('expiry_date', '>=', $today)->whereDate('expiry_date', '<=', now($tz)->addDays(7)->toDateString()),
+            $window === '30d' => $query->whereDate('expiry_date', '>=', $today)->whereDate('expiry_date', '<=', now($tz)->addDays(30)->toDateString()),
+            $window === 'later' => $query->whereDate('expiry_date', '>', now($tz)->addDays(30)->toDateString()),
+            (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $window) => $query->whereDate('expiry_date', $window),
+            default => $query,
+        };
     }
 
     public function show(Subscription $subscription)
