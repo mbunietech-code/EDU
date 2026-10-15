@@ -27,7 +27,7 @@ class OrderController extends Controller
         $orders = auth()->user()
             ->orders()
             ->with(['product', 'plan', 'tool', 'subscription'])
-            ->withCount(['renewals as confirmed_renewals_count' => fn ($q) => $q->where('status', 'confirmed')])
+            ->withConfirmedRenewalsCount()
             ->latest()
             ->paginate(15);
 
@@ -97,7 +97,7 @@ class OrderController extends Controller
             ? $order->product->plans()->active()->orderBy('sort_order')->get()
             : collect();
         $pendingRenewal = $isOwner ? $order->pendingRenewal() : null;
-        $renewedBy = $order->isConfirmed() ? $order->renewals()->where('status', 'confirmed')->latest('id')->first() : null;
+        $renewedBy = $order->isConfirmed() ? $order->confirmedRenewal() : null;
 
         return view('user.orders.show', compact('order', 'renewPlans', 'pendingRenewal', 'renewedBy'));
     }

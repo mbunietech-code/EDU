@@ -90,9 +90,47 @@ class Order extends Model
         return $this->renews_order_id !== null;
     }
 
+    private static ?bool $renewalsReady = null;
+
+    /**
+     * Renewals need orders.renews_order_id (database/alters/0033). Until an
+     * admin applies it from Admin → Database, renewing stays off and every
+     * other page works as before.
+     */
+    public static function renewalsReady(): bool
+    {
+        if (self::$renewalsReady === null) {
+            try {
+                self::$renewalsReady = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'renews_order_id');
+            } catch (\Throwable $e) {
+                self::$renewalsReady = false;
+            }
+        }
+
+        return self::$renewalsReady;
+    }
+
+    /** Forget the cached column check (tests, or right after applying the alter). */
+    public static function forgetRenewalsReady(): void
+    {
+        self::$renewalsReady = null;
+    }
+
+    /** Eager count for wasRenewed() on lists; does nothing before the alter. */
+    public function scopeWithConfirmedRenewalsCount($query)
+    {
+        return self::renewalsReady()
+            ? $query->withCount(['renewals as confirmed_renewals_count' => fn ($q) => $q->where('status', 'confirmed')])
+            : $query;
+    }
+
     /** A paid renewal took over this order's service. */
     public function wasRenewed(): bool
     {
+        if (! self::renewalsReady()) {
+            return false;
+        }
+
         if (array_key_exists('confirmed_renewals_count', $this->attributes)) {
             return $this->confirmed_renewals_count > 0;
         }
@@ -100,10 +138,20 @@ class Order extends Model
         return $this->renewals()->where('status', 'confirmed')->exists();
     }
 
+    /** The paid renewal that took over this order, if any. */
+    public function confirmedRenewal(): ?Order
+    {
+        return self::renewalsReady()
+            ? $this->renewals()->where('status', 'confirmed')->latest('id')->first()
+            : null;
+    }
+
     /** A renewal the customer started but has not paid for yet. */
     public function pendingRenewal(): ?Order
     {
-        return $this->renewals()->where('status', 'pending')->latest('id')->first();
+        return self::renewalsReady()
+            ? $this->renewals()->where('status', 'pending')->latest('id')->first()
+            : null;
     }
 
     /** When the service bought with this order ends (null = never / unknown). */
@@ -125,6 +173,9 @@ class Order extends Model
      */
     public function canBeRenewed(): bool
     {
+        if (! self::renewalsReady()) {
+            return false;
+        }
         if (! $this->isConfirmed() || $this->isToolOrder() || ! $this->product || $this->product->isSoftware()) {
             return false;
         }

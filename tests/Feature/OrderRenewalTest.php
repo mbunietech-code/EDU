@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\PaymentApprovalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class OrderRenewalTest extends TestCase
@@ -200,5 +201,35 @@ class OrderRenewalTest extends TestCase
         $this->actingAs(User::factory()->create(), 'sanctum')->postJson("/api/orders/{$far->id}/renew")
             ->assertNotFound();
         $this->assertSame(0, Order::whereNotNull('renews_order_id')->count());
+    }
+
+    public function test_pages_keep_working_before_the_renewals_alter_is_applied(): void
+    {
+        ['order' => $order, 'user' => $user] = $this->confirmedOrder(2);
+
+        Schema::table('orders', function ($table) {
+            $table->dropForeign(['renews_order_id']);
+            $table->dropColumn('renews_order_id');
+        });
+        Order::forgetRenewalsReady();
+
+        try {
+            $this->assertFalse($order->fresh()->canBeRenewed());
+
+            $this->actingAs($user)->get(route('user.orders.index'))->assertOk()->assertDontSee('#renew');
+            $this->actingAs($user)->get(route('user.orders.show', $order))->assertOk()->assertDontSee('Renew now');
+            $this->actingAs($user)->get(route('user.subscriptions.index'))->assertOk();
+            $this->actingAs($user, 'sanctum')->getJson('/api/orders')->assertOk()->assertJsonPath('data.0.can_renew', false);
+            $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('error');
+
+            $admin = User::factory()->create(array_merge(
+                ['is_admin' => true],
+                Schema::hasColumn('users', 'role') ? ['role' => 'super_admin'] : []
+            ));
+            $this->actingAs($admin)->get(route('admin.orders.index'))->assertOk();
+            $this->actingAs($admin)->get(route('admin.orders.show', $order))->assertOk();
+        } finally {
+            Order::forgetRenewalsReady();
+        }
     }
 }

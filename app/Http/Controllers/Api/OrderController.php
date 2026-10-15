@@ -72,7 +72,7 @@ class OrderController extends Controller
         $orders = $request->user()
             ->orders()
             ->with(['product:id,name,slug,type,status', 'tool:id,name,slug', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
-            ->withCount(['renewals as confirmed_renewals_count' => fn ($q) => $q->where('status', 'confirmed')])
+            ->withConfirmedRenewalsCount()
             ->latest()
             ->paginate(20);
 
