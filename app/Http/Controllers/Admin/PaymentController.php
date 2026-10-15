@@ -62,7 +62,7 @@ class PaymentController extends Controller
                 ['reason' => $e->getMessage()]
             );
 
-            return back()->with('error', 'Payment review started but no available account exists for the product. An account is required to activate the subscription.');
+            return back()->with('error', 'Payment not approved yet: no account is free for this product (all are in use, or our plan for them has ended). Add or renew an account, then approve again.');
         }
 
         $this->notificationService->notifyPaymentApproved($payment->user, $payment->fresh());

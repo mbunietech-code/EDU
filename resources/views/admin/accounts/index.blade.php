@@ -10,6 +10,8 @@
     <div class="mt-6 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-4 py-3">
             <form method="GET" class="flex flex-col sm:flex-row gap-3">
+                <input type="search" name="search" value="{{ request('search') }}" placeholder="Account, or customer name / email..."
+                    class="mbui-input sm:w-72">
                 <select name="status" class="mbui-input sm:w-40">
                     <option value="">All statuses</option>
                     @foreach (['available', 'assigned', 'suspended', 'expired', 'maintenance', 'archived'] as $status)
@@ -31,6 +33,7 @@
                 <tr class="bg-gray-50 border-b border-gray-200">
                     <th class="mbui-th">Name</th>
                     <th class="mbui-th">Product</th>
+                    <th class="mbui-th">Current user</th>
                     <th class="mbui-th">Status</th>
                     <th class="mbui-th">Action</th>
                 </tr>
@@ -42,7 +45,20 @@
                             <a href="{{ route('admin.accounts.show', $account) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $account->name }}</a>
                         </td>
                         <td class="mbui-td">{{ $account->product->name }}</td>
-                        <td class="mbui-td"><x-mbui.status-badge :status="$account->status" /></td>
+                        <td class="mbui-td whitespace-normal">
+                            @if ($holder = $account->currentSubscription())
+                                <span class="font-medium text-gray-900">{{ $holder->user->name }}</span>
+                                <p class="text-xs text-gray-500">until {{ $holder->expiry_date->format('d M Y') }}</p>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
+                        <td class="mbui-td">
+                            <x-mbui.status-badge :status="$account->status" />
+                            @if ($account->planState() === 'expired')
+                                <p class="mt-1 text-xs text-red-600">Our plan ended {{ $account->expires_at->format('d M Y') }}</p>
+                            @endif
+                        </td>
                         <td class="mbui-td">
                             <div class="flex items-center gap-3">
                                 <x-mbui.icon-link :href="route('admin.accounts.edit', $account)" />
@@ -57,7 +73,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="mbui-td text-center text-gray-400">No accounts</td></tr>
+                    <tr><td colspan="5" class="mbui-td text-center text-gray-400">No accounts</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

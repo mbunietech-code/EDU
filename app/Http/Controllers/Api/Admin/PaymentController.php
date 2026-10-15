@@ -76,7 +76,7 @@ class PaymentController extends Controller
             report($e);
 
             return response()->json([
-                'message' => 'Payment review started but no available account exists for the product.',
+                'message' => 'Payment not approved yet: no account is free for this product (all are in use, or our plan for them has ended).',
             ], 422);
         }
 

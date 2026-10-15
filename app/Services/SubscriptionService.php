@@ -88,7 +88,7 @@ class SubscriptionService
             }
 
             $account = $previous?->account_id
-                ? Account::whereKey($previous->account_id)->where('status', 'available')->lockForUpdate()->first()
+                ? Account::whereKey($previous->account_id)->assignable()->lockForUpdate()->first()
                 : null;
             $account ??= $this->accountAssignmentService->findAvailableAccount($order->product_id);
 

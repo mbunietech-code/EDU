@@ -22,8 +22,11 @@ class AccountAssignmentService
 
     public function findAvailableAccount(int $productId): ?Account
     {
+        // Accounts whose own plan has ended are skipped: a customer must never
+        // be handed a login that no longer works.
         return Account::where('product_id', $productId)
-            ->where('status', 'available')
+            ->assignable()
+            ->orderBy('id')
             ->lockForUpdate()
             ->first();
     }

@@ -18,7 +18,19 @@ class AccountController extends Controller
 
     public function index(Request $request)
     {
-        $accounts = Account::with(['product'])
+        $accounts = Account::with([
+                'product',
+                // Only the holder now, for the "Current user" column.
+                'subscriptions' => fn ($q) => $q->whereIn('status', Account::HOLDING_STATUSES)->with('user:id,name,email'),
+            ])
+            // Account name, or the name / email of anyone who used it (now or before).
+            ->when(trim((string) $request->input('search')) !== '', function ($query) use ($request) {
+                $term = trim((string) $request->input('search'));
+                $query->where(function ($q) use ($term) {
+                    $q->where('name', 'like', "%{$term}%")
+                        ->orWhereHas('subscriptions.user', fn ($u) => $u->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
+                });
+            })
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
             })

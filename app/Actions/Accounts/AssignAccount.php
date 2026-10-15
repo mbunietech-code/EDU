@@ -12,7 +12,8 @@ class AssignAccount
     {
         return DB::transaction(function () use ($subscription) {
             $account = Account::where('product_id', $subscription->product_id)
-                ->where('status', 'available')
+                ->assignable()
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->first();
 

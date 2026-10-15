@@ -71,6 +71,27 @@ class Account extends Model
         return $query->where('status', 'available');
     }
 
+    /**
+     * Free to hand to the next customer: available, and the plan we bought for
+     * it has not ended (no end date recorded counts as still running).
+     */
+    public function scopeAssignable($query)
+    {
+        return $query->where('status', 'available')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', now()->toDateString()));
+    }
+
+    /** Subscription statuses that mean someone is using the account now. */
+    public const HOLDING_STATUSES = ['active', 'expiring_soon', 'suspended', 'pending'];
+
+    /** The customer using this account now (latest holding subscription), if any. */
+    public function currentSubscription(): ?Subscription
+    {
+        $subs = $this->relationLoaded('subscriptions') ? $this->subscriptions : $this->subscriptions()->with('user')->get();
+
+        return $subs->whereIn('status', self::HOLDING_STATUSES)->sortByDesc('id')->first();
+    }
+
     public function isAvailable(): bool
     {
         return $this->status === 'available';
