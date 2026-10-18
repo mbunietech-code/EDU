@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../models/order.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/async_value_view.dart';
@@ -104,7 +105,7 @@ class OrderDetailScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _DeliveryCard(delivery: o.delivery!, onRefresh: () => ref.invalidate(orderDetailProvider(o.id))),
             ],
-            if (o.isPending && !o.payments.any((p) => p.status == 'pending')) ...[
+            if (!AppConfig.playBuild && o.isPending && !o.payments.any((p) => p.status == 'pending')) ...[
               const SizedBox(height: 24),
               MbuiButton(
                 label: o.payments.isEmpty ? 'Pay now' : 'Pay again',

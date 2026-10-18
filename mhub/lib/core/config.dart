@@ -22,6 +22,12 @@ class AppConfig {
     return _stripSlash(base);
   }
 
+  /// Google Play build (--dart-define=MHUB_PLAY=true). Play requires its own
+  /// billing for digital goods, so this build has no in-app shop or checkout;
+  /// members still see their orders and subscriptions. The website APK keeps
+  /// the shop.
+  static const bool playBuild = bool.fromEnvironment('MHUB_PLAY');
+
   /// True when running against the bundled production backend.
   static bool get isProduction => apiBase == defaultBase;
 

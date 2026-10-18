@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../learning/learning_home_screen.dart';
+import '../../core/config.dart';
 import '../../theme/tokens.dart';
 import '../admin/admin_catalogue_screen.dart';
 import '../admin/admin_chat_screen.dart';
@@ -137,12 +138,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         UserDashboardScreen(),
         primary: true,
       ),
-      const _Destination(
-        'AI Tools',
-        Icons.smart_toy_outlined,
-        ProductsScreen(),
-        primary: true,
-      ),
+      if (!AppConfig.playBuild)
+        const _Destination(
+          'AI Tools',
+          Icons.smart_toy_outlined,
+          ProductsScreen(),
+          primary: true,
+        ),
       const _Destination(
         'My Orders',
         Icons.shopping_bag_outlined,
@@ -159,6 +161,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         'Learning',
         Icons.school_outlined,
         LearningHomeScreen(),
+        primary: AppConfig.playBuild,
       ),
       if (canAccessStudio)
         const _Destination(
@@ -173,17 +176,19 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
       if (canWriteResearch)
         const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
-      const _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
+      if (!AppConfig.playBuild)
+        const _Destination('Payments', Icons.payments_outlined, PaymentsScreen()),
       const _Destination(
         'Subscriptions',
         Icons.autorenew,
         SubscriptionsScreen(),
       ),
-      const _Destination(
-        'Research Tools',
-        Icons.science_outlined,
-        ToolsScreen(),
-      ),
+      if (!AppConfig.playBuild)
+        const _Destination(
+          'Research Tools',
+          Icons.science_outlined,
+          ToolsScreen(),
+        ),
       const _Destination(
         'Scholarships',
         Icons.school_outlined,
