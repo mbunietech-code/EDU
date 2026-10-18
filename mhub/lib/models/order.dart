@@ -48,6 +48,7 @@ class Order {
     required this.orderNumber,
     required this.title,
     this.plan,
+    this.amount,
     required this.amountLabel,
     required this.status,
     this.canCancel = false,
@@ -62,6 +63,9 @@ class Order {
   final String orderNumber;
   final String title;
   final String? plan;
+
+  /// Raw TZS amount; null from servers older than this field.
+  final double? amount;
   final String amountLabel;
   final String status;
   final bool canCancel;
@@ -80,6 +84,7 @@ class Order {
         orderNumber: j['order_number'] as String? ?? '',
         title: j['title'] as String? ?? 'Order',
         plan: j['plan'] as String?,
+        amount: (j['amount'] as num?)?.toDouble(),
         amountLabel: j['amount_label'] as String? ?? '',
         status: j['status'] as String? ?? 'pending',
         canCancel: j['can_cancel'] == true,

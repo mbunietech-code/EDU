@@ -7,6 +7,7 @@ import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../models/order.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/amount_breakdown.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../../widgets/status_chip.dart';
@@ -60,6 +61,11 @@ class OrderDetailScreen extends ConsumerWidget {
             _row('Order number', o.orderNumber),
             if (o.plan != null) _row('Plan', o.plan!),
             _row('Amount', o.amountLabel),
+            if ((o.amount ?? AmountBreakdown.parseTzs(o.amountLabel)) case final tzs? when tzs > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: AmountBreakdown(amountTzs: tzs),
+              ),
             if (o.createdAgo != null) _row('Placed', o.createdAgo!),
             if (o.isRejected && o.rejectionReason != null) ...[
               const SizedBox(height: 12),

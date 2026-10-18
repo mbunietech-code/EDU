@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../data/member_api.dart';
 import '../../models/gateway_payment.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/amount_breakdown.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../auth/auth_controller.dart';
@@ -56,6 +57,7 @@ class PayOrderScreen extends ConsumerWidget {
                 orderId: orderId,
                 orderTitle: orderTitle,
                 amountLabel: amountLabel,
+                amountTzs: o.amount ?? AmountBreakdown.parseTzs(o.amountLabel),
                 embedded: true,
               ),
             ),
@@ -80,7 +82,10 @@ class PayOrderScreen extends ConsumerWidget {
             ),
             body: Column(
               children: [
-                _OrderSummary(title: orderTitle, amountLabel: o.amountLabel),
+                _OrderSummary(
+                  title: orderTitle,
+                  amountTzs: o.amount ?? AmountBreakdown.parseTzs(o.amountLabel),
+                ),
                 Expanded(
                   child: TabBarView(children: [for (final t in tabs) t.$2]),
                 ),
@@ -94,9 +99,9 @@ class PayOrderScreen extends ConsumerWidget {
 }
 
 class _OrderSummary extends StatelessWidget {
-  const _OrderSummary({required this.title, required this.amountLabel});
+  const _OrderSummary({required this.title, required this.amountTzs});
   final String title;
-  final String amountLabel;
+  final double? amountTzs;
 
   @override
   Widget build(BuildContext context) {
@@ -104,17 +109,17 @@ class _OrderSummary extends StatelessWidget {
       width: double.infinity,
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.gray900)),
-          ),
-          const SizedBox(width: 12),
-          Text(amountLabel,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.indigo700)),
+          Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.gray900)),
+          if (amountTzs != null && amountTzs! > 0) ...[
+            const SizedBox(height: 8),
+            AmountBreakdown(amountTzs: amountTzs!),
+          ],
         ],
       ),
     );

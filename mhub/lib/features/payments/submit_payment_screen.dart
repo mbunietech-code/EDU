@@ -1,13 +1,19 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
+import '../../data/currency_repository.dart';
 import '../../data/member_api.dart';
 import '../../models/payment.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/amount_breakdown.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../orders/orders_repository.dart';
@@ -19,12 +25,16 @@ class SubmitPaymentScreen extends ConsumerStatefulWidget {
     required this.orderId,
     required this.orderTitle,
     required this.amountLabel,
+    this.amountTzs,
     this.embedded = false,
   });
 
   final int orderId;
   final String orderTitle;
   final String amountLabel;
+
+  /// Raw TZS amount, for the USD / CNY equivalents.
+  final double? amountTzs;
 
   /// Shown as the "Pay manually" tab inside the pay screen (no own app bar).
   final bool embedded;
@@ -99,9 +109,25 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
     }
   }
 
+  /// Alipay, then WeChat Pay, then the rest in the admin's order.
+  static List<PaymentMethod> _walletsFirst(List<PaymentMethod> list) {
+    int rank(PaymentMethod m) => switch (_Wallet.of(m)) {
+          _Wallet.alipay => 0,
+          _Wallet.wechat => 1,
+          null => 2,
+        };
+    final indexed = list.indexed.toList()
+      ..sort((a, b) {
+        final byRank = rank(a.$2).compareTo(rank(b.$2));
+        return byRank != 0 ? byRank : a.$1.compareTo(b.$1);
+      });
+    return [for (final e in indexed) e.$2];
+  }
+
   @override
   Widget build(BuildContext context) {
     final methods = ref.watch(paymentMethodsProvider);
+    final amountTzs = widget.amountTzs ?? AmountBreakdown.parseTzs(widget.amountLabel);
 
     final body = AsyncValueView<List<PaymentMethod>>(
       value: methods,
@@ -124,13 +150,17 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Amount due: ${widget.amountLabel}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.gray500,
+                if (amountTzs != null) ...[
+                  const SizedBox(height: 8),
+                  AmountBreakdown(amountTzs: amountTzs),
+                ] else
+                  Text(
+                    'Amount due: ${widget.amountLabel}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.gray500,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -142,9 +172,10 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
               child: Text('No payment methods are available right now.'),
             )
           else
-            for (final m in list)
+            for (final m in _walletsFirst(list))
               _MethodTile(
                 method: m,
+                amountTzs: amountTzs,
                 selected: _method == m.code,
                 onTap: () => setState(() => _method = m.code),
               ),
@@ -255,19 +286,47 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
   }
 }
 
-class _MethodTile extends StatelessWidget {
+/// Wallets whose QR code is scanned in their own app.
+enum _Wallet {
+  alipay('Alipay', 'alipays://platformapi/startapp?saId=10000007',
+      'open Alipay, tap Scan, then tap the album icon and choose the QR code.'),
+  wechat('WeChat', 'weixin://',
+      'open WeChat, tap + then Scan, then tap the album icon and choose the QR code.');
+
+  const _Wallet(this.app, this.openUrl, this.howToScan);
+
+  final String app;
+  final String openUrl;
+  final String howToScan;
+
+  static _Wallet? of(PaymentMethod m) {
+    final key = '${m.code} ${m.name}'.toLowerCase();
+    if (key.contains('alipay')) return _Wallet.alipay;
+    if (key.contains('wechat') || key.contains('weixin')) return _Wallet.wechat;
+    return null;
+  }
+}
+
+class _MethodTile extends ConsumerWidget {
   const _MethodTile({
     required this.method,
+    required this.amountTzs,
     required this.selected,
     required this.onTap,
   });
 
   final PaymentMethod method;
+  final double? amountTzs;
   final bool selected;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wallet = _Wallet.of(method);
+    final cny = wallet != null && amountTzs != null
+        ? ref.watch(currencyRatesValueProvider).cnyLabel(amountTzs!)
+        : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: MbuiCard(
@@ -326,6 +385,10 @@ class _MethodTile extends StatelessWidget {
                   ),
                 ),
               ],
+              if (cny != null) ...[
+                const SizedBox(height: 12),
+                _AmountToEnter(cny: cny, app: wallet!.app),
+              ],
               if (method.qrImageUrl != null) ...[
                 const SizedBox(height: 12),
                 ClipRRect(
@@ -336,11 +399,149 @@ class _MethodTile extends StatelessWidget {
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
+                if (wallet != null) ...[
+                  const SizedBox(height: 10),
+                  _QrActions(qrUrl: method.qrImageUrl!, wallet: wallet),
+                ],
               ],
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Amount to enter in Alipay: ¥25.50" with a copy button.
+class _AmountToEnter extends StatelessWidget {
+  const _AmountToEnter({required this.cny, required this.app});
+  final String cny;
+  final String app;
+
+  @override
+  Widget build(BuildContext context) {
+    final digits = cny.replaceAll(RegExp(r'[^0-9.]'), '');
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        color: AppColors.amber50,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Amount to enter in $app',
+                    style: const TextStyle(fontSize: 12, color: AppColors.amber700)),
+                Text(cny,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.amber700)),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copy amount',
+            icon: const Icon(Icons.copy, size: 18, color: AppColors.amber700),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: digits));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text('Copied $digits')));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A QR code can't be scanned by the phone showing it: save it to Photos,
+/// then pick it from the album inside the wallet app.
+class _QrActions extends StatefulWidget {
+  const _QrActions({required this.qrUrl, required this.wallet});
+  final String qrUrl;
+  final _Wallet wallet;
+
+  @override
+  State<_QrActions> createState() => _QrActionsState();
+}
+
+class _QrActionsState extends State<_QrActions> {
+  bool _saving = false;
+
+  void _say(String text, {Duration duration = const Duration(seconds: 4)}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(text), duration: duration));
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final res = await Dio().get<List<int>>(
+        widget.qrUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (!await Gal.hasAccess() && !await Gal.requestAccess()) {
+        _say('Allow MHub to save photos, then try again.');
+        return;
+      }
+      await Gal.putImageBytes(
+        Uint8List.fromList(res.data!),
+        name: 'mbuniehub-${widget.wallet.name}-qr',
+      );
+      _say('QR code saved to Photos. Now ${widget.wallet.howToScan}',
+          duration: const Duration(seconds: 8));
+    } catch (_) {
+      _say('Could not save the QR code. Check your connection and try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _open() async {
+    var opened = false;
+    try {
+      opened = await launchUrl(Uri.parse(widget.wallet.openUrl),
+          mode: LaunchMode.externalApplication);
+    } catch (_) {}
+    if (!opened && mounted) _say('${widget.wallet.app} is not installed on this phone.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Paying from this phone? Save the QR code, then ${widget.wallet.howToScan}',
+          style: const TextStyle(fontSize: 12.5, height: 1.4, color: AppColors.gray600),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: MbuiButton(
+                label: 'Save QR code',
+                icon: Icons.download_outlined,
+                variant: MbuiVariant.secondary,
+                loading: _saving,
+                onPressed: _save,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: MbuiButton(
+                label: 'Open ${widget.wallet.app}',
+                icon: Icons.open_in_new,
+                variant: MbuiVariant.secondary,
+                onPressed: _open,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

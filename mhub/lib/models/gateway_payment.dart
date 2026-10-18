@@ -2,6 +2,7 @@
 class PaymentOptions {
   const PaymentOptions({
     required this.orderId,
+    this.amount,
     required this.amountLabel,
     required this.mobile,
     required this.manual,
@@ -11,6 +12,9 @@ class PaymentOptions {
   });
 
   final int orderId;
+
+  /// Raw TZS amount; null from servers older than this field.
+  final double? amount;
   final String amountLabel;
   final List<MobileGatewayOption> mobile;
   final ChargeOffer? card;
@@ -22,6 +26,7 @@ class PaymentOptions {
 
   factory PaymentOptions.fromJson(Map<String, dynamic> j) => PaymentOptions(
         orderId: (j['order_id'] as num).toInt(),
+        amount: (j['amount'] as num?)?.toDouble(),
         amountLabel: j['amount_label'] as String? ?? '',
         mobile: ((j['mobile'] as List?) ?? const [])
             .map((e) => MobileGatewayOption.fromJson(e as Map<String, dynamic>))
