@@ -8,6 +8,7 @@ use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceDepartment;
 use App\Models\FinanceEmploymentType;
 use App\Models\FinanceLoanRepayment;
+use App\Models\FinancePayrollItem;
 use App\Models\FinancePayrollPeriod;
 use App\Models\FinancePosition;
 use App\Models\FinanceStaff;
@@ -167,6 +168,61 @@ class FinanceHrController extends Controller
         ], 201);
     }
 
+    /** Draft → approved. */
+    public function approvePayroll(Request $request, FinancePayrollPeriod $payroll, PayrollService $payrolls): JsonResponse
+    {
+        $this->finance($request);
+
+        return $this->payrollStep(fn () => $payrolls->approve($payroll), $payroll, 'Payroll approved.');
+    }
+
+    /** Approved → draft, to fix a line before paying. */
+    public function reopenPayroll(Request $request, FinancePayrollPeriod $payroll, PayrollService $payrolls): JsonResponse
+    {
+        $this->finance($request);
+
+        return $this->payrollStep(fn () => $payrolls->reopen($payroll), $payroll, 'Payroll is a draft again.');
+    }
+
+    /** Approved → paid; the net pay is recorded once as an expense (optional money_account_id). */
+    public function payPayroll(Request $request, FinancePayrollPeriod $payroll, PayrollService $payrolls): JsonResponse
+    {
+        $this->finance($request);
+        $data = $request->validate(PayrollService::paidRules());
+
+        return $this->payrollStep(fn () => $payrolls->markPaid($payroll, $data, $request->user()->id), $payroll, 'Payroll paid; net pay recorded under Expenses.');
+    }
+
+    /** One person's allowances, overtime, bonus or deductions on a draft. */
+    public function updatePayrollItem(Request $request, FinancePayrollItem $item, PayrollService $payrolls): JsonResponse
+    {
+        $this->finance($request);
+
+        try {
+            $item = $payrolls->updateItem($item, $request->validate(PayrollService::ITEM_RULES));
+        } catch (FinanceException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => [
+            'id' => $item->id, 'staff_name' => $item->staff_name, 'gross_pay' => (float) $item->gross_pay, 'net_pay' => (float) $item->net_pay,
+        ], 'message' => 'Line updated.']);
+    }
+
+    private function payrollStep(callable $step, FinancePayrollPeriod $payroll, string $message): JsonResponse
+    {
+        try {
+            $step();
+        } catch (FinanceException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+        $payroll->refresh();
+
+        return response()->json(['data' => [
+            'id' => $payroll->id, 'name' => $payroll->name, 'status' => $payroll->status, 'net_pay' => (float) $payroll->net_pay,
+        ], 'message' => $message]);
+    }
+
     public function updateRates(Request $request, PayrollService $payrolls): JsonResponse
     {
         $this->finance($request);
@@ -198,7 +254,7 @@ class FinanceHrController extends Controller
     {
         $this->finance($request);
 
-        $payrolls->markReturnPaid($statutoryReturn, $request->validate(PayrollService::RETURN_PAID_RULES), $request->user()->id);
+        $payrolls->markReturnPaid($statutoryReturn, $request->validate(PayrollService::returnPaidRules()), $request->user()->id);
 
         return response()->json(['data' => $this->returnRow($statutoryReturn->fresh('payrollPeriod')), 'message' => $statutoryReturn->label().' marked as paid.']);
     }

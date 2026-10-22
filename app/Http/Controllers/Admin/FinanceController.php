@@ -499,7 +499,7 @@ class FinanceController extends Controller
         return back()->with('success', 'Contract saved.');
     }
 
-    public function payrollIndex(StatutoryPayrollService $statutory)
+    public function payrollIndex(Request $request, StatutoryPayrollService $statutory)
     {
         $payrolls = FinancePayrollPeriod::withCount('items')->latest('period_month')->paginate(20);
         $activeStaffCount = FinanceStaff::where('status', 'active')->count();
@@ -510,7 +510,9 @@ class FinanceController extends Controller
             ->orderBy('last_name')
             ->limit(12)
             ->get();
-        $latestPayroll = FinancePayrollPeriod::with(['items' => fn ($q) => $q->orderByDesc('gross_pay')->limit(10), 'statutoryReturns'])
+        // The breakdown shows the newest payroll, or the one picked from the list (?period=id).
+        $latestPayroll = FinancePayrollPeriod::with(['items' => fn ($q) => $q->orderByDesc('gross_pay'), 'statutoryReturns'])
+            ->when(ctype_digit((string) $request->query('period')), fn ($q) => $q->whereKey($request->query('period')))
             ->latest('period_month')
             ->first();
         $payrollTotals = [
@@ -524,7 +526,54 @@ class FinanceController extends Controller
 
         $rates = $statutory->rates();
 
-        return view('admin.finance.payroll', compact('payrolls', 'activeStaffCount', 'activeSalaryTotal', 'activeStaff', 'latestPayroll', 'payrollTotals', 'rates'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+        $salaryExpense = $latestPayroll ? app(\App\Services\Finance\AutoExpenseService::class)->find('payroll', $latestPayroll->id) : null;
+
+        return view('admin.finance.payroll', compact('payrolls', 'activeStaffCount', 'activeSalaryTotal', 'activeStaff', 'latestPayroll', 'payrollTotals', 'rates', 'moneyAccounts', 'salaryExpense'));
+    }
+
+    public function payrollApprove(FinancePayrollPeriod $payroll, PayrollService $payrolls)
+    {
+        try {
+            $payrolls->approve($payroll);
+        } catch (FinanceException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "{$payroll->name} payroll approved. Mark it paid once the salaries have gone out.");
+    }
+
+    public function payrollReopen(FinancePayrollPeriod $payroll, PayrollService $payrolls)
+    {
+        try {
+            $payrolls->reopen($payroll);
+        } catch (FinanceException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "{$payroll->name} payroll is a draft again.");
+    }
+
+    public function payrollPaid(Request $request, FinancePayrollPeriod $payroll, PayrollService $payrolls)
+    {
+        try {
+            $payrolls->markPaid($payroll, $request->validate(PayrollService::paidRules()), auth()->id());
+        } catch (FinanceException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "{$payroll->name} payroll paid. TZS ".number_format((float) $payroll->net_pay).' net pay is recorded under Expenses.');
+    }
+
+    public function payrollItemUpdate(Request $request, FinancePayrollItem $item, PayrollService $payrolls)
+    {
+        try {
+            $item = $payrolls->updateItem($item, $request->validate(PayrollService::ITEM_RULES));
+        } catch (FinanceException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "{$item->staff_name}: net pay is now TZS ".number_format((float) $item->net_pay).'.');
     }
 
     public function payrollStore(Request $request, PayrollService $payrolls)
@@ -555,12 +604,14 @@ class FinanceController extends Controller
         $summary = $payrolls->returnsSummary();
         $rates = $statutory->rates();
 
-        return view('admin.finance.returns', compact('returns', 'summary', 'rates'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.returns', compact('returns', 'summary', 'rates', 'moneyAccounts'));
     }
 
     public function returnMarkPaid(Request $request, FinanceStatutoryReturn $statutoryReturn, PayrollService $payrolls)
     {
-        $payrolls->markReturnPaid($statutoryReturn, $request->validate(PayrollService::RETURN_PAID_RULES), auth()->id());
+        $payrolls->markReturnPaid($statutoryReturn, $request->validate(PayrollService::returnPaidRules()), auth()->id());
 
         return back()->with('success', $statutoryReturn->label().' marked as paid.');
     }

@@ -139,9 +139,46 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-base font-semibold text-gray-900">Latest payroll breakdown · {{ $latestPayroll->name }}</h2>
-                    <p class="mt-1 text-sm text-gray-500">Staff net pay preview from the newest prepared period.</p>
+                    <p class="mt-1 text-sm text-gray-500">Draft → Approved → Paid. Marking it paid records the net pay under Expenses.</p>
                 </div>
-                <x-mbui.badge appearance="neutral">{{ ucfirst($latestPayroll->status) }}</x-mbui.badge>
+                <x-mbui.badge :appearance="['draft' => 'neutral', 'approved' => 'warning', 'paid' => 'success'][$latestPayroll->status] ?? 'neutral'">{{ ucfirst($latestPayroll->status) }}</x-mbui.badge>
+            </div>
+
+            {{-- Next step for this payroll. --}}
+            <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                @if ($latestPayroll->status === 'draft')
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-gray-700">Check each line below. To give one person different allowances, overtime or bonus, use <strong>Edit</strong> on their line. Then approve.</p>
+                        <form method="POST" action="{{ route('admin.finance.payroll.approve', $latestPayroll) }}">
+                            @csrf
+                            <x-mbui.button type="submit">Approve payroll</x-mbui.button>
+                        </form>
+                    </div>
+                @elseif ($latestPayroll->status === 'approved')
+                    <div class="flex flex-wrap items-end justify-between gap-3">
+                        <form method="POST" action="{{ route('admin.finance.payroll.paid', $latestPayroll) }}" class="flex flex-wrap items-end gap-3">
+                            @csrf
+                            <div>
+                                <x-input-label for="pay-date" value="Date salaries were paid" />
+                                <input id="pay-date" type="date" name="paid_at" value="{{ old('paid_at', now()->toDateString()) }}" max="{{ now()->toDateString() }}" required class="mbui-input mt-1">
+                            </div>
+                            <x-finance.money-account-select :accounts="$moneyAccounts" id="pay-money" label="Paid from" />
+                            <x-mbui.button type="submit">Mark paid · TZS {{ number_format((float) $latestPayroll->net_pay) }}</x-mbui.button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.finance.payroll.reopen', $latestPayroll) }}">
+                            @csrf
+                            <button type="submit" class="text-sm font-semibold text-gray-600 hover:text-gray-900">Back to draft</button>
+                        </form>
+                    </div>
+                @else
+                    <p class="text-emerald-800">
+                        Paid {{ $latestPayroll->paid_at?->format('d M Y') }}.
+                        @if ($salaryExpense)
+                            Recorded as expense <a href="{{ route('admin.finance.expenses.edit', $salaryExpense) }}" class="font-semibold underline">{{ $salaryExpense->label }}</a>.
+                        @endif
+                        PAYE, NSSF, SDL and WCF are recorded when you mark them paid under <a href="{{ route('admin.finance.returns.index') }}" class="font-semibold underline">Returns</a>.
+                    </p>
+                @endif
             </div>
 
             <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -174,6 +211,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="mbui-th">Staff</th>
+                            <th class="mbui-th">Allowances · OT · Bonus</th>
                             <th class="mbui-th">Gross</th>
                             <th class="mbui-th">PAYE</th>
                             <th class="mbui-th">NSSF</th>
@@ -188,7 +226,23 @@
                                 <td class="mbui-td">
                                     <p class="font-medium text-gray-900">{{ $item->staff_name }}</p>
                                     <p class="text-xs text-gray-500">{{ $item->department_name ?? 'No department' }} · {{ $item->position_name ?? 'No position' }}</p>
+                                    @if ($latestPayroll->status === 'draft')
+                                        <details class="mt-2">
+                                            <summary class="cursor-pointer text-xs font-semibold text-indigo-600">Edit this line</summary>
+                                            <form method="POST" action="{{ route('admin.finance.payroll.items.update', $item) }}" class="mt-2 grid grid-cols-2 gap-2">
+                                                @csrf
+                                                @method('PUT')
+                                                @foreach (['allowances' => 'Allowances', 'overtime_pay' => 'Overtime', 'bonus_pay' => 'Bonus', 'insurance_amount' => 'Insurance', 'loan_deduction' => 'Loan deduction', 'other_deduction' => 'Other deduction'] as $field => $label)
+                                                    <label class="text-xs text-gray-600">{{ $label }}
+                                                        <input type="number" step="0.01" min="0" name="{{ $field }}" value="{{ (float) $item->{$field} }}" class="mbui-input mt-0.5 py-1 text-xs">
+                                                    </label>
+                                                @endforeach
+                                                <div class="col-span-2"><x-mbui.button type="submit" class="!px-3 !py-1 text-xs">Save line</x-mbui.button></div>
+                                            </form>
+                                        </details>
+                                    @endif
                                 </td>
+                                <td class="mbui-td text-xs text-gray-600">{{ number_format((float) $item->allowances) }} · {{ number_format((float) $item->overtime_pay) }} · {{ number_format((float) $item->bonus_pay) }}</td>
                                 <td class="mbui-td">TZS {{ number_format((float) $item->gross_pay) }}</td>
                                 <td class="mbui-td">TZS {{ number_format((float) $item->tax_amount) }}</td>
                                 <td class="mbui-td">TZS {{ number_format((float) $item->pension_amount) }}</td>
@@ -221,7 +275,7 @@
                 @forelse ($payrolls as $payroll)
                     <tr>
                         <td class="mbui-td">
-                            <p class="font-medium text-gray-900">{{ $payroll->name }}</p>
+                            <a href="{{ route('admin.finance.payroll.index', ['period' => $payroll->id]) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $payroll->name }}</a>
                             <p class="text-xs text-gray-500">{{ $payroll->prepared_at?->format('d M Y H:i') ?? 'Not prepared' }}</p>
                         </td>
                         <td class="mbui-td">{{ number_format($payroll->staff_count) }} <span class="text-xs text-gray-400">({{ number_format($payroll->items_count) }} lines)</span></td>

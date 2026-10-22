@@ -417,6 +417,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/staff/settings', 'storeSetting');
             Route::get('/payroll', 'payroll');
             Route::post('/payroll', 'preparePayroll');
+            Route::post('/payroll/{payroll}/approve', 'approvePayroll')->whereNumber('payroll');
+            Route::post('/payroll/{payroll}/reopen', 'reopenPayroll')->whereNumber('payroll');
+            Route::post('/payroll/{payroll}/paid', 'payPayroll')->whereNumber('payroll');
+            Route::put('/payroll/items/{item}', 'updatePayrollItem')->whereNumber('item');
             Route::put('/payroll/rates', 'updateRates');
             Route::get('/returns', 'returns');
             Route::post('/returns/{statutoryReturn}/paid', 'markReturnPaid');

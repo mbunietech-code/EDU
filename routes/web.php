@@ -504,6 +504,10 @@ Route::prefix('admin')
             Route::post('finance/contracts', [FinanceController::class, 'contractsStore'])->name('finance.contracts.store');
             Route::get('finance/payroll', [FinanceController::class, 'payrollIndex'])->name('finance.payroll.index');
             Route::post('finance/payroll', [FinanceController::class, 'payrollStore'])->name('finance.payroll.store');
+            Route::post('finance/payroll/{payroll}/approve', [FinanceController::class, 'payrollApprove'])->whereNumber('payroll')->name('finance.payroll.approve');
+            Route::post('finance/payroll/{payroll}/reopen', [FinanceController::class, 'payrollReopen'])->whereNumber('payroll')->name('finance.payroll.reopen');
+            Route::post('finance/payroll/{payroll}/paid', [FinanceController::class, 'payrollPaid'])->whereNumber('payroll')->name('finance.payroll.paid');
+            Route::put('finance/payroll/items/{item}', [FinanceController::class, 'payrollItemUpdate'])->whereNumber('item')->name('finance.payroll.items.update');
             Route::put('finance/payroll/statutory', [FinanceController::class, 'statutorySettingsUpdate'])->name('finance.payroll.statutory.update');
             Route::get('finance/returns', [FinanceController::class, 'returnsIndex'])->name('finance.returns.index');
             Route::post('finance/returns/{statutoryReturn}/paid', [FinanceController::class, 'returnMarkPaid'])->name('finance.returns.paid');

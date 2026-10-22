@@ -80,6 +80,14 @@
                                     @csrf
                                     <input type="date" name="paid_at" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}" required class="mbui-input w-36 py-1 text-xs" aria-label="Date paid">
                                     <input type="text" name="reference" placeholder="Control no. / receipt" class="mbui-input w-40 py-1 text-xs" aria-label="Payment reference">
+                                    @if ($moneyAccounts->isNotEmpty())
+                                        <select name="money_account_id" class="mbui-input w-36 py-1 text-xs" aria-label="Paid from">
+                                            <option value="">Paid from…</option>
+                                            @foreach ($moneyAccounts as $acc)
+                                                <option value="{{ $acc->id }}">{{ $acc->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    @endif
                                     <x-mbui.button type="submit">Mark paid</x-mbui.button>
                                 </form>
                             @endif
