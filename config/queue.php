@@ -34,6 +34,7 @@ return [
             'driver' => 'sync',
         ],
 
+        // On shared hosting the cron runs this queue every minute (routes/console.php).
         'database' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION', null),
@@ -84,6 +85,13 @@ return [
     | connection and table which has been defined by your application.
     |
     */
+
+    /*
+    | Queued jobs that waited longer than this many hours are dropped without
+    | running (queue:prune-stale, every minute before the worker), so a queue
+    | that was stopped never sends customers stale emails when it restarts.
+    */
+    'stale_after_hours' => (int) env('QUEUE_STALE_AFTER_HOURS', 48),
 
     'batching' => [
         'database' => env('DB_CONNECTION', 'sqlite'),

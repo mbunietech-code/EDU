@@ -4,6 +4,17 @@ use App\Console\Commands\OptimizationScanCommand;
 use App\Console\Commands\ProcessExpiryCommand;
 use Illuminate\Support\Facades\Schedule;
 
+// The queue (emails, in-app notifications, recording imports). Shared hosting
+// has no long-running worker, so the cron runs one every minute: first drop
+// jobs that waited too long (no stale emails after an outage), then work the
+// queue for up to 50 s in the background. withoutOverlapping keeps a long job
+// (a recording import may take 30 min) from being picked up twice.
+Schedule::command('queue:prune-stale')->everyMinute()->withoutOverlapping();
+Schedule::command('queue:work', ['database', '--queue=default', '--stop-when-empty', '--max-time=50', '--tries=3', '--sleep=1'])
+    ->everyMinute()
+    ->withoutOverlapping(35)
+    ->runInBackground();
+
 Schedule::command(ProcessExpiryCommand::class)->dailyAt('00:05');
 
 Schedule::command(OptimizationScanCommand::class)->dailyAt('02:00');
