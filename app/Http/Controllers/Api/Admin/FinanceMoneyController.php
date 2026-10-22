@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Admin\Concerns\FinanceAccess;
 use App\Http\Controllers\Controller;
+use App\Models\FinanceExpense;
 use App\Models\FinanceMoneyAccount;
 use App\Services\Finance\FinanceException;
 use App\Services\Finance\MoneyAccountService;
@@ -191,6 +192,61 @@ class FinanceMoneyController extends Controller
         }
 
         return response()->json(['message' => 'Budget percentages saved.']);
+    }
+
+    /** Product accounts and company assets with a cost, and which months are recorded as expenses. */
+    public function purchases(Request $request, \App\Services\Finance\PurchaseExpenseService $purchases): JsonResponse
+    {
+        $this->finance($request);
+
+        $map = function (string $kind, $items) use ($purchases) {
+            $recorded = $purchases->recorded($kind);
+
+            return $items->map(fn ($i) => [
+                'kind' => $kind,
+                'id' => $i->id,
+                'name' => $i->name,
+                'cost' => (float) $i->cost,
+                'currency' => $kind === 'account' ? ($i->cost_currency ?: 'TZS') : ($i->currency ?: 'TZS'),
+                'cost_tzs' => $purchases->costInTzs((float) $i->cost, $kind === 'account' ? $i->cost_currency : $i->currency),
+                'default_type' => $purchases->defaultType($kind, $i),
+                'recorded' => collect($recorded[$i->id] ?? [])->map(fn ($e) => [
+                    'expense_id' => $e->id, 'month' => $e->spent_at->format('Y-m'), 'amount' => (float) $e->amount,
+                ])->values()->all(),
+            ])->values()->all();
+        };
+
+        return response()->json(['data' => [
+            'ready' => FinanceExpense::typesReady(),
+            'accounts' => $map('account', $purchases->accounts()),
+            'assets' => $map('asset', $purchases->assets()),
+            'linkable' => $purchases->linkable()->map(fn ($e) => [
+                'id' => $e->id, 'label' => $e->label, 'amount' => (float) $e->amount, 'date' => $e->spent_at->toDateString(),
+            ])->values()->all(),
+        ]]);
+    }
+
+    /** Record one payment of an account / asset as an expense, or link it ({expense_id}) to one already typed in. */
+    public function purchase(Request $request, string $kind, int $id, string $action, \App\Services\Finance\PurchaseExpenseService $purchases): JsonResponse
+    {
+        $this->finance($request);
+        abort_unless(in_array($kind, \App\Services\Finance\PurchaseExpenseService::KINDS, true) && in_array($action, ['record', 'link'], true), 404);
+        $item = $purchases->find($kind, $id);
+
+        try {
+            if ($action === 'record') {
+                $expense = $purchases->record($kind, $item, $request->validate($purchases->recordRules()), $request->user()->id);
+
+                return response()->json(['data' => ['expense_id' => $expense->id], 'message' => 'Recorded under Expenses.'], 201);
+            }
+
+            $data = $request->validate(['expense_id' => ['required', 'integer', Rule::exists('finance_expenses', 'id')]]);
+            $purchases->link($kind, $item, FinanceExpense::findOrFail($data['expense_id']));
+        } catch (FinanceException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => 'Linked; it will not be counted twice.']);
     }
 
     private function row(FinanceMoneyAccount $a): array
