@@ -106,4 +106,27 @@ return [
         'other' => ['label' => 'Other', 'category' => 'Miscellaneous', 'default_label' => null],
     ],
 
+    /*
+    | Monthly budget (Mwongozo wa Fedha §7): each month's income is split by
+    | these percentages before it is spent. Percentages are defaults; admins
+    | change them on Finance → Budget (stored in settings). An expense counts
+    | against the bucket of its type; an expense without a type falls back to
+    | its category. `repayments` = loan repayments count here too.
+    */
+    'budget_buckets' => [
+        'cogs' => ['label' => 'Product costs (COGS)', 'percent' => 35, 'note' => 'Buying and renewing accounts, VPN servers',
+            'types' => ['product_accounts'], 'categories' => ['Cost of Goods Sold (COGS)']],
+        'people' => ['label' => 'Salaries and allowances', 'percent' => 20, 'note' => 'Net pay, posho, PAYE / NSSF / SDL / WCF',
+            'types' => ['salaries', 'allowances', 'payroll_taxes'], 'categories' => []],
+        'operations' => ['label' => 'Running costs', 'percent' => 15, 'note' => 'Electricity, internet, rent, hosting, petty cash, equipment',
+            'types' => ['electricity', 'internet', 'rent', 'hosting', 'petty_cash', 'equipment', 'other'],
+            'categories' => ['Operating Expenses (OPEX)', 'Miscellaneous', 'Depreciation & Amortization']],
+        'tax' => ['label' => 'Tax reserve', 'percent' => 10, 'note' => 'TRA tax, licences, BRELA',
+            'types' => ['tax_licence'], 'categories' => []],
+        'growth' => ['label' => 'Loan repayments and growth', 'percent' => 10, 'note' => 'Loan repayments, interest, fees, marketing',
+            'types' => ['marketing', 'loan_interest', 'transaction_fees'], 'categories' => ['Financial Expenses'], 'repayments' => true],
+        'reserve' => ['label' => 'Emergency reserve', 'percent' => 10, 'note' => 'Kept aside; not spent without the owners agreeing',
+            'types' => [], 'categories' => []],
+    ],
+
 ];

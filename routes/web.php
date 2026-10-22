@@ -482,6 +482,8 @@ Route::prefix('admin')
             Route::post('finance/capital/{capitalEntry}/repayments', [FinanceController::class, 'repaymentStore'])->name('finance.capital.repayments.store');
             Route::delete('finance/capital/{capitalEntry}/repayments/{repayment}', [FinanceController::class, 'repaymentDestroy'])->name('finance.capital.repayments.destroy');
             Route::get('finance/ledger', [\App\Http\Controllers\Admin\FinanceLedgerController::class, 'index'])->name('finance.ledger.index');
+            Route::get('finance/budget', [\App\Http\Controllers\Admin\FinanceBudgetController::class, 'index'])->name('finance.budget.index');
+            Route::put('finance/budget', [\App\Http\Controllers\Admin\FinanceBudgetController::class, 'update'])->name('finance.budget.update');
             Route::controller(\App\Http\Controllers\Admin\FinanceMoneyController::class)->group(function () {
                 Route::get('finance/money', 'index')->name('finance.money.index');
                 Route::post('finance/money', 'store')->name('finance.money.store');

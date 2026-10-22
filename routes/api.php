@@ -407,6 +407,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/transfers', 'transfer');
             Route::post('/assign', 'assign');
             Route::get('/ledger', 'ledger');
+            Route::get('/budget', 'budget');
+            Route::put('/budget', 'updateBudget');
             Route::get('/{id}', 'show')->whereNumber('id');
             Route::put('/{id}', 'update')->whereNumber('id');
         });

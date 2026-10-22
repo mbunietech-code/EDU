@@ -161,6 +161,38 @@ class FinanceMoneyController extends Controller
         ]]);
     }
 
+    /** Monthly budget against spending; optional ?month=YYYY-MM (default newest month). */
+    public function budget(Request $request, \App\Services\Finance\BudgetService $budget): JsonResponse
+    {
+        $this->finance($request);
+
+        $months = $budget->months();
+        $month = (string) $request->query('month', $months[0] ?? now()->format('Y-m'));
+        if (! preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = now()->format('Y-m');
+        }
+
+        return response()->json(['data' => $budget->month(\Illuminate\Support\Carbon::createFromFormat('!Y-m', $month)) + [
+            'months' => $months,
+            'capital' => $budget->capitalShares(),
+        ]]);
+    }
+
+    /** Save bucket percentages ({percents: {cogs: 35, …}}); they must add up to 100. */
+    public function updateBudget(Request $request, \App\Services\Finance\BudgetService $budget): JsonResponse
+    {
+        $this->finance($request);
+        $data = $request->validate($budget->percentRules());
+
+        try {
+            $budget->savePercents($data['percents']);
+        } catch (FinanceException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => 'Budget percentages saved.']);
+    }
+
     private function row(FinanceMoneyAccount $a): array
     {
         return [
