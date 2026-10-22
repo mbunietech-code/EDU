@@ -7,7 +7,10 @@ use App\Services\Finance\LedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
-/** Finance → Ledger: journal (Dr / Cr per movement) and trial balance. */
+/**
+ * Finance → Ledger: trial balance, all entries, and one tab per journal
+ * (sales, expenses, capital & loans, loan repayments, transfers).
+ */
 class FinanceLedgerController extends Controller
 {
     public function index(Request $request, LedgerService $ledger)
@@ -24,8 +27,19 @@ class FinanceLedgerController extends Controller
             $journal = $all;
         }
 
+        $tabs = ['trial' => 'Trial balance', 'all' => 'All entries'] + collect(LedgerService::JOURNALS)->map->label->all();
+        $tab = array_key_exists((string) $request->query('tab'), $tabs) ? (string) $request->query('tab') : 'trial';
+
+        $counts = ['all' => $journal->count()];
+        foreach (array_keys(LedgerService::JOURNALS) as $key) {
+            $counts[$key] = $ledger->forJournal($journal, $key)->count();
+        }
+
         return view('admin.finance.ledger', [
-            'journal' => $journal,
+            'tabs' => $tabs,
+            'tab' => $tab,
+            'counts' => $counts,
+            'lines' => $tab === 'trial' ? collect() : $ledger->forJournal($journal, $tab),
             'trial' => $ledger->trialBalance($journal),
             'months' => $months,
             'month' => $month,

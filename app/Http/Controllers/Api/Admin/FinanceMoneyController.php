@@ -147,10 +147,18 @@ class FinanceMoneyController extends Controller
         }
         $journal = $ledger->journal($from, $to);
 
+        // Optional ?journal=sales|expenses|capital|repayments|transfers (default: every entry).
+        $key = (string) $request->query('journal', 'all');
+        $key = array_key_exists($key, \App\Services\Finance\LedgerService::JOURNALS) ? $key : 'all';
+
         return response()->json(['data' => [
             'month' => $from ? $month : null,
+            'journal_key' => $key,
+            'journals' => collect(\App\Services\Finance\LedgerService::JOURNALS)->map(fn ($j, $k) => [
+                'key' => $k, 'label' => $j['label'], 'note' => $j['note'], 'count' => $ledger->forJournal($journal, $k)->count(),
+            ])->values()->all(),
             'trial_balance' => $ledger->trialBalance($journal)->all(),
-            'journal' => $journal->map(fn ($l) => [
+            'journal' => $ledger->forJournal($journal, $key)->map(fn ($l) => [
                 'date' => $l['date']->toDateString(),
                 'kind' => $l['kind'],
                 'description' => $l['description'],

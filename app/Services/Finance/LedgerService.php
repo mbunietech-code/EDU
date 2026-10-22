@@ -28,6 +28,23 @@ class LedgerService
 {
     public const UNASSIGNED_CASH = 'Cash: account not set';
 
+    /** Separate journals (books of entry), each for one kind of movement. */
+    public const JOURNALS = [
+        'sales' => ['label' => 'Sales', 'kinds' => ['sale'], 'note' => 'Customer payments. Dr the money account they landed in, Cr Sales for the product.'],
+        'expenses' => ['label' => 'Expenses', 'kinds' => ['expense'], 'note' => 'Money spent. Dr the expense type, Cr the money account it was paid from.'],
+        'capital' => ['label' => 'Capital & loans', 'kinds' => ['capital', 'loan'], 'note' => 'Owner capital and loans received. Dr the money account, Cr the owner or lender.'],
+        'repayments' => ['label' => 'Loan repayments', 'kinds' => ['repayment'], 'note' => 'Loans paid back. Dr the lender (less owed), Cr the money account.'],
+        'transfers' => ['label' => 'Transfers', 'kinds' => ['transfer'], 'note' => 'Money moved between our own accounts. Dr the receiving account, Cr the sending one.'],
+    ];
+
+    /** Lines of one journal ('all' = every line). */
+    public function forJournal(Collection $journal, string $key): Collection
+    {
+        $kinds = self::JOURNALS[$key]['kinds'] ?? null;
+
+        return $kinds === null ? $journal : $journal->whereIn('kind', $kinds)->values();
+    }
+
     /**
      * @return Collection<int, array{date: Carbon, kind: string, description: string, ref: ?string, dr: string, cr: string, amount: float, url: ?string}>
      */

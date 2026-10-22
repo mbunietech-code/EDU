@@ -77,9 +77,20 @@ class FinanceLedgerTest extends TestCase
         $this->seedBooks();
         $page = fn (array $q = []) => $this->actingAs($this->admin)->withSession(['finance_unlocked' => true])->get(route('admin.finance.ledger.index', $q));
 
-        $page()->assertOk()->assertSee('Trial balance')->assertSee('Balanced')->assertSee('Sales: Grammarly')->assertSee('October 2026');
+        // Default tab: trial balance, with a tab per journal and its count.
+        $page()->assertOk()->assertSee('Trial balance')->assertSee('Balanced')->assertSee('Grammarly')->assertSee('October 2026')
+            ->assertSee('Sales')->assertSee('Expenses')->assertSee('Capital &amp; loans', false)->assertSee('Loan repayments')->assertSee('Transfers');
         $page(['month' => '2026-09'])->assertOk()->assertSee('Nothing recorded for this period.');
-        $page(['month' => 'bad'])->assertOk()->assertSee('Sales: Grammarly');
+
+        // Each journal tab shows only its own entries.
+        $page(['tab' => 'sales'])->assertOk()->assertSee('Sales journal')->assertSee('Sales: Grammarly')->assertDontSee('Loan received: Grammarly');
+        $page(['tab' => 'capital'])->assertOk()->assertSee('Capital &amp; loans journal', false)->assertSee('Loan received: Grammarly')->assertDontSee('Sales: Grammarly');
+        $page(['tab' => 'expenses'])->assertOk()->assertSee('Expense: Internet / bundles')->assertDontSee('Loan repaid');
+        $page(['tab' => 'repayments'])->assertOk()->assertSee('Loan repaid: Grammarly')->assertSee('TZS 60,000');
+        $page(['tab' => 'transfers'])->assertOk()->assertSee('Transfer Alipay → CRDB');
+        $page(['tab' => 'all'])->assertOk()->assertSee('All entries')->assertSee('Sales: Grammarly')->assertSee('Loan repaid: Grammarly');
+        $page(['tab' => 'nope', 'month' => 'bad'])->assertOk()->assertSee('Trial balance')->assertSee('Grammarly');
+        $page(['tab' => 'sales', 'month' => '2026-09'])->assertOk()->assertSee('Nothing in this journal for this period.');
 
         $this->actingAs($this->admin)->withSession(['finance_unlocked' => true])
             ->get(route('admin.finance.money.show', FinanceMoneyAccount::firstWhere('name', 'CRDB')))
@@ -99,5 +110,11 @@ class FinanceLedgerTest extends TestCase
             ->assertJsonPath('data.month', '2026-10')
             ->assertJsonCount(5, 'data.journal');
         $api('GET', '/money/ledger?month=2026-09')->assertOk()->assertJsonCount(0, 'data.journal');
+        $api('GET', '/money/ledger?journal=sales')->assertOk()
+            ->assertJsonPath('data.journal_key', 'sales')
+            ->assertJsonCount(1, 'data.journal')
+            ->assertJsonPath('data.journal.0.cr', 'Sales: Grammarly')
+            ->assertJsonPath('data.journals.2.key', 'capital')
+            ->assertJsonPath('data.journals.2.count', 1);
     }
 }
