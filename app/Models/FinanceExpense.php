@@ -20,7 +20,56 @@ class FinanceExpense extends Model
         'receipt_path',
         'spent_at',
         'created_by',
+        'expense_type',
+        'source_type',
+        'source_id',
     ];
+
+    private static ?bool $typesReady = null;
+
+    /** @return array<string, array{label: string, category: string, default_label: ?string, product?: bool}> */
+    public static function types(): array
+    {
+        return (array) config('finance.expense_types', []);
+    }
+
+    /** The 0035 database change is applied (expense_type / source columns exist). */
+    public static function typesReady(): bool
+    {
+        if (self::$typesReady === null) {
+            try {
+                self::$typesReady = \Illuminate\Support\Facades\Schema::hasColumn('finance_expenses', 'expense_type');
+            } catch (\Throwable $e) {
+                self::$typesReady = false;
+            }
+        }
+
+        return self::$typesReady;
+    }
+
+    public static function forgetTypesReady(): void
+    {
+        self::$typesReady = null;
+    }
+
+    /** Optional expense type rule for the forms (none before the database change). */
+    public static function typeRules(): array
+    {
+        return self::typesReady()
+            ? ['expense_type' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(self::types()))]]
+            : [];
+    }
+
+    public function typeLabel(): ?string
+    {
+        return $this->expense_type ? (self::types()[$this->expense_type]['label'] ?? $this->expense_type) : null;
+    }
+
+    /** Created automatically (payroll, return, account, asset) rather than typed in. */
+    public function isAutomatic(): bool
+    {
+        return filled($this->source_type);
+    }
 
     protected $casts = [
         'amount' => 'decimal:2',

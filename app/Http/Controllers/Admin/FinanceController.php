@@ -228,9 +228,15 @@ class FinanceController extends Controller
         return back()->with('success', 'Repayment removed.');
     }
 
-    public function expenseIndex()
+    public function expenseIndex(Request $request)
     {
-        $expenses = FinanceExpense::with(['product', 'tool', 'creator'])->latest('spent_at')->paginate(20);
+        $type = FinanceExpense::typesReady() ? (string) $request->query('type', '') : '';
+        $expenses = FinanceExpense::with(['product', 'tool', 'creator'])
+            ->when($type === 'none', fn ($q) => $q->whereNull('expense_type'))
+            ->when(isset(FinanceExpense::types()[$type]), fn ($q) => $q->where('expense_type', $type))
+            ->latest('spent_at')
+            ->paginate(20)
+            ->withQueryString();
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
@@ -243,7 +249,7 @@ class FinanceController extends Controller
 
     public function expenseStore(Request $request)
     {
-        $validated = $request->validate(MoneyAccountService::fieldRules() + [
+        $validated = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -263,6 +269,7 @@ class FinanceController extends Controller
         unset($validated['receipt']);
         $validated['created_by'] = auth()->id();
         $validated['label'] = $this->resolveLabel($validated);
+        $validated = $this->withTypeCategory($validated);
 
         if ($this->receiptsSupported() && $request->hasFile('receipt')) {
             $validated['receipt_path'] = $request->file('receipt')->store('finance-receipts', 'private');
@@ -289,7 +296,7 @@ class FinanceController extends Controller
 
     public function expenseUpdate(Request $request, FinanceExpense $expense)
     {
-        $validated = $request->validate(MoneyAccountService::fieldRules() + [
+        $validated = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -311,6 +318,7 @@ class FinanceController extends Controller
         unset($validated['receipt'], $validated['remove_receipt']);
 
         $validated['label'] = $this->resolveLabel($validated);
+        $validated = $this->withTypeCategory($validated);
 
         if ($this->receiptsSupported()) {
             if ($request->hasFile('receipt')) {
@@ -589,6 +597,17 @@ class FinanceController extends Controller
         }
 
         return $supported;
+    }
+
+    /** A typed expense with no category takes its type's category (Mwongozo §5). */
+    protected function withTypeCategory(array $validated): array
+    {
+        $type = FinanceExpense::types()[$validated['expense_type'] ?? ''] ?? null;
+        if ($type && empty($validated['category'])) {
+            $validated['category'] = $type['category'];
+        }
+
+        return $validated;
     }
 
     protected function resolveLabel(array $validated): string

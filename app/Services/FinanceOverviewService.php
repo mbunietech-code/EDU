@@ -75,8 +75,15 @@ class FinanceOverviewService
         }
 
         foreach (FinanceExpense::all() as $expense) {
-            $key = $this->keyFor($expense->product_id, $expense->tool_id, $expense->label);
-            $rows[$key] ??= $this->blankRow($expense->label);
+            // General costs with a type share one line per type ("Electricity
+            // (LUKU)"), whatever label each was typed with.
+            if (! $expense->product_id && ! $expense->tool_id && $expense->typeLabel()) {
+                $key = 'type:'.$expense->expense_type;
+                $rows[$key] ??= array_merge($this->blankRow($expense->typeLabel()), ['key' => $key, 'type' => 'Cost']);
+            } else {
+                $key = $this->keyFor($expense->product_id, $expense->tool_id, $expense->label);
+                $rows[$key] ??= $this->blankRow($expense->label);
+            }
             $rows[$key]['expenses'] += (float) $expense->amount;
         }
 

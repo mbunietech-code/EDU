@@ -83,4 +83,27 @@ return [
         ],
     ],
 
+    /*
+    | Expense types (Mwongozo wa Fedha §5). Picking one fills the category and
+    | a standard label, so the same cost always lands on the same line.
+    | `product` = the expense belongs to a product (link it on the form).
+    */
+    'expense_types' => [
+        'electricity' => ['label' => 'Electricity (LUKU)', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Office – Electricity'],
+        'internet' => ['label' => 'Internet / bundles', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Office – Internet'],
+        'rent' => ['label' => 'Office rent', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Office – Rent'],
+        'hosting' => ['label' => 'Hosting, domain, server', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Tech – Hosting'],
+        'product_accounts' => ['label' => 'Buying / renewing product accounts', 'category' => 'Cost of Goods Sold (COGS)', 'default_label' => null, 'product' => true],
+        'marketing' => ['label' => 'Marketing / ads', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Marketing – Ads'],
+        'petty_cash' => ['label' => 'Petty cash (transport, tea, vouchers)', 'category' => 'Miscellaneous', 'default_label' => 'Office – Petty cash'],
+        'transaction_fees' => ['label' => 'Bank, mobile money and gateway fees', 'category' => 'Financial Expenses', 'default_label' => 'Finance – Transaction fees'],
+        'loan_interest' => ['label' => 'Loan interest', 'category' => 'Financial Expenses', 'default_label' => 'Finance – Loan interest'],
+        'salaries' => ['label' => 'Salaries (net pay)', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Salaries'],
+        'allowances' => ['label' => 'Allowances (posho)', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Allowances'],
+        'payroll_taxes' => ['label' => 'PAYE, SDL, NSSF, WCF', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Payroll taxes'],
+        'tax_licence' => ['label' => 'TRA tax, licences, BRELA', 'category' => 'Operating Expenses (OPEX)', 'default_label' => 'Tax – TRA / Licences'],
+        'equipment' => ['label' => 'Equipment (laptop, phone, router)', 'category' => 'Depreciation & Amortization', 'default_label' => 'Equipment'],
+        'other' => ['label' => 'Other', 'category' => 'Miscellaneous', 'default_label' => null],
+    ],
+
 ];

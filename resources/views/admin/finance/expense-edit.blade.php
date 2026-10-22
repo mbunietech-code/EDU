@@ -11,6 +11,10 @@
         <form method="POST" action="{{ route('admin.finance.expenses.update', $expense) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
+            @if ($expense->isAutomatic())
+                <p class="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-800">Recorded automatically from {{ str_replace('_', ' ', $expense->source_type) }}. Change it there if the amount is wrong.</p>
+            @endif
+            <x-finance.expense-type-select :selected="$expense->expense_type" class="sm:max-w-sm" />
             <div class="grid gap-4 sm:grid-cols-3">
                 <div>
                     <x-input-label for="exp-label" value="Software / label" />

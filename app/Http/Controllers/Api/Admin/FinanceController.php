@@ -119,6 +119,8 @@ class FinanceController extends Controller
                 'amount' => (float) $e->amount,
                 'amount_label' => 'TZS '.number_format((float) $e->amount),
                 'category' => $e->category,
+                'expense_type' => $e->expense_type,
+                'type_label' => $e->typeLabel(),
                 'description' => $e->description,
                 'target' => $e->product->name ?? $e->tool->name ?? 'General',
                 'spent_at' => optional($e->spent_at)->toDateString(),
@@ -134,7 +136,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate(MoneyAccountService::fieldRules() + [
+        $data = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -146,6 +148,7 @@ class FinanceController extends Controller
         ]);
         $data['created_by'] = $request->user()->id;
         $data['label'] = $this->resolveLabel($data);
+        $data = $this->withTypeCategory($data);
 
         $receipt = $data['receipt'] ?? null;
         unset($data['receipt']);
@@ -174,6 +177,7 @@ class FinanceController extends Controller
             'label' => $expense->label,
             'amount' => (float) $expense->amount,
             'category' => $expense->category,
+            'expense_type' => $expense->expense_type,
             'description' => $expense->description,
             'spent_at' => optional($expense->spent_at)->toDateString(),
             'money_account_id' => $expense->money_account_id,
@@ -185,7 +189,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate(MoneyAccountService::fieldRules() + [
+        $data = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -195,6 +199,7 @@ class FinanceController extends Controller
             'spent_at' => ['required', 'date'],
         ]);
         $data['label'] = $this->resolveLabel($data);
+        $data = $this->withTypeCategory($data);
 
         $expense->update($data);
         ActivityLog::log('finance_expense_updated', 'FinanceExpense', $expense->id, [
@@ -328,6 +333,17 @@ class FinanceController extends Controller
         return response()->json(['message' => 'Capital entry removed.']);
     }
 
+    /** A typed expense with no category takes its type's category. */
+    private function withTypeCategory(array $data): array
+    {
+        $type = FinanceExpense::types()[$data['expense_type'] ?? ''] ?? null;
+        if ($type && empty($data['category'])) {
+            $data['category'] = $type['category'];
+        }
+
+        return $data;
+    }
+
     private function resolveLabel(array $data): string
     {
         if (! empty($data['product_id'])) {
@@ -356,6 +372,8 @@ class FinanceController extends Controller
             'products' => \App\Models\Product::orderBy('name')->get(['id', 'name']),
             'tools' => \App\Models\Tool::orderBy('name')->get(['id', 'name']),
             'categories' => self::CATEGORIES,
+            // Empty until the expense types database change is applied.
+            'expense_types' => FinanceExpense::typesReady() ? collect(FinanceExpense::types())->map(fn ($t, $k) => ['key' => $k] + $t)->values() : [],
             // Empty until the money accounts database change is applied.
             'money_accounts' => app(MoneyAccountService::class)->options(),
         ]]);

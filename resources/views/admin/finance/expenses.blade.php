@@ -11,6 +11,7 @@
         <h2 class="text-base font-semibold text-gray-900">Add expense</h2>
         <form method="POST" action="{{ route('admin.finance.expenses.store') }}" enctype="multipart/form-data" class="mt-4 space-y-4">
             @csrf
+            <x-finance.expense-type-select class="sm:max-w-sm" />
             <div class="grid gap-4 sm:grid-cols-3">
                 <div>
                     <x-input-label for="exp-label" value="Software / label" />
@@ -84,6 +85,18 @@
         </form>
     </div>
 
+    @if (\App\Models\FinanceExpense::typesReady())
+        {{-- Filter by type; "Not set" finds older expenses still to classify. --}}
+        <div class="mt-6 flex flex-wrap items-center gap-2 text-xs">
+            @php($current = request('type', ''))
+            <a href="{{ route('admin.finance.expenses.index') }}" class="rounded-full px-3 py-1 font-medium {{ $current === '' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">All</a>
+            <a href="{{ route('admin.finance.expenses.index', ['type' => 'none']) }}" class="rounded-full px-3 py-1 font-medium {{ $current === 'none' ? 'bg-indigo-600 text-white' : 'bg-white text-amber-700 ring-1 ring-amber-200 hover:bg-amber-50' }}">Type not set</a>
+            @foreach (\App\Models\FinanceExpense::types() as $key => $t)
+                <a href="{{ route('admin.finance.expenses.index', ['type' => $key]) }}" class="rounded-full px-3 py-1 font-medium {{ $current === $key ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">{{ $t['label'] }}</a>
+            @endforeach
+        </div>
+    @endif
+
     <div class="mt-6 mbui-card overflow-hidden">
         <x-mbui.table>
             <thead>
@@ -107,7 +120,12 @@
                             @endif
                         </td>
                         <td class="mbui-td font-semibold text-red-600">TZS {{ number_format($expense->amount) }}</td>
-                        <td class="mbui-td">{{ $expense->category ?? '-' }}</td>
+                        <td class="mbui-td">
+                            @if ($expense->typeLabel())
+                                <p class="font-medium text-gray-900">{{ $expense->typeLabel() }}</p>
+                            @endif
+                            <p class="{{ $expense->typeLabel() ? 'text-xs text-gray-500' : '' }}">{{ $expense->category ?? '-' }}</p>
+                        </td>
                         <td class="mbui-td text-gray-500">{{ $expense->spent_at->format('d M Y') }}</td>
                         <td class="mbui-td">
                             @if ($expense->hasReceipt())
