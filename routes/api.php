@@ -410,6 +410,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/budget', 'budget');
             Route::put('/budget', 'updateBudget');
             Route::get('/purchases', 'purchases');
+            Route::get('/report', 'report');
             Route::post('/purchases/{kind}/{id}/{action}', 'purchase')->whereIn('kind', ['account', 'asset'])->whereNumber('id')->whereIn('action', ['record', 'link']);
             Route::get('/{id}', 'show')->whereNumber('id');
             Route::put('/{id}', 'update')->whereNumber('id');

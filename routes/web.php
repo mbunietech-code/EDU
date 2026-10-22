@@ -484,6 +484,8 @@ Route::prefix('admin')
             Route::get('finance/ledger', [\App\Http\Controllers\Admin\FinanceLedgerController::class, 'index'])->name('finance.ledger.index');
             Route::get('finance/budget', [\App\Http\Controllers\Admin\FinanceBudgetController::class, 'index'])->name('finance.budget.index');
             Route::get('finance/purchases', [\App\Http\Controllers\Admin\FinancePurchaseController::class, 'index'])->name('finance.purchases.index');
+            Route::get('finance/report', [\App\Http\Controllers\Admin\FinanceReportController::class, 'index'])->name('finance.report.index');
+            Route::get('finance/report/csv', [\App\Http\Controllers\Admin\FinanceReportController::class, 'csv'])->name('finance.report.csv');
             Route::post('finance/purchases/{kind}/{id}/record', [\App\Http\Controllers\Admin\FinancePurchaseController::class, 'record'])->whereIn('kind', ['account', 'asset'])->whereNumber('id')->name('finance.purchases.record');
             Route::post('finance/purchases/{kind}/{id}/link', [\App\Http\Controllers\Admin\FinancePurchaseController::class, 'link'])->whereIn('kind', ['account', 'asset'])->whereNumber('id')->name('finance.purchases.link');
             Route::put('finance/budget', [\App\Http\Controllers\Admin\FinanceBudgetController::class, 'update'])->name('finance.budget.update');

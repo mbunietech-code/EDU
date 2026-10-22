@@ -249,6 +249,24 @@ class FinanceMoneyController extends Controller
         return response()->json(['message' => 'Linked; it will not be counted twice.']);
     }
 
+    /** Profit and loss, profit per product and the month-end checklist; optional ?month=YYYY-MM. */
+    public function report(Request $request, \App\Services\Finance\MonthlyReportService $reports): JsonResponse
+    {
+        $this->finance($request);
+
+        $months = $reports->months();
+        $m = (string) $request->query('month', $months[0] ?? now()->format('Y-m'));
+        $month = \Illuminate\Support\Carbon::createFromFormat('!Y-m', preg_match('/^\d{4}-\d{2}$/', $m) ? $m : now()->format('Y-m'));
+
+        return response()->json(['data' => [
+            'months' => $months,
+            'pnl' => $reports->pnl($month),
+            'checklist' => collect($reports->checklist($month))->map(fn ($c) => [
+                'label' => $c['label'], 'done' => $c['done'], 'detail' => $c['detail'],
+            ])->all(),
+        ]]);
+    }
+
     private function row(FinanceMoneyAccount $a): array
     {
         return [
