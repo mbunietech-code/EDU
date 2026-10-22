@@ -11,6 +11,7 @@ class FinanceCapitalEntry extends Model
     protected $table = 'finance_capital_entries';
 
     protected $fillable = [
+        'money_account_id',
         'product_id',
         'tool_id',
         'label',
@@ -34,6 +35,12 @@ class FinanceCapitalEntry extends Model
     public function tool(): BelongsTo
     {
         return $this->belongsTo(Tool::class);
+    }
+
+    /** The money account ("mfuko") this went through; null = not assigned yet. */
+    public function moneyAccount(): BelongsTo
+    {
+        return $this->belongsTo(FinanceMoneyAccount::class, 'money_account_id');
     }
 
     public function creator(): BelongsTo

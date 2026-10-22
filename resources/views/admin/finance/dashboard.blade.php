@@ -33,6 +33,36 @@
         </x-mbui.card>
     </div>
 
+    {{-- Where the money is: one line per money account. --}}
+    <div class="mt-8 mbui-card p-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="text-base font-semibold text-gray-900">Where the money is</h2>
+            <a href="{{ route('admin.finance.money.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">Money accounts &rarr;</a>
+        </div>
+        @if ($money === null || $money['accounts']->isEmpty())
+            <p class="mt-2 text-sm text-gray-500">Set up money accounts (Alipay, WeChat, mobile money, bank, petty cash) to see how much sits in each.</p>
+        @else
+            <ul class="mt-3 divide-y divide-gray-100 text-sm">
+                @foreach ($money['accounts'] as $b)
+                    <li class="flex justify-between gap-3 py-1.5">
+                        <a href="{{ route('admin.finance.money.show', $b['account']) }}" class="text-gray-700 hover:text-indigo-600">{{ $b['account']->name }}</a>
+                        <span class="font-semibold tabular-nums {{ $b['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($b['balance']) }}</span>
+                    </li>
+                @endforeach
+                @if ($money['unassigned'] != 0)
+                    <li class="flex justify-between gap-3 py-1.5 text-amber-700">
+                        <a href="{{ route('admin.finance.money.index') }}" class="hover:underline">Not assigned to an account</a>
+                        <span class="font-semibold tabular-nums">TZS {{ number_format($money['unassigned']) }}</span>
+                    </li>
+                @endif
+                <li class="flex justify-between gap-3 pt-2 font-semibold text-gray-900">
+                    <span>In accounts</span>
+                    <span class="tabular-nums">TZS {{ number_format($money['total']) }}</span>
+                </li>
+            </ul>
+        @endif
+    </div>
+
     <div class="mt-8 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Per software</h2>

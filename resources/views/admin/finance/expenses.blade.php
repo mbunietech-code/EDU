@@ -59,6 +59,7 @@
                     <x-text-input id="exp-date" class="mbui-input mt-1" type="date" name="spent_at" :value="old('spent_at', now()->format('Y-m-d'))" required />
                     <x-input-error :messages="$errors->get('spent_at')" class="mt-2" />
                 </div>
+                <x-finance.money-account-select :accounts="$moneyAccounts" id="exp-money" label="Paid from" />
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>

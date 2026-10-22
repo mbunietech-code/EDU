@@ -47,6 +47,7 @@
                     <x-text-input id="cap-source" class="mbui-input mt-1" type="text" name="source" :value="old('source', $capitalEntry->source)" required />
                     <x-input-error :messages="$errors->get('source')" class="mt-2" />
                 </div>
+                <x-finance.money-account-select :accounts="$moneyAccounts" :selected="$capitalEntry->money_account_id" id="cap-money" label="Received into" />
             </div>
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="hidden" name="is_loan" value="0">

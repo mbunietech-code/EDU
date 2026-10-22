@@ -400,6 +400,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/capital/{capitalEntry}', 'capitalDestroy');
         });
 
+        // Finance money accounts ("mifuko"): where the money is.
+        Route::controller(\App\Http\Controllers\Api\Admin\FinanceMoneyController::class)->prefix('finance/money')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::post('/transfers', 'transfer');
+            Route::post('/assign', 'assign');
+            Route::get('/{id}', 'show')->whereNumber('id');
+            Route::put('/{id}', 'update')->whereNumber('id');
+        });
+
         // Finance HR: staff, payroll (statutory), returns and loan repayments.
         Route::controller(\App\Http\Controllers\Api\Admin\FinanceHrController::class)->prefix('finance')->group(function () {
             Route::get('/staff', 'staff');

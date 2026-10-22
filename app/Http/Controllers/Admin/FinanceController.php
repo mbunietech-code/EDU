@@ -21,6 +21,7 @@ use App\Models\Tool;
 use App\Services\DeletionService;
 use App\Services\Finance\FinanceException;
 use App\Services\Finance\LoanService;
+use App\Services\Finance\MoneyAccountService;
 use App\Services\Finance\PayrollService;
 use App\Services\Finance\StaffService;
 use App\Services\FinanceOverviewService;
@@ -90,7 +91,19 @@ class FinanceController extends Controller
         $rows = $overview->rows();
         $totals = $overview->totals($rows);
 
-        return view('admin.finance.dashboard', compact('rows', 'totals'));
+        // Where the money sits, when money accounts are set up.
+        $money = null;
+        if (MoneyAccountService::ready()) {
+            $service = app(MoneyAccountService::class);
+            $balances = $service->balances(false);
+            $money = [
+                'accounts' => $balances,
+                'total' => (float) $balances->sum('balance'),
+                'unassigned' => $service->unassigned()['totals']['net'],
+            ];
+        }
+
+        return view('admin.finance.dashboard', compact('rows', 'totals', 'money'));
     }
 
     public function capitalIndex()
@@ -104,12 +117,14 @@ class FinanceController extends Controller
 
         $loanTotals = app(LoanService::class)->totals();
 
-        return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals', 'moneyAccounts'));
     }
 
     public function capitalStore(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -134,12 +149,14 @@ class FinanceController extends Controller
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.finance.capital-edit', compact('capitalEntry', 'products', 'tools'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.capital-edit', compact('capitalEntry', 'products', 'tools', 'moneyAccounts'));
     }
 
     public function capitalUpdate(Request $request, FinanceCapitalEntry $capitalEntry)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -183,7 +200,9 @@ class FinanceController extends Controller
 
         $capitalEntry->load(['repayments.creator', 'creator']);
 
-        return view('admin.finance.repayments', compact('capitalEntry'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.repayments', compact('capitalEntry', 'moneyAccounts'));
     }
 
     public function repaymentStore(Request $request, FinanceCapitalEntry $capitalEntry, LoanService $loans)
@@ -217,12 +236,14 @@ class FinanceController extends Controller
 
         $receiptsSupported = $this->receiptsSupported();
 
-        return view('admin.finance.expenses', compact('expenses', 'products', 'tools', 'receiptsSupported'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.expenses', compact('expenses', 'products', 'tools', 'receiptsSupported', 'moneyAccounts'));
     }
 
     public function expenseStore(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -261,12 +282,14 @@ class FinanceController extends Controller
 
         $receiptsSupported = $this->receiptsSupported();
 
-        return view('admin.finance.expense-edit', compact('expense', 'products', 'tools', 'receiptsSupported'));
+        $moneyAccounts = app(MoneyAccountService::class)->options();
+
+        return view('admin.finance.expense-edit', compact('expense', 'products', 'tools', 'receiptsSupported', 'moneyAccounts'));
     }
 
     public function expenseUpdate(Request $request, FinanceExpense $expense)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],

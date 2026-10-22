@@ -19,7 +19,7 @@ class LoanService
         $outstanding = $loan->outstandingAmount();
 
         return [
-            [
+            MoneyAccountService::fieldRules() + [
                 'amount' => ['required', 'numeric', 'min:0.01', 'max:'.$outstanding],
                 'paid_at' => ['required', 'date', 'before_or_equal:today'],
                 'method' => ['nullable', 'string', 'max:120'],

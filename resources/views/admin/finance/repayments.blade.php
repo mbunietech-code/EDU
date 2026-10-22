@@ -63,6 +63,7 @@
                         <x-text-input id="rep-reference" class="mbui-input mt-1" type="text" name="reference" :value="old('reference')" placeholder="Transaction ID" />
                         <x-input-error :messages="$errors->get('reference')" class="mt-2" />
                     </div>
+                    <x-finance.money-account-select :accounts="$moneyAccounts" id="rep-money" label="Paid from" />
                 </div>
                 <div>
                     <x-input-label for="rep-notes" value="Notes (optional)" />

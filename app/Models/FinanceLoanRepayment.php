@@ -10,6 +10,7 @@ class FinanceLoanRepayment extends Model
     protected $table = 'finance_loan_repayments';
 
     protected $fillable = [
+        'money_account_id',
         'finance_capital_entry_id',
         'amount',
         'paid_at',
@@ -23,6 +24,12 @@ class FinanceLoanRepayment extends Model
         'amount' => 'decimal:2',
         'paid_at' => 'date',
     ];
+
+    /** The money account ("mfuko") this went through; null = not assigned yet. */
+    public function moneyAccount(): BelongsTo
+    {
+        return $this->belongsTo(FinanceMoneyAccount::class, 'money_account_id');
+    }
 
     public function capitalEntry(): BelongsTo
     {

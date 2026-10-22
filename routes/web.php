@@ -481,6 +481,15 @@ Route::prefix('admin')
             Route::get('finance/capital/{capitalEntry}/repayments', [FinanceController::class, 'repaymentIndex'])->name('finance.capital.repayments.index');
             Route::post('finance/capital/{capitalEntry}/repayments', [FinanceController::class, 'repaymentStore'])->name('finance.capital.repayments.store');
             Route::delete('finance/capital/{capitalEntry}/repayments/{repayment}', [FinanceController::class, 'repaymentDestroy'])->name('finance.capital.repayments.destroy');
+            Route::controller(\App\Http\Controllers\Admin\FinanceMoneyController::class)->group(function () {
+                Route::get('finance/money', 'index')->name('finance.money.index');
+                Route::post('finance/money', 'store')->name('finance.money.store');
+                Route::post('finance/money/transfers', 'transfer')->name('finance.money.transfer');
+                Route::post('finance/money/assign', 'assign')->name('finance.money.assign');
+                Route::get('finance/money/{moneyAccount}', 'show')->whereNumber('moneyAccount')->name('finance.money.show');
+                Route::get('finance/money/{moneyAccount}/edit', 'edit')->whereNumber('moneyAccount')->name('finance.money.edit');
+                Route::put('finance/money/{moneyAccount}', 'update')->whereNumber('moneyAccount')->name('finance.money.update');
+            });
             Route::get('finance/expenses', [FinanceController::class, 'expenseIndex'])->name('finance.expenses.index');
             Route::post('finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
             Route::get('finance/expenses/{expense}/receipt', [FinanceController::class, 'expenseReceipt'])->name('finance.expenses.receipt');

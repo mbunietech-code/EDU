@@ -25,6 +25,8 @@ class SchemaAlterService
         'Duplicate key name',
         'Duplicate foreign key constraint name',
         'duplicate key in table',
+        // MariaDB / InnoDB re-adding a foreign key whose constraint name exists (errno 121).
+        'Duplicate key on write or update',
         'Multiple primary key defined',
         "check that column/key exists",
     ];

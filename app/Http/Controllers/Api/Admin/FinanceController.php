@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Tool;
 use App\Services\DeletionService;
+use App\Services\Finance\MoneyAccountService;
 use App\Services\FinanceOverviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -133,7 +134,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate([
+        $data = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -175,6 +176,7 @@ class FinanceController extends Controller
             'category' => $expense->category,
             'description' => $expense->description,
             'spent_at' => optional($expense->spent_at)->toDateString(),
+            'money_account_id' => $expense->money_account_id,
         ]]);
     }
 
@@ -183,7 +185,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate([
+        $data = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -253,7 +255,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate([
+        $data = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -287,6 +289,7 @@ class FinanceController extends Controller
             'source' => $capitalEntry->source,
             'is_loan' => (bool) $capitalEntry->is_loan,
             'notes' => $capitalEntry->notes,
+            'money_account_id' => $capitalEntry->money_account_id,
         ]]);
     }
 
@@ -295,7 +298,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $data = $request->validate([
+        $data = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'label' => ['required', 'string', 'max:255'],
@@ -353,6 +356,8 @@ class FinanceController extends Controller
             'products' => \App\Models\Product::orderBy('name')->get(['id', 'name']),
             'tools' => \App\Models\Tool::orderBy('name')->get(['id', 'name']),
             'categories' => self::CATEGORIES,
+            // Empty until the money accounts database change is applied.
+            'money_accounts' => app(MoneyAccountService::class)->options(),
         ]]);
     }
 }
