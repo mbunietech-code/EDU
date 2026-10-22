@@ -133,6 +133,34 @@ class FinanceMoneyController extends Controller
         return response()->json(['data' => ['assigned' => $count], 'message' => "{$count} assigned."]);
     }
 
+    /** Journal (Dr / Cr per movement) and trial balance; optional ?month=YYYY-MM. */
+    public function ledger(Request $request, \App\Services\Finance\LedgerService $ledger): JsonResponse
+    {
+        $this->finance($request);
+
+        $month = (string) $request->query('month', '');
+        $from = $to = null;
+        if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $from = \Illuminate\Support\Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
+            $to = $from->copy()->endOfMonth();
+        }
+        $journal = $ledger->journal($from, $to);
+
+        return response()->json(['data' => [
+            'month' => $from ? $month : null,
+            'trial_balance' => $ledger->trialBalance($journal)->all(),
+            'journal' => $journal->map(fn ($l) => [
+                'date' => $l['date']->toDateString(),
+                'kind' => $l['kind'],
+                'description' => $l['description'],
+                'ref' => $l['ref'],
+                'dr' => $l['dr'],
+                'cr' => $l['cr'],
+                'amount' => $l['amount'],
+            ])->all(),
+        ]]);
+    }
+
     private function row(FinanceMoneyAccount $a): array
     {
         return [

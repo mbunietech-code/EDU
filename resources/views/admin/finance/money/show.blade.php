@@ -37,8 +37,8 @@
                     <th class="mbui-th">Date</th>
                     <th class="mbui-th">Description</th>
                     <th class="mbui-th">Ref</th>
-                    <th class="mbui-th text-right">In</th>
-                    <th class="mbui-th text-right">Out</th>
+                    <th class="mbui-th text-right">Debit (in)</th>
+                    <th class="mbui-th text-right">Credit (out)</th>
                     <th class="mbui-th text-right">Balance</th>
                 </tr>
             </thead>
