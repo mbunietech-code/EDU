@@ -26,12 +26,13 @@
         <span class="text-indigo-300" aria-hidden="true">@include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => $big ? 'h-10 w-10' : 'h-6 w-6'])</span>
         <p class="font-semibold text-white {{ $big ? 'text-base' : 'text-xs' }}">You are sharing your screen</p>
         @if ($big)
-            <p class="max-w-sm text-xs text-gray-300">Everyone else sees it. Tip: share a window or another tab (slides, code) rather than this class tab.</p>
+            <p class="max-w-sm text-xs text-gray-300">Everyone else sees it. The preview is hidden here so your screen does not repeat itself like a mirror.</p>
         @endif
         <div class="flex flex-wrap items-center justify-center gap-2">
             @if ($big)
                 <button type="button" @click.stop="toggleSharePreview()"
-                    class="mt-1 rounded-lg px-4 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-700">Show preview</button>
+                    class="mt-1 rounded-lg px-4 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-700"
+                    title="When you share a window or the whole screen, the preview repeats itself like a mirror">Show preview</button>
             @endif
             <button type="button" @click.stop="toggleShare()"
                 class="rounded-lg bg-red-600 font-semibold text-white hover:bg-red-500 {{ $big ? 'mt-1 px-4 py-2 text-sm' : 'px-2 py-1 text-[11px]' }}">Stop sharing</button>

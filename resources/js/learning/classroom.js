@@ -187,7 +187,9 @@ window.learnClassroom = (cfg = {}) => {
     remoteState: {}, // identity → { mic, cam, screen, speaking, quality }
     layout: 'speaker', // speaker | grid
     pinnedId: null,
-    sharePreview: true, // I see my own screen share (off = a notice instead)
+    // My own screen share on my screen: null = automatic (shown only when sharing another tab —
+    // a window or the whole screen would film itself again and again); true / false = my choice.
+    sharePreview: null,
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
     // on a phone I stay live while doing something else.
     mini: { supported: false, active: false },
@@ -974,24 +976,26 @@ window.learnClassroom = (cfg = {}) => {
         this.applyPermissions(config.permissions || {});
         this.disconnect(true);
 
-        // HD that does not freeze (the platform owner's choice): every camera is
-        // sent in Full HD plus one 720p copy, and never anything smaller. Good
-        // connections get 1080p; a weak one gets the 720p copy (still HD) instead
-        // of a frozen picture. Each copy keeps its resolution under congestion
-        // (fewer frames per second, never a blurrier picture).
+        // Cameras that keep moving on weak connections: HD for good connections plus
+        // smaller copies, so a slow phone network gets a smaller picture instead of a
+        // frozen one. Computers send 1080p (+ 720p and 360p copies); phones send 720p
+        // (+ 360p and 180p) — less to upload and to encode on a weak phone. Under
+        // congestion a camera lowers its quality a little before dropping frames.
+        const phone = !this.canHover;
+        const camPreset = phone ? mod.VideoPresets.h720 : mod.VideoPresets.h1080;
         const room = new mod.Room({
-            // Picks 1080p or 720p per viewer, and pauses cameras nobody has on screen
-            // (so many cameras do not make everyone download all of them).
+            // Picks the copy that fits each viewer's screen and connection, and pauses
+            // cameras nobody has on screen (so many cameras do not make everyone download all of them).
             adaptiveStream: true,
             dynacast: true,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
-            videoCaptureDefaults: { resolution: mod.VideoPresets.h1080.resolution },
+            videoCaptureDefaults: { resolution: camPreset.resolution },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
                 simulcast: true,
-                videoEncoding: { maxBitrate: 4000000, maxFramerate: 30, priority: 'high' },
-                videoSimulcastLayers: [mod.VideoPresets.h720],
-                degradationPreference: 'maintain-resolution',
+                videoEncoding: { maxBitrate: phone ? 1700000 : 3000000, maxFramerate: 30, priority: 'high' },
+                videoSimulcastLayers: phone ? [mod.VideoPresets.h180, mod.VideoPresets.h360] : [mod.VideoPresets.h360, mod.VideoPresets.h720],
+                degradationPreference: 'balanced',
                 // Slides and code: sharp 1080p text at up to 4 Mbps, with a 720p copy for weak connections.
                 screenShareEncoding: { maxBitrate: 4000000, maxFramerate: 15, priority: 'high' },
                 screenShareSimulcastLayers: [mod.ScreenSharePresets.h720fps15],
@@ -1137,10 +1141,9 @@ window.learnClassroom = (cfg = {}) => {
 
             remoteState[p.identity] = { mic, cam, screen, speaking: base.speaking, quality: base.quality };
             tiles.push({ ...base, id: p.identity + ':camera', source: 'camera', hasVideo: cam });
-            // My own screen share is shown to me too (what everyone sees), unless I hide the
-            // preview — useful when sharing the whole screen, where it mirrors itself.
+            // My own screen share is shown to me too (what everyone sees) when it cannot mirror itself.
             if (screen) {
-                tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: !p.isLocal || this.sharePreview, selfShare: !!p.isLocal });
+                tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: !p.isLocal || this.ownSharePreview(screenPub), selfShare: !!p.isLocal });
             }
         });
 
@@ -1176,7 +1179,7 @@ window.learnClassroom = (cfg = {}) => {
             const p = isMe ? room.localParticipant : room.remoteParticipants.get(identity);
             const pub = p && p.getTrackPublication(source === 'screen' ? S.ScreenShare : S.Camera);
             // My own screen share only while its preview is on (see refreshTiles).
-            const track = pub && !pub.isMuted && !(isMe && source === 'screen' && !this.sharePreview) ? pub.track : null;
+            const track = pub && !pub.isMuted && !(isMe && source === 'screen' && !this.ownSharePreview(pub)) ? pub.track : null;
 
             if (!track) {
                 if (el.srcObject) el.srcObject = null;
@@ -1385,8 +1388,19 @@ window.learnClassroom = (cfg = {}) => {
         } catch (e) { /* not supported */ }
     },
 
+    /** Show my own screen share to me? Automatically only for another tab (it cannot film this page). */
+    ownSharePreview(pub) {
+        if (this.sharePreview !== null) return this.sharePreview;
+        const track = pub && pub.track && pub.track.mediaStreamTrack;
+        const surface = track && typeof track.getSettings === 'function' ? track.getSettings().displaySurface : '';
+
+        return surface === 'browser';
+    },
+
     toggleSharePreview() {
-        this.sharePreview = !this.sharePreview;
+        const room = lk.room;
+        const pub = room && lk.mod ? room.localParticipant.getTrackPublication(lk.mod.Track.Source.ScreenShare) : null;
+        this.sharePreview = !this.ownSharePreview(pub);
         this.refreshTiles();
     },
 
@@ -2469,6 +2483,7 @@ window.learnClassroom = (cfg = {}) => {
         }
         this.mediaBusy.screen = true;
         const starting = !this.media.screen;
+        if (starting) this.sharePreview = null; // each new share decides again
         try {
             await room.localParticipant.setScreenShareEnabled(starting, {
                 audio: true, // tab / system audio where the browser supports it
