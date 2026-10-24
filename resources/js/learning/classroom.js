@@ -190,6 +190,8 @@ window.learnClassroom = (cfg = {}) => {
     // My own screen share on my screen: null = automatic (shown only when sharing another tab —
     // a window or the whole screen would film itself again and again); true / false = my choice.
     sharePreview: null,
+    // Without the live preview: a still picture of my shared screen, taken only while this page is out of sight.
+    shareSnap: { ready: false },
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
     // on a phone I stay live while doing something else.
     mini: { supported: false, active: false },
@@ -1152,6 +1154,7 @@ window.learnClassroom = (cfg = {}) => {
         this.$nextTick(() => this.syncCaptions());
         this.media.cam = !!local.isCameraEnabled;
         this.media.screen = !!local.isScreenShareEnabled;
+        this.syncShareSnap(local.getTrackPublication(S.ScreenShare));
         this.syncMediaSession();
         this.myQuality = String(local.connectionQuality || 'unknown');
         if (this.pinnedId && !tiles.some((t) => t.id === this.pinnedId)) this.pinnedId = null;
@@ -1192,6 +1195,7 @@ window.learnClassroom = (cfg = {}) => {
                 el._lkTrack = track;
             }
         });
+        this.paintShareSnap();
         this.syncMini();
     },
 
@@ -1395,6 +1399,82 @@ window.learnClassroom = (cfg = {}) => {
         const surface = track && typeof track.getSettings === 'function' ? track.getSettings().displaySurface : '';
 
         return surface === 'browser';
+    },
+
+    // --- Still picture of my own screen share ----------------------------------
+    // A live preview of the whole screen films itself again and again (a mirror).
+    // Zoom hides its own window from the capture; a web page cannot, so instead
+    // the picture is taken only while this page is out of sight (I am in the app
+    // I present): it shows that app, never this page.
+    syncShareSnap(pub) {
+        const track = this.media.screen && pub && pub.track ? pub.track.mediaStreamTrack : null;
+        if (!track) {
+            this.stopShareSnap();
+            return;
+        }
+        if (lk.shareSnap && lk.shareSnap.track === track) return;
+        this.stopShareSnap();
+        const snap = { track, canvas: document.createElement('canvas'), capture: null, video: null, timer: null, busy: false };
+        if (typeof ImageCapture !== 'undefined') {
+            try { snap.capture = new ImageCapture(track); } catch (e) { snap.capture = null; }
+        }
+        if (!snap.capture) {
+            snap.video = document.createElement('video');
+            snap.video.muted = true;
+            snap.video.playsInline = true;
+            snap.video.srcObject = new MediaStream([track]);
+            snap.video.play().catch(() => {});
+        }
+        snap.timer = setInterval(() => this.takeShareSnap(), 1000);
+        lk.shareSnap = snap;
+        this.shareSnap.ready = false;
+    },
+
+    async takeShareSnap() {
+        const snap = lk.shareSnap;
+        if (!snap || snap.busy || document.visibilityState !== 'hidden') return;
+        snap.busy = true;
+        let frame = null;
+        try {
+            frame = snap.capture ? await snap.capture.grabFrame() : snap.video;
+            const w = snap.capture ? frame.width : frame.videoWidth;
+            const h = snap.capture ? frame.height : frame.videoHeight;
+            if (!w || !h || lk.shareSnap !== snap) return;
+            const scale = Math.min(1, 1600 / w);
+            snap.canvas.width = Math.round(w * scale);
+            snap.canvas.height = Math.round(h * scale);
+            snap.canvas.getContext('2d').drawImage(frame, 0, 0, snap.canvas.width, snap.canvas.height);
+            this.shareSnap.ready = true;
+            this.paintShareSnap();
+        } catch (e) {
+            /* no frame yet: the next tick tries again */
+        } finally {
+            if (frame && snap.capture && typeof frame.close === 'function') frame.close();
+            snap.busy = false;
+        }
+    },
+
+    /** Copy the latest picture onto every tile that shows my share (tiles are re-created as the layout changes). */
+    paintShareSnap() {
+        const snap = lk.shareSnap;
+        if (!snap || !snap.canvas.width) return;
+        this.$root.querySelectorAll('canvas[data-share-snapshot]').forEach((c) => {
+            if (c.width !== snap.canvas.width || c.height !== snap.canvas.height) {
+                c.width = snap.canvas.width;
+                c.height = snap.canvas.height;
+            }
+            c.getContext('2d').drawImage(snap.canvas, 0, 0);
+        });
+    },
+
+    stopShareSnap() {
+        const snap = lk.shareSnap;
+        if (snap) {
+            clearInterval(snap.timer);
+            if (snap.video) snap.video.srcObject = null;
+        }
+        lk.shareSnap = null;
+        this.shareSnap.ready = false;
     },
 
     toggleSharePreview() {
@@ -2350,6 +2430,7 @@ window.learnClassroom = (cfg = {}) => {
         if (this.$refs.audioSink) this.$refs.audioSink.innerHTML = '';
         this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => { el.srcObject = null; el._lkTrack = null; });
         this.setMiniSource(null);
+        this.stopShareSnap();
         this.tiles = [];
         this.remoteState = {};
         if (room) lk.lastMedia = { mic: this.media.mic, cam: this.media.cam };
