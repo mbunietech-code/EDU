@@ -6,15 +6,36 @@
         :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"
         :aria-label="t.source === 'screen' ? t.name + ' is sharing their screen' : 'Video of ' + t.name"></video>
 
-    {{-- My own screen share: a notice instead of the picture (avoids the endless mirror effect) --}}
-    <div x-show="t.selfShare" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
+    {{-- My own screen share with its preview on: what everyone sees, with a bar to stop or hide it --}}
+    <div x-show="t.selfShare && t.hasVideo" class="absolute inset-x-0 top-0 flex justify-center p-2">
+        <div class="flex max-w-full items-center gap-2 rounded-full bg-black/75 py-1 pl-3 pr-1 text-white shadow-lg {{ $big ? 'text-xs sm:text-sm' : 'text-[11px]' }}">
+            <span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500" aria-hidden="true"></span>
+            <span class="truncate">You are sharing — everyone sees this</span>
+            @if ($big)
+                <button type="button" @click.stop="toggleSharePreview()"
+                    class="shrink-0 rounded-full px-2.5 py-1 font-medium text-gray-200 hover:bg-white/10"
+                    title="Hide this preview (if the picture repeats itself, you are sharing this window)">Hide preview</button>
+            @endif
+            <button type="button" @click.stop="toggleShare()"
+                class="shrink-0 rounded-full bg-red-600 px-2.5 py-1 font-semibold hover:bg-red-500">Stop sharing</button>
+        </div>
+    </div>
+
+    {{-- My own screen share with its preview hidden: a notice instead of the picture --}}
+    <div x-show="t.selfShare && !t.hasVideo" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
         <span class="text-indigo-300" aria-hidden="true">@include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => $big ? 'h-10 w-10' : 'h-6 w-6'])</span>
         <p class="font-semibold text-white {{ $big ? 'text-base' : 'text-xs' }}">You are sharing your screen</p>
         @if ($big)
             <p class="max-w-sm text-xs text-gray-300">Everyone else sees it. Tip: share a window or another tab (slides, code) rather than this class tab.</p>
         @endif
-        <button type="button" @click.stop="toggleShare()"
-            class="rounded-lg bg-red-600 font-semibold text-white hover:bg-red-500 {{ $big ? 'mt-1 px-4 py-2 text-sm' : 'px-2 py-1 text-[11px]' }}">Stop sharing</button>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+            @if ($big)
+                <button type="button" @click.stop="toggleSharePreview()"
+                    class="mt-1 rounded-lg px-4 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-700">Show preview</button>
+            @endif
+            <button type="button" @click.stop="toggleShare()"
+                class="rounded-lg bg-red-600 font-semibold text-white hover:bg-red-500 {{ $big ? 'mt-1 px-4 py-2 text-sm' : 'px-2 py-1 text-[11px]' }}">Stop sharing</button>
+        </div>
     </div>
 
     {{-- No video: initials --}}

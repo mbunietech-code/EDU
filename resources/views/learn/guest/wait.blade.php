@@ -11,7 +11,7 @@
                     this.state = r.ok ? (data.state || 'waiting') : 'ended';
                 } catch (e) { /* offline: try again */ }
                 if (this.state === 'admitted') { window.location.href = @js($liveUrl); return; }
-                if (this.state === 'waiting') this.timer = setTimeout(() => this.check(), 4000);
+                if (this.state === 'waiting') this.timer = setTimeout(() => this.check(), 2000);
             },
         }"
         x-init="check()">
@@ -22,7 +22,7 @@
                 <div>
                     <div class="mx-auto mt-5 h-10 w-10 animate-spin rounded-full border-4 border-gray-700 border-t-indigo-500" aria-hidden="true"></div>
                     <p class="mt-4 text-sm text-gray-200">Please wait, the host will let you in soon.</p>
-                    <p class="mt-1 text-xs text-gray-500">Keep this page open.</p>
+                    <p class="mt-1 text-xs text-gray-500">Keep this page open — you go straight into the meeting as soon as you are let in.</p>
                 </div>
             </template>
             <template x-if="state === 'denied' || state === 'ended'">

@@ -37,6 +37,7 @@ import {
     BOARD_COLOURS, ERASER_SIZE, PEN_COLOURS, PEN_SIZES,
     CLOSED_SHAPES, SHAPES, TEXT_MAX, addPoint, drawStroke, fitBoard, isValidStroke, newStrokeId, paintBoard, recogniseShape, shapePoints, toBoard,
 } from './whiteboard.js';
+import { linkify } from './linkify.js';
 
 const DATA_TOPIC = 'classroom';
 /** Live whiteboard pen movements (the saved strokes come from Laravel). */
@@ -155,6 +156,9 @@ window.learnClassroom = (cfg = {}) => {
     // waiting | prejoin | joining | in_call | reconnecting | ended | removed | error
     state: 'waiting',
     hasLeft: false,
+    // Guests (and links with ?join=1) go straight into the call once it is live — no extra Join click.
+    autoJoin: !!(cfg.viewer && cfg.viewer.is_guest)
+        || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('join') === '1'),
     errorTitle: '',
     errorText: '',
     notice: '',
@@ -183,6 +187,10 @@ window.learnClassroom = (cfg = {}) => {
     remoteState: {}, // identity → { mic, cam, screen, speaking, quality }
     layout: 'speaker', // speaker | grid
     pinnedId: null,
+    sharePreview: true, // I see my own screen share (off = a notice instead)
+    // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
+    // on a phone I stay live while doing something else.
+    mini: { supported: false, active: false },
     isFullscreen: false,
     devices: { open: false, cams: [], mics: [], speakers: [], cam: '', mic: '', speaker: '' },
 
@@ -278,6 +286,13 @@ window.learnClassroom = (cfg = {}) => {
         hover.addEventListener ? hover.addEventListener('change', onHover) : hover.addListener(onHover);
 
         this.state = this.initialState();
+        this.mini.supported = typeof HTMLVideoElement !== 'undefined'
+            && ((!!document.pictureInPictureEnabled && 'requestPictureInPicture' in HTMLVideoElement.prototype)
+                || 'webkitSetPresentationMode' in HTMLVideoElement.prototype);
+        // Out of the call (left, ended, removed): the mini window closes too.
+        this.$watch('state', (state) => {
+            if (!['in_call', 'joining', 'reconnecting'].includes(state)) this.closeMini(true);
+        });
         // Long classes default to the small recording preset; the host's choice is remembered.
         this.recQuality = (this.room.duration_minutes || 0) > 90 ? 'small' : 'standard';
         try {
@@ -575,6 +590,7 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     formatBytes,
+    linkify,
 
     flash(text, ms = 5000) {
         this.notice = text;
@@ -700,6 +716,10 @@ window.learnClassroom = (cfg = {}) => {
             if (this.state === 'waiting' || (this.state === 'ended' && !lk.room)) {
                 this.hasLeft = false;
                 this.state = 'prejoin';
+            }
+            if (this.autoJoin && this.state === 'prejoin' && !this.hasLeft) {
+                this.autoJoin = false; // once: after leaving, rejoining is their choice
+                this.join();
             }
             return;
         }
@@ -1018,6 +1038,8 @@ window.learnClassroom = (cfg = {}) => {
         this.refreshTiles();
 
         if (!room.canPlaybackAudio) this.audioBlocked = true;
+        this.setupMediaSession();
+        this.miniTip();
 
         if (publishOnJoin) {
             if (this.canUseMic) await this.setMic(true, true);
@@ -1115,10 +1137,10 @@ window.learnClassroom = (cfg = {}) => {
 
             remoteState[p.identity] = { mic, cam, screen, speaking: base.speaking, quality: base.quality };
             tiles.push({ ...base, id: p.identity + ':camera', source: 'camera', hasVideo: cam });
-            // My own screen share is never played back to me: showing it would capture itself
-            // again and again (a "hall of mirrors"). Everyone else sees it normally.
+            // My own screen share is shown to me too (what everyone sees), unless I hide the
+            // preview — useful when sharing the whole screen, where it mirrors itself.
             if (screen) {
-                tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: !p.isLocal, selfShare: !!p.isLocal });
+                tiles.push({ ...base, id: p.identity + ':screen', source: 'screen', hasVideo: !p.isLocal || this.sharePreview, selfShare: !!p.isLocal });
             }
         });
 
@@ -1127,6 +1149,7 @@ window.learnClassroom = (cfg = {}) => {
         this.$nextTick(() => this.syncCaptions());
         this.media.cam = !!local.isCameraEnabled;
         this.media.screen = !!local.isScreenShareEnabled;
+        this.syncMediaSession();
         this.myQuality = String(local.connectionQuality || 'unknown');
         if (this.pinnedId && !tiles.some((t) => t.id === this.pinnedId)) this.pinnedId = null;
 
@@ -1152,8 +1175,8 @@ window.learnClassroom = (cfg = {}) => {
             const isMe = identity === room.localParticipant.identity;
             const p = isMe ? room.localParticipant : room.remoteParticipants.get(identity);
             const pub = p && p.getTrackPublication(source === 'screen' ? S.ScreenShare : S.Camera);
-            // Never attach my own screen share (see refreshTiles).
-            const track = pub && !pub.isMuted && !(isMe && source === 'screen') ? pub.track : null;
+            // My own screen share only while its preview is on (see refreshTiles).
+            const track = pub && !pub.isMuted && !(isMe && source === 'screen' && !this.sharePreview) ? pub.track : null;
 
             if (!track) {
                 if (el.srcObject) el.srcObject = null;
@@ -1166,6 +1189,7 @@ window.learnClassroom = (cfg = {}) => {
                 el._lkTrack = track;
             }
         });
+        this.syncMini();
     },
 
     tileState(identity) {
@@ -1195,6 +1219,175 @@ window.learnClassroom = (cfg = {}) => {
             this.panelPinned = false;
         }
         this.$nextTick(() => this.attachVideos());
+    },
+
+    // --- Mini window (picture-in-picture) ------------------------------------
+    /** What the mini window shows: the main video, else someone else's video, else my camera. */
+    get miniTile() {
+        const main = this.stageTile;
+        if (main && main.hasVideo && !main.selfShare) return main;
+        const remote = this.tiles.filter((t) => !t.isLocal && t.hasVideo);
+
+        return remote.find((t) => t.source === 'screen') || remote.find((t) => t.speaking) || remote.find((t) => t.isHost)
+            || remote[0] || this.tiles.find((t) => t.isLocal && t.source === 'camera' && t.hasVideo) || null;
+    },
+
+    /** Keep the (hidden) mini window video on the right track, so it can open at once. */
+    syncMini() {
+        const room = lk.room;
+        const mod = lk.mod;
+        const t = this.miniTile;
+        let track = null;
+        if (room && mod && t) {
+            const p = t.isLocal ? room.localParticipant : room.remoteParticipants.get(t.identity);
+            const pub = p && p.getTrackPublication(t.source === 'screen' ? mod.Track.Source.ScreenShare : mod.Track.Source.Camera);
+            track = pub && !pub.isMuted ? pub.track || null : null;
+        }
+        this.setMiniSource(track);
+    },
+
+    /** null = a still card with the class title (nobody has video, or between rooms). */
+    setMiniSource(track) {
+        const el = this.$refs.pipVideo;
+        if (!el) return;
+        if (track) {
+            if (el._lkTrack === track) return;
+            if (el._lkTrack) el._lkTrack.detach(el);
+            track.attach(el);
+            el._lkTrack = track;
+            return;
+        }
+        if (el._lkTrack) el._lkTrack.detach(el);
+        el._lkTrack = null;
+        const stream = this.miniPlaceholder();
+        if (stream && el.srcObject !== stream) {
+            el.srcObject = stream;
+            this.drawMiniPlaceholder();
+        }
+    },
+
+    miniPlaceholder() {
+        if (lk.miniCard) return lk.miniCard.stream;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 360;
+            if (typeof canvas.captureStream !== 'function') return null;
+            const stream = canvas.captureStream(1);
+            lk.miniCard = { canvas, stream };
+            return stream;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    drawMiniPlaceholder() {
+        const card = lk.miniCard;
+        const ctx = card && card.canvas.getContext('2d');
+        if (!ctx) return;
+        const { width, height } = card.canvas;
+        const full = String(this.room.title || 'Live class');
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(0, 0, width, height);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f87171';
+        ctx.font = '600 26px system-ui, sans-serif';
+        ctx.fillText('● LIVE', width / 2, height / 2 - 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 30px system-ui, sans-serif';
+        let title = full;
+        while (title.length > 4 && ctx.measureText(title + '…').width > width - 60) title = title.slice(0, -1);
+        ctx.fillText(title === full ? full : title.trimEnd() + '…', width / 2, height / 2 + 10);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '22px system-ui, sans-serif';
+        ctx.fillText('No video right now — you are still in the class', width / 2, height / 2 + 55);
+        const track = card.stream.getVideoTracks()[0];
+        if (track && typeof track.requestFrame === 'function') track.requestFrame();
+    },
+
+    toggleMini() {
+        if (this.mini.active) this.closeMini();
+        else this.openMini();
+    },
+
+    /** Must run inside a click (or the browser's own "open the mini window" action). */
+    openMini() {
+        const el = this.$refs.pipVideo;
+        if (!el || !this.mini.supported || !this.inCall || this.mini.active) return;
+        this.syncMini();
+        if (el.paused) el.play().catch(() => {});
+        const fail = () => this.flash('The mini window could not open in this browser. Update it, or use Chrome or Safari.', 7000);
+        const open = () => {
+            try {
+                if (document.pictureInPictureEnabled && el.requestPictureInPicture) el.requestPictureInPicture().catch(fail);
+                else if (el.webkitSetPresentationMode) el.webkitSetPresentationMode('picture-in-picture');
+            } catch (e) {
+                fail();
+            }
+        };
+        // Straight away while the click still counts; a video that is not ready yet opens as soon as it is.
+        if (el.readyState >= 1) open();
+        else el.addEventListener('loadedmetadata', open, { once: true });
+    },
+
+    closeMini(quiet = false) {
+        const el = this.$refs.pipVideo;
+        this.mini.active = false;
+        if (!el) return;
+        try {
+            if (document.pictureInPictureElement === el) document.exitPictureInPicture().catch(() => {});
+            else if (el.webkitPresentationMode === 'picture-in-picture') el.webkitSetPresentationMode('inline');
+        } catch (e) { /* already closed */ }
+        if (quiet && !this.inCall) this.setMiniSource(null);
+    },
+
+    /** The browser opened or closed the mini window (our button, its own controls, or switching apps). */
+    onMiniChange(active) {
+        this.mini.active = !!active;
+        if (active) this.syncMini();
+    },
+
+    /** First call on a phone: say once how to keep the class going while using other apps. */
+    miniTip() {
+        if (!this.mini.supported || this.canHover) return;
+        try {
+            if (window.localStorage.getItem('classroom.miniTip')) return;
+            window.localStorage.setItem('classroom.miniTip', '1');
+        } catch (e) {
+            return;
+        }
+        this.flash('Tip: ⚙ → Mini window keeps the class in a small floating window while you use other apps.', 9000);
+    },
+
+    /** Mic / camera / hang-up buttons in the browser's own mini window and media controls. */
+    setupMediaSession() {
+        const ms = navigator.mediaSession;
+        if (!ms) return;
+        const set = (action, handler) => {
+            try { ms.setActionHandler(action, handler); } catch (e) { /* action not supported here */ }
+        };
+        set('togglemicrophone', () => this.toggleMic());
+        set('togglecamera', () => this.toggleCamera());
+        set('hangup', () => { if (this.inCall) this.leaveCall(); });
+        // Chrome opens the mini window by itself when I switch tab or app during the call.
+        set('enterpictureinpicture', () => this.openMini());
+        try {
+            if (typeof MediaMetadata !== 'undefined') ms.metadata = new MediaMetadata({ title: this.room.title || 'Live class', artist: 'Live class' });
+        } catch (e) { /* metadata not supported */ }
+    },
+
+    syncMediaSession() {
+        const ms = navigator.mediaSession;
+        if (!ms) return;
+        try {
+            if (typeof ms.setMicrophoneActive === 'function') ms.setMicrophoneActive(this.media.mic);
+            if (typeof ms.setCameraActive === 'function') ms.setCameraActive(this.media.cam);
+        } catch (e) { /* not supported */ }
+    },
+
+    toggleSharePreview() {
+        this.sharePreview = !this.sharePreview;
+        this.refreshTiles();
     },
 
     pin(tile) {
@@ -2142,6 +2335,7 @@ window.learnClassroom = (cfg = {}) => {
         if (room) room.removeAllListeners();
         if (this.$refs.audioSink) this.$refs.audioSink.innerHTML = '';
         this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => { el.srcObject = null; el._lkTrack = null; });
+        this.setMiniSource(null);
         this.tiles = [];
         this.remoteState = {};
         if (room) lk.lastMedia = { mic: this.media.mic, cam: this.media.cam };
@@ -2274,8 +2468,9 @@ window.learnClassroom = (cfg = {}) => {
             return;
         }
         this.mediaBusy.screen = true;
+        const starting = !this.media.screen;
         try {
-            await room.localParticipant.setScreenShareEnabled(!this.media.screen, {
+            await room.localParticipant.setScreenShareEnabled(starting, {
                 audio: true, // tab / system audio where the browser supports it
                 selfBrowserSurface: 'exclude',
                 surfaceSwitching: 'include',
@@ -2287,6 +2482,9 @@ window.learnClassroom = (cfg = {}) => {
                 // When bandwidth is short, drop frames — never blur the text.
                 degradationPreference: 'maintain-resolution',
             });
+            if (starting && room.localParticipant.isScreenShareEnabled && this.mini.supported && !this.mini.active) {
+                this.flash('Tip: ⚙ → Mini window keeps the class in view while you present another app or window.', 8000);
+            }
         } catch (e) {
             // Closing the browser's "choose what to share" dialog is not an error.
             if (!/NotAllowed|Permission denied by user|AbortError/i.test(String(e && (e.name || e.message)))) {

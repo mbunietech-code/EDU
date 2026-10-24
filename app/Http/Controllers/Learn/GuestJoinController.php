@@ -39,7 +39,7 @@ class GuestJoinController extends Controller
 
         // Members with an account just go in (when the room is open to them).
         if ($user && $room->isVisibleTo($user)) {
-            return redirect()->route('learn.rooms.live', $room);
+            return redirect()->route('learn.rooms.live', ['room' => $room, 'join' => 1]);
         }
 
         return $this->form($room, $token);

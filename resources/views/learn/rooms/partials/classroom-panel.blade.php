@@ -92,7 +92,7 @@
                 <ul class="mt-1 space-y-1.5" role="list">
                     <template x-for="a in announcements" :key="'a' + a.id">
                         <li class="text-sm text-amber-100">
-                            <p class="whitespace-pre-wrap [overflow-wrap:anywhere]" x-text="a.body"></p>
+                            <p class="whitespace-pre-wrap [overflow-wrap:anywhere]">@include('learn.rooms.partials.classroom-linked-text', ['text' => 'a.body', 'linkClass' => 'font-medium text-amber-50 underline underline-offset-2 hover:text-white'])</p>
                             <p class="text-[11px] text-amber-300/80"><span x-text="a.user.name"></span> · <span x-text="formatTime(a.created_at)"></span></p>
                         </li>
                     </template>
@@ -132,7 +132,7 @@
                                 !isMine(m) && endsGroup(i) ? 'rounded-bl-sm' : '',
                                 m.is_deleted ? 'opacity-70' : '',
                             ]">
-                            <p x-show="!m.is_deleted" class="whitespace-pre-wrap [overflow-wrap:anywhere]" x-text="m.body"></p>
+                            <p x-show="!m.is_deleted" class="whitespace-pre-wrap [overflow-wrap:anywhere]">@include('learn.rooms.partials.classroom-linked-text', ['text' => 'm.body'])</p>
                             <p x-show="m.is_deleted" class="italic" :class="isMine(m) ? 'text-indigo-100' : 'text-gray-400'">Message removed</p>
                             <p class="mt-0.5 text-right text-[10px] leading-none" :class="isMine(m) ? 'text-indigo-200' : 'text-gray-500'" x-text="formatTime(m.created_at)"></p>
                         </div>
@@ -225,7 +225,7 @@
                         <span class="text-gray-500" x-text="formatTime(q.created_at)"></span>
                         <span x-show="q.is_answered" class="rounded bg-emerald-600/20 px-1.5 text-[10px] font-semibold uppercase text-emerald-300">Answered</span>
                     </p>
-                    <p x-show="!q.is_deleted" class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-gray-100" x-text="q.body"></p>
+                    <p x-show="!q.is_deleted" class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-gray-100">@include('learn.rooms.partials.classroom-linked-text', ['text' => 'q.body', 'linkClass' => 'text-indigo-300 underline underline-offset-2 hover:text-indigo-200'])</p>
                     <p x-show="q.is_deleted" class="mt-1 text-sm italic text-gray-500">Question removed</p>
                     <div class="mt-2 flex flex-wrap gap-2" x-show="q.can_answer || q.can_delete">
                         <button type="button" x-show="q.can_answer" @click="answer(q)" :disabled="busy.message === q.id"

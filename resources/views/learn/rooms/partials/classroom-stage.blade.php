@@ -2,6 +2,12 @@
 <main x-ref="stageWrap" class="relative min-w-0 flex-1 bg-gray-950" aria-label="Live video">
     {{-- Remote audio elements are attached here by classroom.js (never inside tiles, so layout changes do not cut the sound). --}}
     <div x-ref="audioSink" class="hidden" aria-hidden="true"></div>
+    {{-- Mini window: the browser floats this video (picture-in-picture) over other apps and tabs. Kept out of
+         sight but not display:none, so it keeps playing and can open at once. --}}
+    <video x-ref="pipVideo" autoplay playsinline muted autopictureinpicture aria-hidden="true" tabindex="-1"
+        class="pointer-events-none fixed bottom-0 left-0 h-px w-px opacity-0"
+        @enterpictureinpicture="onMiniChange(true)" @leavepictureinpicture="onMiniChange(false)"
+        @webkitpresentationmodechanged="onMiniChange($el.webkitPresentationMode === 'picture-in-picture')"></video>
 
     {{-- In the call --}}
     <div x-show="inCall" class="absolute inset-0">

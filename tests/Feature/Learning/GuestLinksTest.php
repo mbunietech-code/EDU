@@ -179,6 +179,16 @@ class GuestLinksTest extends TestCase
         $this->post(route('guest.store', $token), ['name' => 'Juma'])->assertRedirect(route('learn.rooms.live', $room));
     }
 
+    public function test_members_opening_the_guest_link_go_straight_into_the_call(): void
+    {
+        [, $room, $token] = $this->liveRoomWithGuestLink(waitingRoom: true);
+        $member = User::factory()->create();
+        $room->members()->create(['user_id' => $member->id]);
+
+        $this->actingAs($member)->get(route('guest.join', $token))
+            ->assertRedirect(route('learn.rooms.live', ['room' => $room, 'join' => 1]));
+    }
+
     public function test_a_guest_can_use_only_their_meeting(): void
     {
         [$host, $room, $token] = $this->liveRoomWithGuestLink(waitingRoom: false);

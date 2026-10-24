@@ -147,6 +147,11 @@
                         <span x-text="guests.link ? 'Copy guest invite link' : 'Invite guests (create link)'"></span>
                     </button>
                 </template>
+                <button type="button" role="menuitem" x-show="mini.supported" @click="toggleMini(); open = false" :disabled="!inCall" class="{{ $menuItem }}">
+                    @include('learn.rooms.partials.icon', ['name' => 'mini'])
+                    <span class="flex-1" x-text="mini.active ? 'Close mini window' : 'Mini window'"></span>
+                    <span x-show="!mini.active" class="text-[11px] text-gray-400">stay live</span>
+                </button>
                 <button type="button" role="menuitem" @click="openCaptions(); open = false" class="{{ $menuItem }}">
                     <span class="w-5 text-center text-[10px] font-bold" aria-hidden="true">CC</span>
                     <span class="flex-1">Captions &amp; transcript</span>
