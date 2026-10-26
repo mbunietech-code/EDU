@@ -189,6 +189,7 @@ window.learnClassroom = (cfg = {}) => {
     remoteState: {}, // identity → { mic, cam, screen, speaking, quality }
     layout: 'speaker', // speaker | grid
     pinnedId: null,
+    stripOpen: true, // the other cameras beside the speaker (remembered on this device)
     // My own whole-screen / window share, drawn live with this page's own spot blacked out (no mirror).
     shareSnap: { ready: false },
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
@@ -304,6 +305,7 @@ window.learnClassroom = (cfg = {}) => {
             const saved = window.localStorage.getItem('classroom.recQuality');
             if (saved && REC_PRESETS[saved]) this.recQuality = saved;
             this.loud = window.localStorage.getItem('classroom.loud') === '1';
+            this.stripOpen = window.localStorage.getItem('classroom.strip') !== '0';
             const bg = JSON.parse(window.localStorage.getItem('classroom.background') || 'null');
             if (bg && bg.mode === 'blur') this.bg.mode = 'blur';
             if (bg && bg.mode === 'image' && this.bgImages.some((i) => i.url === bg.image)) Object.assign(this.bg, { mode: 'image', image: bg.image });
@@ -1629,6 +1631,12 @@ window.learnClassroom = (cfg = {}) => {
     pin(tile) {
         this.pinnedId = this.pinnedId === tile.id ? null : tile.id;
         if (this.pinnedId) this.layout = 'speaker';
+        this.$nextTick(() => this.attachVideos());
+    },
+
+    toggleStrip() {
+        this.stripOpen = !this.stripOpen;
+        try { window.localStorage.setItem('classroom.strip', this.stripOpen ? '1' : '0'); } catch (e) { /* storage unavailable */ }
         this.$nextTick(() => this.attachVideos());
     },
 

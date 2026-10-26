@@ -11,14 +11,40 @@
 
     {{-- In the call --}}
     <div x-show="inCall" class="absolute inset-0">
-        {{-- Speaker layout: the speaker fills the stage. Everyone else's camera is in the side panel → Cameras. --}}
+        {{-- Speaker layout: the speaker big, everyone else's camera in a strip beside it (below it on phones),
+             like Zoom. The strip can be tucked away; the side panel → Cameras still lists them too. --}}
         <template x-if="layout === 'speaker' && !board.active">
-        {{-- A shared screen fills the whole stage, edge to edge --}}
-        <div class="absolute inset-0" :class="stageTile && stageTile.source === 'screen' ? 'p-0' : 'p-2 sm:p-3'">
-            <div class="relative h-full w-full">
-                <template x-for="t in (stageTile ? [stageTile] : [])" :key="t.id">
-                    <div class="absolute inset-0">
-                        @include('learn.rooms.partials.classroom-tile', ['big' => true])
+        <div class="absolute inset-0 flex flex-col lg:flex-row">
+            {{-- A shared screen fills the main area, edge to edge --}}
+            <div class="relative min-h-0 min-w-0 flex-1" :class="stageTile && stageTile.source === 'screen' ? 'p-0' : 'p-2 sm:p-3'">
+                <div class="relative h-full w-full">
+                    <template x-for="t in (stageTile ? [stageTile] : [])" :key="t.id">
+                        <div class="absolute inset-0">
+                            @include('learn.rooms.partials.classroom-tile', ['big' => true])
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Show / hide the strip --}}
+                <button type="button" x-show="filmstripTiles.length" @click="toggleStrip()"
+                    class="absolute z-10 flex items-center justify-center bg-gray-800/90 text-gray-200 shadow hover:bg-gray-700 hover:text-white
+                        bottom-0 left-1/2 h-5 w-12 -translate-x-1/2 rounded-t-md
+                        lg:bottom-auto lg:left-auto lg:right-0 lg:top-1/2 lg:h-12 lg:w-5 lg:-translate-y-1/2 lg:translate-x-0 lg:rounded-l-md lg:rounded-tr-none"
+                    :aria-expanded="stripOpen.toString()" aria-controls="camera-strip"
+                    :aria-label="stripOpen ? 'Hide the other cameras' : 'Show the other cameras'" :title="stripOpen ? 'Hide cameras' : 'Show cameras'">
+                    <svg class="h-3.5 w-3.5 transition-transform" :class="stripOpen ? 'rotate-90 lg:rotate-0' : '-rotate-90 lg:rotate-180'"
+                        fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                </button>
+            </div>
+
+            {{-- Everyone else: a row under the speaker on phones, a column beside it on wide screens --}}
+            <div id="camera-strip" x-show="stripOpen && filmstripTiles.length" x-cloak
+                class="flex shrink-0 gap-2 overflow-x-auto overflow-y-hidden px-2 pb-2 h-24 sm:h-28
+                    lg:h-auto lg:w-52 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:py-3 lg:pl-0 lg:pr-3 xl:w-60"
+                :class="autoHide ? 'lg:pb-3' : ''" role="list" aria-label="Other cameras">
+                <template x-for="t in filmstripTiles" :key="t.id">
+                    <div class="aspect-video h-full shrink-0 lg:h-auto lg:w-full" role="listitem">
+                        @include('learn.rooms.partials.classroom-tile', ['big' => false])
                     </div>
                 </template>
             </div>
