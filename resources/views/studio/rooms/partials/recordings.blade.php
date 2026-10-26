@@ -67,6 +67,9 @@
                             <a href="{{ route('learn.rooms.recordings.stream', [$room, $recording]) }}" target="_blank" rel="noopener"
                                 class="rounded-md px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                                 aria-label="Watch {{ $recording->original_name ?: 'recording' }} in a new tab">Watch</a>
+                            <a href="{{ route('learn.rooms.recordings.download', [$room, $recording]) }}" download
+                                class="rounded-md px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                                aria-label="Download {{ $recording->original_name ?: 'recording' }}">Download</a>
                         @endif
 
                         @if ($canManage)

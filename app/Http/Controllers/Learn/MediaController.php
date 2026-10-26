@@ -56,13 +56,23 @@ class MediaController extends Controller
 
     public function recording(Request $request, LearningRoom $room, LearningRoomRecording $recording)
     {
-        $this->authorize('view', $room);
-
-        abort_unless((int) $recording->learning_room_id === (int) $room->id, 404);
-        abort_unless($recording->isReady() && $recording->disk && $recording->path, 404);
-        abort_unless($recording->is_shared || $room->isManageableBy($request->user()), 403);
+        $this->authorizeRecording($request, $room, $recording);
 
         return $this->storage->streamResponse($recording->disk, $recording->path, $recording->mime ?: 'video/mp4');
+    }
+
+    /** The same recording saved as a file ("class-title-2026-10-26.mp4"); same rules as watching it. */
+    public function downloadRecording(Request $request, LearningRoom $room, LearningRoomRecording $recording)
+    {
+        $this->authorizeRecording($request, $room, $recording);
+
+        $recordedAt = $recording->session?->started_at ?? $recording->created_at;
+        $extension = strtolower(pathinfo((string) $recording->path, PATHINFO_EXTENSION)) ?: 'mp4';
+        $name = (Str::slug((string) $room->title) ?: 'recording')
+            .($recordedAt ? '-'.$recordedAt->format('Y-m-d-Hi') : '')
+            .'.'.$extension;
+
+        return $this->storage->streamResponse($recording->disk, $recording->path, $recording->mime ?: 'video/mp4', $name);
     }
 
     /**
@@ -82,6 +92,16 @@ class MediaController extends Controller
     }
 
     // --- Internals -----------------------------------------------------
+    /** Shared and ready, in a room the viewer may see (hosts also get unshared ones). */
+    private function authorizeRecording(Request $request, LearningRoom $room, LearningRoomRecording $recording): void
+    {
+        $this->authorize('view', $room);
+
+        abort_unless((int) $recording->learning_room_id === (int) $room->id, 404);
+        abort_unless($recording->isReady() && $recording->disk && $recording->path, 404);
+        abort_unless($recording->is_shared || $room->isManageableBy($request->user()), 403);
+    }
+
     private function videoResponse(User $user, LearningVideo $video, ?LearningVideoRendition $rendition)
     {
         // Drafts only play for the people who can edit them (Gate::before covers super admins).

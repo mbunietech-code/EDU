@@ -38,7 +38,7 @@ class FoundationTest extends TestCase
         'learn.instructors.show',
         'learn.rooms.index', 'learn.rooms.show', 'learn.rooms.ics', 'learn.rooms.live', 'learn.rooms.join',
         'learn.rooms.presence', 'learn.rooms.leave', 'learn.rooms.feed', 'learn.rooms.messages.store',
-        'learn.rooms.messages.answer', 'learn.rooms.messages.destroy', 'learn.rooms.recordings.stream',
+        'learn.rooms.messages.answer', 'learn.rooms.messages.destroy', 'learn.rooms.recordings.stream', 'learn.rooms.recordings.download',
         'signed.learning.videos.stream',
 
         'studio.home', 'studio.uploads.config', 'studio.uploads.init', 'studio.uploads.chunk',

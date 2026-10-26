@@ -378,8 +378,20 @@ class LearnerLibraryTest extends TestCase
         $this->actingAs($member)->get(route('learn.rooms.recordings.stream', [$room, $recording]))->assertForbidden();
         $this->actingAs($host)->get(route('learn.rooms.recordings.stream', [$room, $recording]))->assertOk();
 
+        $this->actingAs($member)->get(route('learn.rooms.recordings.download', [$room, $recording]))->assertForbidden();
+        $this->actingAs($host)->get(route('learn.rooms.recordings.download', [$room, $recording]))->assertOk();
+
         $recording->update(['is_shared' => true]);
         $this->actingAs($member)->get(route('learn.rooms.recordings.stream', [$room, $recording]))->assertOk();
+
+        // Downloading follows the same rules, as a file named after the class.
+        $download = $this->actingAs($member)->get(route('learn.rooms.recordings.download', [$room, $recording]));
+        $download->assertOk();
+        $this->assertStringContainsString('attachment', $download->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('.mp4', $download->headers->get('Content-Disposition'));
+        $this->actingAs($member)->get(route('learn.rooms.show', $room))
+            ->assertOk()
+            ->assertSee(route('learn.rooms.recordings.download', [$room, $recording]), false);
 
         $recording->update(['status' => 'processing']);
         $this->actingAs($member)->get(route('learn.rooms.recordings.stream', [$room, $recording]))->assertNotFound();

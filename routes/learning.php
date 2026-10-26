@@ -97,6 +97,8 @@ Route::middleware(['auth', 'verified'])
             ->scopeBindings()->name('rooms.messages.destroy');
         Route::get('/rooms/{room:slug}/recordings/{recording}/stream', [Learn\MediaController::class, 'recording'])
             ->scopeBindings()->name('rooms.recordings.stream');
+        Route::get('/rooms/{room:slug}/recordings/{recording}/download', [Learn\MediaController::class, 'downloadRecording'])
+            ->scopeBindings()->name('rooms.recordings.download');
     });
 
 // Signed media for API / mobile clients (no session): ?u=<user id> + signature.
