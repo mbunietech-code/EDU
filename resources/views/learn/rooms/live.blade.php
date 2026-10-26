@@ -1,6 +1,6 @@
 {{-- Live classroom on our self-hosted WebRTC stack. All behaviour lives in resources/js/learning/classroom.js. --}}
 <x-layouts.classroom :title="$room->title">
-    <div class="relative flex min-h-0 flex-1 flex-col" x-data="learnClassroom(@js($config))" x-cloak
+    <div class="relative flex min-h-0 flex-1 flex-col bg-gray-950" x-data="learnClassroom(@js($config))" x-cloak
         @mousemove="onPointerMove($event)"
         @keydown.escape.window="confirm.open ? closeConfirm() : closePanel()">
 

@@ -1646,7 +1646,9 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     toggleFullscreen() {
-        const el = this.$refs.stageWrap;
+        // The whole classroom, not just the video: the control bar, chat and people stay
+        // reachable (with only the stage in full screen they were hidden until leaving).
+        const el = this.$root;
         if (!el || !this.fullscreenSupported) return;
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         else el.requestFullscreen().catch(() => this.flash('Full screen is not available here.'));

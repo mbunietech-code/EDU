@@ -1,5 +1,5 @@
 {{-- Main stage: our own WebRTC video layout (speaker / grid) plus one overlay per classroom state. --}}
-<main x-ref="stageWrap" class="relative min-w-0 flex-1 bg-gray-950" aria-label="Live video">
+<main class="relative min-w-0 flex-1 bg-gray-950" aria-label="Live video">
     {{-- Remote audio elements are attached here by classroom.js (never inside tiles, so layout changes do not cut the sound). --}}
     <div x-ref="audioSink" class="hidden" aria-hidden="true"></div>
     {{-- Mini window: the browser floats this video (picture-in-picture) over other apps and tabs. Kept out of
