@@ -64,7 +64,7 @@
                     <x-text-input id="cap-source" class="mbui-input mt-1" type="text" name="source" :value="old('source')" placeholder="e.g. Owner savings, CRDB loan" required />
                     <x-input-error :messages="$errors->get('source')" class="mt-2" />
                 </div>
-                <x-finance.money-account-select :accounts="$moneyAccounts" id="cap-money" label="Received into" />
+                <x-finance.money-account-select :accounts="$moneyAccounts" id="cap-money" label="Received into" :suggest="true" />
             </div>
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="hidden" name="is_loan" value="0">

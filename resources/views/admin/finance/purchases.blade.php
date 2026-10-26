@@ -76,7 +76,7 @@
                                         </select>
                                     </div>
                                 @endif
-                                <x-finance.money-account-select :accounts="$moneyAccounts" id="ma-{{ $kind }}-{{ $item->id }}" label="Paid from" />
+                                <x-finance.money-account-select :accounts="$moneyAccounts" id="ma-{{ $kind }}-{{ $item->id }}" label="Paid from" :suggest="true" />
                                 <x-mbui.button type="submit">Record expense</x-mbui.button>
                             </form>
                         </details>

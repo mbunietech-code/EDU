@@ -64,6 +64,27 @@ class MoneyAccountService
             : [];
     }
 
+    /**
+     * The account the last expense, capital entry or loan repayment went through,
+     * offered first on the next new one so it lands in an account by itself.
+     */
+    public function lastUsedId(): ?int
+    {
+        if (! self::ready()) {
+            return null;
+        }
+
+        $latest = collect([FinanceExpense::class, FinanceCapitalEntry::class, FinanceLoanRepayment::class])
+            ->map(fn ($model) => $model::whereNotNull('money_account_id')->latest('updated_at')->latest('id')->first(['money_account_id', 'updated_at']))
+            ->filter()
+            ->sortByDesc('updated_at')
+            ->first();
+
+        return $latest && FinanceMoneyAccount::whereKey($latest->money_account_id)->where('is_active', true)->exists()
+            ? (int) $latest->money_account_id
+            : null;
+    }
+
     /** Active accounts for form dropdowns (empty before the database change). */
     public function options(): Collection
     {

@@ -176,6 +176,27 @@ class FinanceMoneyAccountsTest extends TestCase
             ->assertSee('Where the money is')->assertSee('TZS 50,000'); // 100k − 30k − 20k
     }
 
+    public function test_new_entries_start_on_the_account_used_last(): void
+    {
+        $alipay = $this->account();
+        $yas = $this->account(['name' => 'MIX by YAS', 'type' => 'mobile_money', 'payment_methods' => ['yas']]);
+        $selected = fn ($id) => '<option value="'.$id.'" selected';
+
+        // Nothing used yet: the form leaves the choice open.
+        $this->finance()->get(route('admin.finance.expenses.index'))->assertOk()
+            ->assertDontSee($selected($alipay->id), false)->assertDontSee($selected($yas->id), false);
+
+        FinanceExpense::create(['label' => 'Bundle', 'amount' => 10000, 'spent_at' => '2026-10-10', 'money_account_id' => $yas->id]);
+
+        // The next expense, capital entry or repayment starts on YAS.
+        $this->finance()->get(route('admin.finance.expenses.index'))->assertOk()->assertSee($selected($yas->id), false);
+        $this->finance()->get(route('admin.finance.capital.index'))->assertOk()->assertSee($selected($yas->id), false);
+
+        // Editing an unassigned record does not quietly assign it.
+        $old = FinanceExpense::create(['label' => 'Old', 'amount' => 5000, 'spent_at' => '2026-09-01']);
+        $this->finance()->get(route('admin.finance.expenses.edit', $old))->assertOk()->assertDontSee($selected($yas->id), false);
+    }
+
     public function test_everything_works_before_the_database_change_is_applied(): void
     {
         $expense = FinanceExpense::create(['label' => 'Bundle', 'amount' => 10000, 'spent_at' => '2026-09-01']);
