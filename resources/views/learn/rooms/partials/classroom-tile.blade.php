@@ -2,6 +2,7 @@
 <div class="group relative h-full w-full overflow-hidden bg-gray-800 ring-2 transition"
     :class="[t.speaking && t.source === 'camera' ? 'ring-emerald-400' : 'ring-transparent', {{ $big ? 'true' : 'false' }} && t.source === 'screen' ? 'rounded-none bg-black' : 'rounded-xl']">
     <video :data-tile-id="t.id" autoplay playsinline muted x-show="t.hasVideo"
+        @if ($big) :autopictureinpicture="mini.auto" @endif
         class="h-full w-full bg-black"
         :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"
         :aria-label="t.source === 'screen' ? t.name + ' is sharing their screen' : 'Video of ' + t.name"></video>

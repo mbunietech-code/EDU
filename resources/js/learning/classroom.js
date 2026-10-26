@@ -194,7 +194,8 @@ window.learnClassroom = (cfg = {}) => {
     shareSnap: { ready: false },
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
     // on a phone I stay live while doing something else.
-    mini: { supported: false, active: false },
+    // auto: open it by itself when I switch to another app or tab (remembered on this device).
+    mini: { supported: false, active: false, auto: true },
     loud: false, // loud speaker (remembered on this device)
     ask: { open: false, kind: '', from: '' }, // the host asks me to turn on my mic / camera
     isFullscreen: false,
@@ -295,6 +296,11 @@ window.learnClassroom = (cfg = {}) => {
         this.mini.supported = typeof HTMLVideoElement !== 'undefined'
             && ((!!document.pictureInPictureEnabled && 'requestPictureInPicture' in HTMLVideoElement.prototype)
                 || 'webkitSetPresentationMode' in HTMLVideoElement.prototype);
+        // Leaving the page for another app or tab during the call: the mini window opens by itself
+        // (where the browser allows it without a tap; Chrome uses the media session action below).
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && this.mini.auto) this.openMini(true);
+        });
         // Out of the call (left, ended, removed): the mini window closes too.
         this.$watch('state', (state) => {
             if (!['in_call', 'joining', 'reconnecting'].includes(state)) this.closeMini(true);
@@ -305,6 +311,7 @@ window.learnClassroom = (cfg = {}) => {
             const saved = window.localStorage.getItem('classroom.recQuality');
             if (saved && REC_PRESETS[saved]) this.recQuality = saved;
             this.loud = window.localStorage.getItem('classroom.loud') === '1';
+            this.mini.auto = window.localStorage.getItem('classroom.miniAuto') !== '0';
             this.stripOpen = window.localStorage.getItem('classroom.strip') !== '0';
             const bg = JSON.parse(window.localStorage.getItem('classroom.background') || 'null');
             if (bg && bg.mode === 'blur') this.bg.mode = 'blur';
@@ -1446,13 +1453,19 @@ window.learnClassroom = (cfg = {}) => {
         else this.openMini();
     },
 
-    /** Must run inside a click (or the browser's own "open the mini window" action). */
-    openMini() {
+    /**
+     * Inside a click, or by itself when I leave the page (quiet: the browser's own
+     * "open the mini window" action, or switching away — browsers that do not allow
+     * it without a tap just say no, and nothing is shown).
+     */
+    openMini(quiet = false) {
         const el = this.$refs.pipVideo;
         if (!el || !this.mini.supported || !this.inCall || this.mini.active) return;
         this.syncMini();
         if (el.paused) el.play().catch(() => {});
-        const fail = () => this.flash('The mini window could not open in this browser. Update it, or use Chrome or Safari.', 7000);
+        const fail = () => {
+            if (!quiet) this.flash('The mini window could not open in this browser. Update it, or use Chrome or Safari.', 7000);
+        };
         const open = () => {
             try {
                 if (document.pictureInPictureEnabled && el.requestPictureInPicture) el.requestPictureInPicture().catch(fail);
@@ -1477,6 +1490,14 @@ window.learnClassroom = (cfg = {}) => {
         if (quiet && !this.inCall) this.setMiniSource(null);
     },
 
+    toggleMiniAuto() {
+        this.mini.auto = !this.mini.auto;
+        try { window.localStorage.setItem('classroom.miniAuto', this.mini.auto ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+        this.flash(this.mini.auto
+            ? 'The mini window now opens by itself when you switch to another app or tab.'
+            : 'The mini window opens only from ⚙ → Mini window.');
+    },
+
     /** The browser opened or closed the mini window (our button, its own controls, or switching apps). */
     onMiniChange(active) {
         this.mini.active = !!active;
@@ -1492,7 +1513,7 @@ window.learnClassroom = (cfg = {}) => {
         } catch (e) {
             return;
         }
-        this.flash('Tip: ⚙ → Mini window keeps the class in a small floating window while you use other apps.', 9000);
+        this.flash('Tip: switch to another app and the class keeps going in a small floating window (or ⚙ → Mini window).', 9000);
     },
 
     /** Mic / camera / hang-up buttons in the browser's own mini window and media controls. */
@@ -1506,7 +1527,7 @@ window.learnClassroom = (cfg = {}) => {
         set('togglecamera', () => this.toggleCamera());
         set('hangup', () => { if (this.inCall) this.leaveCall(); });
         // Chrome opens the mini window by itself when I switch tab or app during the call.
-        set('enterpictureinpicture', () => this.openMini());
+        set('enterpictureinpicture', () => { if (this.mini.auto) this.openMini(true); });
         try {
             if (typeof MediaMetadata !== 'undefined') ms.metadata = new MediaMetadata({ title: this.room.title || 'Live class', artist: 'Live class' });
         } catch (e) { /* metadata not supported */ }

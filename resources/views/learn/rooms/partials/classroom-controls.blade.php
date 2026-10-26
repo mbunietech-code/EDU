@@ -162,6 +162,10 @@
                     <span class="flex-1" x-text="mini.active ? 'Close mini window' : 'Mini window'"></span>
                     <span x-show="!mini.active" class="text-[11px] text-gray-400">stay live</span>
                 </button>
+                <button type="button" role="menuitemcheckbox" x-show="mini.supported" :aria-checked="mini.auto.toString()" @click="toggleMiniAuto()" class="{{ $menuItem }} pl-10 text-xs">
+                    <span class="flex-1">Open it by itself when I switch app</span>
+                    <span class="font-semibold" :class="mini.auto ? 'text-emerald-300' : 'text-gray-400'" x-text="mini.auto ? 'On' : 'Off'"></span>
+                </button>
                 <button type="button" role="menuitem" @click="openCaptions(); open = false" class="{{ $menuItem }}">
                     <span class="w-5 text-center text-[10px] font-bold" aria-hidden="true">CC</span>
                     <span class="flex-1">Captions &amp; transcript</span>
