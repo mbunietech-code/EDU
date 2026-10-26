@@ -25,15 +25,24 @@
                     </template>
                 </div>
 
-                {{-- Show / hide the strip --}}
-                <button type="button" x-show="filmstripTiles.length" @click="toggleStrip()"
+                {{-- Hide the strip: a tab on its edge --}}
+                <button type="button" x-show="stripOpen && filmstripTiles.length" @click="toggleStrip()"
                     class="absolute z-10 flex items-center justify-center bg-gray-800/90 text-gray-200 shadow hover:bg-gray-700 hover:text-white
                         bottom-0 left-1/2 h-5 w-12 -translate-x-1/2 rounded-t-md
                         lg:bottom-auto lg:left-auto lg:right-0 lg:top-1/2 lg:h-12 lg:w-5 lg:-translate-y-1/2 lg:translate-x-0 lg:rounded-l-md lg:rounded-tr-none"
-                    :aria-expanded="stripOpen.toString()" aria-controls="camera-strip"
-                    :aria-label="stripOpen ? 'Hide the other cameras' : 'Show the other cameras'" :title="stripOpen ? 'Hide cameras' : 'Show cameras'">
-                    <svg class="h-3.5 w-3.5 transition-transform" :class="stripOpen ? 'rotate-90 lg:rotate-0' : '-rotate-90 lg:rotate-180'"
-                        fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    aria-expanded="true" aria-controls="camera-strip" aria-label="Hide the other cameras" title="Hide cameras">
+                    <svg class="h-3.5 w-3.5 rotate-90 lg:rotate-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                </button>
+
+                {{-- Bring it back: a button kept clear of the right edge (on a computer the mouse at that
+                     edge slides the side panel in, which would cover it) --}}
+                <button type="button" x-show="!stripOpen && filmstripTiles.length" x-cloak @click="toggleStrip()"
+                    class="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-gray-800/90 px-3 py-1.5 text-xs font-medium text-gray-100 shadow-lg ring-1 ring-gray-600 hover:bg-gray-700 hover:text-white
+                        lg:bottom-auto lg:right-10 lg:top-1/2 lg:-translate-y-1/2"
+                    aria-expanded="false" aria-controls="camera-strip" aria-label="Show the other cameras" title="Show cameras">
+                    @include('learn.rooms.partials.icon', ['name' => 'users', 'class' => 'h-4 w-4'])
+                    <span>Cameras</span>
+                    <span class="tabular-nums text-gray-400" x-text="filmstripTiles.length"></span>
                 </button>
             </div>
 
