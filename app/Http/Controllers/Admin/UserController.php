@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\DeletionService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -36,6 +37,32 @@ class UserController extends Controller
         $user->load(['orders.product', 'orders.plan', 'orders.tool', 'subscriptions.product', 'subscriptions.plan', 'payments']);
 
         return view('admin.users.show', compact('user'));
+    }
+
+    /** Correct a user's name or email (e.g. a typo, or they lost the old address). */
+    public function update(Request $request, User $user)
+    {
+        abort_if($user->isGuest(), 404);
+        $this->authorize('update', $user);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
+
+        $oldEmail = $user->email;
+        $user->update($data);
+
+        if ($oldEmail !== $user->email) {
+            \App\Models\ActivityLog::log(
+                'user_email_changed',
+                'User',
+                $user->id,
+                ['from' => $oldEmail, 'to' => $user->email]
+            );
+        }
+
+        return back()->with('success', 'User details updated.');
     }
 
     public function suspend(User $user)

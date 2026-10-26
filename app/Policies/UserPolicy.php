@@ -16,6 +16,12 @@ class UserPolicy
         return $user->is_admin;
     }
 
+    /** Name and email. Admin accounts only by a super admin (an admin cannot take over another). */
+    public function update(User $user, User $target): bool
+    {
+        return $user->is_admin && (! $target->is_admin || $user->isSuperAdmin() || $target->id === $user->id);
+    }
+
     public function suspend(User $user, User $target): bool
     {
         return $user->is_admin && $target->id !== $user->id;

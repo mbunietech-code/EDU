@@ -184,6 +184,7 @@ Route::prefix('admin')
             Route::resource('users', AdminUserController::class)->only(['index', 'show']);
         });
         Route::middleware('can:users.manage')->group(function () {
+            Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
             Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
             Route::post('users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
             Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');

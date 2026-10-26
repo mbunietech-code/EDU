@@ -23,6 +23,30 @@
         </div>
     </div>
 
+    @if (auth()->user()->can('users.manage') && auth()->user()->can('update', $user))
+        <x-mbui.card class="mt-6">
+            <h2 class="text-base font-semibold text-gray-900">Account details</h2>
+            <p class="mt-1 text-sm text-gray-500">Correct the name or the email this person signs in with.</p>
+            <form method="POST" action="{{ route('admin.users.update', $user) }}" class="mt-4 grid gap-4 sm:grid-cols-2">
+                @csrf
+                @method('PUT')
+                <div>
+                    <x-input-label for="user-name" value="Name" />
+                    <x-text-input id="user-name" class="mbui-input mt-1" type="text" name="name" :value="old('name', $user->name)" required maxlength="255" />
+                    <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="user-email" value="Email" />
+                    <x-text-input id="user-email" class="mbui-input mt-1" type="email" name="email" :value="old('email', $user->email)" required maxlength="255" />
+                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                </div>
+                <div class="sm:col-span-2">
+                    <x-mbui.button type="submit">Save details</x-mbui.button>
+                </div>
+            </form>
+        </x-mbui.card>
+    @endif
+
     @can('learning.manage')
         <x-mbui.card class="mt-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
