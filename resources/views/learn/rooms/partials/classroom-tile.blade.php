@@ -6,34 +6,19 @@
         :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"
         :aria-label="t.source === 'screen' ? t.name + ' is sharing their screen' : 'Video of ' + t.name"></video>
 
-    {{-- My own screen share without the live preview: a still picture taken while I was in the app I
-         present (this page is out of sight then, so it never repeats itself like a mirror) --}}
-    <canvas data-share-snapshot x-show="t.selfShare && !t.hasVideo && shareSnap.ready"
+    {{-- My own whole-screen / window share: drawn live, with the spot where this page shows it blacked
+         out, so it never repeats itself like a mirror (a shared tab plays in the <video> above) --}}
+    <canvas data-share-snapshot x-show="t.selfShare && !t.hasVideo"
         class="absolute inset-0 h-full w-full bg-black object-contain" role="img" aria-label="Your shared screen"></canvas>
 
-    {{-- My own screen share on show (live preview or still picture): a bar to stop it --}}
-    <div x-show="t.selfShare && (t.hasVideo || shareSnap.ready)" class="absolute inset-x-0 top-0 flex justify-center p-2">
+    {{-- My own screen share: a bar to stop it --}}
+    <div x-show="t.selfShare" class="absolute inset-x-0 top-0 flex justify-center p-2">
         <div class="flex max-w-full items-center gap-2 rounded-full bg-black/75 py-1 pl-3 pr-1 text-white shadow-lg {{ $big ? 'text-xs sm:text-sm' : 'text-[11px]' }}">
             <span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500" aria-hidden="true"></span>
-            <span class="truncate" x-text="t.hasVideo ? 'You are sharing — everyone sees this' : 'You are sharing — everyone sees your screen'"></span>
-            @if ($big)
-                <button type="button" x-show="t.hasVideo" @click.stop="toggleSharePreview()"
-                    class="shrink-0 rounded-full px-2.5 py-1 font-medium text-gray-200 hover:bg-white/10">Hide preview</button>
-            @endif
+            <span class="truncate">You are sharing — everyone sees this</span>
             <button type="button" @click.stop="toggleShare()"
                 class="shrink-0 rounded-full bg-red-600 px-2.5 py-1 font-semibold hover:bg-red-500">Stop sharing</button>
         </div>
-    </div>
-
-    {{-- My own screen share before the first picture: where it will come from --}}
-    <div x-show="t.selfShare && !t.hasVideo && !shareSnap.ready" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
-        <span class="text-indigo-300" aria-hidden="true">@include('learn.rooms.partials.icon', ['name' => 'screen', 'class' => $big ? 'h-10 w-10' : 'h-6 w-6'])</span>
-        <p class="font-semibold text-white {{ $big ? 'text-base' : 'text-xs' }}">You are sharing your screen</p>
-        @if ($big)
-            <p class="max-w-sm text-xs text-gray-300">Everyone sees it. Go to the app or window you are presenting — a picture of it shows here when you come back (without the mirror effect).</p>
-        @endif
-        <button type="button" @click.stop="toggleShare()"
-            class="rounded-lg bg-red-600 font-semibold text-white hover:bg-red-500 {{ $big ? 'mt-1 px-4 py-2 text-sm' : 'px-2 py-1 text-[11px]' }}">Stop sharing</button>
     </div>
 
     {{-- No video: initials --}}

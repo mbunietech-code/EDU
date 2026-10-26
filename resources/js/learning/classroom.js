@@ -187,10 +187,7 @@ window.learnClassroom = (cfg = {}) => {
     remoteState: {}, // identity → { mic, cam, screen, speaking, quality }
     layout: 'speaker', // speaker | grid
     pinnedId: null,
-    // My own screen share on my screen: null = automatic (shown only when sharing another tab —
-    // a window or the whole screen would film itself again and again); true / false = my choice.
-    sharePreview: null,
-    // Without the live preview: a still picture of my shared screen, taken only while this page is out of sight.
+    // My own whole-screen / window share, drawn live with this page's own spot blacked out (no mirror).
     shareSnap: { ready: false },
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
     // on a phone I stay live while doing something else.
@@ -1195,7 +1192,6 @@ window.learnClassroom = (cfg = {}) => {
                 el._lkTrack = track;
             }
         });
-        this.paintShareSnap();
         this.syncMini();
     },
 
@@ -1392,96 +1388,111 @@ window.learnClassroom = (cfg = {}) => {
         } catch (e) { /* not supported */ }
     },
 
-    /** Show my own screen share to me? Automatically only for another tab (it cannot film this page). */
+    /** A shared tab plays as it is (it cannot contain this page); a window or the whole screen goes through drawShareView. */
     ownSharePreview(pub) {
-        if (this.sharePreview !== null) return this.sharePreview;
-        const track = pub && pub.track && pub.track.mediaStreamTrack;
-        const surface = track && typeof track.getSettings === 'function' ? track.getSettings().displaySurface : '';
-
-        return surface === 'browser';
+        return this.shareSurface(pub && pub.track ? pub.track.mediaStreamTrack : null) === 'browser';
     },
 
-    // --- Still picture of my own screen share ----------------------------------
-    // A live preview of the whole screen films itself again and again (a mirror).
-    // Zoom hides its own window from the capture; a web page cannot, so instead
-    // the picture is taken only while this page is out of sight (I am in the app
-    // I present): it shows that app, never this page.
+    shareSurface(track) {
+        return track && typeof track.getSettings === 'function' ? track.getSettings().displaySurface || '' : '';
+    },
+
+    // --- My own whole-screen / window share, without the mirror ---------------
+    // Showing the whole screen on that same screen films itself again and again.
+    // Zoom hides its own window from the capture; a web page cannot, so each frame
+    // is drawn with the spot where this page shows it blacked out: I see my screen
+    // live, and the copy of this page inside it has an empty stage — no tunnel.
     syncShareSnap(pub) {
         const track = this.media.screen && pub && pub.track ? pub.track.mediaStreamTrack : null;
-        if (!track) {
+        if (!track || this.shareSurface(track) === 'browser') {
             this.stopShareSnap();
             return;
         }
         if (lk.shareSnap && lk.shareSnap.track === track) return;
         this.stopShareSnap();
-        const snap = { track, canvas: document.createElement('canvas'), capture: null, video: null, timer: null, busy: false };
-        if (typeof ImageCapture !== 'undefined') {
-            try { snap.capture = new ImageCapture(track); } catch (e) { snap.capture = null; }
-        }
-        if (!snap.capture) {
-            snap.video = document.createElement('video');
-            snap.video.muted = true;
-            snap.video.playsInline = true;
-            snap.video.srcObject = new MediaStream([track]);
-            snap.video.play().catch(() => {});
-        }
-        snap.timer = setInterval(() => this.takeShareSnap(), 1000);
-        lk.shareSnap = snap;
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.srcObject = new MediaStream([track]);
+        video.play().catch(() => {});
+        lk.shareSnap = { track, video, raf: null, last: 0 };
         this.shareSnap.ready = false;
+        this.drawShareView();
     },
 
-    async takeShareSnap() {
+    /** About 15 frames a second while this page is on screen (the browser pauses it when hidden). */
+    drawShareView() {
         const snap = lk.shareSnap;
-        if (!snap || snap.busy || document.visibilityState !== 'hidden') return;
-        snap.busy = true;
-        let frame = null;
-        try {
-            frame = snap.capture ? await snap.capture.grabFrame() : snap.video;
-            const w = snap.capture ? frame.width : frame.videoWidth;
-            const h = snap.capture ? frame.height : frame.videoHeight;
-            if (!w || !h || lk.shareSnap !== snap) return;
-            const scale = Math.min(1, 1600 / w);
-            snap.canvas.width = Math.round(w * scale);
-            snap.canvas.height = Math.round(h * scale);
-            snap.canvas.getContext('2d').drawImage(frame, 0, 0, snap.canvas.width, snap.canvas.height);
-            this.shareSnap.ready = true;
-            this.paintShareSnap();
-        } catch (e) {
-            /* no frame yet: the next tick tries again */
-        } finally {
-            if (frame && snap.capture && typeof frame.close === 'function') frame.close();
-            snap.busy = false;
-        }
-    },
-
-    /** Copy the latest picture onto every tile that shows my share (tiles are re-created as the layout changes). */
-    paintShareSnap() {
-        const snap = lk.shareSnap;
-        if (!snap || !snap.canvas.width) return;
-        this.$root.querySelectorAll('canvas[data-share-snapshot]').forEach((c) => {
-            if (c.width !== snap.canvas.width || c.height !== snap.canvas.height) {
-                c.width = snap.canvas.width;
-                c.height = snap.canvas.height;
+        if (!snap) return;
+        snap.raf = requestAnimationFrame(() => this.drawShareView());
+        const now = performance.now();
+        const { video } = snap;
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (now - snap.last < 66 || !w || !h) return;
+        snap.last = now;
+        const canvases = Array.from(this.$root.querySelectorAll('canvas[data-share-snapshot]')).filter((c) => c.offsetParent !== null);
+        if (!canvases.length) return;
+        const scale = Math.min(1, 1600 / w);
+        const cw = Math.round(w * scale);
+        const ch = Math.round(h * scale);
+        const holes = this.shareHoles(canvases, snap.track, w, h);
+        canvases.forEach((c) => {
+            if (c.width !== cw || c.height !== ch) {
+                c.width = cw;
+                c.height = ch;
             }
-            c.getContext('2d').drawImage(snap.canvas, 0, 0);
+            const ctx = c.getContext('2d');
+            ctx.drawImage(video, 0, 0, cw, ch);
+            ctx.fillStyle = '#030712';
+            holes.forEach(([x, y, hw, hh]) => ctx.fillRect(x * scale, y * scale, hw * scale, hh * scale));
+        });
+        if (!this.shareSnap.ready) this.shareSnap.ready = true;
+    },
+
+    /**
+     * Where my share is drawn on this page, in the captured frame's pixels: page
+     * position on the monitor (or in the window) from the window's position and its
+     * toolbar height, plus a margin for the few pixels that cannot be known exactly.
+     */
+    shareHoles(canvases, track, w, h) {
+        const sideX = Math.max(0, (window.outerWidth - window.innerWidth) / 2);
+        const topY = Math.max(0, window.outerHeight - window.innerHeight - sideX);
+        const fits = (width, height) => Math.abs((h * width) / w - height) <= height * 0.03;
+        let unit;
+        let ox;
+        let oy;
+        // Not every browser says what was picked, so the frame's shape tells: this monitor
+        // or this browser window (anything else cannot contain this page — nothing to hide).
+        if (this.shareSurface(track) !== 'window' && fits(screen.width, screen.height)) {
+            unit = w / screen.width;
+            const left = screen.left ?? screen.availLeft ?? 0;
+            const top = screen.top ?? screen.availTop ?? 0;
+            ox = (window.screenX - left + sideX) * unit;
+            oy = (window.screenY - top + topY) * unit;
+        } else if (fits(window.outerWidth, window.outerHeight)) {
+            unit = w / window.outerWidth;
+            ox = sideX * unit;
+            oy = topY * unit;
+        } else {
+            return [];
+        }
+        const pad = 16;
+
+        return canvases.map((c) => {
+            const r = c.getBoundingClientRect();
+            return [ox + (r.left - pad) * unit, oy + (r.top - pad) * unit, (r.width + pad * 2) * unit, (r.height + pad * 2) * unit];
         });
     },
 
     stopShareSnap() {
         const snap = lk.shareSnap;
         if (snap) {
-            clearInterval(snap.timer);
-            if (snap.video) snap.video.srcObject = null;
+            cancelAnimationFrame(snap.raf);
+            snap.video.srcObject = null;
         }
         lk.shareSnap = null;
         this.shareSnap.ready = false;
-    },
-
-    toggleSharePreview() {
-        const room = lk.room;
-        const pub = room && lk.mod ? room.localParticipant.getTrackPublication(lk.mod.Track.Source.ScreenShare) : null;
-        this.sharePreview = !this.ownSharePreview(pub);
-        this.refreshTiles();
     },
 
     pin(tile) {
@@ -2564,7 +2575,6 @@ window.learnClassroom = (cfg = {}) => {
         }
         this.mediaBusy.screen = true;
         const starting = !this.media.screen;
-        if (starting) this.sharePreview = null; // each new share decides again
         try {
             await room.localParticipant.setScreenShareEnabled(starting, {
                 audio: true, // tab / system audio where the browser supports it
