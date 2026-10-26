@@ -205,6 +205,18 @@
             <p class="rounded-full bg-black/60 px-3 py-1 text-xs text-gray-200">You are the only one here — others will appear as they join.</p>
         </div>
 
+        {{-- The host asks me to turn on my microphone / camera --}}
+        <div x-show="ask.open" x-cloak x-transition.opacity class="absolute inset-x-0 top-14 z-30 flex justify-center px-3">
+            <div class="flex max-w-md flex-wrap items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 py-3 text-sm text-white shadow-2xl ring-1 ring-indigo-500" role="alertdialog" aria-live="assertive">
+                <span class="text-indigo-300" aria-hidden="true">@include('learn.rooms.partials.icon', ['name' => 'mic', 'class' => 'h-5 w-5'])</span>
+                <p class="min-w-0 flex-1"><span class="font-semibold" x-text="ask.from"></span>
+                    <span x-text="ask.kind === 'video' ? ' asks you to turn on your camera.' : ' asks you to unmute your microphone.'"></span></p>
+                <button type="button" @click="acceptAsk()" class="rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold hover:bg-indigo-500"
+                    x-text="ask.kind === 'video' ? 'Turn on camera' : 'Unmute'"></button>
+                <button type="button" @click="declineAsk()" class="rounded-lg px-3 py-1.5 font-medium text-gray-300 hover:bg-gray-700">Not now</button>
+            </div>
+        </div>
+
         {{-- Browser blocked autoplay --}}
         <div x-show="audioBlocked" x-cloak class="absolute inset-x-0 bottom-4 z-10 flex justify-center">
             <button type="button" @click="enableAudio()"

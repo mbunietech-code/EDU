@@ -61,6 +61,16 @@
             </button>
         </template>
 
+        {{-- Loud speaker: everyone else louder --}}
+        <button type="button" @click="toggleLoud()" class="{{ $btn }}"
+            :class="loud ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
+            :aria-pressed="loud.toString()"
+            :aria-label="loud ? 'Loud speaker on — tap for normal volume' : 'Loud speaker: make everyone louder'"
+            :title="loud ? 'Loud speaker on (tap for normal volume)' : 'Loud speaker — make everyone louder'">
+            @include('learn.rooms.partials.icon', ['name' => 'speaker'])
+            <span x-show="loud" x-cloak class="absolute -bottom-1 rounded bg-gray-900 px-1 text-[9px] font-bold leading-tight text-indigo-200">LOUD</span>
+        </button>
+
         {{-- Reactions --}}
         <div class="relative" x-data="{ open: false }" @keydown.escape.stop="open = false; $refs.reactToggle.focus()" @click.outside="open = false">
             <button type="button" x-ref="reactToggle" @click="inCall && (open = !open)" class="{{ $btn }}"

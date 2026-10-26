@@ -64,6 +64,8 @@ const CAPTION_LANGS = [
     { code: 'zh-CN', label: '中文 (Chinese)' },
 ];
 const CAPTION_MAX = 300;
+/** Loud speaker: everyone else's voices ×3 (about +10 dB), held below clipping by a limiter. */
+const LOUD_GAIN = 3;
 const CAPTION_SHOW_MS = 7000;
 
 /** livekit-client is only downloaded when someone actually joins a call. */
@@ -192,6 +194,8 @@ window.learnClassroom = (cfg = {}) => {
     // Mini window: the call floats (picture-in-picture) over other apps and tabs, so
     // on a phone I stay live while doing something else.
     mini: { supported: false, active: false },
+    loud: false, // loud speaker (remembered on this device)
+    ask: { open: false, kind: '', from: '' }, // the host asks me to turn on my mic / camera
     isFullscreen: false,
     devices: { open: false, cams: [], mics: [], speakers: [], cam: '', mic: '', speaker: '' },
 
@@ -299,6 +303,7 @@ window.learnClassroom = (cfg = {}) => {
         try {
             const saved = window.localStorage.getItem('classroom.recQuality');
             if (saved && REC_PRESETS[saved]) this.recQuality = saved;
+            this.loud = window.localStorage.getItem('classroom.loud') === '1';
             const bg = JSON.parse(window.localStorage.getItem('classroom.background') || 'null');
             if (bg && bg.mode === 'blur') this.bg.mode = 'blur';
             if (bg && bg.mode === 'image' && this.bgImages.some((i) => i.url === bg.image)) Object.assign(this.bg, { mode: 'image', image: bg.image });
@@ -1043,6 +1048,7 @@ window.learnClassroom = (cfg = {}) => {
         if (!room.canPlaybackAudio) this.audioBlocked = true;
         this.setupMediaSession();
         this.miniTip();
+        if (this.loud) this.applyLoud();
 
         if (publishOnJoin) {
             if (this.canUseMic) await this.setMic(true, true);
@@ -1065,11 +1071,13 @@ window.learnClassroom = (cfg = {}) => {
                     const el = track.attach();
                     el.dataset.lkAudio = '1';
                     this.$refs.audioSink && this.$refs.audioSink.appendChild(el);
+                    if (this.loud) this.applyLoud();
                 }
                 refresh();
             })
             .on(E.TrackUnsubscribed, (track) => {
                 track.detach().forEach((el) => { if (el.dataset && el.dataset.lkAudio) el.remove(); });
+                if (track.kind === 'audio' && this.loud) this.applyLoud();
                 refresh();
             })
             .on(E.TrackSubscriptionFailed, () => this.flash('A participant’s video could not be received. It will retry automatically.'))
@@ -1222,6 +1230,129 @@ window.learnClassroom = (cfg = {}) => {
             this.panelPinned = false;
         }
         this.$nextTick(() => this.attachVideos());
+    },
+
+    // --- Loud speaker -----------------------------------------------------------
+    /**
+     * Everyone else's voices made louder (for quiet phones and laptops): their audio
+     * goes through a gain and a limiter (so it does not crackle) instead of playing
+     * from the <audio> elements, which stay attached but muted. Off = the normal path.
+     */
+    toggleLoud() {
+        this.loud = !this.loud;
+        try { window.localStorage.setItem('classroom.loud', this.loud ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+        this.applyLoud();
+        this.flash(this.loud ? '🔊 Loud speaker on — everyone sounds louder.' : 'Loud speaker off.');
+    },
+
+    applyLoud() {
+        const room = lk.room;
+        const sink = this.$refs.audioSink;
+        if (!this.loud || !room) {
+            this.stopLoud();
+            return;
+        }
+        if (!lk.loud) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) {
+                this.loud = false;
+                this.flash('This browser cannot make the sound louder. Turn up the volume of your device.', 7000);
+                return;
+            }
+            const ctx = new Ctx();
+            const gain = ctx.createGain();
+            gain.gain.value = LOUD_GAIN;
+            const limiter = ctx.createDynamicsCompressor();
+            limiter.threshold.value = -12;
+            limiter.knee.value = 6;
+            limiter.ratio.value = 12;
+            limiter.attack.value = 0.003;
+            limiter.release.value = 0.25;
+            gain.connect(limiter);
+            limiter.connect(ctx.destination);
+            lk.loud = { ctx, gain, sources: new Map() };
+            if (this.devices.speaker && typeof ctx.setSinkId === 'function') ctx.setSinkId(this.devices.speaker).catch(() => {});
+        }
+        const boost = lk.loud;
+        if (boost.ctx.state !== 'running') boost.ctx.resume().catch(() => {});
+
+        const live = new Set();
+        room.remoteParticipants.forEach((p) => {
+            p.audioTrackPublications.forEach((pub) => {
+                const mst = pub.track && pub.track.mediaStreamTrack;
+                if (!mst || mst.readyState === 'ended') return;
+                live.add(mst);
+                if (boost.sources.has(mst)) return;
+                try {
+                    const source = boost.ctx.createMediaStreamSource(new MediaStream([mst]));
+                    source.connect(boost.gain);
+                    boost.sources.set(mst, source);
+                } catch (e) { /* this track plays normally */ }
+            });
+        });
+        boost.sources.forEach((source, mst) => {
+            if (live.has(mst)) return;
+            source.disconnect();
+            boost.sources.delete(mst);
+        });
+        // The elements keep the streams flowing (Chrome needs that) but no longer play them.
+        if (sink) sink.querySelectorAll('audio').forEach((el) => { el.muted = true; });
+    },
+
+    stopLoud() {
+        const boost = lk.loud;
+        lk.loud = null;
+        if (boost) {
+            boost.sources.forEach((source) => source.disconnect());
+            boost.ctx.close().catch(() => {});
+        }
+        const sink = this.$refs.audioSink;
+        if (sink) sink.querySelectorAll('audio').forEach((el) => { el.muted = false; });
+    },
+
+    // --- Asking someone to unmute ------------------------------------------------
+    /**
+     * Nobody can switch on another person's microphone or camera (browsers and the
+     * SFU do not allow it, and Zoom asks too): the host asks, they tap to accept.
+     * Rights the person lacks are granted first, so the request can be accepted.
+     */
+    async askToTurnOn(p, kind) {
+        const room = lk.room;
+        if (!this.isManager || !room || this.lkState !== 'connected' || !p || !p.identity) return;
+        const right = kind === 'video' ? 'video' : 'audio';
+        if (p.permissions && !p.permissions[right]) {
+            const ok = await this.setParticipantRight(p, right, true);
+            if (!ok) return;
+        }
+        try {
+            const bytes = new TextEncoder().encode(JSON.stringify({ t: 'ask', k: right }));
+            await room.localParticipant.publishData(bytes, { reliable: true, topic: DATA_TOPIC, destinationIdentities: [p.identity] });
+            this.flash('Asked ' + p.name + ' to turn on their ' + (right === 'video' ? 'camera' : 'microphone') + '.');
+        } catch (e) {
+            this.flash('Could not reach ' + p.name + '. Try again.', 7000);
+        }
+    },
+
+    /** A request from the host (checked: the sender's role comes from their signed token). */
+    onAskToTurnOn(kind, participant) {
+        let meta = {};
+        try { meta = participant && participant.metadata ? JSON.parse(participant.metadata) : {}; } catch (e) { meta = {}; }
+        if (meta.role !== 'host' || !['audio', 'video'].includes(kind)) return;
+        if (kind === 'audio' ? this.media.mic : this.media.cam) return;
+        this.ask = { open: true, kind, from: participant.name || 'The host' };
+    },
+
+    async acceptAsk() {
+        const kind = this.ask.kind;
+        this.ask = { open: false, kind: '', from: '' };
+        // The host may have just given me the right: make sure this page knows before trying.
+        if (!(kind === 'video' ? this.canUseCam : this.canUseMic)) await this.poll();
+        if (kind === 'video') await this.setCam(true);
+        else await this.setMic(true);
+    },
+
+    declineAsk() {
+        this.ask = { open: false, kind: '', from: '' };
     },
 
     // --- Mini window (picture-in-picture) ------------------------------------
@@ -1517,6 +1648,7 @@ window.learnClassroom = (cfg = {}) => {
         try {
             await lk.room.startAudio();
             this.audioBlocked = false;
+            if (this.loud) this.applyLoud();
         } catch (e) {
             this.flash('Your browser still blocks sound. Click anywhere on the page and try again.');
         }
@@ -1550,6 +1682,11 @@ window.learnClassroom = (cfg = {}) => {
         if (topic === CAPTION_TOPIC) {
             if (!participant || typeof msg.t !== 'string') return;
             this.addCaption(participant.identity, participant.name || 'Someone', msg.t, !!msg.f);
+            return;
+        }
+
+        if (msg.t === 'ask') {
+            this.onAskToTurnOn(msg.k, participant);
             return;
         }
 
@@ -2442,6 +2579,8 @@ window.learnClassroom = (cfg = {}) => {
         this.$root.querySelectorAll('video[data-tile-id]').forEach((el) => { el.srcObject = null; el._lkTrack = null; });
         this.setMiniSource(null);
         this.stopShareSnap();
+        this.stopLoud();
+        this.ask = { open: false, kind: '', from: '' };
         this.tiles = [];
         this.remoteState = {};
         if (room) lk.lastMedia = { mic: this.media.mic, cam: this.media.cam };
@@ -2700,6 +2839,8 @@ window.learnClassroom = (cfg = {}) => {
         if (!room || !id) return;
         try {
             await room.switchActiveDevice(kind, id);
+            // The loud speaker plays through its own output: move it along.
+            if (kind === 'audiooutput' && lk.loud && typeof lk.loud.ctx.setSinkId === 'function') lk.loud.ctx.setSinkId(id).catch(() => {});
         } catch (e) {
             this.mediaError = this.deviceHelp(kind === 'videoinput' ? 'camera' : 'microphone', e);
         }
