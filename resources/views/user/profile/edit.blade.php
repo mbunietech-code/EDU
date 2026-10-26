@@ -1,4 +1,5 @@
-<x-layouts.user title="Profile" header="Profile">
+{{-- Admins see it inside the admin panel, everyone else in their account area. --}}
+<x-dynamic-component :component="auth()->user()->is_admin ? 'layouts.admin' : 'layouts.user'" title="Profile" header="Profile">
 
     <div class="grid gap-6 lg:grid-cols-2">
         <div class="mbui-card p-6">
@@ -12,9 +13,9 @@
                     <x-input-error :messages="$errors->get('name')" class="mt-2" />
                 </div>
                 <div>
-                    <x-input-label for="email" value="Email" />
-                    <x-text-input id="email" class="mbui-input mt-1" type="email" name="email" :value="old('email', auth()->user()->email)" required />
-                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                    <p class="text-sm text-gray-500">Email</p>
+                    <p class="mt-1 text-sm font-medium text-gray-900">{{ auth()->user()->email }}
+                        <a href="{{ route('user.settings') }}" class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-500">Change in Settings</a></p>
                 </div>
                 <x-mbui.button type="submit" variant="secondary">Save changes</x-mbui.button>
             </form>
@@ -34,31 +35,6 @@
             </dl>
         </div>
 
-        <div class="mbui-card p-6 lg:col-span-2">
-            <h2 class="mbui-section-label">Update password</h2>
-            <form method="POST" action="{{ route('user.profile.password') }}" class="mt-4 grid gap-4 sm:grid-cols-3">
-                @csrf
-                @method('PATCH')
-                <div>
-                    <x-input-label for="current_password" value="Current password" />
-                    <x-text-input id="current_password" class="mbui-input mt-1" type="password" name="current_password" required autocomplete="current-password" />
-                    <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
-                </div>
-                <div>
-                    <x-input-label for="password" value="New password" />
-                    <x-text-input id="password" class="mbui-input mt-1" type="password" name="password" required autocomplete="new-password" />
-                    <x-input-error :messages="$errors->get('password')" class="mt-2" />
-                </div>
-                <div>
-                    <x-input-label for="password_confirmation" value="Confirm new password" />
-                    <x-text-input id="password_confirmation" class="mbui-input mt-1" type="password" name="password_confirmation" required autocomplete="new-password" />
-                    <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-                </div>
-                <div class="sm:col-span-3">
-                    <x-mbui.button type="submit" variant="secondary">Update password</x-mbui.button>
-                </div>
-            </form>
-        </div>
     </div>
 
-</x-layouts.user>
+</x-dynamic-component>

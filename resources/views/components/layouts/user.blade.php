@@ -174,6 +174,10 @@
                 <x-user.sidebar-link :route="route('user.profile.edit')" :active="request()->routeIs('user.profile.*')" label="Profile">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </x-user.sidebar-link>
+
+                <x-user.sidebar-link :route="route('user.settings')" :active="request()->routeIs('user.settings*')" label="Settings">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </x-user.sidebar-link>
             </nav>
 
             <div class="absolute bottom-0 inset-x-0 border-t border-gray-800 p-4">
@@ -202,21 +206,7 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <livewire:shared.notification-bell />
-                    <a href="{{ route('public.home') }}" class="hidden sm:inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-                        <span class="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-semibold text-white">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                        </span>
-                        <span class="hidden md:inline">{{ auth()->user()->name }}</span>
-                    </a>
-                    <form method="POST" action="{{ route('logout') }}" class="m-0">
-                        @csrf
-                        <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900" title="Sign out">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-                            </svg>
-                            <span class="hidden sm:inline">Logout</span>
-                        </button>
-                    </form>
+                    <x-account-menu />
                 </div>
             </header>
 

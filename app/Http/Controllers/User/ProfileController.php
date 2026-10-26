@@ -14,16 +14,40 @@ class ProfileController extends Controller
         return view('user.profile.edit');
     }
 
+    /** Settings: the email you sign in with and your password. */
+    public function settings()
+    {
+        return view('user.profile.settings');
+    }
+
     public function update(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . auth()->id()],
         ]);
 
         auth()->user()->update($validated);
 
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+    /** A new sign-in email; your password confirms it is you. */
+    public function updateEmail(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . auth()->id()],
+            'email_password' => ['required', 'current_password'],
+        ], [], ['email_password' => 'password']);
+
+        $user = auth()->user();
+        $old = $user->email;
+        $user->update(['email' => $validated['email']]);
+
+        if ($old !== $user->email) {
+            \App\Models\ActivityLog::log('user_email_changed', 'User', $user->id, ['from' => $old, 'to' => $user->email]);
+        }
+
+        return back()->with('success', 'Email updated. Use it the next time you sign in.');
     }
 
     public function updatePassword(Request $request)
