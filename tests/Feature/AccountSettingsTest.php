@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
- * The account button in the top bar opens Profile and Settings; Settings
- * changes the sign-in email (confirmed with the password) and the password.
+ * The account button in the top bar opens "Profile & settings": one page for
+ * the name, the sign-in email (confirmed with the password) and the password.
  */
 class AccountSettingsTest extends TestCase
 {
@@ -21,20 +21,29 @@ class AccountSettingsTest extends TestCase
         return User::factory()->create(['email' => 'me@example.com', 'password' => Hash::make('secret-pass-1')]);
     }
 
-    public function test_the_top_bar_menu_links_profile_and_settings(): void
+    public function test_one_page_holds_name_email_and_password(): void
     {
         $this->actingAs($this->member())->get(route('user.profile.edit'))
             ->assertOk()
-            ->assertSee(route('user.settings'), false)
+            ->assertSee('Profile &amp; settings', false)
+            ->assertSee(route('user.profile.update'), false)
+            ->assertSee(route('user.settings.email'), false)
+            ->assertSee(route('user.profile.password'), false)
             ->assertSee('Sign out');
 
+        // Old /settings links land on the same page.
+        $this->get('/settings')->assertRedirect('/profile');
+    }
+
+    public function test_admins_reach_it_from_the_panel_menu_and_stay_in_the_panel(): void
+    {
         $admin = User::factory()->create(['is_admin' => true, 'role' => Permissions::ROLE_SUPER_ADMIN, 'permissions' => null]);
+
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee(route('user.profile.edit'), false)
-            ->assertSee(route('user.settings'), false);
-        // Admins keep their own panel around these pages.
-        $this->get(route('user.settings'))->assertOk()->assertSee('Admin |', false);
+            ->assertSee('Profile &amp; settings', false);
+        $this->get(route('user.profile.edit'))->assertOk()->assertSee('Admin |', false);
     }
 
     public function test_changing_the_email_needs_the_password(): void
@@ -42,7 +51,7 @@ class AccountSettingsTest extends TestCase
         $user = $this->member();
         $this->actingAs($user);
 
-        $this->get(route('user.settings'))->assertOk()->assertSee('me@example.com');
+        $this->get(route('user.profile.edit'))->assertOk()->assertSee('me@example.com');
 
         $this->patch(route('user.settings.email'), ['email' => 'new@example.com', 'email_password' => 'wrong'])
             ->assertSessionHasErrors('email_password');

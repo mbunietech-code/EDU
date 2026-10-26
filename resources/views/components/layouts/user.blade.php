@@ -171,13 +171,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                 </x-user.sidebar-link>
 
-                <x-user.sidebar-link :route="route('user.profile.edit')" :active="request()->routeIs('user.profile.*')" label="Profile">
+                <x-user.sidebar-link :route="route('user.profile.edit')" :active="request()->routeIs('user.profile.*')" label="Profile & settings">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </x-user.sidebar-link>
 
-                <x-user.sidebar-link :route="route('user.settings')" :active="request()->routeIs('user.settings*')" label="Settings">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                </x-user.sidebar-link>
             </nav>
 
             <div class="absolute bottom-0 inset-x-0 border-t border-gray-800 p-4">

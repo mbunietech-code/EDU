@@ -142,7 +142,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('user.profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
     Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('user.profile.password');
-    Route::get('/settings', [ProfileController::class, 'settings'])->name('user.settings');
+    // Settings live on the profile page now; old links still land there.
+    Route::redirect('/settings', '/profile')->name('user.settings');
     Route::patch('/settings/email', [ProfileController::class, 'updateEmail'])->middleware('throttle:10,1')->name('user.settings.email');
 
     // --- Research library — the signed-in reading experience ---------

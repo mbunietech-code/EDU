@@ -14,12 +14,6 @@ class ProfileController extends Controller
         return view('user.profile.edit');
     }
 
-    /** Settings: the email you sign in with and your password. */
-    public function settings()
-    {
-        return view('user.profile.settings');
-    }
-
     public function update(Request $request)
     {
         $validated = $request->validate([
