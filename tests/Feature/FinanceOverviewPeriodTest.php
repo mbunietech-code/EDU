@@ -193,6 +193,32 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->finance()->get(route('admin.finance.line', ['line' => 'product:999999']))->assertNotFound();
     }
 
+    public function test_capital_added_on_a_line_lands_on_that_line(): void
+    {
+        $product = Product::factory()->create(['name' => 'ChatGPT']);
+        FinanceExpense::create(['label' => 'Office – Internet', 'expense_type' => 'internet', 'amount' => 5000, 'spent_at' => '2026-10-20']);
+
+        // The Internet line opens even with nothing in it, and offers the form.
+        $internet = route('admin.finance.line', ['line' => 'type:internet']);
+        $this->finance()->get($internet)->assertOk()->assertSee('Internet / bundles')->assertSee('+ Add capital here');
+        $this->finance()->get(route('admin.finance.line', ['line' => 'type:internet', 'period' => 'year', 'date' => '2025-01-01']))->assertOk();
+
+        $this->finance()->from($internet)->post(route('admin.finance.capital.store'), [
+            'label' => 'Internet / bundles', 'amount' => 20000, 'source' => 'Rhoda', 'is_loan' => 0, 'received_at' => '2026-10-21',
+        ])->assertRedirect($internet);
+
+        $line = $this->finance()->get(route('admin.finance.line', ['line' => 'product:'.$product->id]))->assertOk();
+        $this->finance()->post(route('admin.finance.capital.store'), [
+            'label' => 'ChatGPT', 'product_id' => $product->id, 'amount' => 7000, 'source' => 'Mussa', 'is_loan' => 1, 'received_at' => '2026-10-21',
+        ]);
+
+        $rows = collect(app(\App\Services\FinanceOverviewService::class)->rows())->keyBy('key');
+        $this->assertSame(20000.0, (float) $rows['type:internet']['capital']);
+        $this->assertSame(15000.0, (float) $rows['type:internet']['balance']);
+        $this->assertSame(7000.0, (float) $rows['product:'.$product->id]['capital']);
+        $this->assertCount(1, $rows->where('label', 'Internet / bundles'));
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

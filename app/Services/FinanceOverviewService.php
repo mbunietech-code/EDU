@@ -46,6 +46,12 @@ class FinanceOverviewService
             ];
         }
 
+        // A capital entry (or untyped expense) named after a cost type ("Internet
+        // / bundles") lands on that type's line.
+        foreach (FinanceExpense::types() as $type => $t) {
+            $this->names[$this->norm($t['label'])] ??= 'type:'.$type;
+        }
+
         foreach (Tool::orderBy('name')->get() as $tool) {
             $key = 'tool:' . $tool->id;
             $this->names[$this->norm($tool->name)] ??= $key;
@@ -81,7 +87,7 @@ class FinanceOverviewService
                 continue;
             }
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
-            $rows[$key] ??= $this->blankRow($entry->label);
+            $rows[$key] ??= $this->rowFor($key, $entry->label);
             $rows[$key]['capital'] += (float) $entry->amount;
             $this->items[$key]['capital'][] = $entry;
         }
@@ -94,10 +100,10 @@ class FinanceOverviewService
             // (LUKU)"), whatever label each was typed with.
             if (! $expense->product_id && ! $expense->tool_id && $expense->typeLabel()) {
                 $key = 'type:'.$expense->expense_type;
-                $rows[$key] ??= array_merge($this->blankRow($expense->typeLabel()), ['key' => $key, 'type' => 'Cost']);
+                $rows[$key] ??= $this->rowFor($key, $expense->typeLabel());
             } else {
                 $key = $this->keyFor($expense->product_id, $expense->tool_id, $expense->label);
-                $rows[$key] ??= $this->blankRow($expense->label);
+                $rows[$key] ??= $this->rowFor($key, $expense->label);
             }
             $rows[$key]['expenses'] += (float) $expense->amount;
             $this->items[$key]['expenses'][] = $expense;
@@ -110,7 +116,7 @@ class FinanceOverviewService
                 continue;
             }
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
-            $rows[$key] ??= $this->blankRow($entry->label);
+            $rows[$key] ??= $this->rowFor($key, $entry->label);
             $rows[$key]['repaid'] += (float) $repayment->amount;
             $this->items[$key]['repaid'][] = $repayment;
         }
@@ -135,6 +141,10 @@ class FinanceOverviewService
     public function line(string $key, ?FinancePeriod $period = null): ?array
     {
         $row = collect($this->rows($period))->firstWhere('key', $key);
+        if (! $row && str_starts_with($key, 'type:') && isset(FinanceExpense::types()[substr($key, 5)])) {
+            // A cost type with nothing recorded in this period yet.
+            $row = $this->rowFor($key, FinanceExpense::types()[substr($key, 5)]['label']) + ['balance' => 0];
+        }
         if (! $row) {
             return null;
         }
@@ -183,6 +193,18 @@ class FinanceOverviewService
     private function norm(string $label): string
     {
         return mb_strtolower(preg_replace('/\s+/', ' ', trim($label)));
+    }
+
+    /** A new, empty line for this key (a cost type shows its type's name). */
+    private function rowFor(string $key, string $label): array
+    {
+        if (str_starts_with($key, 'type:')) {
+            $type = FinanceExpense::types()[substr($key, 5)] ?? null;
+
+            return array_merge($this->blankRow($type['label'] ?? $label), ['key' => $key, 'type' => 'Cost']);
+        }
+
+        return array_merge($this->blankRow($label), ['key' => $key]);
     }
 
     protected function blankRow(string $label): array

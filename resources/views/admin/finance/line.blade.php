@@ -2,6 +2,7 @@
     $back = request()->fullUrl();
     $overview = route('admin.finance.dashboard', $period->query());
     $date = fn ($d) => $d?->format('d M Y') ?? '—';
+    [$kind, $id] = array_pad(explode(':', $row['key'], 2), 2, null);
 @endphp
 
 <x-layouts.finance :title="$row['label']" header="Finance">
@@ -30,11 +31,48 @@
     </div>
 
     {{-- Capital and loans --}}
-    <div class="mt-8 mbui-card overflow-hidden">
+    <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() ? 'true' : 'false' }} }">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Capital · {{ $capital->count() }}</h2>
-            <a href="{{ route('admin.finance.capital.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">Add capital &rarr;</a>
+            <button type="button" x-on:click="adding = ! adding" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500" x-text="adding ? 'Cancel' : '+ Add capital here'">+ Add capital here</button>
         </div>
+
+        {{-- Capital added here lands on this line (same software, or this name). --}}
+        <form method="POST" action="{{ route('admin.finance.capital.store') }}" x-show="adding" x-cloak class="space-y-4 border-b border-gray-200 bg-gray-50 px-6 py-5">
+            @csrf
+            <input type="hidden" name="label" value="{{ $row['label'] }}">
+            @if ($kind === 'product')<input type="hidden" name="product_id" value="{{ $id }}">@endif
+            @if ($kind === 'tool')<input type="hidden" name="tool_id" value="{{ $id }}">@endif
+            <p class="text-sm text-gray-600">For <span class="font-semibold text-gray-900">{{ $row['label'] }}</span></p>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <x-input-label for="line-cap-amount" value="Amount (TZS)" />
+                    <x-text-input id="line-cap-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('amount')" required />
+                    <x-input-error :messages="$errors->get('amount')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="line-cap-source" value="Source of this money" />
+                    <x-text-input id="line-cap-source" class="mbui-input mt-1" type="text" name="source" :value="old('source')" placeholder="e.g. Owner savings, CRDB loan" required />
+                    <x-input-error :messages="$errors->get('source')" class="mt-2" />
+                </div>
+                <x-finance.money-account-select :accounts="$moneyAccounts" id="line-cap-money" label="Received into" :suggest="true" />
+                @if (\App\Support\FinanceDates::hasReceivedDate())
+                    <div>
+                        <x-input-label for="line-cap-received" value="Date received" />
+                        <x-text-input id="line-cap-received" class="mbui-input mt-1" type="date" name="received_at" :value="old('received_at', \App\Support\FinanceDates::today())" :max="\App\Support\FinanceDates::today()" required />
+                        <x-input-error :messages="$errors->get('received_at')" class="mt-2" />
+                    </div>
+                @endif
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="hidden" name="is_loan" value="0">
+                    <input type="checkbox" name="is_loan" value="1" @checked(old('is_loan')) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    This is a loan and needs to be repaid
+                </label>
+                <x-mbui.button type="submit">Save capital</x-mbui.button>
+            </div>
+        </form>
         <x-mbui.table>
             <thead>
                 <tr class="border-b border-gray-200 bg-gray-50">

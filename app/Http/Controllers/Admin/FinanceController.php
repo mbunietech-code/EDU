@@ -118,7 +118,10 @@ class FinanceController extends Controller
         $line = $overview->line((string) $request->query('line', ''), $period);
         abort_if($line === null, 404);
 
-        return view('admin.finance.line', $line + ['period' => $period]);
+        return view('admin.finance.line', $line + [
+            'period' => $period,
+            'moneyAccounts' => app(MoneyAccountService::class)->options(),
+        ]);
     }
 
     /** After an edit, back to the page it was opened from (a Finance page only). */
