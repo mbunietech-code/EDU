@@ -13,6 +13,7 @@ use App\Models\Tool;
 use App\Services\DeletionService;
 use App\Services\Finance\MoneyAccountService;
 use App\Services\FinanceOverviewService;
+use App\Support\FinancePeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -80,10 +81,18 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $rows = $overview->rows();
+        // Same periods as the web page: ?period=day|week|month|year|all|custom (&date= / &from=&to=).
+        $period = FinancePeriod::fromRequest($request);
+        $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
 
         return response()->json(['data' => [
+            'period' => [
+                'key' => $period->key,
+                'label' => $period->label(),
+                'from' => $period->from?->toDateString(),
+                'to' => $period->to?->toDateString(),
+            ],
             'rows' => collect($rows)->map(fn ($r) => [
                 'label' => $r['label'],
                 'type' => $r['type'] ?? '',

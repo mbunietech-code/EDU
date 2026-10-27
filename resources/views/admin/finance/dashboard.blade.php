@@ -11,21 +11,63 @@
         </div>
     </div>
 
-    <div class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    {{-- Period: day, week, month, year (‹ › to step), all time, or a custom range. --}}
+    @php($base = route('admin.finance.dashboard'))
+    <div class="mt-6 flex flex-col gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-200 lg:flex-row lg:items-center lg:justify-between">
+        <nav class="flex flex-wrap gap-1" aria-label="Period">
+            @foreach (['day' => 'Today', 'week' => 'This week', 'month' => 'This month', 'year' => 'This year', 'all' => 'All time'] as $key => $text)
+                <a href="{{ $base.($key === 'all' ? '' : '?period='.$key) }}"
+                    @if ($period->key === $key) aria-current="page" @endif
+                    class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $period->key === $key ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">{{ $text }}</a>
+            @endforeach
+        </nav>
+
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($period->steps())
+                <a href="{{ $base.'?'.http_build_query($period->shifted(-1)) }}" class="rounded-lg p-1.5 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-50 hover:text-gray-900" aria-label="Previous {{ $period->key }}" title="Previous">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                </a>
+            @endif
+            <span class="min-w-[9rem] text-center text-sm font-semibold text-gray-900">{{ $period->label() }}</span>
+            @if ($period->steps())
+                @if ($period->isCurrent())
+                    <span class="rounded-lg p-1.5 text-gray-300 ring-1 ring-gray-100" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </span>
+                @else
+                    <a href="{{ $base.'?'.http_build_query($period->shifted(1)) }}" class="rounded-lg p-1.5 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-50 hover:text-gray-900" aria-label="Next {{ $period->key }}" title="Next">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </a>
+                @endif
+            @endif
+
+            <form method="GET" action="{{ $base }}" class="flex flex-wrap items-center gap-1.5">
+                <input type="hidden" name="period" value="custom">
+                <label class="sr-only" for="period-from">From</label>
+                <input id="period-from" type="date" name="from" value="{{ $period->key === 'custom' ? $period->from?->toDateString() : '' }}" class="mbui-input !w-auto py-1 text-sm">
+                <span class="text-sm text-gray-400">–</span>
+                <label class="sr-only" for="period-to">To</label>
+                <input id="period-to" type="date" name="to" value="{{ $period->key === 'custom' ? $period->to?->toDateString() : '' }}" class="mbui-input !w-auto py-1 text-sm">
+                <button type="submit" class="rounded-lg px-3 py-1.5 text-sm font-medium ring-1 {{ $period->key === 'custom' ? 'bg-indigo-600 text-white ring-indigo-600' : 'text-gray-700 ring-gray-200 hover:bg-gray-50' }}">Show</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <x-mbui.card class="p-6">
-            <p class="text-sm font-medium text-gray-500">Total Capital</p>
+            <p class="text-sm font-medium text-gray-500">{{ $period->isAll() ? 'Total Capital' : 'Capital' }}</p>
             <p class="mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS {{ number_format($totals['capital']) }}</p>
         </x-mbui.card>
         <x-mbui.card class="p-6">
-            <p class="text-sm font-medium text-gray-500">Total Income</p>
+            <p class="text-sm font-medium text-gray-500">{{ $period->isAll() ? 'Total Income' : 'Income' }}</p>
             <p class="mt-2 text-2xl font-bold tracking-tight text-emerald-600">TZS {{ number_format($totals['income']) }}</p>
         </x-mbui.card>
         <x-mbui.card class="p-6">
-            <p class="text-sm font-medium text-gray-500">Total Expenses</p>
+            <p class="text-sm font-medium text-gray-500">{{ $period->isAll() ? 'Total Expenses' : 'Expenses' }}</p>
             <p class="mt-2 text-2xl font-bold tracking-tight text-red-600">TZS {{ number_format($totals['expenses']) }}</p>
         </x-mbui.card>
         <x-mbui.card class="p-6">
-            <p class="text-sm font-medium text-gray-500">Balance</p>
+            <p class="text-sm font-medium text-gray-500">{{ $period->isAll() ? 'Balance' : 'Net for the period' }}</p>
             <p class="mt-2 text-2xl font-bold tracking-tight {{ $totals['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($totals['balance']) }}</p>
             @if ($totals['repaid'] > 0)
                 <p class="mt-1 text-xs text-gray-500">After TZS {{ number_format($totals['repaid']) }} in loan repayments</p>
@@ -36,7 +78,7 @@
     {{-- Where the money is: one line per money account. --}}
     <div class="mt-8 mbui-card p-6">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 class="text-base font-semibold text-gray-900">Where the money is</h2>
+            <h2 class="text-base font-semibold text-gray-900">Where the money is <span class="text-sm font-normal text-gray-500">· now</span></h2>
             <a href="{{ route('admin.finance.money.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">Money accounts &rarr;</a>
         </div>
         @if ($money === null || $money['accounts']->isEmpty())
@@ -66,7 +108,7 @@
     <div class="mt-8 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Per software</h2>
-            <p class="mt-1 text-sm text-gray-500">Income is pulled automatically from approved payments. Capital and expenses are recorded manually.</p>
+            <p class="mt-1 text-sm text-gray-500">{{ $period->label() }}. Income is pulled automatically from approved payments. Capital and expenses are recorded manually.</p>
         </div>
         <x-mbui.table>
             <thead>
@@ -77,7 +119,7 @@
                     <th class="mbui-th">Income</th>
                     <th class="mbui-th">Expenses</th>
                     <th class="mbui-th">Loans repaid</th>
-                    <th class="mbui-th">Balance</th>
+                    <th class="mbui-th">{{ $period->isAll() ? 'Balance' : 'Net' }}</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -92,7 +134,7 @@
                         <td class="mbui-td font-semibold {{ $row['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($row['balance']) }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No software tracked yet</td></tr>
+                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">{{ $period->isAll() ? 'No software tracked yet' : 'Nothing recorded in this period' }}</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

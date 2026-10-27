@@ -25,6 +25,7 @@ use App\Services\Finance\MoneyAccountService;
 use App\Services\Finance\PayrollService;
 use App\Services\Finance\StaffService;
 use App\Services\FinanceOverviewService;
+use App\Support\FinancePeriod;
 use App\Services\StatutoryPayrollService;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -86,10 +87,15 @@ class FinanceController extends Controller
         return redirect()->route('admin.finance.pin');
     }
 
-    public function dashboard(FinanceOverviewService $overview)
+    public function dashboard(Request $request, FinanceOverviewService $overview)
     {
-        $rows = $overview->rows();
+        $period = FinancePeriod::fromRequest($request);
+        $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
+        if (! $period->isAll()) {
+            // A period lists only what moved in it.
+            $rows = array_values(array_filter($rows, fn ($r) => $r['capital'] || $r['income'] || $r['expenses'] || $r['repaid']));
+        }
 
         // Where the money sits, when money accounts are set up.
         $money = null;
@@ -103,7 +109,7 @@ class FinanceController extends Controller
             ];
         }
 
-        return view('admin.finance.dashboard', compact('rows', 'totals', 'money'));
+        return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period'));
     }
 
     public function capitalIndex()
