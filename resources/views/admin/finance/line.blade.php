@@ -3,6 +3,8 @@
     $overview = route('admin.finance.dashboard', $period->query());
     $date = fn ($d) => $d?->format('d M Y') ?? '—';
     [$kind, $id] = array_pad(explode(':', $row['key'], 2), 2, null);
+    $types = \App\Models\FinanceExpense::typesReady() ? \App\Models\FinanceExpense::types() : [];
+    $today = \App\Support\FinanceDates::today();
 @endphp
 
 <x-layouts.finance :title="$row['label']" header="Finance">
@@ -31,7 +33,7 @@
     </div>
 
     {{-- Capital and loans --}}
-    <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() ? 'true' : 'false' }} }">
+    <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() && old('form') === 'capital' ? 'true' : 'false' }} }">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Capital · {{ $capital->count() }}</h2>
             <button type="button" x-on:click="adding = ! adding" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500" x-text="adding ? 'Cancel' : '+ Add capital here'">+ Add capital here</button>
@@ -40,6 +42,7 @@
         {{-- Capital added here lands on this line (same software, or this name). --}}
         <form method="POST" action="{{ route('admin.finance.capital.store') }}" x-show="adding" x-cloak class="space-y-4 border-b border-gray-200 bg-gray-50 px-6 py-5">
             @csrf
+            <input type="hidden" name="form" value="capital">
             <input type="hidden" name="label" value="{{ $row['label'] }}">
             @if ($kind === 'product')<input type="hidden" name="product_id" value="{{ $id }}">@endif
             @if ($kind === 'tool')<input type="hidden" name="tool_id" value="{{ $id }}">@endif
@@ -109,11 +112,74 @@
     </div>
 
     {{-- Expenses --}}
-    <div class="mt-8 mbui-card overflow-hidden">
+    <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() && old('form') === 'expense' ? 'true' : 'false' }} }">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Expenses · {{ $expenses->count() }}</h2>
-            <a href="{{ route('admin.finance.expenses.index') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">Add expense &rarr;</a>
+            <button type="button" x-on:click="adding = ! adding" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500" x-text="adding ? 'Cancel' : '+ Add expense here'">+ Add expense here</button>
         </div>
+
+        {{-- An expense added here lands on this line: the same software, this
+             cost type, or this name. --}}
+        <form method="POST" action="{{ route('admin.finance.expenses.store') }}" enctype="multipart/form-data" x-show="adding" x-cloak class="space-y-4 border-b border-gray-200 bg-gray-50 px-6 py-5">
+            @csrf
+            <input type="hidden" name="form" value="expense">
+            @if ($kind === 'product')<input type="hidden" name="product_id" value="{{ $id }}">@endif
+            @if ($kind === 'tool')<input type="hidden" name="tool_id" value="{{ $id }}">@endif
+            @if ($kind === 'type')
+                <input type="hidden" name="expense_type" value="{{ $id }}">
+            @else
+                {{-- A software line takes the software's name; a named line keeps its name. --}}
+                <input type="hidden" name="label" value="{{ $row['label'] }}">
+            @endif
+            <p class="text-sm text-gray-600">For <span class="font-semibold text-gray-900">{{ $row['label'] }}</span></p>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @if ($kind === 'type')
+                    <div>
+                        <x-input-label for="line-exp-label" value="What it was for" />
+                        <x-text-input id="line-exp-label" class="mbui-input mt-1" type="text" name="label" :value="old('label', $types[$id]['default_label'] ?? $row['label'])" required />
+                        <x-input-error :messages="$errors->get('label')" class="mt-2" />
+                    </div>
+                @elseif (in_array($kind, ['product', 'tool'], true) && $types)
+                    <div>
+                        <x-input-label for="line-exp-type" value="Type" />
+                        <select id="line-exp-type" name="expense_type" class="mbui-input mt-1">
+                            <option value="">Choose type…</option>
+                            @foreach ($types as $key => $t)
+                                <option value="{{ $key }}" @selected(old('expense_type', 'product_accounts') === $key)>{{ $t['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div>
+                    <x-input-label for="line-exp-amount" value="Amount (TZS)" />
+                    <x-text-input id="line-exp-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('amount')" required />
+                    <x-input-error :messages="$errors->get('amount')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="line-exp-date" value="Date paid" />
+                    <x-text-input id="line-exp-date" class="mbui-input mt-1" type="date" name="spent_at" :value="old('spent_at', $today)" :max="$today" required />
+                    <x-input-error :messages="$errors->get('spent_at')" class="mt-2" />
+                </div>
+                <x-finance.money-account-select :accounts="$moneyAccounts" id="line-exp-money" label="Paid from" :suggest="true" />
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="line-exp-notes" value="Notes (optional)" />
+                    <x-text-input id="line-exp-notes" class="mbui-input mt-1" type="text" name="description" :value="old('description')" />
+                </div>
+                @if ($receiptsSupported)
+                    <div>
+                        <x-input-label for="line-exp-receipt" value="Receipt (optional)" />
+                        <input id="line-exp-receipt" type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+                            class="mbui-input mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700" />
+                        <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
+                    </div>
+                @endif
+            </div>
+            <div class="flex justify-end">
+                <x-mbui.button type="submit">Save expense</x-mbui.button>
+            </div>
+        </form>
         <x-mbui.table>
             <thead>
                 <tr class="border-b border-gray-200 bg-gray-50">

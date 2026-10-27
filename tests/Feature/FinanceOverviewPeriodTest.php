@@ -219,6 +219,32 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertCount(1, $rows->where('label', 'Internet / bundles'));
     }
 
+    public function test_an_expense_added_on_a_line_lands_on_that_line(): void
+    {
+        $product = Product::factory()->create(['name' => 'ChatGPT']);
+        $internet = route('admin.finance.line', ['line' => 'type:internet']);
+        $chat = route('admin.finance.line', ['line' => 'product:'.$product->id]);
+
+        $this->finance()->get($internet)->assertOk()->assertSee('+ Add expense here')->assertSee('Office – Internet');
+        $this->finance()->get($chat)->assertOk()->assertSee('Buying / renewing product accounts');
+
+        // What the two forms send.
+        $this->finance()->from($internet)->post(route('admin.finance.expenses.store'), [
+            'form' => 'expense', 'expense_type' => 'internet', 'label' => 'Bundle ya ofisi', 'amount' => 12000, 'spent_at' => '2026-10-25',
+        ])->assertRedirect($internet);
+        $this->finance()->from($chat)->post(route('admin.finance.expenses.store'), [
+            'form' => 'expense', 'product_id' => $product->id, 'label' => 'ChatGPT', 'expense_type' => 'product_accounts', 'amount' => 8000, 'spent_at' => '2026-10-25',
+        ])->assertRedirect($chat);
+        $this->finance()->from($chat)->post(route('admin.finance.expenses.store'), [
+            'form' => 'expense', 'product_id' => $product->id, 'label' => 'ChatGPT', 'amount' => 0, 'spent_at' => '2026-10-25',
+        ])->assertRedirect($chat)->assertSessionHasErrors('amount');
+
+        $rows = collect(app(\App\Services\FinanceOverviewService::class)->rows())->keyBy('key');
+        $this->assertSame(12000.0, (float) $rows['type:internet']['expenses']);
+        $this->assertSame(8000.0, (float) $rows['product:'.$product->id]['expenses']);
+        $this->assertSame('Operating Expenses (OPEX)', FinanceExpense::where('label', 'Bundle ya ofisi')->value('category'));
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

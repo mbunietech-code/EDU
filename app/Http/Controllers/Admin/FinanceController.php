@@ -121,6 +121,7 @@ class FinanceController extends Controller
         return view('admin.finance.line', $line + [
             'period' => $period,
             'moneyAccounts' => app(MoneyAccountService::class)->options(),
+            'receiptsSupported' => $this->receiptsSupported(),
         ]);
     }
 
