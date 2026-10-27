@@ -46,6 +46,7 @@ class CompanyAsset extends Model
         'auto_renew', 'responsible_id', 'notes', 'created_by',
     ];
 
+
     protected $casts = [
         'purchased_at' => 'date',
         'expires_at' => 'date',
@@ -110,5 +111,19 @@ class CompanyAsset extends Model
     public function scopeEndingWithin(Builder $q, int $days): Builder
     {
         return $q->whereNotNull('expires_at')->whereDate('expires_at', '<=', Carbon::today()->addDays($days));
+    }
+
+    /** A new purchase or a renewal (purchase date moved) is recorded under Finance → Expenses by itself. */
+    protected static function booted(): void
+    {
+        static::saved(function (self $asset) {
+            if ($asset->wasRecentlyCreated || $asset->wasChanged('purchased_at')) {
+                try {
+                    app(\App\Services\Finance\PurchaseExpenseService::class)->autoRecord('asset', $asset);
+                } catch (\Throwable $e) {
+                    report($e); // never stop the item itself from saving
+                }
+            }
+        });
     }
 }

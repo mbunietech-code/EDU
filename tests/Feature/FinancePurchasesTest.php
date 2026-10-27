@@ -34,13 +34,51 @@ class FinancePurchasesTest extends TestCase
         return $this->actingAs($this->admin)->withSession(['finance_unlocked' => true]);
     }
 
+    /** Items bought before purchases recorded themselves (saved without model events). */
     private function items(): array
     {
         $product = Product::factory()->create(['name' => 'ChatGPT', 'status' => 'published']);
-        $account = Account::factory()->create(['product_id' => $product->id, 'name' => 'chatgpt-07', 'cost' => 127.5, 'cost_currency' => 'CNY', 'purchased_at' => '2026-10-08', 'status' => 'assigned']);
-        $vps = CompanyAsset::create(['name' => 'VPS Hostinger', 'category' => 'server', 'billing_cycle' => 'monthly', 'cost' => 24000, 'currency' => 'TZS', 'purchased_at' => '2026-09-25']);
+        $account = Account::withoutEvents(fn () => Account::factory()->create(['product_id' => $product->id, 'name' => 'chatgpt-07', 'cost' => 127.5, 'cost_currency' => 'CNY', 'purchased_at' => '2026-10-08', 'status' => 'assigned']));
+        $vps = CompanyAsset::withoutEvents(fn () => CompanyAsset::create(['name' => 'VPS Hostinger', 'category' => 'server', 'billing_cycle' => 'monthly', 'cost' => 24000, 'currency' => 'TZS', 'purchased_at' => '2026-09-25']));
 
         return compact('product', 'account', 'vps');
+    }
+
+    public function test_a_new_purchase_and_a_renewal_record_themselves(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-10-27 12:00:00');
+        $yas = FinanceMoneyAccount::create(['name' => 'MIX by YAS', 'type' => 'mobile_money']);
+        FinanceExpense::create(['label' => 'Bundle', 'amount' => 10000, 'spent_at' => '2026-10-20', 'money_account_id' => $yas->id]);
+        $product = Product::factory()->create(['name' => 'Claude Pro', 'status' => 'published']);
+
+        // A new account with a foreign price: converted, on its purchase day, paid from the account used last.
+        $account = Account::factory()->create(['product_id' => $product->id, 'name' => 'claude-01', 'cost' => 20, 'cost_currency' => 'USD', 'purchased_at' => '2026-10-25', 'status' => 'available']);
+        $e = FinanceExpense::where('source_id', $account->id)->where('source_type', 'account:2026-10')->sole();
+        $this->assertEquals(50000, $e->amount);
+        $this->assertSame('2026-10-25', $e->spent_at->toDateString());
+        $this->assertSame($yas->id, $e->money_account_id);
+        $this->assertSame($product->id, $e->product_id);
+
+        // Saving it again changes nothing; renewing (a new purchase date) records the new payment.
+        $account->update(['description' => 'shared']);
+        $this->assertSame(1, FinanceExpense::where('source_id', $account->id)->where('source_type', 'like', 'account:%')->count());
+
+        $domain = CompanyAsset::create(['name' => 'mbuniehub.com', 'category' => 'domain', 'billing_cycle' => 'yearly', 'cost' => 35000, 'currency' => 'TZS', 'purchased_at' => '2025-11-01', 'expires_at' => '2026-11-01']);
+        $this->assertSame(1, FinanceExpense::where('source_type', 'asset:2025-11')->count());
+        $this->actingAs($this->admin)->post(route('admin.assets.renew', $domain))->assertSessionHas('success');
+        $renewal = FinanceExpense::where('source_type', 'asset:2026-10')->where('source_id', $domain->id)->sole();
+        $this->assertSame('hosting', $renewal->expense_type);
+        $this->assertEquals(35000, $renewal->amount);
+
+        // The page lists them as recorded, with nothing left to sort out.
+        $this->finance()->get(route('admin.finance.purchases.index'))->assertOk()
+            ->assertSee('claude-01')->assertSee('25 Oct 2026 · TZS 50,000')->assertDontSee('Not in Finance yet ·');
+
+        // Nothing for a purchase still to come, or without a cost.
+        CompanyAsset::create(['name' => 'Later', 'category' => 'server', 'billing_cycle' => 'monthly', 'cost' => 5000, 'currency' => 'TZS', 'purchased_at' => '2026-11-05']);
+        CompanyAsset::create(['name' => 'Free', 'category' => 'software', 'billing_cycle' => 'monthly', 'cost' => 0, 'currency' => 'TZS', 'purchased_at' => '2026-10-01']);
+        $this->assertSame(0, FinanceExpense::whereIn('label', ['Later', 'Free'])->count());
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_page_lists_items_with_a_cost_and_suggests_tzs(): void
@@ -48,8 +86,8 @@ class FinancePurchasesTest extends TestCase
         $this->items();
 
         $this->finance()->get(route('admin.finance.purchases.index'))->assertOk()
-            ->assertSee('chatgpt-07')->assertSee('127.5 CNY')->assertSee('≈ TZS 51,000 today', false)
-            ->assertSee('VPS Hostinger')->assertSee('Not recorded in Finance yet.');
+            ->assertSee('chatgpt-07')->assertSee('127.5 CNY')->assertSee('≈ TZS 51,000', false)
+            ->assertSee('VPS Hostinger')->assertSee('Not in Finance yet · 2')->assertSee('It is already in Expenses', false);
     }
 
     public function test_recording_a_payment_creates_one_expense_per_month(): void
@@ -77,7 +115,7 @@ class FinancePurchasesTest extends TestCase
         $this->assertSame('hosting', FinanceExpense::where('label', 'VPS Hostinger')->value('expense_type'));
         $this->assertSame(2, FinanceExpense::count());
 
-        $this->finance()->get(route('admin.finance.purchases.index'))->assertOk()->assertSee('Recorded:')->assertSee('Oct 2026');
+        $this->finance()->get(route('admin.finance.purchases.index'))->assertOk()->assertSee('08 Oct 2026 · TZS 51,000')->assertDontSee('Not in Finance yet ·');
     }
 
     public function test_linking_to_an_expense_typed_by_hand_never_doubles_it(): void

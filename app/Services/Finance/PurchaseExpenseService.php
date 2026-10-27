@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\CompanyAsset;
 use App\Models\FinanceExpense;
 use App\Services\CurrencyRateService;
+use App\Support\FinanceDates;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -14,8 +15,11 @@ use Illuminate\Support\Collection;
  * Turning what we bought into Finance expenses (Mwongozo wa Fedha §2):
  * product accounts (Accounts → Plans, with a cost) and company assets
  * (domain, hosting, server, subscriptions…). Each payment is recorded once
- * per month (source "account:YYYY-MM" / "asset:YYYY-MM"), or linked to an
- * expense someone already typed in by hand so it is not counted twice.
+ * per month (source "account:YYYY-MM" / "asset:YYYY-MM").
+ *
+ * New purchases and renewals record themselves (autoRecord, from the models'
+ * saved event). Older items bought before that are recorded or linked to an
+ * expense someone already typed in by hand, once, from Finance → Purchases.
  */
 class PurchaseExpenseService
 {
@@ -52,6 +56,47 @@ class PurchaseExpenseService
 
         return FinanceExpense::where('source_type', 'like', $kind.':%')->orderByDesc('spent_at')->get()
             ->groupBy('source_id')->all();
+    }
+
+    /**
+     * A purchase just made or renewed (a new item, or its purchase date moved):
+     * recorded under Expenses by itself, paid from the money account used last.
+     * Nothing happens without a cost and a date, for a date still to come, when
+     * a foreign price has no rate yet, or when that month is already recorded —
+     * those wait on the Purchases page.
+     */
+    public function autoRecord(string $kind, $item): ?FinanceExpense
+    {
+        if (! FinanceExpense::typesReady() || ! $item->purchased_at || (float) $item->cost <= 0) {
+            return null;
+        }
+        if ($kind === 'account' && $item->status === 'archived') {
+            return null;
+        }
+
+        $date = $item->purchased_at->toDateString();
+        $amount = $this->costInTzs((float) $item->cost, $kind === 'account' ? $item->cost_currency : $item->currency);
+        if ($date > FinanceDates::today() || ! $amount || $this->auto->find("{$kind}:".substr($date, 0, 7), $item->id)) {
+            return null;
+        }
+
+        try {
+            return $this->record($kind, $item, [
+                'amount' => $amount,
+                'spent_at' => $date,
+                'money_account_id' => app(MoneyAccountService::class)->lastUsedId(),
+            ], auth()->id());
+        } catch (FinanceException $e) {
+            return null;
+        }
+    }
+
+    /** Items with a cost that have no expense at all yet (bought before purchases recorded themselves). */
+    public function pending(string $kind, Collection $items): Collection
+    {
+        $recorded = $this->recorded($kind);
+
+        return $items->reject(fn ($item) => isset($recorded[$item->id]))->values();
     }
 
     /** Expenses typed in by hand that nothing is linked to yet (candidates for "already recorded"). */

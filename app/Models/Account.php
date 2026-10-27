@@ -52,6 +52,7 @@ class Account extends Model
     /** Days before the end date that count as "ending soon". */
     public const EXPIRING_DAYS = 7;
 
+
     protected $hidden = [
         'credentials',
     ];
@@ -135,5 +136,19 @@ class Account extends Model
             $days <= self::EXPIRING_DAYS => 'expiring',
             default => 'active',
         };
+    }
+
+    /** A new purchase or a renewal (purchase date moved) is recorded under Finance → Expenses by itself. */
+    protected static function booted(): void
+    {
+        static::saved(function (self $account) {
+            if ($account->wasRecentlyCreated || $account->wasChanged('purchased_at')) {
+                try {
+                    app(\App\Services\Finance\PurchaseExpenseService::class)->autoRecord('account', $account);
+                } catch (\Throwable $e) {
+                    report($e); // never stop the item itself from saving
+                }
+            }
+        });
     }
 }

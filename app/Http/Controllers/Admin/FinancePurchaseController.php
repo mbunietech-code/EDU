@@ -10,7 +10,11 @@ use App\Services\Finance\PurchaseExpenseService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** Finance → Purchases: product accounts and company assets recorded as expenses. */
+/**
+ * Finance → Purchases: what we bought (product accounts, company assets) and
+ * the expense each purchase became. New purchases record themselves; older
+ * ones are recorded or linked here once.
+ */
 class FinancePurchaseController extends Controller
 {
     public function __construct(private PurchaseExpenseService $purchases)
@@ -19,10 +23,14 @@ class FinancePurchaseController extends Controller
 
     public function index(MoneyAccountService $money)
     {
+        $accounts = $this->purchases->accounts();
+        $assets = $this->purchases->assets();
+
         return view('admin.finance.purchases', [
             'ready' => FinanceExpense::typesReady(),
-            'accounts' => $this->purchases->accounts(),
-            'assets' => $this->purchases->assets(),
+            'accounts' => $accounts,
+            'assets' => $assets,
+            'pending' => ['account' => $this->purchases->pending('account', $accounts), 'asset' => $this->purchases->pending('asset', $assets)],
             'recorded' => ['account' => $this->purchases->recorded('account'), 'asset' => $this->purchases->recorded('asset')],
             'linkable' => $this->purchases->linkable(),
             'moneyAccounts' => $money->options(),
