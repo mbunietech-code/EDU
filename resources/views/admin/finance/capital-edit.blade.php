@@ -48,6 +48,14 @@
                     <x-input-error :messages="$errors->get('source')" class="mt-2" />
                 </div>
                 <x-finance.money-account-select :accounts="$moneyAccounts" :selected="$capitalEntry->money_account_id" id="cap-money" label="Received into" />
+                @if (\App\Support\FinanceDates::hasReceivedDate())
+                    <div>
+                        <x-input-label for="cap-received" value="Date received" />
+                        <x-text-input id="cap-received" class="mbui-input mt-1" type="date" name="received_at" :value="old('received_at', \App\Support\FinanceDates::capital($capitalEntry)?->toDateString())" :max="\App\Support\FinanceDates::today()" required />
+                        <p class="mt-1 text-xs text-gray-500">The day the money actually came in — it counts on this date.</p>
+                        <x-input-error :messages="$errors->get('received_at')" class="mt-2" />
+                    </div>
+                @endif
             </div>
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="hidden" name="is_loan" value="0">

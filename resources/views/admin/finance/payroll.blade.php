@@ -160,7 +160,7 @@
                             @csrf
                             <div>
                                 <x-input-label for="pay-date" value="Date salaries were paid" />
-                                <input id="pay-date" type="date" name="paid_at" value="{{ old('paid_at', now()->toDateString()) }}" max="{{ now()->toDateString() }}" required class="mbui-input mt-1">
+                                <input id="pay-date" type="date" name="paid_at" value="{{ old('paid_at', \App\Support\FinanceDates::today()) }}" max="{{ \App\Support\FinanceDates::today() }}" required class="mbui-input mt-1">
                             </div>
                             <x-finance.money-account-select :accounts="$moneyAccounts" id="pay-money" label="Paid from" :suggest="true" />
                             <x-mbui.button type="submit">Mark paid · TZS {{ number_format((float) $latestPayroll->net_pay) }}</x-mbui.button>

@@ -10,6 +10,7 @@ use App\Models\FinanceMoneyAccount;
 use App\Models\FinanceMoneyTransfer;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Support\FinanceDates;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -225,13 +226,13 @@ class MoneyAccountService
                 ->with('order:id,order_number,product_id,tool_id', 'order.product:id,name', 'order.tool:id,name')
                 ->get()
                 ->each(function (Payment $p) use ($rows) {
-                    $rows->push($this->row($p->reviewed_at ?? $p->created_at, 'income', 'Sale: '.($p->order?->itemName() ?? 'Order'),
+                    $rows->push($this->row(FinanceDates::payment($p), 'income', 'Sale: '.($p->order?->itemName() ?? 'Order'),
                         $p->order?->order_number, $p->transaction_reference, (float) $p->amount, route('admin.payments.show', $p), 1, $p->id));
                 });
         }
 
         $account->capitalEntries()->get()->each(function (FinanceCapitalEntry $c) use ($rows) {
-            $rows->push($this->row($c->created_at, $c->is_loan ? 'loan' : 'capital', ($c->is_loan ? 'Loan: ' : 'Capital: ').$c->label,
+            $rows->push($this->row(FinanceDates::capital($c), $c->is_loan ? 'loan' : 'capital', ($c->is_loan ? 'Loan: ' : 'Capital: ').$c->label,
                 $c->source, null, (float) $c->amount, route('admin.finance.capital.edit', $c), 2, $c->id));
         });
 

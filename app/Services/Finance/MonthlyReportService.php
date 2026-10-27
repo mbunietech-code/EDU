@@ -8,6 +8,7 @@ use App\Models\FinanceLoanRepayment;
 use App\Models\FinancePayrollPeriod;
 use App\Models\FinanceStatutoryReturn;
 use App\Models\Payment;
+use App\Support\FinanceDates;
 use Illuminate\Support\Carbon;
 
 /**
@@ -34,7 +35,7 @@ class MonthlyReportService
         $income = Payment::where('status', 'approved')
             ->with('order:id,product_id,tool_id', 'order.product:id,name', 'order.tool:id,name')
             ->get()
-            ->filter(fn ($p) => Carbon::parse($p->reviewed_at ?? $p->created_at)->between($from, $to))
+            ->filter(fn ($p) => FinanceDates::payment($p)?->format('Y-m') === $from->format('Y-m'))
             ->groupBy(fn ($p) => $p->order?->itemName() ?? 'Other')
             ->map(fn ($g) => round((float) $g->sum('amount'), 2))
             ->sortDesc()
@@ -69,7 +70,7 @@ class MonthlyReportService
         }
         uasort($products, fn ($a, $b) => $b['profit'] <=> $a['profit']);
 
-        $capital = FinanceCapitalEntry::whereBetween('created_at', [$from, $to])->get();
+        $capital = FinanceCapitalEntry::all()->filter(fn ($c) => FinanceDates::capital($c)?->format('Y-m') === $from->format('Y-m'))->values();
 
         return [
             'month' => $from->format('Y-m'),

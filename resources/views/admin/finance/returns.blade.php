@@ -78,7 +78,7 @@
                             @else
                                 <form method="POST" action="{{ route('admin.finance.returns.paid', $return) }}" class="flex flex-wrap items-center gap-2">
                                     @csrf
-                                    <input type="date" name="paid_at" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}" required class="mbui-input w-36 py-1 text-xs" aria-label="Date paid">
+                                    <input type="date" name="paid_at" value="{{ \App\Support\FinanceDates::today() }}" max="{{ \App\Support\FinanceDates::today() }}" required class="mbui-input w-36 py-1 text-xs" aria-label="Date paid">
                                     <input type="text" name="reference" placeholder="Control no. / receipt" class="mbui-input w-40 py-1 text-xs" aria-label="Payment reference">
                                     @if ($moneyAccounts->isNotEmpty())
                                         <select name="money_account_id" class="mbui-input w-36 py-1 text-xs" aria-label="Paid from">

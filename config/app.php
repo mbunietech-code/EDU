@@ -88,6 +88,10 @@ return [
 
     'timezone' => env('APP_TIMEZONE', 'UTC'),
 
+    // The business's own clock (Tanzania): Finance counts days, weeks and months
+    // on it, whatever the server stores timestamps in. See App\Support\FinanceDates.
+    'business_timezone' => env('BUSINESS_TIMEZONE', 'Africa/Dar_es_Salaam'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -8,6 +8,7 @@ use App\Models\FinanceLoanRepayment;
 use App\Models\FinanceMoneyAccount;
 use App\Models\FinanceMoneyTransfer;
 use App\Models\Payment;
+use App\Support\FinanceDates;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -60,7 +61,7 @@ class LedgerService
             ->with('order:id,order_number,product_id,tool_id', 'order.product:id,name', 'order.tool:id,name')
             ->get()
             ->each(function (Payment $p) use ($lines, $methodMap) {
-                $lines->push($this->line($p->reviewed_at ?? $p->created_at, 'sale',
+                $lines->push($this->line(FinanceDates::payment($p), 'sale',
                     'Sale '.($p->order?->order_number ?? ''), $p->transaction_reference,
                     isset($methodMap[$p->payment_method]) ? 'Cash: '.$methodMap[$p->payment_method] : self::UNASSIGNED_CASH,
                     'Sales: '.($p->order?->itemName() ?? 'Other'),
@@ -68,7 +69,7 @@ class LedgerService
             });
 
         FinanceCapitalEntry::all()->each(function (FinanceCapitalEntry $c) use ($lines, $cash) {
-            $lines->push($this->line($c->created_at, $c->is_loan ? 'loan' : 'capital',
+            $lines->push($this->line(FinanceDates::capital($c), $c->is_loan ? 'loan' : 'capital',
                 ($c->is_loan ? 'Loan received: ' : 'Capital: ').$c->label, null,
                 $cash($c->money_account_id ?? null),
                 ($c->is_loan ? 'Loan: ' : 'Owner capital: ').$this->person($c->source),

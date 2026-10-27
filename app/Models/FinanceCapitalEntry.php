@@ -16,6 +16,7 @@ class FinanceCapitalEntry extends Model
         'tool_id',
         'label',
         'amount',
+        'received_at',
         'source',
         'is_loan',
         'notes',
@@ -25,6 +26,7 @@ class FinanceCapitalEntry extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'is_loan' => 'boolean',
+        'received_at' => 'date',
     ];
 
     public function product(): BelongsTo

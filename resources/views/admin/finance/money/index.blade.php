@@ -104,7 +104,7 @@
                             @csrf
                             @foreach ([
                                 'expense' => ['Expenses (money out)', $unassigned['expenses'], fn ($r) => $r->spent_at, fn ($r) => $r->label.($r->category ? ' · '.$r->category : ''), -1],
-                                'capital' => ['Capital and loans (money in)', $unassigned['capital'], fn ($r) => $r->created_at, fn ($r) => $r->label.' · '.$r->source.($r->is_loan ? ' · loan' : ''), 1],
+                                'capital' => ['Capital and loans (money in)', $unassigned['capital'], fn ($r) => \App\Support\FinanceDates::capital($r), fn ($r) => $r->label.' · '.$r->source.($r->is_loan ? ' · loan' : ''), 1],
                                 'repayment' => ['Loan repayments (money out)', $unassigned['repayments'], fn ($r) => $r->paid_at, fn ($r) => ($r->capitalEntry?->label ?? 'Loan').' · '.($r->capitalEntry?->source ?? ''), -1],
                             ] as $kind => [$title, $items, $dateOf, $labelOf, $sign])
                                 @if ($items->isNotEmpty())
@@ -187,7 +187,7 @@
                             </div>
                             <div>
                                 <x-input-label for="tr-date" value="Date" />
-                                <x-text-input id="tr-date" class="mbui-input mt-1" type="date" name="transferred_at" :value="old('transferred_at', now()->toDateString())" required />
+                                <x-text-input id="tr-date" class="mbui-input mt-1" type="date" name="transferred_at" :value="old('transferred_at', \App\Support\FinanceDates::today())" required />
                             </div>
                             <div class="sm:col-span-2">
                                 <x-input-label for="tr-ref" value="Reference (optional)" />

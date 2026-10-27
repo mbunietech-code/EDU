@@ -25,6 +25,7 @@ use App\Services\Finance\MoneyAccountService;
 use App\Services\Finance\PayrollService;
 use App\Services\Finance\StaffService;
 use App\Services\FinanceOverviewService;
+use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
 use App\Services\StatutoryPayrollService;
 use Illuminate\Support\Carbon;
@@ -128,6 +129,14 @@ class FinanceController extends Controller
         return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals', 'moneyAccounts'));
     }
 
+    /** The day the money actually came in (not in the future), once the column exists. */
+    private function receivedRules(): array
+    {
+        return FinanceDates::hasReceivedDate()
+            ? ['received_at' => ['nullable', 'date', 'before_or_equal:'.FinanceDates::today()]]
+            : [];
+    }
+
     public function capitalStore(Request $request)
     {
         $validated = $request->validate(MoneyAccountService::fieldRules() + [
@@ -138,10 +147,13 @@ class FinanceController extends Controller
             'source' => ['required', 'string', 'max:255'],
             'is_loan' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ] + $this->receivedRules());
 
         $validated['created_by'] = auth()->id();
         $validated['label'] = $this->resolveLabel($validated);
+        if (FinanceDates::hasReceivedDate()) {
+            $validated['received_at'] ??= FinanceDates::today();
+        }
 
         FinanceCapitalEntry::create($validated);
 
@@ -170,7 +182,7 @@ class FinanceController extends Controller
             'source' => ['required', 'string', 'max:255'],
             'is_loan' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ] + $this->receivedRules());
 
         $validated['label'] = $this->resolveLabel($validated);
 

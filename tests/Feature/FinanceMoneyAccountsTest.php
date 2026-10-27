@@ -44,7 +44,7 @@ class FinanceMoneyAccountsTest extends TestCase
     {
         $order = Order::factory()->create(['status' => 'confirmed', 'amount' => $amount]);
 
-        return Payment::create([
+        $payment = Payment::create([
             'order_id' => $order->id,
             'user_id' => $order->user_id,
             'amount' => $amount,
@@ -53,6 +53,10 @@ class FinanceMoneyAccountsTest extends TestCase
             'status' => 'approved',
             'reviewed_at' => $date,
         ]);
+        // Paid on that date (Finance counts the day the customer paid).
+        $payment->forceFill(['created_at' => $date])->save();
+
+        return $payment;
     }
 
     private function account(array $attrs = []): FinanceMoneyAccount

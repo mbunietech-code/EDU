@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 /**
- * The period a Finance page shows: a day, week, month or year (with ‹ › to
+ * The period a Finance page shows, on the business's clock (FinanceDates): a day, week, month or year (with ‹ › to
  * step back and forward), all time, or a custom from–to range. Read from the
  * query string (?period=month&date=2026-10-01, or ?period=custom&from=…&to=…).
  */
@@ -36,7 +36,7 @@ class FinancePeriod
             $key = $default;
         }
 
-        $anchor = self::date($request->query('date')) ?? now();
+        $anchor = self::date($request->query('date')) ?? FinanceDates::now();
 
         if ($key === 'custom') {
             $from = self::date($request->query('from'));
@@ -96,13 +96,13 @@ class FinancePeriod
     /** True when stepping forward would only show the future. */
     public function isCurrent(): bool
     {
-        return $this->to === null || $this->to->gte(now());
+        return $this->to === null || $this->to->gte(FinanceDates::now());
     }
 
     public function label(): string
     {
         return match ($this->key) {
-            'day' => $this->from->isToday() ? 'Today, '.$this->from->format('d M Y') : $this->from->format('D, d M Y'),
+            'day' => $this->from->toDateString() === FinanceDates::today() ? 'Today, '.$this->from->format('d M Y') : $this->from->format('D, d M Y'),
             'week' => $this->from->format('d M').' – '.$this->to->format('d M Y'),
             'month' => $this->from->format('F Y'),
             'year' => $this->from->format('Y'),
@@ -111,8 +111,8 @@ class FinancePeriod
         };
     }
 
-    /** Is this timestamp inside the period? (All time: always.) */
-    public function contains($at): bool
+    /** Is this moment (see FinanceDates for which date each record counts on) inside the period? */
+    public function contains(?Carbon $at): bool
     {
         if ($this->isAll()) {
             return true;
@@ -120,7 +120,6 @@ class FinancePeriod
         if ($at === null) {
             return false;
         }
-        $at = Carbon::parse($at);
 
         return (! $this->from || $at->gte($this->from)) && (! $this->to || $at->lte($this->to));
     }
@@ -131,7 +130,7 @@ class FinancePeriod
             return null;
         }
         try {
-            return Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+            return Carbon::createFromFormat('Y-m-d', $value, FinanceDates::tz())->startOfDay();
         } catch (\Throwable $e) {
             return null;
         }

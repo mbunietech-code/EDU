@@ -9,7 +9,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Repay loan: {{ $capitalEntry->label }}</h1>
-            <p class="mt-1 text-sm text-gray-500">Borrowed from <span class="font-medium text-gray-700">{{ $capitalEntry->source }}</span> on {{ $capitalEntry->created_at->format('d M Y') }}</p>
+            <p class="mt-1 text-sm text-gray-500">Borrowed from <span class="font-medium text-gray-700">{{ $capitalEntry->source }}</span> on {{ \App\Support\FinanceDates::capital($capitalEntry)?->format('d M Y') }}</p>
         </div>
         <a href="{{ route('admin.finance.capital.index') }}" class="mbui-anchor text-sm">Back to capital</a>
     </div>
@@ -50,7 +50,7 @@
                     </div>
                     <div>
                         <x-input-label for="rep-date" value="Date paid" />
-                        <x-text-input id="rep-date" class="mbui-input mt-1" type="date" name="paid_at" :value="old('paid_at', now()->toDateString())" :max="now()->toDateString()" required />
+                        <x-text-input id="rep-date" class="mbui-input mt-1" type="date" name="paid_at" :value="old('paid_at', \App\Support\FinanceDates::today())" :max="\App\Support\FinanceDates::today()" required />
                         <x-input-error :messages="$errors->get('paid_at')" class="mt-2" />
                     </div>
                     <div>

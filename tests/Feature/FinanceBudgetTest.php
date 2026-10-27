@@ -37,10 +37,12 @@ class FinanceBudgetTest extends TestCase
     {
         $order = Order::factory()->create(['status' => 'confirmed', 'amount' => 1000000]);
         Payment::create(['order_id' => $order->id, 'user_id' => $order->user_id, 'amount' => 1000000, 'payment_method' => 'yas',
-            'transaction_reference' => 'Y1', 'status' => 'approved', 'reviewed_at' => '2026-10-03 10:00:00']);
+            'transaction_reference' => 'Y1', 'status' => 'approved', 'reviewed_at' => '2026-10-03 10:00:00'])
+            ->forceFill(['created_at' => '2026-10-03 09:00:00'])->save(); // paid on the 3rd (Finance counts the day paid)
         $september = Order::factory()->create(['status' => 'confirmed', 'amount' => 500000]);
         Payment::create(['order_id' => $september->id, 'user_id' => $september->user_id, 'amount' => 500000, 'payment_method' => 'yas',
-            'transaction_reference' => 'Y0', 'status' => 'approved', 'reviewed_at' => '2026-09-20 10:00:00']);
+            'transaction_reference' => 'Y0', 'status' => 'approved', 'reviewed_at' => '2026-09-20 10:00:00'])
+            ->forceFill(['created_at' => '2026-09-20 09:00:00'])->save();
 
         FinanceExpense::create(['label' => 'ChatGPT', 'amount' => 300000, 'spent_at' => '2026-10-04', 'expense_type' => 'product_accounts']);
         FinanceExpense::create(['label' => 'Salaries', 'amount' => 250000, 'spent_at' => '2026-10-25', 'expense_type' => 'salaries']); // over 20%

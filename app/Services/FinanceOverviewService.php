@@ -8,6 +8,7 @@ use App\Models\FinanceLoanRepayment;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Tool;
+use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
 
 class FinanceOverviewService
@@ -16,8 +17,9 @@ class FinanceOverviewService
      * Build a per-software finance summary: capital, income (from real
      * approved payments), expenses, loan repayments and the resulting
      * balance, plus totals. With a period, only what happened in it counts
-     * (payments by approval date, capital by entry date, expenses by spend
-     * date, repayments by pay date) and the balance is the period's net.
+     * (payments on the day the customer paid, capital on the day it was
+     * received, expenses and repayments on their own dates — all on Tanzania
+     * time, see FinanceDates) and the balance is the period's net.
      */
     public function rows(?FinancePeriod $period = null): array
     {
@@ -56,7 +58,7 @@ class FinanceOverviewService
             ->whereHas('order', fn ($q) => $q->whereNotNull('product_id'))
             ->with('order:id,product_id')
             ->get()
-            ->filter(fn ($payment) => $in($payment->reviewed_at ?? $payment->created_at))
+            ->filter(fn ($payment) => $in(FinanceDates::payment($payment)))
             ->groupBy(fn ($payment) => 'product:' . $payment->order->product_id)
             ->map(fn ($group) => (float) $group->sum('amount'));
 
@@ -64,7 +66,7 @@ class FinanceOverviewService
             ->whereHas('order', fn ($q) => $q->whereNotNull('tool_id'))
             ->with('order:id,tool_id')
             ->get()
-            ->filter(fn ($payment) => $in($payment->reviewed_at ?? $payment->created_at))
+            ->filter(fn ($payment) => $in(FinanceDates::payment($payment)))
             ->groupBy(fn ($payment) => 'tool:' . $payment->order->tool_id)
             ->map(fn ($group) => (float) $group->sum('amount'));
 
@@ -77,7 +79,7 @@ class FinanceOverviewService
 
         // Capital and expenses: manually recorded per software.
         foreach (FinanceCapitalEntry::all() as $entry) {
-            if (! $in($entry->created_at)) {
+            if (! $in(FinanceDates::capital($entry))) {
                 continue;
             }
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
@@ -86,7 +88,7 @@ class FinanceOverviewService
         }
 
         foreach (FinanceExpense::all() as $expense) {
-            if (! $in($expense->spent_at ?? $expense->created_at)) {
+            if (! $in($expense->spent_at ? FinanceDates::day($expense->spent_at) : FinanceDates::local($expense->created_at))) {
                 continue;
             }
             // General costs with a type share one line per type ("Electricity
@@ -104,7 +106,7 @@ class FinanceOverviewService
         // Loan repayments: money paid back out, counted against the software that borrowed it.
         foreach (FinanceLoanRepayment::with('capitalEntry')->get() as $repayment) {
             $entry = $repayment->capitalEntry;
-            if (! $entry || ! $in($repayment->paid_at ?? $repayment->created_at)) {
+            if (! $entry || ! $in($repayment->paid_at ? FinanceDates::day($repayment->paid_at) : FinanceDates::local($repayment->created_at))) {
                 continue;
             }
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);

@@ -27,7 +27,7 @@
                         $tzs = $purchases->costInTzs((float) $item->cost, $currency);
                         $done = $recorded[$kind][$item->id] ?? collect();
                         $paidOn = $item->purchased_at?->toDateString();
-                        $suggestDate = $paidOn && $paidOn <= now()->toDateString() ? $paidOn : now()->toDateString();
+                        $suggestDate = $paidOn && $paidOn <= \App\Support\FinanceDates::today() ? $paidOn : \App\Support\FinanceDates::today();
                     @endphp
                     <div class="border-b border-gray-100 px-6 py-4 last:border-b-0">
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -64,7 +64,7 @@
                                 </div>
                                 <div>
                                     <x-input-label for="date-{{ $kind }}-{{ $item->id }}" value="Date paid" />
-                                    <input id="date-{{ $kind }}-{{ $item->id }}" type="date" name="spent_at" value="{{ $suggestDate }}" max="{{ now()->toDateString() }}" required class="mbui-input mt-1">
+                                    <input id="date-{{ $kind }}-{{ $item->id }}" type="date" name="spent_at" value="{{ $suggestDate }}" max="{{ \App\Support\FinanceDates::today() }}" required class="mbui-input mt-1">
                                 </div>
                                 @if ($kind === 'asset')
                                     <div>

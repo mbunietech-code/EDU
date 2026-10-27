@@ -39,13 +39,16 @@ class FinanceOverviewPeriodTest extends TestCase
         return $this->actingAs($this->admin)->withSession(['finance_unlocked' => true]);
     }
 
+    /** A customer payment made at $date (server time, UTC) and approved two days later. */
     private function sale(Product $product, float $amount, string $date): void
     {
         $order = Order::factory()->create(['status' => 'confirmed', 'amount' => $amount, 'product_id' => $product->id]);
-        Payment::create([
+        $payment = Payment::create([
             'order_id' => $order->id, 'user_id' => $order->user_id, 'amount' => $amount, 'payment_method' => 'alipay',
-            'transaction_reference' => 'TX'.$order->id, 'status' => 'approved', 'reviewed_at' => $date,
+            'transaction_reference' => 'TX'.$order->id, 'status' => 'approved',
+            'reviewed_at' => Carbon::parse($date)->addDays(2),
         ]);
+        $payment->forceFill(['created_at' => $date])->save();
     }
 
     private function seedMoney(): Product
@@ -59,8 +62,9 @@ class FinanceOverviewPeriodTest extends TestCase
         FinanceExpense::create(['label' => 'Bundle', 'amount' => 10000, 'spent_at' => '2026-10-27']);
         FinanceExpense::create(['label' => 'Domain', 'amount' => 150000, 'spent_at' => '2026-08-22']);
 
-        $loan = FinanceCapitalEntry::create(['label' => 'Grammarly', 'product_id' => $product->id, 'amount' => 250000, 'source' => 'Rhoda', 'is_loan' => true]);
-        $loan->forceFill(['created_at' => '2026-08-23 10:00:00'])->save();
+        // Received on 23 Aug, typed into the system only on 2 Oct.
+        $loan = FinanceCapitalEntry::create(['label' => 'Grammarly', 'product_id' => $product->id, 'amount' => 250000, 'source' => 'Rhoda', 'is_loan' => true, 'received_at' => '2026-08-23']);
+        $loan->forceFill(['created_at' => '2026-10-02 10:00:00'])->save();
         FinanceLoanRepayment::create(['finance_capital_entry_id' => $loan->id, 'amount' => 30000, 'paid_at' => '2026-10-26']);
 
         return $product;
@@ -90,7 +94,7 @@ class FinanceOverviewPeriodTest extends TestCase
 
         $month = $totals(['period' => 'month']);
         $this->assertEquals(70000, $month['income']);
-        $this->assertEquals(0, $month['capital']);
+        $this->assertEquals(0, $month['capital']); // received in August, though recorded in October
         $this->assertEquals(50000 + 20000 - 10000 - 30000, $month['balance']);
 
         $this->assertEquals(81000, $totals(['period' => 'year'])['income']);
@@ -103,6 +107,42 @@ class FinanceOverviewPeriodTest extends TestCase
         // Custom range, given back to front.
         $custom = $totals(['period' => 'custom', 'from' => '2026-10-21', 'to' => '2026-09-01']);
         $this->assertEquals(31000, $custom['income']);
+    }
+
+    public function test_days_follow_tanzania_time_and_the_day_the_customer_paid(): void
+    {
+        $product = Product::factory()->create(['name' => 'ChatGPT']);
+        // 22:30 UTC on 26 Oct is 01:30 on 27 Oct in Dar es Salaam; approved two days later.
+        $this->sale($product, 10000, '2026-10-26 22:30:00');
+        // 20:00 UTC on 26 Oct is 23:00 on 26 Oct in Dar es Salaam.
+        $this->sale($product, 6000, '2026-10-26 20:00:00');
+
+        $day = fn ($date) => $this->finance()->get(route('admin.finance.dashboard', ['period' => 'day', 'date' => $date]))->viewData('totals')['income'];
+        $this->assertEquals(10000, $day('2026-10-27'));
+        $this->assertEquals(6000, $day('2026-10-26'));
+        // Not on the approval day.
+        $this->assertEquals(0, $day('2026-10-28'));
+    }
+
+    public function test_capital_is_entered_with_the_date_it_was_received(): void
+    {
+        $this->finance()->get(route('admin.finance.capital.index'))->assertOk()
+            ->assertSee('Date received')->assertSee('value="2026-10-27"', false);
+
+        $this->finance()->post(route('admin.finance.capital.store'), [
+            'label' => 'Mkopo', 'amount' => 90000, 'source' => 'Mussa', 'is_loan' => 1, 'received_at' => '2026-10-19',
+        ])->assertSessionHasNoErrors();
+        $entry = FinanceCapitalEntry::firstWhere('label', 'Mkopo');
+        $this->assertSame('2026-10-19', $entry->received_at->toDateString());
+
+        // Not in the future; editing corrects the date of an older entry.
+        $this->finance()->post(route('admin.finance.capital.store'), [
+            'label' => 'Later', 'amount' => 1, 'source' => 'X', 'received_at' => '2026-11-30',
+        ])->assertSessionHasErrors('received_at');
+        $this->finance()->put(route('admin.finance.capital.update', $entry), [
+            'label' => 'Mkopo', 'amount' => 90000, 'source' => 'Mussa', 'is_loan' => 1, 'received_at' => '2026-10-15',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('2026-10-15', $entry->fresh()->received_at->toDateString());
     }
 
     public function test_the_page_shows_the_period_and_its_navigation(): void

@@ -8,6 +8,7 @@ use App\Models\FinanceExpense;
 use App\Models\FinanceLoanRepayment;
 use App\Models\Payment;
 use App\Models\Setting;
+use App\Support\FinanceDates;
 use Illuminate\Support\Carbon;
 
 /**
@@ -74,7 +75,7 @@ class BudgetService
 
         $income = (float) Payment::where('status', 'approved')
             ->get(['amount', 'reviewed_at', 'created_at'])
-            ->filter(fn ($p) => Carbon::parse($p->reviewed_at ?? $p->created_at)->between($from, $to))
+            ->filter(fn ($p) => FinanceDates::payment($p)?->format('Y-m') === $from->format('Y-m'))
             ->sum('amount');
 
         $buckets = $this->buckets();
@@ -128,9 +129,9 @@ class BudgetService
     public function months(): array
     {
         $dates = Payment::where('status', 'approved')->get(['reviewed_at', 'created_at'])
-            ->map(fn ($p) => Carbon::parse($p->reviewed_at ?? $p->created_at)->format('Y-m'))
+            ->map(fn ($p) => FinanceDates::payment($p)?->format('Y-m'))
             ->merge(FinanceExpense::pluck('spent_at')->map(fn ($d) => Carbon::parse($d)->format('Y-m')))
-            ->push(now()->format('Y-m'));
+            ->push(FinanceDates::now()->format('Y-m'));
 
         return $dates->unique()->sortDesc()->values()->all();
     }
