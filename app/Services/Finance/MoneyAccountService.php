@@ -105,7 +105,7 @@ class MoneyAccountService
             'type' => ['required', Rule::in(array_keys(FinanceMoneyAccount::TYPES))],
             'number' => ['nullable', 'string', 'max:120'],
             'opening_balance' => ['nullable', 'numeric', 'min:-9999999999', 'max:9999999999'],
-            'opening_date' => ['nullable', 'date', 'before_or_equal:today'],
+            'opening_date' => ['nullable', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
             'payment_methods' => ['nullable', 'array'],
             'payment_methods.*' => ['string', 'max:60'],
             'is_active' => ['nullable', 'boolean'],
@@ -147,7 +147,7 @@ class MoneyAccountService
             'from_account_id' => ['required', 'integer', Rule::exists('finance_money_accounts', 'id')],
             'to_account_id' => ['required', 'integer', 'different:from_account_id', Rule::exists('finance_money_accounts', 'id')],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'transferred_at' => ['required', 'date', 'before_or_equal:today'],
+            'transferred_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
             'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];

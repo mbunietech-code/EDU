@@ -133,7 +133,7 @@ class PurchaseExpenseService
     {
         return MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'spent_at' => ['required', 'date', 'before_or_equal:today'],
+            'spent_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
         ];
     }
 

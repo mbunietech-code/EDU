@@ -266,7 +266,7 @@ class PayrollService
     public static function paidRules(): array
     {
         return MoneyAccountService::fieldRules() + [
-            'paid_at' => ['required', 'date', 'before_or_equal:today'],
+            'paid_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
         ];
     }
 

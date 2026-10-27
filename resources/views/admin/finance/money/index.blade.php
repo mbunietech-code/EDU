@@ -170,6 +170,7 @@
                                         <option value="{{ $acc->id }}" @selected((string) old('from_account_id') === (string) $acc->id)>{{ $acc->name }}</option>
                                     @endforeach
                                 </select>
+                                <x-input-error :messages="$errors->get('from_account_id')" class="mt-2" />
                             </div>
                             <div>
                                 <x-input-label for="tr-to" value="To" />
@@ -187,11 +188,14 @@
                             </div>
                             <div>
                                 <x-input-label for="tr-date" value="Date" />
-                                <x-text-input id="tr-date" class="mbui-input mt-1" type="date" name="transferred_at" :value="old('transferred_at', \App\Support\FinanceDates::today())" required />
+                                <x-text-input id="tr-date" class="mbui-input mt-1" type="date" name="transferred_at" :value="old('transferred_at', \App\Support\FinanceDates::today())" :max="\App\Support\FinanceDates::today()" required />
+                                <p class="mt-1 text-xs text-gray-500">The day the money actually moved.</p>
+                                <x-input-error :messages="$errors->get('transferred_at')" class="mt-2" />
                             </div>
                             <div class="sm:col-span-2">
                                 <x-input-label for="tr-ref" value="Reference (optional)" />
                                 <x-text-input id="tr-ref" class="mbui-input mt-1" type="text" name="reference" :value="old('reference')" placeholder="Transaction ID" />
+                                <x-input-error :messages="$errors->get('reference')" class="mt-2" />
                             </div>
                         </div>
                         <div class="flex justify-end border-t border-gray-100 pt-4">

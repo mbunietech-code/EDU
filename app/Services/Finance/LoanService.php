@@ -21,7 +21,7 @@ class LoanService
         return [
             MoneyAccountService::fieldRules() + [
                 'amount' => ['required', 'numeric', 'min:0.01', 'max:'.$outstanding],
-                'paid_at' => ['required', 'date', 'before_or_equal:today'],
+                'paid_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
                 'method' => ['nullable', 'string', 'max:120'],
                 'reference' => ['nullable', 'string', 'max:120'],
                 'notes' => ['nullable', 'string', 'max:2000'],
