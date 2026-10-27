@@ -93,10 +93,8 @@ class FinanceController extends Controller
         $period = FinancePeriod::fromRequest($request);
         $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
-        if (! $period->isAll()) {
-            // A period lists only what moved in it.
-            $rows = array_values(array_filter($rows, fn ($r) => $r['capital'] || $r['income'] || $r['expenses'] || $r['repaid']));
-        }
+        // Only lines where money moved (no rows of zeros for unused software).
+        $rows = array_values(array_filter($rows, fn ($r) => $r['capital'] || $r['income'] || $r['expenses'] || $r['repaid']));
 
         // Where the money sits, when money accounts are set up.
         $money = null;

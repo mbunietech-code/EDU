@@ -145,6 +145,23 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertSame('2026-10-15', $entry->fresh()->received_at->toDateString());
     }
 
+    public function test_records_typed_with_a_software_name_land_on_its_line_and_unused_software_is_hidden(): void
+    {
+        $product = Product::factory()->create(['name' => 'ChatGPT']);
+        Product::factory()->create(['name' => 'NVivo']); // nothing recorded
+        $this->sale($product, 40000, '2026-10-20 09:00:00');
+        FinanceExpense::create(['label' => ' chatgpt ', 'amount' => 9000, 'spent_at' => '2026-10-20']);
+
+        $rows = app(\App\Services\FinanceOverviewService::class)->rows();
+        $chat = collect($rows)->where('label', 'ChatGPT')->values();
+        $this->assertCount(1, $chat);
+        $this->assertSame(9000.0, (float) $chat[0]['expenses']);
+        $this->assertSame(31000.0, (float) $chat[0]['balance']);
+
+        $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
+            ->assertSee('ChatGPT')->assertDontSee('NVivo');
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

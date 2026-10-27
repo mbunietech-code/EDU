@@ -124,7 +124,7 @@
                             @if ($expense->typeLabel())
                                 <p class="font-medium text-gray-900">{{ $expense->typeLabel() }}</p>
                             @endif
-                            <p class="{{ $expense->typeLabel() ? 'text-xs text-gray-500' : '' }}">{{ $expense->category ?? '-' }}</p>
+                            <p class="{{ $expense->typeLabel() ? 'text-xs text-gray-500' : '' }}">{{ $expense->category ?? (\App\Models\FinanceExpense::types()[$expense->expense_type]['category'] ?? '-') }}</p>
                         </td>
                         <td class="mbui-td text-gray-500">{{ $expense->spent_at->format('d M Y') }}</td>
                         <td class="mbui-td">

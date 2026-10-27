@@ -26,9 +26,13 @@ class FinanceOverviewService
         $in = fn ($at) => $period === null || $period->contains($at);
 
         $rows = [];
+        // A record typed with a software's name but not linked to it ("Chatgpt",
+        // "Claude Pro") still lands on that software's line.
+        $this->names = [];
 
         foreach (Product::orderBy('name')->get() as $product) {
             $key = 'product:' . $product->id;
+            $this->names[$this->norm($product->name)] ??= $key;
             $rows[$key] = [
                 'key' => $key,
                 'label' => $product->name,
@@ -42,6 +46,7 @@ class FinanceOverviewService
 
         foreach (Tool::orderBy('name')->get() as $tool) {
             $key = 'tool:' . $tool->id;
+            $this->names[$this->norm($tool->name)] ??= $key;
             $rows[$key] = [
                 'key' => $key,
                 'label' => $tool->name,
@@ -120,7 +125,7 @@ class FinanceOverviewService
             $row['balance'] = $row['capital'] + $row['income'] - $row['expenses'] - $row['repaid'];
         }
 
-        usort($rows, fn ($a, $b) => strcmp($a['label'], $b['label']));
+        usort($rows, fn ($a, $b) => strcasecmp($a['label'], $b['label']));
 
         return $rows;
     }
@@ -146,13 +151,21 @@ class FinanceOverviewService
             return 'tool:' . $toolId;
         }
 
-        return 'label:' . strtolower(trim($label));
+        return $this->names[$this->norm($label)] ?? 'label:' . $this->norm($label);
+    }
+
+    /** @var array<string, string> software name (normalised) => row key */
+    private array $names = [];
+
+    private function norm(string $label): string
+    {
+        return mb_strtolower(preg_replace('/\s+/', ' ', trim($label)));
     }
 
     protected function blankRow(string $label): array
     {
         return [
-            'key' => 'label:' . strtolower(trim($label)),
+            'key' => 'label:' . $this->norm($label),
             'label' => $label,
             'type' => 'Other',
             'capital' => 0,
