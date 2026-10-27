@@ -60,7 +60,7 @@
         </form>
     </div>
 
-    <div class="mt-4 flex max-w-2xl items-center justify-between gap-3 rounded-lg px-6 py-3 ring-1 ring-red-100">
+    <div class="mt-4 flex max-w-2xl items-center justify-between gap-3 rounded-lg px-6 py-3 ring-1 ring-red-200">
         <p class="text-sm text-gray-600">Typed in by mistake? Remove it: both statements change back.</p>
         <x-mbui.reasoned-action :action="route('admin.finance.money.transfers.destroy', $transfer)" method="DELETE" label="Remove transfer" prompt-text="Why are you removing this transfer?" />
     </div>

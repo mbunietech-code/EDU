@@ -142,7 +142,13 @@ class FinanceMoneyController extends Controller
             return $redirect;
         }
         $transfer = FinanceMoneyTransfer::findOrFail($transfer);
-        $transfer->update($request->validate($this->money->transferRules()));
+        $transfer->fill($request->validate($this->money->transferRules()));
+        $changes = collect($transfer->getDirty())->except('updated_at')
+            ->map(fn ($new, $field) => [$this->plain($transfer->getOriginal($field)), $this->plain($new)])->all();
+        $transfer->save();
+        \App\Models\ActivityLog::log('finance_money_transfer_updated', 'FinanceMoneyTransfer', $transfer->id, [
+            'amount' => $transfer->amount, 'from' => $transfer->from_account_id, 'to' => $transfer->to_account_id, 'changes' => $changes,
+        ]);
 
         return $this->backTo($request, $transfer)->with('success', 'Transfer updated.');
     }
@@ -156,6 +162,11 @@ class FinanceMoneyController extends Controller
         $deletion->delete($transfer, $request->validate(['reason' => ['required', 'string', 'max:2000']])['reason']);
 
         return $this->backTo($request, $transfer)->with('success', 'Transfer removed.');
+    }
+
+    private function plain($value): string
+    {
+        return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : (string) $value;
     }
 
     /** Back to the statement the transfer was opened from (a money page only). */
