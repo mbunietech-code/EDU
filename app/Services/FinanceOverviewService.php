@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FinanceAllocation;
 use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceExpense;
 use App\Models\FinanceLoanRepayment;
@@ -14,6 +15,11 @@ use Illuminate\Support\Collection;
 
 class FinanceOverviewService
 {
+    /** The line money given from the accounts comes out of. */
+    public const POOL = 'pool';
+
+    public const POOL_LABEL = 'Available money (given out)';
+
     /**
      * Build a per-software finance summary: capital, income (from real
      * approved payments), expenses, loan repayments and the resulting
@@ -121,6 +127,25 @@ class FinanceOverviewService
             $this->items[$key]['repaid'][] = $repayment;
         }
 
+        // Money already in an account, given to a line as its capital: that
+        // line gains it and "Available money" gives it up, so the totals stay
+        // the same (nothing new came in).
+        if (FinanceAllocation::ready()) {
+            foreach (FinanceAllocation::with('moneyAccount:id,name')->get() as $given) {
+                if (! $in(FinanceDates::day($given->allocated_at))) {
+                    continue;
+                }
+                $key = $this->keyFor($given->product_id, $given->tool_id, $given->label);
+                $rows[$key] ??= $this->rowFor($key, $given->label);
+                $rows[$key]['capital'] += (float) $given->amount;
+                $this->items[$key]['given'][] = $given;
+
+                $rows[self::POOL] ??= array_merge($this->blankRow(self::POOL_LABEL), ['key' => self::POOL, 'type' => 'Pool']);
+                $rows[self::POOL]['capital'] -= (float) $given->amount;
+                $this->items[self::POOL]['given'][] = $given;
+            }
+        }
+
         $rows = array_values($rows);
 
         foreach ($rows as &$row) {
@@ -136,7 +161,7 @@ class FinanceOverviewService
      * One line of the overview (a software, a cost type or a typed label) with
      * the records behind each of its numbers, for the same period.
      *
-     * @return array{row: array, income: Collection, capital: Collection, expenses: Collection, repaid: Collection}|null
+     * @return array{row: array, income: Collection, capital: Collection, expenses: Collection, repaid: Collection, given: Collection}|null
      */
     public function line(string $key, ?FinancePeriod $period = null): ?array
     {
@@ -157,6 +182,7 @@ class FinanceOverviewService
             'capital' => $newest('capital', fn ($c) => FinanceDates::capital($c)),
             'expenses' => $newest('expenses', fn ($e) => $e->spent_at),
             'repaid' => $newest('repaid', fn ($r) => $r->paid_at),
+            'given' => $newest('given', fn ($g) => $g->allocated_at),
         ];
     }
 

@@ -245,6 +245,40 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertSame('Operating Expenses (OPEX)', FinanceExpense::where('label', 'Bundle ya ofisi')->value('category'));
     }
 
+    public function test_money_in_an_account_can_be_given_to_a_line_without_counting_it_twice(): void
+    {
+        $voda = \App\Models\FinanceMoneyAccount::create(['name' => 'Voda', 'type' => 'mobile_money', 'opening_balance' => 100000, 'is_active' => true]);
+        $internet = route('admin.finance.line', ['line' => 'type:internet']);
+        $before = app(\App\Services\FinanceOverviewService::class)->totals(app(\App\Services\FinanceOverviewService::class)->rows());
+
+        $this->finance()->get($internet)->assertOk()
+            ->assertSee('+ Give from available money')->assertSee('Voda · TZS 100,000 in it');
+
+        // More than the account holds is refused.
+        $this->finance()->from($internet)->post(route('admin.finance.allocations.store'), [
+            'form' => 'give', 'money_account_id' => $voda->id, 'label' => 'Internet / bundles', 'amount' => 150000, 'allocated_at' => '2026-10-27',
+        ])->assertRedirect($internet)->assertSessionHasErrors('amount');
+
+        $this->finance()->from($internet)->post(route('admin.finance.allocations.store'), [
+            'form' => 'give', 'money_account_id' => $voda->id, 'label' => 'Internet / bundles', 'amount' => 30000, 'allocated_at' => '2026-10-27', 'notes' => 'Bundles',
+        ])->assertRedirect($internet)->assertSessionHasNoErrors();
+
+        $service = app(\App\Services\FinanceOverviewService::class);
+        $rows = collect($service->rows())->keyBy('key');
+        $this->assertSame(30000.0, (float) $rows['type:internet']['capital']);
+        $this->assertSame(-30000.0, (float) $rows['pool']['capital']);
+        $this->assertEquals($before, $service->totals($service->rows()));   // nothing new came in
+        $this->assertSame(100000.0, (float) app(\App\Services\Finance\MoneyAccountService::class)->balances()->first()['balance']);
+
+        $this->finance()->get($internet)->assertOk()->assertSee('Bundles')->assertSee('TZS 30,000');
+        $this->finance()->get(route('admin.finance.line', ['line' => 'pool']))->assertOk()
+            ->assertSee('Given to lines')->assertSee('Internet / bundles')->assertDontSee('+ Add capital here');
+
+        $given = \App\Models\FinanceAllocation::firstOrFail();
+        $this->finance()->delete(route('admin.finance.allocations.destroy', $given), ['reason' => 'Mistake'])->assertRedirect();
+        $this->assertSame(0, \App\Models\FinanceAllocation::count());
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

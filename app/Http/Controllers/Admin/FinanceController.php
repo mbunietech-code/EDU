@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\FinanceAllocation;
 use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceDepartment;
 use App\Models\FinanceEmploymentType;
@@ -122,6 +123,8 @@ class FinanceController extends Controller
             'period' => $period,
             'moneyAccounts' => app(MoneyAccountService::class)->options(),
             'receiptsSupported' => $this->receiptsSupported(),
+            'allocationsReady' => FinanceAllocation::ready(),
+            'available' => FinanceAllocation::ready() ? app(MoneyAccountService::class)->balances(false) : collect(),
         ]);
     }
 
@@ -222,6 +225,50 @@ class FinanceController extends Controller
         ActivityLog::log('finance_capital_updated', 'FinanceCapitalEntry', $capitalEntry->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
 
         return $this->backOr($request, 'admin.finance.capital.index')->with('success', 'Capital entry updated.');
+    }
+
+    /**
+     * "Give from available money": money already in an account becomes a
+     * line's capital. Nothing leaves the account; at most what it holds now.
+     */
+    public function allocationStore(Request $request)
+    {
+        abort_unless(FinanceAllocation::ready(), 404);
+
+        $validated = $request->validate([
+            'money_account_id' => ['required', Rule::exists('finance_money_accounts', 'id')->where('is_active', true)],
+            'label' => ['required', 'string', 'max:255'],
+            'product_id' => ['nullable', 'exists:products,id'],
+            'tool_id' => ['nullable', 'exists:tools,id'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
+            'allocated_at' => ['required', 'date', 'before_or_equal:'.FinanceDates::today()],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $available = (float) (app(MoneyAccountService::class)->balances(false)
+            ->firstWhere('account.id', (int) $validated['money_account_id'])['balance'] ?? 0);
+        if ((float) $validated['amount'] > $available) {
+            return back()->withInput()->withErrors(['amount' => 'That account holds TZS '.number_format($available).' now: give at most that much.']);
+        }
+
+        $validated['label'] = $this->resolveLabel($validated);
+        $validated['created_by'] = auth()->id();
+        $given = FinanceAllocation::create($validated);
+
+        ActivityLog::log('finance_allocation_added', 'FinanceAllocation', $given->id, ['label' => $given->label, 'amount' => $given->amount, 'money_account_id' => $given->money_account_id]);
+
+        return back()->with('success', 'TZS '.number_format($given->amount).' given to '.$given->label.'.');
+    }
+
+    public function allocationDestroy(Request $request, FinanceAllocation $allocation, DeletionService $deletionService)
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deletionService->delete($allocation, $validated['reason']);
+
+        return back()->with('success', 'Removed. The money is available again.');
     }
 
     public function capitalDestroy(Request $request, FinanceCapitalEntry $capitalEntry, DeletionService $deletionService)

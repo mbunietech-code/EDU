@@ -32,6 +32,7 @@
         @endforeach
     </div>
 
+    @if ($kind !== 'pool')
     {{-- Capital and loans --}}
     <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() && old('form') === 'capital' ? 'true' : 'false' }} }">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
@@ -50,8 +51,8 @@
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <x-input-label for="line-cap-amount" value="Amount (TZS)" />
-                    <x-text-input id="line-cap-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('amount')" required />
-                    <x-input-error :messages="$errors->get('amount')" class="mt-2" />
+                    <x-text-input id="line-cap-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('form') === 'capital' ? old('amount') : ''" required />
+                    <x-input-error :messages="old('form') === 'capital' ? $errors->get('amount') : []" class="mt-2" />
                 </div>
                 <div>
                     <x-input-label for="line-cap-source" value="Source of this money" />
@@ -110,7 +111,93 @@
             </tbody>
         </x-mbui.table>
     </div>
+    @endif
 
+    {{-- Given from available money: money already in an account, now this line's capital. --}}
+    @if ($allocationsReady)
+        <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() && old('form') === 'give' ? 'true' : 'false' }} }">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900">{{ $kind === 'pool' ? 'Given to lines' : 'Given from available money' }} · {{ $given->count() }}</h2>
+                    <p class="mt-1 text-sm text-gray-500">Money already in an account, given to {{ $kind === 'pool' ? 'a line' : 'this line' }} as capital. It does not leave the account and adds nothing to the company's total.</p>
+                </div>
+                @if ($kind !== 'pool' && $available->isNotEmpty())
+                    <button type="button" x-on:click="adding = ! adding" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500" x-text="adding ? 'Cancel' : '+ Give from available money'">+ Give from available money</button>
+                @endif
+            </div>
+
+            @if ($kind !== 'pool' && $available->isNotEmpty())
+                <form method="POST" action="{{ route('admin.finance.allocations.store') }}" x-show="adding" x-cloak class="space-y-4 border-b border-gray-200 bg-gray-50 px-6 py-5">
+                    @csrf
+                    <input type="hidden" name="form" value="give">
+                    <input type="hidden" name="label" value="{{ $row['label'] }}">
+                    @if ($kind === 'product')<input type="hidden" name="product_id" value="{{ $id }}">@endif
+                    @if ($kind === 'tool')<input type="hidden" name="tool_id" value="{{ $id }}">@endif
+                    <p class="text-sm text-gray-600">To <span class="font-semibold text-gray-900">{{ $row['label'] }}</span></p>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div class="sm:col-span-2">
+                            <x-input-label for="give-account" value="From account" />
+                            <select id="give-account" name="money_account_id" class="mbui-input mt-1" required>
+                                @foreach ($available as $b)
+                                    <option value="{{ $b['account']->id }}" @selected((string) old('money_account_id') === (string) $b['account']->id)>{{ $b['account']->name }} · TZS {{ number_format($b['balance']) }} in it</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('money_account_id')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="give-amount" value="Amount (TZS)" />
+                            <x-text-input id="give-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('form') === 'give' ? old('amount') : ''" required />
+                            <x-input-error :messages="old('form') === 'give' ? $errors->get('amount') : []" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="give-date" value="Date" />
+                            <x-text-input id="give-date" class="mbui-input mt-1" type="date" name="allocated_at" :value="old('allocated_at', $today)" :max="$today" required />
+                            <x-input-error :messages="$errors->get('allocated_at')" class="mt-2" />
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-end justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <x-input-label for="give-notes" value="Notes (optional)" />
+                            <x-text-input id="give-notes" class="mbui-input mt-1" type="text" name="notes" :value="old('notes')" placeholder="e.g. For this month's bundles" />
+                        </div>
+                        <x-mbui.button type="submit">Give</x-mbui.button>
+                    </div>
+                </form>
+            @endif
+
+            <x-mbui.table>
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="mbui-th">Date</th>
+                        <th class="mbui-th">{{ $kind === 'pool' ? 'To' : 'From account' }}</th>
+                        <th class="mbui-th">Amount</th>
+                        <th class="mbui-th"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @forelse ($given as $g)
+                        <tr>
+                            <td class="mbui-td text-gray-500">{{ $date($g->allocated_at) }}</td>
+                            <td class="mbui-td">
+                                <p class="font-medium text-gray-900">{{ $kind === 'pool' ? $g->label : ($g->moneyAccount?->name ?? 'Account') }}</p>
+                                <p class="text-xs text-gray-500">{{ collect([$kind === 'pool' ? 'From '.($g->moneyAccount?->name ?? 'account') : null, $g->notes])->filter()->implode(' · ') }}</p>
+                            </td>
+                            <td class="mbui-td font-semibold text-gray-900">TZS {{ number_format($g->amount) }}</td>
+                            <td class="mbui-td">
+                                <div class="flex items-center justify-end">
+                                    <x-mbui.reasoned-action :action="route('admin.finance.allocations.destroy', $g)" method="DELETE" label="Remove" prompt-text="Why are you removing this? The money becomes available again." />
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="mbui-td text-center text-gray-400">Nothing given in this period</td></tr>
+                    @endforelse
+                </tbody>
+            </x-mbui.table>
+        </div>
+    @endif
+
+    @if ($kind !== 'pool')
     {{-- Expenses --}}
     <div class="mt-8 mbui-card overflow-hidden" x-data="{ adding: {{ $errors->any() && old('form') === 'expense' ? 'true' : 'false' }} }">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
@@ -152,8 +239,8 @@
                 @endif
                 <div>
                     <x-input-label for="line-exp-amount" value="Amount (TZS)" />
-                    <x-text-input id="line-exp-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('amount')" required />
-                    <x-input-error :messages="$errors->get('amount')" class="mt-2" />
+                    <x-text-input id="line-exp-amount" class="mbui-input mt-1" type="number" step="0.01" min="0.01" name="amount" :value="old('form') === 'expense' ? old('amount') : ''" required />
+                    <x-input-error :messages="old('form') === 'expense' ? $errors->get('amount') : []" class="mt-2" />
                 </div>
                 <div>
                     <x-input-label for="line-exp-date" value="Date paid" />
@@ -212,6 +299,8 @@
         </x-mbui.table>
     </div>
 
+    @endif
+
     {{-- Loan repayments --}}
     @if ($repaid->isNotEmpty())
         <div class="mt-8 mbui-card overflow-hidden">
@@ -244,6 +333,7 @@
         </div>
     @endif
 
+    @if ($kind !== 'pool')
     {{-- Income: approved customer payments --}}
     <div class="mt-8 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-6 py-4">
@@ -278,5 +368,6 @@
             </tbody>
         </x-mbui.table>
     </div>
+    @endif
 
 </x-layouts.finance>
