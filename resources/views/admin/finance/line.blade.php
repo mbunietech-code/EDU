@@ -139,7 +139,7 @@
                             <x-input-label for="give-account" value="From account" />
                             <select id="give-account" name="money_account_id" class="mbui-input mt-1" required>
                                 @foreach ($available as $b)
-                                    <option value="{{ $b['account']->id }}" @selected((string) old('money_account_id') === (string) $b['account']->id)>{{ $b['account']->name }} · TZS {{ number_format(max(0, $b['balance'])) }} not given yet</option>
+                                    <option value="{{ $b['account']->id }}" @selected((string) old('money_account_id') === (string) $b['account']->id)>{{ $b['account']->name }} · TZS {{ number_format(max(0, $b['balance'])) }} left to give{{ $b['in'] != $b['balance'] ? ' (TZS '.number_format($b['in']).' in it, TZS '.number_format($b['in'] - $b['balance']).' given)' : '' }}</option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('money_account_id')" class="mt-2" />

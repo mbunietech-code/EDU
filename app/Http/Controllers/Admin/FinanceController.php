@@ -131,7 +131,7 @@ class FinanceController extends Controller
             'receiptsSupported' => $this->receiptsSupported(),
             'allocationsReady' => FinanceAllocation::ready(),
             'available' => FinanceAllocation::ready()
-                ? app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'balance' => $this->availableToGive()[$b['account']->id] ?? 0])
+                ? app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'in' => $b['balance'], 'balance' => $this->availableToGive()[$b['account']->id] ?? 0])
                 : collect(),
         ]);
     }
