@@ -238,7 +238,7 @@ class MoneyAccountService
 
         $account->transfersIn()->with('fromAccount:id,name')->get()->each(function (FinanceMoneyTransfer $t) use ($rows) {
             $rows->push($this->row($t->transferred_at, 'transfer_in', 'From '.($t->fromAccount?->name ?? 'account'),
-                $t->notes, $t->reference, (float) $t->amount, null, 3, $t->id));
+                $t->notes, $t->reference, (float) $t->amount, route('admin.finance.money.transfers.edit', $t->id), 3, $t->id));
         });
 
         $account->expenses()->get()->each(function (FinanceExpense $e) use ($rows) {
@@ -254,7 +254,7 @@ class MoneyAccountService
 
         $account->transfersOut()->with('toAccount:id,name')->get()->each(function (FinanceMoneyTransfer $t) use ($rows) {
             $rows->push($this->row($t->transferred_at, 'transfer_out', 'To '.($t->toAccount?->name ?? 'account'),
-                $t->notes, $t->reference, -(float) $t->amount, null, 6, $t->id));
+                $t->notes, $t->reference, -(float) $t->amount, route('admin.finance.money.transfers.edit', $t->id), 6, $t->id));
         });
 
         $balance = (float) $account->opening_balance;

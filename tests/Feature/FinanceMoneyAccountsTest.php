@@ -99,6 +99,35 @@ class FinanceMoneyAccountsTest extends TestCase
             ->assertSee('Opening balance')->assertSee('Loan repaid: ChatGPT')->assertSee('To CRDB')->assertSee('TZS 80,000');
     }
 
+    public function test_a_transfer_can_be_moved_to_its_real_date_or_removed(): void
+    {
+        $alipay = $this->account();
+        $yas = $this->account(['name' => 'YAS', 'type' => 'mobile_money', 'payment_methods' => []]);
+        $this->sale('alipay', 100000, '2026-10-01 10:00:00');
+        FinanceExpense::create(['label' => 'VPS', 'amount' => 60000, 'spent_at' => '2026-10-10', 'money_account_id' => $yas->id]);
+        $this->finance()->post(route('admin.finance.money.transfer'), [
+            'from_account_id' => $alipay->id, 'to_account_id' => $yas->id, 'amount' => 60000, 'transferred_at' => '2026-10-20',
+        ]);
+        $transfer = \App\Models\FinanceMoneyTransfer::firstOrFail();
+        $service = app(MoneyAccountService::class);
+        $this->assertSame(-60000.0, $service->statement($yas)->first()['balance']); // the VPS before the money came
+
+        $statement = route('admin.finance.money.show', $yas);
+        $this->finance()->get($statement)->assertOk()->assertSee(route('admin.finance.money.transfers.edit', $transfer));
+        $this->finance()->from($statement)->get(route('admin.finance.money.transfers.edit', $transfer))->assertOk()
+            ->assertSee('Edit transfer')->assertSee('value="'.$statement.'"', false);
+
+        $this->finance()->put(route('admin.finance.money.transfers.update', $transfer), [
+            'from_account_id' => $alipay->id, 'to_account_id' => $yas->id, 'amount' => 60000, 'transferred_at' => '2026-10-09', 'back' => $statement,
+        ])->assertRedirect($statement);
+        $this->assertSame([60000.0, 0.0], $service->statement($yas->fresh())->pluck('balance')->all());
+
+        $this->finance()->delete(route('admin.finance.money.transfers.destroy', $transfer), ['reason' => 'Typed twice'])
+            ->assertRedirect(route('admin.finance.money.show', $alipay));
+        $this->assertSame(0, \App\Models\FinanceMoneyTransfer::count());
+        $this->assertSame(100000.0, $service->statement($alipay->fresh())->last()['balance']);
+    }
+
     public function test_opening_balance_date_leaves_out_earlier_movements(): void
     {
         $this->sale('alipay', 100000, '2026-09-20 10:00:00'); // before opening: already in the opening balance

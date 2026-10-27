@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FinanceMoneyAccount;
+use App\Models\FinanceMoneyTransfer;
+use App\Services\DeletionService;
 use App\Services\Finance\FinanceException;
 use App\Services\Finance\MoneyAccountService;
 use Illuminate\Http\Request;
@@ -116,6 +118,54 @@ class FinanceMoneyController extends Controller
         $this->money->transfer($request->validate($this->money->transferRules()), auth()->id());
 
         return back()->with('success', 'Transfer recorded.');
+    }
+
+    /** A transfer typed with the wrong date or amount: change it (or remove it below). */
+    public function editTransfer(int $transfer)
+    {
+        if ($redirect = $this->notReady()) {
+            return $redirect;
+        }
+        $transfer = FinanceMoneyTransfer::with('fromAccount:id,name', 'toAccount:id,name')->findOrFail($transfer);
+        $previous = url()->previous();
+
+        return view('admin.finance.money.transfer-edit', [
+            'transfer' => $transfer,
+            'accounts' => FinanceMoneyAccount::orderBy('name')->get(['id', 'name', 'is_active']),
+            'back' => str_starts_with($previous, route('admin.finance.money.index')) && ! str_contains($previous, '/transfers/') ? $previous : route('admin.finance.money.show', $transfer->from_account_id),
+        ]);
+    }
+
+    public function updateTransfer(Request $request, int $transfer)
+    {
+        if ($redirect = $this->notReady()) {
+            return $redirect;
+        }
+        $transfer = FinanceMoneyTransfer::findOrFail($transfer);
+        $transfer->update($request->validate($this->money->transferRules()));
+
+        return $this->backTo($request, $transfer)->with('success', 'Transfer updated.');
+    }
+
+    public function destroyTransfer(Request $request, int $transfer, DeletionService $deletion)
+    {
+        if ($redirect = $this->notReady()) {
+            return $redirect;
+        }
+        $transfer = FinanceMoneyTransfer::findOrFail($transfer);
+        $deletion->delete($transfer, $request->validate(['reason' => ['required', 'string', 'max:2000']])['reason']);
+
+        return $this->backTo($request, $transfer)->with('success', 'Transfer removed.');
+    }
+
+    /** Back to the statement the transfer was opened from (a money page only). */
+    private function backTo(Request $request, FinanceMoneyTransfer $transfer)
+    {
+        $back = (string) $request->input('back', '');
+
+        return $back !== '' && str_starts_with($back, route('admin.finance.money.index'))
+            ? redirect()->to($back)
+            : redirect()->route('admin.finance.money.show', $transfer->from_account_id);
     }
 
     public function assign(Request $request)

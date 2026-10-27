@@ -500,6 +500,9 @@ Route::prefix('admin')
                 Route::get('finance/money', 'index')->name('finance.money.index');
                 Route::post('finance/money', 'store')->name('finance.money.store');
                 Route::post('finance/money/transfers', 'transfer')->name('finance.money.transfer');
+                Route::get('finance/money/transfers/{transfer}/edit', 'editTransfer')->whereNumber('transfer')->name('finance.money.transfers.edit');
+                Route::put('finance/money/transfers/{transfer}', 'updateTransfer')->whereNumber('transfer')->name('finance.money.transfers.update');
+                Route::delete('finance/money/transfers/{transfer}', 'destroyTransfer')->whereNumber('transfer')->name('finance.money.transfers.destroy');
                 Route::post('finance/money/assign', 'assign')->name('finance.money.assign');
                 Route::get('finance/money/{moneyAccount}', 'show')->whereNumber('moneyAccount')->name('finance.money.show');
                 Route::get('finance/money/{moneyAccount}/edit', 'edit')->whereNumber('moneyAccount')->name('finance.money.edit');
