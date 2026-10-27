@@ -271,6 +271,9 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertSame(100000.0, (float) app(\App\Services\Finance\MoneyAccountService::class)->balances()->first()['balance']);
 
         $this->finance()->get($internet)->assertOk()->assertSee('Bundles')->assertSee('TZS 30,000');
+        // Company money given out is not a line of the table, only a note under it.
+        $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
+            ->assertDontSee('Available money (given out)')->assertSee('Includes TZS 30,000 of company money given to lines.');
         $this->finance()->get(route('admin.finance.line', ['line' => 'pool']))->assertOk()
             ->assertSee('Given to lines')->assertSee('Internet / bundles')->assertDontSee('+ Add capital here');
 

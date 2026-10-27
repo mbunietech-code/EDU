@@ -138,6 +138,10 @@
                 @endforelse
             </tbody>
         </x-mbui.table>
+        @if ($given > 0)
+            <p class="border-t border-gray-200 px-6 py-3 text-xs text-gray-500">Includes TZS {{ number_format($given) }} of company money given to lines.
+                <a href="{{ route('admin.finance.line', ['line' => \App\Services\FinanceOverviewService::POOL] + $period->query()) }}" class="font-medium text-indigo-600 hover:text-indigo-500">See what was given</a></p>
+        @endif
     </div>
 
 </x-layouts.finance>

@@ -94,8 +94,14 @@ class FinanceController extends Controller
         $period = FinancePeriod::fromRequest($request);
         $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
+        // Company money given to lines is internal: the totals count it, the
+        // table does not list it as a line of its own.
+        $pool = collect($rows)->firstWhere('key', FinanceOverviewService::POOL);
+        $given = $pool ? -$pool['capital'] : 0;
+
         // Only lines where money moved (no rows of zeros for unused software).
-        $rows = array_values(array_filter($rows, fn ($r) => $r['capital'] || $r['income'] || $r['expenses'] || $r['repaid']));
+        $rows = array_values(array_filter($rows, fn ($r) => $r['key'] !== FinanceOverviewService::POOL
+            && ($r['capital'] || $r['income'] || $r['expenses'] || $r['repaid'])));
 
         // Where the money sits, when money accounts are set up.
         $money = null;
@@ -109,7 +115,7 @@ class FinanceController extends Controller
             ];
         }
 
-        return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period'));
+        return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period', 'given'));
     }
 
     /** One line of "Per software": the records behind its numbers, to edit or remove. */
