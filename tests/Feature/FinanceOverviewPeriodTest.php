@@ -252,7 +252,7 @@ class FinanceOverviewPeriodTest extends TestCase
         $before = app(\App\Services\FinanceOverviewService::class)->totals(app(\App\Services\FinanceOverviewService::class)->rows());
 
         $this->finance()->get($internet)->assertOk()
-            ->assertSee('+ Give from available money')->assertSee('Voda · TZS 100,000 in it');
+            ->assertSee('+ Give from available money')->assertSee('Voda · TZS 100,000 not given yet');
 
         // More than the account holds is refused.
         $this->finance()->from($internet)->post(route('admin.finance.allocations.store'), [
@@ -271,6 +271,11 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertSame(100000.0, (float) app(\App\Services\Finance\MoneyAccountService::class)->balances()->first()['balance']);
 
         $this->finance()->get($internet)->assertOk()->assertSee('Bundles')->assertSee('TZS 30,000');
+        // What was already given counts: only 70,000 of Voda is left to give.
+        $this->finance()->from($internet)->post(route('admin.finance.allocations.store'), [
+            'form' => 'give', 'money_account_id' => $voda->id, 'label' => 'Hosting, domain, server', 'amount' => 80000, 'allocated_at' => '2026-10-27',
+        ])->assertSessionHasErrors('amount');
+        $this->finance()->get($internet)->assertSee('Voda · TZS 70,000 not given yet');
         // Company money given out is not a line of the table, only a note under it.
         $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
             ->assertDontSee('Available money (given out)')->assertSee('Includes TZS 30,000 of company money given to lines.');

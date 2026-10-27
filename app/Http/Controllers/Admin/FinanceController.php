@@ -130,7 +130,9 @@ class FinanceController extends Controller
             'moneyAccounts' => app(MoneyAccountService::class)->options(),
             'receiptsSupported' => $this->receiptsSupported(),
             'allocationsReady' => FinanceAllocation::ready(),
-            'available' => FinanceAllocation::ready() ? app(MoneyAccountService::class)->balances(false) : collect(),
+            'available' => FinanceAllocation::ready()
+                ? app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'balance' => $this->availableToGive()[$b['account']->id] ?? 0])
+                : collect(),
         ]);
     }
 
@@ -251,10 +253,9 @@ class FinanceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $available = (float) (app(MoneyAccountService::class)->balances(false)
-            ->firstWhere('account.id', (int) $validated['money_account_id'])['balance'] ?? 0);
+        $available = $this->availableToGive()[(int) $validated['money_account_id']] ?? 0;
         if ((float) $validated['amount'] > $available) {
-            return back()->withInput()->withErrors(['amount' => 'That account holds TZS '.number_format($available).' now: give at most that much.']);
+            return back()->withInput()->withErrors(['amount' => 'TZS '.number_format(max(0, $available)).' of that account is not given yet: give at most that much.']);
         }
 
         $validated['label'] = $this->resolveLabel($validated);
@@ -264,6 +265,16 @@ class FinanceController extends Controller
         ActivityLog::log('finance_allocation_added', 'FinanceAllocation', $given->id, ['label' => $given->label, 'amount' => $given->amount, 'money_account_id' => $given->money_account_id]);
 
         return back()->with('success', 'TZS '.number_format($given->amount).' given to '.$given->label.'.');
+    }
+
+    /** @return array<int, float> account id => its balance less what was already given from it */
+    private function availableToGive(): array
+    {
+        $given = FinanceAllocation::groupBy('money_account_id')->selectRaw('money_account_id, SUM(amount) as total')->pluck('total', 'money_account_id');
+
+        return app(MoneyAccountService::class)->balances(false)
+            ->mapWithKeys(fn ($b) => [$b['account']->id => round($b['balance'] - (float) ($given[$b['account']->id] ?? 0), 2)])
+            ->all();
     }
 
     public function allocationDestroy(Request $request, FinanceAllocation $allocation, DeletionService $deletionService)
