@@ -111,6 +111,27 @@ class FinanceController extends Controller
         return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period'));
     }
 
+    /** One line of "Per software": the records behind its numbers, to edit or remove. */
+    public function line(Request $request, FinanceOverviewService $overview)
+    {
+        $period = FinancePeriod::fromRequest($request);
+        $line = $overview->line((string) $request->query('line', ''), $period);
+        abort_if($line === null, 404);
+
+        return view('admin.finance.line', $line + ['period' => $period]);
+    }
+
+    /** After an edit, back to the page it was opened from (a Finance page only). */
+    private function backOr(Request $request, string $route)
+    {
+        $back = (string) $request->input('back', '');
+        if ($back !== '' && str_starts_with($back, route('admin.finance.dashboard'))) {
+            return redirect()->to($back);
+        }
+
+        return redirect()->route($route);
+    }
+
     public function capitalIndex()
     {
         $entries = FinanceCapitalEntry::with(['product', 'tool', 'creator'])
@@ -196,7 +217,7 @@ class FinanceController extends Controller
 
         ActivityLog::log('finance_capital_updated', 'FinanceCapitalEntry', $capitalEntry->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
 
-        return redirect()->route('admin.finance.capital.index')->with('success', 'Capital entry updated.');
+        return $this->backOr($request, 'admin.finance.capital.index')->with('success', 'Capital entry updated.');
     }
 
     public function capitalDestroy(Request $request, FinanceCapitalEntry $capitalEntry, DeletionService $deletionService)
@@ -350,7 +371,7 @@ class FinanceController extends Controller
 
         ActivityLog::log('finance_expense_updated', 'FinanceExpense', $expense->id, ['label' => $validated['label'], 'amount' => $validated['amount']]);
 
-        return redirect()->route('admin.finance.expenses.index')->with('success', 'Expense updated.');
+        return $this->backOr($request, 'admin.finance.expenses.index')->with('success', 'Expense updated.');
     }
 
     public function expenseReceipt(Request $request, FinanceExpense $expense): StreamedResponse

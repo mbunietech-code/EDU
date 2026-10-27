@@ -477,6 +477,7 @@ Route::prefix('admin')
         Route::post('finance/lock', [FinanceController::class, 'lock'])->name('finance.lock');
         Route::middleware('finance.unlocked')->group(function () {
             Route::get('finance', [FinanceController::class, 'dashboard'])->name('finance.dashboard');
+            Route::get('finance/line', [FinanceController::class, 'line'])->name('finance.line');
             Route::get('finance/capital', [FinanceController::class, 'capitalIndex'])->name('finance.capital.index');
             Route::post('finance/capital', [FinanceController::class, 'capitalStore'])->name('finance.capital.store');
             Route::get('finance/capital/{capitalEntry}/edit', [FinanceController::class, 'capitalEdit'])->name('finance.capital.edit');

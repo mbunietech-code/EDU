@@ -4,13 +4,15 @@
         <div>
             <h1 class="mbui-title">Edit capital entry</h1>
         </div>
-        <a href="{{ route('admin.finance.capital.index') }}" class="mbui-anchor text-sm">Back to capital</a>
+        @php($back = str_starts_with((string) request('back'), route('admin.finance.dashboard')) ? request('back') : null)
+        <a href="{{ $back ?? route('admin.finance.capital.index') }}" class="mbui-anchor text-sm">{{ $back ? 'Back' : 'Back to capital' }}</a>
     </div>
 
     <div class="mt-6 mbui-card p-6 max-w-2xl">
         <form method="POST" action="{{ route('admin.finance.capital.update', $capitalEntry) }}" class="space-y-4">
             @csrf
             @method('PUT')
+            @if ($back)<input type="hidden" name="back" value="{{ $back }}">@endif
             <div class="grid gap-4 sm:grid-cols-3">
                 <div>
                     <x-input-label for="cap-label" value="Software / label" />
@@ -68,7 +70,7 @@
                 <textarea id="cap-notes" name="notes" rows="2" class="mbui-input mt-1">{{ old('notes', $capitalEntry->notes) }}</textarea>
             </div>
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-                <a href="{{ route('admin.finance.capital.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
+                <a href="{{ $back ?? route('admin.finance.capital.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                 <x-mbui.button type="submit">Update capital</x-mbui.button>
             </div>
         </form>

@@ -4,13 +4,15 @@
         <div>
             <h1 class="mbui-title">Edit expense</h1>
         </div>
-        <a href="{{ route('admin.finance.expenses.index') }}" class="mbui-anchor text-sm">Back to expenses</a>
+        @php($back = str_starts_with((string) request('back'), route('admin.finance.dashboard')) ? request('back') : null)
+        <a href="{{ $back ?? route('admin.finance.expenses.index') }}" class="mbui-anchor text-sm">{{ $back ? 'Back' : 'Back to expenses' }}</a>
     </div>
 
     <div class="mt-6 mbui-card p-6 max-w-2xl">
         <form method="POST" action="{{ route('admin.finance.expenses.update', $expense) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
+            @if ($back)<input type="hidden" name="back" value="{{ $back }}">@endif
             @if ($expense->isAutomatic())
                 <p class="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-800">Recorded automatically from {{ str_replace('_', ' ', $expense->source_type) }}. Change it there if the amount is wrong.</p>
             @endif
@@ -87,7 +89,7 @@
             </div>
             @endif
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-                <a href="{{ route('admin.finance.expenses.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
+                <a href="{{ $back ?? route('admin.finance.expenses.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                 <x-mbui.button type="submit">Update expense</x-mbui.button>
             </div>
         </form>

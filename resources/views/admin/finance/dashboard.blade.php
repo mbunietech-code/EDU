@@ -108,7 +108,7 @@
     <div class="mt-8 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-6 py-4">
             <h2 class="text-base font-semibold text-gray-900">Per software</h2>
-            <p class="mt-1 text-sm text-gray-500">{{ $period->label() }}. Income is pulled automatically from approved payments. Capital and expenses are recorded manually.</p>
+            <p class="mt-1 text-sm text-gray-500">{{ $period->label() }}. Income is pulled automatically from approved payments. Capital and expenses are recorded manually. Click a name to see, edit or remove its records.</p>
         </div>
         <x-mbui.table>
             <thead>
@@ -125,7 +125,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse ($rows as $row)
                     <tr>
-                        <td class="mbui-td font-medium text-gray-900">{{ $row['label'] }}</td>
+                        <td class="mbui-td font-medium"><a href="{{ route('admin.finance.line', ['line' => $row['key']] + $period->query()) }}" class="text-indigo-600 hover:text-indigo-500 hover:underline">{{ $row['label'] }}</a></td>
                         <td class="mbui-td"><x-mbui.badge appearance="neutral">{{ $row['type'] }}</x-mbui.badge></td>
                         <td class="mbui-td">TZS {{ number_format($row['capital']) }}</td>
                         <td class="mbui-td text-emerald-600">TZS {{ number_format($row['income']) }}</td>

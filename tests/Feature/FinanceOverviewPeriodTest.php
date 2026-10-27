@@ -162,6 +162,37 @@ class FinanceOverviewPeriodTest extends TestCase
             ->assertSee('ChatGPT')->assertDontSee('NVivo');
     }
 
+    public function test_a_software_line_opens_its_records_to_edit_and_edits_come_back_to_it(): void
+    {
+        $product = $this->seedMoney();
+        $typed = FinanceExpense::create(['label' => 'grammarly', 'amount' => 4000, 'spent_at' => '2026-10-21']);
+        FinanceExpense::create(['label' => 'Bundle', 'amount' => 999, 'spent_at' => '2026-10-21']);
+
+        $this->finance()->get(route('admin.finance.dashboard', ['period' => 'month']))->assertOk()
+            ->assertSee(route('admin.finance.line', ['line' => 'product:'.$product->id, 'period' => 'month', 'date' => '2026-10-27']));
+
+        $url = route('admin.finance.line', ['line' => 'product:'.$product->id, 'period' => 'month', 'date' => '2026-10-27']);
+        $this->finance()->get($url)->assertOk()
+            ->assertSee('Grammarly')
+            ->assertSee('TZS 70,000')                      // this month's income: 50,000 + 20,000
+            ->assertSee('TZS 30,000')                      // repaid on 26 Oct
+            ->assertSee(route('admin.finance.expenses.edit', $typed).'?back=', false)
+            ->assertDontSee('TZS 11,000')                  // September sale
+            ->assertDontSee('TZS 999');                    // another line
+
+        $this->finance()->put(route('admin.finance.expenses.update', $typed), [
+            'label' => 'grammarly', 'amount' => 4500, 'spent_at' => '2026-10-21', 'back' => $url,
+        ])->assertRedirect($url);
+        $this->assertSame(4500.0, (float) $typed->fresh()->amount);
+
+        // Only Finance pages are accepted as the way back.
+        $this->finance()->put(route('admin.finance.expenses.update', $typed), [
+            'label' => 'grammarly', 'amount' => 4500, 'spent_at' => '2026-10-21', 'back' => 'https://evil.example/x',
+        ])->assertRedirect(route('admin.finance.expenses.index'));
+
+        $this->finance()->get(route('admin.finance.line', ['line' => 'product:999999']))->assertNotFound();
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

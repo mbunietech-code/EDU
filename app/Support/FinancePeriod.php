@@ -93,6 +93,16 @@ class FinancePeriod
         return ['period' => $this->key, 'date' => $a->toDateString()];
     }
 
+    /** Query string for this same period (to carry it to another page). */
+    public function query(): array
+    {
+        return match (true) {
+            $this->key === 'custom' => array_filter(['period' => 'custom', 'from' => $this->from?->toDateString(), 'to' => $this->to?->toDateString()]),
+            $this->steps() => $this->shifted(0),
+            default => [],
+        };
+    }
+
     /** True when stepping forward would only show the future. */
     public function isCurrent(): bool
     {

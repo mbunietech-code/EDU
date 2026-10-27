@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Tool;
 use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
+use Illuminate\Support\Collection;
 
 class FinanceOverviewService
 {
@@ -26,6 +27,7 @@ class FinanceOverviewService
         $in = fn ($at) => $period === null || $period->contains($at);
 
         $rows = [];
+        $this->items = [];
         // A record typed with a software's name but not linked to it ("Chatgpt",
         // "Claude Pro") still lands on that software's line.
         $this->names = [];
@@ -59,27 +61,18 @@ class FinanceOverviewService
         }
 
         // Income: real revenue already flowing through the system (approved payments).
-        $incomeByProduct = Payment::where('status', 'approved')
-            ->whereHas('order', fn ($q) => $q->whereNotNull('product_id'))
-            ->with('order:id,product_id')
-            ->get()
-            ->filter(fn ($payment) => $in(FinanceDates::payment($payment)))
-            ->groupBy(fn ($payment) => 'product:' . $payment->order->product_id)
-            ->map(fn ($group) => (float) $group->sum('amount'));
+        $payments = Payment::where('status', 'approved')
+            ->whereHas('order', fn ($q) => $q->where(fn ($w) => $w->whereNotNull('product_id')->orWhereNotNull('tool_id')))
+            ->with('order:id,order_number,product_id,tool_id', 'user:id,name')
+            ->get();
 
-        $incomeByTool = Payment::where('status', 'approved')
-            ->whereHas('order', fn ($q) => $q->whereNotNull('tool_id'))
-            ->with('order:id,tool_id')
-            ->get()
-            ->filter(fn ($payment) => $in(FinanceDates::payment($payment)))
-            ->groupBy(fn ($payment) => 'tool:' . $payment->order->tool_id)
-            ->map(fn ($group) => (float) $group->sum('amount'));
-
-        foreach ($incomeByProduct->merge($incomeByTool) as $key => $amount) {
-            if (! isset($rows[$key])) {
+        foreach ($payments as $payment) {
+            $key = $payment->order->product_id ? 'product:' . $payment->order->product_id : 'tool:' . $payment->order->tool_id;
+            if (! isset($rows[$key]) || ! $in(FinanceDates::payment($payment))) {
                 continue;
             }
-            $rows[$key]['income'] += $amount;
+            $rows[$key]['income'] += (float) $payment->amount;
+            $this->items[$key]['income'][] = $payment;
         }
 
         // Capital and expenses: manually recorded per software.
@@ -90,6 +83,7 @@ class FinanceOverviewService
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
             $rows[$key] ??= $this->blankRow($entry->label);
             $rows[$key]['capital'] += (float) $entry->amount;
+            $this->items[$key]['capital'][] = $entry;
         }
 
         foreach (FinanceExpense::all() as $expense) {
@@ -106,6 +100,7 @@ class FinanceOverviewService
                 $rows[$key] ??= $this->blankRow($expense->label);
             }
             $rows[$key]['expenses'] += (float) $expense->amount;
+            $this->items[$key]['expenses'][] = $expense;
         }
 
         // Loan repayments: money paid back out, counted against the software that borrowed it.
@@ -117,6 +112,7 @@ class FinanceOverviewService
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
             $rows[$key] ??= $this->blankRow($entry->label);
             $rows[$key]['repaid'] += (float) $repayment->amount;
+            $this->items[$key]['repaid'][] = $repayment;
         }
 
         $rows = array_values($rows);
@@ -128,6 +124,30 @@ class FinanceOverviewService
         usort($rows, fn ($a, $b) => strcasecmp($a['label'], $b['label']));
 
         return $rows;
+    }
+
+    /**
+     * One line of the overview (a software, a cost type or a typed label) with
+     * the records behind each of its numbers, for the same period.
+     *
+     * @return array{row: array, income: Collection, capital: Collection, expenses: Collection, repaid: Collection}|null
+     */
+    public function line(string $key, ?FinancePeriod $period = null): ?array
+    {
+        $row = collect($this->rows($period))->firstWhere('key', $key);
+        if (! $row) {
+            return null;
+        }
+        $items = $this->items[$key] ?? [];
+        $newest = fn (string $part, callable $date) => collect($items[$part] ?? [])->sortByDesc(fn ($r) => [$date($r)?->toDateString(), $r->id])->values();
+
+        return [
+            'row' => $row,
+            'income' => $newest('income', fn ($p) => FinanceDates::payment($p)),
+            'capital' => $newest('capital', fn ($c) => FinanceDates::capital($c)),
+            'expenses' => $newest('expenses', fn ($e) => $e->spent_at),
+            'repaid' => $newest('repaid', fn ($r) => $r->paid_at),
+        ];
     }
 
     public function totals(array $rows): array
@@ -153,6 +173,9 @@ class FinanceOverviewService
 
         return $this->names[$this->norm($label)] ?? 'label:' . $this->norm($label);
     }
+
+    /** @var array<string, array<string, list<mixed>>> row key => part => records behind it */
+    private array $items = [];
 
     /** @var array<string, string> software name (normalised) => row key */
     private array $names = [];
