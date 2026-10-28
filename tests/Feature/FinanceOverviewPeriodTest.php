@@ -280,7 +280,8 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
             ->assertDontSee('Available money (given out)')->assertSee('Includes TZS 30,000 of company money given to lines.');
         $this->finance()->get(route('admin.finance.line', ['line' => 'pool']))->assertOk()
-            ->assertSee('Given to lines')->assertSee('Internet / bundles')->assertDontSee('+ Add capital here');
+            ->assertSee('Given to lines')->assertSee('Internet / bundles')->assertDontSee('+ Add capital here')
+            ->assertSee('Not spent yet')->assertDontSee('TZS -30,000');
 
         $given = \App\Models\FinanceAllocation::firstOrFail();
         $this->finance()->delete(route('admin.finance.allocations.destroy', $given), ['reason' => 'Mistake'])->assertRedirect();

@@ -17,6 +17,23 @@
         <a href="{{ $overview }}" class="mbui-anchor text-sm">Back to overview</a>
     </div>
 
+    @if ($kind === 'pool')
+    {{-- Company money lent to lines: not a loss, so no minus signs here. --}}
+    @php($givenTotal = (float) $given->sum('amount'))
+    <div class="mt-6 grid gap-5 sm:grid-cols-3">
+        @foreach ([
+            ['Given to lines', $givenTotal, 'text-gray-900', 'Company money lent to lines for their costs'],
+            ['Spent', max(0, $givenTotal - $notSpent), 'text-red-600', 'Paid out of the account it was given from'],
+            ['Not spent yet', $notSpent, 'text-emerald-600', 'Still in the account, kept for those lines'],
+        ] as [$name, $amount, $tone, $help])
+            <x-mbui.card class="p-5">
+                <p class="text-sm font-medium text-gray-500">{{ $name }}</p>
+                <p class="mt-1 text-xl font-bold tracking-tight {{ $tone }}">TZS {{ number_format($amount) }}</p>
+                <p class="mt-1 text-xs text-gray-500">{{ $help }}</p>
+            </x-mbui.card>
+        @endforeach
+    </div>
+    @else
     <div class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         @foreach ([
             ['Capital', $row['capital'], 'text-gray-900'],
@@ -31,6 +48,7 @@
             </x-mbui.card>
         @endforeach
     </div>
+    @endif
 
     @if ($kind !== 'pool')
     {{-- Capital and loans --}}
@@ -119,7 +137,7 @@
             <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 px-6 py-4">
                 <div>
                     <h2 class="text-base font-semibold text-gray-900">{{ $kind === 'pool' ? 'Given to lines' : 'Given from available money' }} · {{ $given->count() }}</h2>
-                    <p class="mt-1 text-sm text-gray-500">Money already in an account, given to {{ $kind === 'pool' ? 'a line' : 'this line' }} as capital. It does not leave the account and adds nothing to the company's total.</p>
+                    <p class="mt-1 text-sm text-gray-500">Money already in an account, given to {{ $kind === 'pool' ? 'a line' : 'this line' }} as capital. It leaves the account once, when the line spends it (an expense paid from that account), and adds nothing to the company's total.</p>
                 </div>
                 @if ($kind !== 'pool' && $available->isNotEmpty())
                     <button type="button" x-on:click="adding = ! adding" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500" x-text="adding ? 'Cancel' : '+ Give from available money'">+ Give from available money</button>

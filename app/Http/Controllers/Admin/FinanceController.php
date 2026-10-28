@@ -134,6 +134,7 @@ class FinanceController extends Controller
                 ? (fn ($left) => app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'in' => $b['balance'], 'balance' => $left[$b['account']->id] ?? 0]))($this->availableToGive())
                 : collect(),
             'spentElsewhere' => FinanceAllocation::ready() ? $overview->spentElsewhere($line['given'], $line['expenses']) : [],
+            'notSpent' => FinanceAllocation::ready() ? array_sum(app(FinanceOverviewService::class)->unspentGiven()) : 0,
         ]);
     }
 
