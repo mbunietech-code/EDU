@@ -480,6 +480,7 @@ Route::prefix('admin')
             Route::get('finance/line', [FinanceController::class, 'line'])->name('finance.line');
             Route::get('finance/audit', [\App\Http\Controllers\Admin\FinanceAuditController::class, 'index'])->name('finance.audit');
             Route::post('finance/allocations', [FinanceController::class, 'allocationStore'])->name('finance.allocations.store');
+            Route::post('finance/allocations/pay-from', [FinanceController::class, 'expensesPayFrom'])->name('finance.allocations.pay-from');
             Route::delete('finance/allocations/{allocation}', [FinanceController::class, 'allocationDestroy'])->name('finance.allocations.destroy');
             Route::get('finance/capital', [FinanceController::class, 'capitalIndex'])->name('finance.capital.index');
             Route::post('finance/capital', [FinanceController::class, 'capitalStore'])->name('finance.capital.store');

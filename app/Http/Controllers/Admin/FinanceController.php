@@ -133,7 +133,38 @@ class FinanceController extends Controller
             'available' => FinanceAllocation::ready()
                 ? app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'in' => $b['balance'], 'balance' => $this->availableToGive()[$b['account']->id] ?? 0])
                 : collect(),
+            'spentElsewhere' => FinanceAllocation::ready() ? $overview->spentElsewhere($line['given'], $line['expenses']) : [],
         ]);
+    }
+
+    /**
+     * Money given to a line was spent: its expenses are paid from the account
+     * it was given from, so that account goes down (once, by the expense).
+     */
+    public function expensesPayFrom(Request $request)
+    {
+        $validated = $request->validate([
+            'money_account_id' => ['required', Rule::exists('finance_money_accounts', 'id')->where('is_active', true)],
+            'expense_ids' => ['required', 'array', 'min:1'],
+            'expense_ids.*' => ['integer', 'exists:finance_expenses,id'],
+        ], ['expense_ids.required' => 'Tick at least one expense.']);
+
+        $names = \App\Models\FinanceMoneyAccount::pluck('name', 'id');
+        $to = (int) $validated['money_account_id'];
+        $moved = 0.0;
+        foreach (FinanceExpense::whereIn('id', $validated['expense_ids'])->get() as $expense) {
+            if ((int) $expense->money_account_id === $to) {
+                continue;
+            }
+            $old = $names[$expense->money_account_id] ?? 'no account';
+            $expense->update(['money_account_id' => $to]);
+            ActivityLog::log('finance_expense_paid_from_changed', 'FinanceExpense', $expense->id, [
+                'label' => $expense->label, 'amount' => $expense->amount, 'changes' => ['paid_from' => [$old, $names[$to]]],
+            ]);
+            $moved += (float) $expense->amount;
+        }
+
+        return back()->with('success', 'TZS '.number_format($moved).' of expenses now paid from '.$names[$to].'.');
     }
 
     /** After an edit, back to the page it was opened from (a Finance page only). */

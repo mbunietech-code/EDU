@@ -287,6 +287,35 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->assertSame(0, \App\Models\FinanceAllocation::count());
     }
 
+    public function test_money_given_for_expenses_leaves_the_account_once_when_they_are_paid_from_it(): void
+    {
+        $voda = \App\Models\FinanceMoneyAccount::create(['name' => 'Voda', 'type' => 'mobile_money', 'opening_balance' => 100000, 'is_active' => true]);
+        $yas = \App\Models\FinanceMoneyAccount::create(['name' => 'YAS', 'type' => 'mobile_money', 'opening_balance' => 0, 'is_active' => true]);
+        $internet = route('admin.finance.line', ['line' => 'type:internet']);
+
+        // Given from Voda, but the bundles were typed in as paid from YAS.
+        $this->finance()->post(route('admin.finance.allocations.store'), ['money_account_id' => $voda->id, 'label' => 'Internet / bundles', 'amount' => 60000, 'allocated_at' => '2026-10-20']);
+        foreach ([['Bundle Oct', 40000, '2026-10-21'], ['Bundle Nov', 20000, '2026-10-22'], ['Router', 50000, '2026-10-23']] as [$label, $amount, $day]) {
+            $this->finance()->post(route('admin.finance.expenses.store'), ['expense_type' => 'internet', 'label' => $label, 'amount' => $amount, 'spent_at' => $day, 'money_account_id' => $yas->id])->assertSessionHasNoErrors();
+        }
+
+        $this->finance()->get($internet)->assertOk()
+            ->assertSee("TZS 60,000 given from Voda, but only TZS 0 of this line's expenses is paid from Voda.", false)
+            ->assertSee('Pay ticked from Voda');
+        $this->finance()->get(route('admin.finance.audit'))->assertSee('Given from one account, paid from another')->assertSee('given from Voda');
+
+        $ids = FinanceExpense::whereIn('label', ['Bundle Oct', 'Bundle Nov'])->pluck('id')->all();
+        $this->finance()->from($internet)->post(route('admin.finance.allocations.pay-from'), ['money_account_id' => $voda->id, 'expense_ids' => $ids])
+            ->assertRedirect($internet)->assertSessionHas('success', 'TZS 60,000 of expenses now paid from Voda.');
+
+        // Voda goes down once, by the expenses; the giving itself moved nothing.
+        $balances = app(\App\Services\Finance\MoneyAccountService::class)->balances()->keyBy(fn ($b) => $b['account']->name);
+        $this->assertEquals(40000, $balances['Voda']['balance']);
+        $this->assertEquals(-50000, $balances['YAS']['balance']);
+        $this->finance()->get($internet)->assertDontSee('Pay ticked from Voda')->assertSee('Paid from Voda');
+        $this->finance()->get(route('admin.finance.audit'))->assertSee('Expense now paid from another account')->assertSee('paid from: YAS → Voda');
+    }
+
     public function test_the_page_shows_the_period_and_its_navigation(): void
     {
         $this->seedMoney();

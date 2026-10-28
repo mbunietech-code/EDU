@@ -186,6 +186,50 @@ class FinanceOverviewService
         ];
     }
 
+    /** @return array<string, array<string, list<mixed>>> row key => part => records, from the last rows() call */
+    public function items(): array
+    {
+        return $this->items;
+    }
+
+    /**
+     * Money given to a line from an account leaves that account when the line
+     * spends it, so the line's expenses should be paid from there. Per giving
+     * account: what was given, what the line paid from it, and the line's
+     * expenses paid from no giving account (the oldest that fit are ticked).
+     *
+     * @return list<array{account: \App\Models\FinanceMoneyAccount, given: float, paid: float, expenses: Collection, tick: list<int>}>
+     */
+    public function spentElsewhere(Collection $given, Collection $expenses): array
+    {
+        $from = $given->groupBy('money_account_id');
+        $others = $expenses->filter(fn ($e) => $e->money_account_id === null || ! $from->has($e->money_account_id))
+            ->sortBy(fn ($e) => [$e->spent_at?->toDateString(), $e->id])->values();
+        if ($others->isEmpty()) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($from as $accountId => $gives) {
+            $total = round((float) $gives->sum('amount'), 2);
+            $paid = round((float) $expenses->where('money_account_id', $accountId)->sum('amount'), 2);
+            $room = $total - $paid;
+            if ($room <= 0.009 || ! $gives->first()->moneyAccount) {
+                continue;
+            }
+            $tick = [];
+            foreach ($others as $e) {
+                if ((float) $e->amount <= $room + 0.009) {
+                    $tick[] = $e->id;
+                    $room -= (float) $e->amount;
+                }
+            }
+            $out[] = ['account' => $gives->first()->moneyAccount, 'given' => $total, 'paid' => $paid, 'expenses' => $others, 'tick' => $tick];
+        }
+
+        return $out;
+    }
+
     public function totals(array $rows): array
     {
         return [

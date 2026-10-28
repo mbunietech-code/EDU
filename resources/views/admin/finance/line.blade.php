@@ -165,6 +165,31 @@
                 </form>
             @endif
 
+            {{-- Given for expenses: the money leaves the account when the line spends it. --}}
+            @foreach ($spentElsewhere as $s)
+                @php($name = $s['account']->name)
+                <form method="POST" action="{{ route('admin.finance.allocations.pay-from') }}" class="border-b border-amber-200 bg-amber-50 px-6 py-4 text-sm">
+                    @csrf
+                    <input type="hidden" name="money_account_id" value="{{ $s['account']->id }}">
+                    <p class="font-semibold text-amber-900">TZS {{ number_format($s['given']) }} given from {{ $name }}, but only TZS {{ number_format($s['paid']) }} of this line's expenses is paid from {{ $name }}.</p>
+                    <p class="mt-0.5 text-amber-800">Money given for expenses leaves {{ $name }} when it is spent. If {{ $name }} paid these, tick them: they will be paid from {{ $name }} and its balance goes down.</p>
+                    <ul class="mt-3 space-y-2">
+                        @foreach ($s['expenses'] as $e)
+                            <li>
+                                <label class="flex items-center gap-2 text-gray-800">
+                                    <input type="checkbox" name="expense_ids[]" value="{{ $e->id }}" @checked(in_array($e->id, $s['tick'], true)) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span>{{ $date($e->spent_at) }} · {{ $e->label }} · <span class="font-semibold">TZS {{ number_format($e->amount) }}</span> · now from {{ $e->moneyAccount?->name ?? 'no account' }}</span>
+                                </label>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <x-input-error :messages="$errors->get('expense_ids')" class="mt-2" />
+                    <div class="mt-3 flex justify-end">
+                        <x-mbui.button type="submit">Pay ticked from {{ $name }}</x-mbui.button>
+                    </div>
+                </form>
+            @endforeach
+
             <x-mbui.table>
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-50">
@@ -282,7 +307,7 @@
                         <td class="mbui-td text-gray-500">{{ $date($expense->spent_at) }}</td>
                         <td class="mbui-td">
                             <p class="font-medium text-gray-900">{{ $expense->label }}</p>
-                            <p class="text-xs text-gray-500">{{ collect([$expense->typeLabel(), $expense->description, $expense->isAutomatic() ? 'Recorded automatically' : null])->filter()->implode(' · ') }}</p>
+                            <p class="text-xs text-gray-500">{{ collect([$expense->typeLabel(), $expense->moneyAccount ? 'Paid from '.$expense->moneyAccount->name : null, $expense->description, $expense->isAutomatic() ? 'Recorded automatically' : null])->filter()->implode(' · ') }}</p>
                         </td>
                         <td class="mbui-td font-semibold text-red-600">TZS {{ number_format($expense->amount) }}</td>
                         <td class="mbui-td">

@@ -8,6 +8,7 @@ use App\Models\FinanceAllocation;
 use App\Models\FinanceCapitalEntry;
 use App\Models\FinanceExpense;
 use App\Models\FinanceMoneyAccount;
+use App\Services\FinanceOverviewService;
 use App\Support\FinanceDates;
 use Illuminate\Support\Collection;
 
@@ -86,6 +87,30 @@ class FinanceAuditService
             }
             $checks[] = $this->check('given', 'More given than an account holds', $items, 'problem',
                 'Money “given from available money” is more than what is left in that account.');
+
+            // 2b. Given from one account, spent from another.
+            $items = [];
+            if (FinanceAllocation::ready()) {
+                $overview = app(FinanceOverviewService::class);
+                $rows = $overview->rows();
+                $parts = $overview->items();
+                foreach ($rows as $row) {
+                    if ($row['key'] === FinanceOverviewService::POOL) {
+                        continue;
+                    }
+                    $line = $parts[$row['key']] ?? [];
+                    foreach ($overview->spentElsewhere(collect($line['given'] ?? []), collect($line['expenses'] ?? [])) as $s) {
+                        $items[] = [
+                            'label' => $row['label'].' · given from '.$s['account']->name,
+                            'detail' => 'TZS '.number_format($s['given']).' given, TZS '.number_format($s['paid']).' of its expenses paid from '.$s['account']->name
+                                .' · '.count($s['expenses']).' paid from other accounts',
+                            'url' => route('admin.finance.line', ['line' => $row['key']]),
+                        ];
+                    }
+                }
+            }
+            $checks[] = $this->check('spent_elsewhere', 'Given from one account, paid from another', $items, 'problem',
+                'Money given to a line for expenses leaves that account when it is spent. Open the line and pay those expenses from the account it was given from.');
 
             // 3. Records tied to no account.
             $unassigned = $this->money->unassigned();
@@ -220,6 +245,7 @@ class FinanceAuditService
             'finance_expense_auto' => 'Expense recorded automatically',
             'finance_expense_auto_removed' => 'Automatic expense removed',
             'finance_expense_linked' => 'Purchase linked to an expense',
+            'finance_expense_paid_from_changed' => 'Expense now paid from another account',
             'finance_capital_added' => 'Capital added',
             'finance_capital_updated' => 'Capital changed',
             'finance_loan_repaid' => 'Loan repayment added',
