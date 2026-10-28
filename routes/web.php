@@ -138,6 +138,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/notifications', [UserNotificationController::class, 'index'])->name('user.notifications.index');
     Route::post('/notifications/mark-all-read', [UserNotificationController::class, 'markAllAsRead'])->name('user.notifications.mark-all-read');
     Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.mark-read');
+    Route::delete('/notifications', [UserNotificationController::class, 'destroyAll'])->name('user.notifications.destroy-all');
+    Route::delete('/notifications/{notification}', [UserNotificationController::class, 'destroy'])->name('user.notifications.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('user.profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
@@ -442,6 +444,8 @@ Route::prefix('admin')
         Route::get('notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/mark-all-read', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
         Route::post('notifications/{notification}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+        Route::delete('notifications', [AdminNotificationController::class, 'destroyAll'])->name('notifications.destroy-all');
+        Route::delete('notifications/{notification}', [AdminNotificationController::class, 'destroy'])->name('notifications.destroy');
 
         Route::middleware('can:activity_logs.view')->group(function () {
             Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');

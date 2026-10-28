@@ -14,6 +14,43 @@
             otherOnline: otherOnline,
             editingId: null,
             editDraft: '',
+            copiedId: null,
+            // Message text as safe HTML, with web links and email addresses
+            // made clickable. Our own pages open here; other sites in a new tab.
+            linkify(text) {
+                const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const unesc = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                const home = window.location.origin;
+                return esc(text || '').replace(
+                    /\b(https?:\/\/[^\s<]+|www\.[^\s<]+)|\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/gi,
+                    (match, link, email) => {
+                        if (email) {
+                            return '<a href="mailto:' + email + '" class="underline underline-offset-2 break-all">' + email + '</a>';
+                        }
+                        const tail = (link.match(/(?:[.,!?;:)\]]|&quot;|&#39;)+$/) || [''])[0];
+                        const shown = link.slice(0, link.length - tail.length);
+                        const url = unesc(/^www\./i.test(shown) ? 'https://' + shown : shown);
+                        const own = url === home || url.startsWith(home + '/');
+                        return '<a href="' + esc(url) + '"' + (own ? '' : ' target="_blank" rel="noopener noreferrer"')
+                            + ' class="underline underline-offset-2 break-all">' + shown + '</a>' + tail;
+                    },
+                );
+            },
+            async copyMessage(m) {
+                const text = m.body || '';
+                try {
+                    await navigator.clipboard.writeText(text);
+                } catch (e) {
+                    const t = document.createElement('textarea');
+                    t.value = text;
+                    document.body.appendChild(t);
+                    t.select();
+                    document.execCommand('copy');
+                    t.remove();
+                }
+                this.copiedId = m.id;
+                setTimeout(() => { if (this.copiedId === m.id) this.copiedId = null; }, 1500);
+            },
             startEdit(m) {
                 this.editingId = m.id;
                 this.editDraft = m.body;
@@ -173,7 +210,7 @@
                     <template x-if="!m.deleted && editingId !== m.id">
                         <div>
                             <template x-if="m.type === 'text'">
-                                <p class="whitespace-pre-wrap break-words" x-text="m.body"></p>
+                                <p class="whitespace-pre-wrap break-words" x-html="linkify(m.body)"></p>
                             </template>
                             <template x-if="m.type === 'image'">
                                 <a :href="m.file" target="_blank" class="block">
@@ -194,14 +231,20 @@
                         <span x-show="m.auto">auto-reply &middot; </span><span x-show="m.edited && !m.deleted">edited &middot; </span><span x-text="m.time"></span>
                     </p>
                 </div>
-                <div class="mt-0.5 flex gap-1 px-1" x-show="m.mine && !m.deleted && editingId !== m.id">
+                <div class="mt-0.5 flex items-center gap-1 px-1" x-show="!m.deleted && editingId !== m.id">
+                    <button type="button" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-indigo-600" x-show="m.type === 'text' && m.body" @click="copyMessage(m)" title="Copy message">
+                        <svg x-show="copiedId !== m.id" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                        <span x-show="copiedId === m.id" x-cloak class="text-[10px] font-medium text-emerald-600">Copied</span>
+                    </button>
                     <button type="button" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-indigo-600" x-show="m.editable" @click="startEdit(m)" title="Edit">
                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 15v3.75A2.25 2.25 0 0117.25 21H6.75A2.25 2.25 0 014.5 18.75V8.25A2.25 2.25 0 016.75 6H10.5" />
                         </svg>
                     </button>
-                    <button type="button" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" @click="deleteMessage(m)" title="Delete">
+                    <button type="button" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" x-show="m.deletable" @click="deleteMessage(m)" title="Delete">
                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                         </svg>

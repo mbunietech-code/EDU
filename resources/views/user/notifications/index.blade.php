@@ -4,10 +4,19 @@
         <div>
             <h1 class="mbui-title">Notifications</h1>
         </div>
-        <form method="POST" action="{{ route('user.notifications.mark-all-read') }}">
-            @csrf
-            <x-mbui.button type="submit" variant="secondary" class="!px-3 !py-1.5 text-xs">Mark all as read</x-mbui.button>
-        </form>
+        @if ($notifications->isNotEmpty())
+            <div class="flex flex-wrap items-center gap-2">
+                <form method="POST" action="{{ route('user.notifications.mark-all-read') }}">
+                    @csrf
+                    <x-mbui.button type="submit" variant="secondary" class="!px-3 !py-1.5 text-xs">Mark all as read</x-mbui.button>
+                </form>
+                <form method="POST" action="{{ route('user.notifications.destroy-all') }}" onsubmit="return confirm('Delete all notifications? This cannot be undone.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-50">Delete all</button>
+                </form>
+            </div>
+        @endif
     </div>
 
     <div class="mt-6">
@@ -51,6 +60,11 @@
                                             <button type="submit" class="text-xs font-medium text-indigo-600 hover:text-indigo-800">Mark read</button>
                                         </form>
                                     @endif
+                                    <form method="POST" action="{{ route('user.notifications.destroy', $notification->id) }}" class="ml-auto">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs font-medium text-gray-400 hover:text-red-600" title="Delete this notification">Delete</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

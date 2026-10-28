@@ -266,24 +266,8 @@ class DatabaseOptimizationService
             );
         }
 
-        // Read notifications older than 90 days.
-        if ($this->tableExists('notifications')) {
-            $cutoff = Carbon::now()->subDays(90);
-            $count = DB::table('notifications')->whereNotNull('read_at')->where('created_at', '<', $cutoff)->count();
-            if ($count > 0) {
-                $findings[] = $this->deleteFinding(
-                    category: 'inactive',
-                    table: 'notifications',
-                    column: 'read_at',
-                    affected: $count,
-                    expirationStatus: 'read, older than 90 days',
-                    action: "Delete {$count} read notification(s) older than 90 days. Unread notifications are never touched.",
-                    risk: 'low',
-                    whereSql: 'read_at IS NOT NULL AND created_at < ?',
-                    bindings: [$cutoff->toDateTimeString()],
-                );
-            }
-        }
+        // Notifications are never suggested for removal: read or not, they
+        // stay until their owner deletes them on the Notifications page.
 
         // Stale sessions (30+ days idle) — column is an int unix timestamp.
         if ($this->tableExists('sessions')) {

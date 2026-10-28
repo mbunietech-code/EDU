@@ -92,7 +92,8 @@ class ChatService
      */
     public function delete(ChatMessage $message, bool $asAdmin): ChatMessage
     {
-        abort_unless((bool) $message->is_from_admin === $asAdmin, 403);
+        // Customers delete their own messages; admins may remove any message.
+        abort_unless($asAdmin || ! $message->is_from_admin, 403);
 
         if ($message->file_path) {
             \Illuminate\Support\Facades\Storage::disk('private')->delete($message->file_path);
@@ -131,6 +132,7 @@ class ChatService
             'auto' => (bool) $message->is_auto,
             'mine' => $mine,
             'editable' => $mine && $this->isEditable($message),
+            'deletable' => $mine || $viewerIsAdmin,
         ];
     }
 
