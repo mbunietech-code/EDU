@@ -131,7 +131,7 @@ class FinanceController extends Controller
             'receiptsSupported' => $this->receiptsSupported(),
             'allocationsReady' => FinanceAllocation::ready(),
             'available' => FinanceAllocation::ready()
-                ? app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'in' => $b['balance'], 'balance' => $this->availableToGive()[$b['account']->id] ?? 0])
+                ? (fn ($left) => app(MoneyAccountService::class)->balances(false)->map(fn ($b) => ['account' => $b['account'], 'in' => $b['balance'], 'balance' => $left[$b['account']->id] ?? 0]))($this->availableToGive())
                 : collect(),
             'spentElsewhere' => FinanceAllocation::ready() ? $overview->spentElsewhere($line['given'], $line['expenses']) : [],
         ]);
@@ -298,13 +298,13 @@ class FinanceController extends Controller
         return back()->with('success', 'TZS '.number_format($given->amount).' given to '.$given->label.'.');
     }
 
-    /** @return array<int, float> account id => its balance less what was already given from it */
+    /** @return array<int, float> account id => its balance less what is given from it and not spent yet */
     private function availableToGive(): array
     {
-        $given = FinanceAllocation::groupBy('money_account_id')->selectRaw('money_account_id, SUM(amount) as total')->pluck('total', 'money_account_id');
+        $held = app(FinanceOverviewService::class)->unspentGiven();
 
         return app(MoneyAccountService::class)->balances(false)
-            ->mapWithKeys(fn ($b) => [$b['account']->id => round($b['balance'] - (float) ($given[$b['account']->id] ?? 0), 2)])
+            ->mapWithKeys(fn ($b) => [$b['account']->id => round($b['balance'] - ($held[$b['account']->id] ?? 0), 2)])
             ->all();
     }
 

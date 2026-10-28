@@ -73,13 +73,14 @@ class FinanceAuditService
             // 2. More given to lines than an account holds.
             $items = [];
             if (FinanceAllocation::ready()) {
-                $given = FinanceAllocation::groupBy('money_account_id')->selectRaw('money_account_id, SUM(amount) as total')->pluck('total', 'money_account_id');
+                // Only what the lines have not spent from the account yet.
+                $held = app(FinanceOverviewService::class)->unspentGiven();
                 foreach ($balances as $b) {
-                    $total = (float) ($given[$b['account']->id] ?? 0);
-                    if ($total > $b['balance'] + 0.009) {
+                    $total = (float) ($held[$b['account']->id] ?? 0);
+                    if ($total > 0 && $total > $b['balance'] + 0.009) {
                         $items[] = [
                             'label' => $b['account']->name,
-                            'detail' => 'TZS '.number_format($total).' given to lines, TZS '.number_format($b['balance']).' in the account',
+                            'detail' => 'TZS '.number_format($total).' given to lines and not spent yet, TZS '.number_format($b['balance']).' in the account',
                             'url' => route('admin.finance.line', ['line' => \App\Services\FinanceOverviewService::POOL]),
                         ];
                     }

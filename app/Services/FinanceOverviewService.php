@@ -219,7 +219,7 @@ class FinanceOverviewService
             }
             $tick = [];
             foreach ($others as $e) {
-                if ((float) $e->amount <= $room + 0.009) {
+                if ((float) $e->amount <= $room + 1) {   // whole shillings
                     $tick[] = $e->id;
                     $room -= (float) $e->amount;
                 }
@@ -228,6 +228,31 @@ class FinanceOverviewService
         }
 
         return $out;
+    }
+
+    /**
+     * Per account: money given to lines and not spent from that account yet.
+     * Given money a line has already paid out of the account left it with the
+     * expense, so it no longer holds anything back.
+     *
+     * @return array<int, float> account id => still held for lines
+     */
+    public function unspentGiven(): array
+    {
+        $this->rows();
+        $held = [];
+        foreach ($this->items as $key => $parts) {
+            if ($key === self::POOL || empty($parts['given'])) {
+                continue;
+            }
+            $expenses = collect($parts['expenses'] ?? []);
+            foreach (collect($parts['given'])->groupBy('money_account_id') as $accountId => $gives) {
+                $left = (float) $gives->sum('amount') - (float) $expenses->where('money_account_id', $accountId)->sum('amount');
+                $held[(int) $accountId] = round(($held[(int) $accountId] ?? 0) + max(0, $left), 2);
+            }
+        }
+
+        return $held;
     }
 
     public function totals(array $rows): array

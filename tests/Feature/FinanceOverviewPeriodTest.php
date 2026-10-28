@@ -275,7 +275,7 @@ class FinanceOverviewPeriodTest extends TestCase
         $this->finance()->from($internet)->post(route('admin.finance.allocations.store'), [
             'form' => 'give', 'money_account_id' => $voda->id, 'label' => 'Hosting, domain, server', 'amount' => 80000, 'allocated_at' => '2026-10-27',
         ])->assertSessionHasErrors('amount');
-        $this->finance()->get($internet)->assertSee('Voda · TZS 70,000 left to give (TZS 100,000 in it, TZS 30,000 given)');
+        $this->finance()->get($internet)->assertSee('Voda · TZS 70,000 left to give (TZS 100,000 in it, TZS 30,000 given and not spent yet)');
         // Company money given out is not a line of the table, only a note under it.
         $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
             ->assertDontSee('Available money (given out)')->assertSee('Includes TZS 30,000 of company money given to lines.');
@@ -312,7 +312,10 @@ class FinanceOverviewPeriodTest extends TestCase
         $balances = app(\App\Services\Finance\MoneyAccountService::class)->balances()->keyBy(fn ($b) => $b['account']->name);
         $this->assertEquals(40000, $balances['Voda']['balance']);
         $this->assertEquals(-50000, $balances['YAS']['balance']);
-        $this->finance()->get($internet)->assertDontSee('Pay ticked from Voda')->assertSee('Paid from Voda');
+        $this->finance()->get($internet)->assertDontSee('Pay ticked from Voda')->assertSee('Paid from Voda')
+            // Given and spent: it no longer holds anything back, so all 40,000 left can be given.
+            ->assertSee('Voda · TZS 40,000 left to give<', false);
+        $this->finance()->get(route('admin.finance.audit'))->assertDontSee('given to lines and not spent yet');
         $this->finance()->get(route('admin.finance.audit'))->assertSee('Expense now paid from another account')->assertSee('paid from: YAS → Voda');
     }
 
