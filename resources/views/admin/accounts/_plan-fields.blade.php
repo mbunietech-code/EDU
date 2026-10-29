@@ -31,7 +31,7 @@
                               :value="old('cost', $account?->cost)" />
                 <select name="cost_currency" class="mbui-input w-28" aria-label="Currency">
                     @foreach (\App\Models\Account::CURRENCIES as $cur)
-                        <option value="{{ $cur }}" @selected(old('cost_currency', $account?->cost_currency ?? 'USD') === $cur)>{{ $cur }}</option>
+                        <option value="{{ $cur }}" @selected(old('cost_currency', $account?->cost_currency ?? 'TZS') === $cur)>{{ $cur }}</option>
                     @endforeach
                 </select>
             </div>
