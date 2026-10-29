@@ -95,14 +95,18 @@
         </form>
 
         {{-- Removing from here names the expense, unlike the small bin far right in the list. --}}
+        {{-- The reason is typed in the box: a browser prompt is not shown everywhere (in-app browsers). --}}
         <form method="POST" action="{{ route('admin.finance.expenses.destroy', $expense) }}"
-              onsubmit="return window.submitWithReason(this, {{ \Illuminate\Support\Js::from('Why are you removing '.$expense->label.' (TZS '.number_format((float) $expense->amount).')?') }});"
-              class="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              class="mt-4 space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
             @csrf
             @method('DELETE')
-            <input type="hidden" name="reason" value="">
             <p class="text-sm text-red-700">Remove {{ $expense->label }} · TZS {{ number_format((float) $expense->amount) }}</p>
-            <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-50">Remove this expense</button>
+            <div class="flex items-center gap-2">
+                <input type="text" name="reason" required maxlength="2000" placeholder="Why? e.g. double entry" aria-label="Why are you removing this expense?"
+                       class="mbui-input flex-1" value="{{ old('reason') }}">
+                <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-50">Remove this expense</button>
+            </div>
+            <x-input-error :messages="$errors->get('reason')" />
         </form>
     </div>
 
