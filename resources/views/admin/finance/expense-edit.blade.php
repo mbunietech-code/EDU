@@ -93,6 +93,17 @@
                 <x-mbui.button type="submit">Update expense</x-mbui.button>
             </div>
         </form>
+
+        {{-- Removing from here names the expense, unlike the small bin far right in the list. --}}
+        <form method="POST" action="{{ route('admin.finance.expenses.destroy', $expense) }}"
+              onsubmit="return window.submitWithReason(this, {{ \Illuminate\Support\Js::from('Why are you removing '.$expense->label.' (TZS '.number_format((float) $expense->amount).')?') }});"
+              class="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            @csrf
+            @method('DELETE')
+            <input type="hidden" name="reason" value="">
+            <p class="text-sm text-red-700">Remove {{ $expense->label }} · TZS {{ number_format((float) $expense->amount) }}</p>
+            <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-50">Remove this expense</button>
+        </form>
     </div>
 
 </x-layouts.finance>

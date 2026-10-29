@@ -59,4 +59,17 @@ class FinanceAuditTest extends TestCase
     {
         $this->actingAs($this->admin)->get(route('admin.finance.audit'))->assertRedirect(route('admin.finance.pin'));
     }
+
+    public function test_an_expense_can_be_removed_from_its_own_edit_page(): void
+    {
+        $expense = FinanceExpense::create(['label' => 'Forex', 'amount' => 15500, 'spent_at' => '2026-10-20']);
+
+        $this->finance()->get(route('admin.finance.expenses.edit', $expense))->assertOk()
+            ->assertSee('Remove this expense')->assertSee('Remove Forex · TZS 15,500');
+
+        $this->finance()->from(route('admin.finance.expenses.edit', $expense))
+            ->delete(route('admin.finance.expenses.destroy', $expense), ['reason' => 'double entry'])
+            ->assertRedirect(route('admin.finance.expenses.index'));
+        $this->assertNull($expense->fresh());
+    }
 }

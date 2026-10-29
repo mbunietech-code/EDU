@@ -497,12 +497,15 @@ class FinanceController extends Controller
         ]);
 
         $receiptPath = $expense->receipt_path;
+        $fromItsEditPage = str_contains(url()->previous(), '/expenses/'.$expense->id.'/edit');
 
         $deletionService->delete($expense, $validated['reason']);
 
         $this->deleteReceiptFile($receiptPath);
 
-        return back()->with('success', 'Expense removed.');
+        // Its edit page is gone now, so that one goes back to the list.
+        return ($fromItsEditPage ? redirect()->route('admin.finance.expenses.index') : back())
+            ->with('success', 'Expense removed.');
     }
 
     public function staffDashboard()
