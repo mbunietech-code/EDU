@@ -48,7 +48,7 @@
                     <td class="mbui-td font-medium text-gray-700">
                         Opening balance
                         @if (\App\Support\FinanceStart::isSet() && $window['from']?->equalTo(\App\Support\FinanceStart::date()))
-                            <p class="text-xs font-normal text-gray-500">{{ $window['counted'] ? 'Counted' : 'Left by the earlier records (not counted)' }} on the day Finance started. <a href="{{ route('admin.finance.unorganised.index') }}" class="text-indigo-600 hover:text-indigo-500">Earlier records</a></p>
+                            <p class="text-xs font-normal text-gray-500">{{ $window['counted'] ? 'Counted' : 'Not counted (starts at 0)' }} on the day Finance started. <a href="{{ route('admin.finance.unorganised.index') }}" class="text-indigo-600 hover:text-indigo-500">Earlier records</a></p>
                         @endif
                     </td>
                     <td class="mbui-td"></td>

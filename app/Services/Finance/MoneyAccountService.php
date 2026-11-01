@@ -216,9 +216,9 @@ class MoneyAccountService
     /**
      * Where an account's statement starts and ends, and the balance it starts
      * from. In the books: the money counted on the Finance start day (or, for
-     * an account opened later, its own opening balance; for one not counted,
-     * what the earlier records leave in it). With $old: the account's own
-     * opening, up to the day before the start.
+     * an account opened later, its own opening balance; one not counted starts
+     * empty — the books start fresh). With $old: the account's own opening, up
+     * to the day before the start.
      *
      * @return array{from: ?Carbon, to: ?Carbon, opening: float, counted: bool}
      */
@@ -241,7 +241,7 @@ class MoneyAccountService
             return $ownWindow;
         }
 
-        return ['from' => $start, 'to' => null, 'opening' => $this->balanceBefore($account, $start), 'counted' => false];
+        return ['from' => $start, 'to' => null, 'opening' => 0.0, 'counted' => false];
     }
 
     /** What the records leave in an account just before this moment (from its own opening). */

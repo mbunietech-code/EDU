@@ -87,6 +87,9 @@ class FinanceController extends Controller
         $period = FinancePeriod::fromRequest($request);
         $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
+        // All of the books: the balance starts from the money counted on the start day.
+        $opening = $period->isAll() ? $overview->opening() : 0.0;
+        $totals['balance'] += $opening;
 
         return response()->json(['data' => [
             'period' => [
@@ -110,6 +113,7 @@ class FinanceController extends Controller
                 'expenses' => (float) $totals['expenses'],
                 'repaid' => (float) $totals['repaid'],
                 'balance' => (float) $totals['balance'],
+                'opening' => $opening,
             ],
         ]]);
     }

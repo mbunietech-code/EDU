@@ -77,6 +77,9 @@
         <x-mbui.card class="p-6">
             <p class="text-sm font-medium text-gray-500">{{ $period->isAll() ? 'Balance' : 'Net for the period' }}</p>
             <p class="mt-2 text-2xl font-bold tracking-tight {{ $totals['balance'] >= 0 ? 'text-gray-900' : 'text-red-600' }}">TZS {{ number_format($totals['balance']) }}</p>
+            @if ($opening != 0)
+                <p class="mt-1 text-xs text-gray-500">Started with TZS {{ number_format($opening) }} counted on {{ \App\Support\FinanceStart::label() }}</p>
+            @endif
             @if ($totals['repaid'] > 0)
                 <p class="mt-1 text-xs text-gray-500">After TZS {{ number_format($totals['repaid']) }} in loan repayments</p>
             @endif

@@ -127,8 +127,13 @@ class FinanceStartDateTest extends TestCase
         $this->assertSame($paymentsBefore, Payment::orderBy('id')->get(['id', 'amount', 'status', 'created_at', 'updated_at'])->toArray());
         $this->assertSame(4, FinanceExpense::count() + FinanceCapitalEntry::count() + FinanceLoanRepayment::count() - 1);
 
+        // All of the books: 150,000 counted in Alipay + 40,000 − 5,000 − 20,000.
+        $this->assertSame(150000.0, $overview->opening());
         $this->finance()->get(route('admin.finance.dashboard'))->assertOk()
-            ->assertSee('Counting from 01 Nov 2026')->assertSee('Since 01 Nov 2026');
+            ->assertSee('Counting from 01 Nov 2026')->assertSee('Since 01 Nov 2026')
+            ->assertSee('TZS 165,000')->assertSee('Started with TZS 150,000');
+        $this->finance()->get(route('admin.finance.dashboard', ['period' => 'month']))->assertOk()
+            ->assertSee('TZS 15,000')->assertDontSee('Started with');
         $this->finance()->get(route('admin.finance.expenses.index'))->assertOk()
             ->assertSee('New bundle')->assertDontSee('Old bundle');
         $this->assertNotContains('2026-10', app(BudgetService::class)->months());
@@ -154,10 +159,10 @@ class FinanceStartDateTest extends TestCase
         $this->finance()->get(route('admin.finance.money.show', $this->alipay->id))->assertOk()
             ->assertSee('Counted')->assertSee('165,000');
 
-        // Not counted: it starts with what the earlier records leave in it.
+        // Not counted: the books start fresh, at 0.
         $this->start(null);
-        $this->assertSame(140000.0, $money->balances()->first()['opening']);
-        $this->assertSame(155000.0, $money->balances()->first()['balance']);
+        $this->assertSame(0.0, $money->balances()->first()['opening']);
+        $this->assertSame(15000.0, $money->balances()->first()['balance']);
     }
 
     public function test_loans_still_owed_are_brought_forward(): void

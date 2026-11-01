@@ -29,7 +29,7 @@
 
         <div>
             <h2 class="text-base font-semibold text-gray-900">Money in each account that morning</h2>
-            <p class="mt-1 text-sm text-gray-500">Count what really sits in each wallet, bank and cash box at the start of {{ $date->format('d M Y') }} and type it. Left empty, an account starts with what the earlier records leave in it.</p>
+            <p class="mt-1 text-sm text-gray-500">Count what really sits in each wallet, bank and cash box at the start of {{ $date->format('d M Y') }} and type it. Left empty, an account starts at 0. "Left by the records" is only for comparing.</p>
 
             @if ($accounts->isEmpty())
                 <p class="mt-3 text-sm text-gray-500">No money accounts yet. Add them under <a href="{{ route('admin.finance.money.index') }}" class="font-medium text-indigo-600 hover:text-indigo-500">Money accounts</a>.</p>
@@ -52,7 +52,7 @@
                                 <td class="mbui-td text-right tabular-nums text-gray-500">{{ number_format($a['records']) }}</td>
                                 <td class="mbui-td">
                                     <x-text-input id="bal-{{ $a['account']->id }}" class="mbui-input w-48" type="number" step="0.01" inputmode="decimal"
-                                        name="balances[{{ $a['account']->id }}]" :value="old('balances.'.$a['account']->id, $a['counted'] === null ? '' : $a['counted'])" placeholder="{{ (int) $a['records'] }}" />
+                                        name="balances[{{ $a['account']->id }}]" :value="old('balances.'.$a['account']->id, $a['counted'] === null ? '' : $a['counted'])" placeholder="0" />
                                 </td>
                             </tr>
                         @endforeach

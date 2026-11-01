@@ -95,6 +95,9 @@ class FinanceController extends Controller
         $period = FinancePeriod::fromRequest($request);
         $rows = $overview->rows($period);
         $totals = $overview->totals($rows);
+        // All of the books: the balance starts from the money counted on the start day.
+        $opening = $period->isAll() ? $overview->opening() : 0.0;
+        $totals['balance'] += $opening;
         // Company money given to lines is internal: the totals count it, the
         // table does not list it as a line of its own.
         $pool = collect($rows)->firstWhere('key', FinanceOverviewService::POOL);
@@ -116,7 +119,7 @@ class FinanceController extends Controller
             ];
         }
 
-        return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period', 'given'));
+        return view('admin.finance.dashboard', compact('rows', 'totals', 'money', 'period', 'given', 'opening'));
     }
 
     /** One line of "Per software": the records behind its numbers, to edit or remove. */

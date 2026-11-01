@@ -259,6 +259,20 @@ class FinanceOverviewService
         return $held;
     }
 
+    /**
+     * Money the books started with: counted in the accounts on the Finance
+     * start day (FinanceStart). Zero with no start date.
+     */
+    public function opening(): float
+    {
+        if (! FinanceStart::isSet() || ! \App\Services\Finance\MoneyAccountService::ready()) {
+            return 0.0;
+        }
+        $ids = \App\Models\FinanceMoneyAccount::pluck('id')->all();
+
+        return round((float) array_sum(array_intersect_key(FinanceStart::balances(), array_flip($ids))), 2);
+    }
+
     public function totals(array $rows): array
     {
         return [
