@@ -266,7 +266,7 @@ class PayrollService
     public static function paidRules(): array
     {
         return MoneyAccountService::fieldRules() + [
-            'paid_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
+            'paid_at' => array_merge(['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()], \App\Support\FinanceStart::rule()),
         ];
     }
 
@@ -374,7 +374,10 @@ class PayrollService
     /** RETURN_PAID_RULES plus which money account paid it (once that exists). */
     public static function returnPaidRules(): array
     {
-        return MoneyAccountService::fieldRules() + self::RETURN_PAID_RULES;
+        $rules = self::RETURN_PAID_RULES;
+        $rules['paid_at'] = array_merge($rules['paid_at'], \App\Support\FinanceStart::rule());
+
+        return MoneyAccountService::fieldRules() + $rules;
     }
 
     /**

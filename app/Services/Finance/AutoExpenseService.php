@@ -58,11 +58,15 @@ class AutoExpenseService
             : null;
     }
 
-    /** Remove the automatic expense of a source that was undone (e.g. a return set back to pending). */
+    /**
+     * Remove the automatic expense of a source that was undone (e.g. a return
+     * set back to pending). One from before the Finance start date stays.
+     */
     public function forget(string $sourceType, int $sourceId): void
     {
         $expense = $this->find($sourceType, $sourceId);
         if ($expense) {
+            \App\Support\FinanceStart::guard(\App\Support\FinanceDates::expense($expense));
             ActivityLog::log('finance_expense_auto_removed', 'FinanceExpense', $expense->id, [
                 'source' => $sourceType, 'source_id' => $sourceId, 'amount' => $expense->amount,
             ]);

@@ -502,6 +502,13 @@ Route::prefix('admin')
             Route::post('finance/purchases/{kind}/{id}/record', [\App\Http\Controllers\Admin\FinancePurchaseController::class, 'record'])->whereIn('kind', ['account', 'asset'])->whereNumber('id')->name('finance.purchases.record');
             Route::post('finance/purchases/{kind}/{id}/link', [\App\Http\Controllers\Admin\FinancePurchaseController::class, 'link'])->whereIn('kind', ['account', 'asset'])->whereNumber('id')->name('finance.purchases.link');
             Route::put('finance/budget', [\App\Http\Controllers\Admin\FinanceBudgetController::class, 'update'])->name('finance.budget.update');
+            Route::controller(\App\Http\Controllers\Admin\FinanceUnorganisedController::class)->group(function () {
+                Route::get('finance/unorganised', 'index')->name('finance.unorganised.index');
+                Route::get('finance/unorganised/csv', 'csv')->name('finance.unorganised.csv');
+                Route::get('finance/start', 'start')->name('finance.start.edit');
+                Route::put('finance/start', 'saveStart')->name('finance.start.update');
+                Route::delete('finance/start', 'clearStart')->name('finance.start.destroy');
+            });
             Route::controller(\App\Http\Controllers\Admin\FinanceMoneyController::class)->group(function () {
                 Route::get('finance/money', 'index')->name('finance.money.index');
                 Route::post('finance/money', 'store')->name('finance.money.store');

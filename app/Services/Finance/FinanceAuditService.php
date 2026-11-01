@@ -10,6 +10,7 @@ use App\Models\FinanceExpense;
 use App\Models\FinanceMoneyAccount;
 use App\Services\FinanceOverviewService;
 use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Support\Collection;
 
 /**
@@ -129,7 +130,7 @@ class FinanceAuditService
 
         // 4. Two expenses with the same amount within three days.
         $items = [];
-        $expenses = FinanceExpense::orderBy('spent_at')->get(['id', 'label', 'amount', 'spent_at']);
+        $expenses = FinanceStart::scopeDay(FinanceExpense::orderBy('spent_at'), 'spent_at')->get(['id', 'label', 'amount', 'spent_at']);
         foreach ($expenses->groupBy(fn ($e) => (string) round((float) $e->amount, 2)) as $same) {
             $same = $same->values();
             for ($i = 1; $i < $same->count(); $i++) {
@@ -149,7 +150,7 @@ class FinanceAuditService
         // 5. Capital without the day it was received.
         $items = [];
         if (FinanceDates::hasReceivedDate()) {
-            foreach (FinanceCapitalEntry::whereNull('received_at')->orderBy('created_at')->get() as $c) {
+            foreach (FinanceStart::scopeMoment(FinanceCapitalEntry::whereNull('received_at')->orderBy('created_at'))->get() as $c) {
                 $items[] = [
                     'label' => "{$c->label} · {$c->source} · TZS ".number_format($c->amount),
                     'detail' => 'Counted on '.FinanceDates::local($c->created_at)?->format('d M Y').', the day it was typed in',
@@ -175,7 +176,7 @@ class FinanceAuditService
         // 7. Typed-in expenses without a receipt.
         $items = [];
         if (\Illuminate\Support\Facades\Schema::hasColumn('finance_expenses', 'receipt_path')) {
-            $missing = FinanceExpense::whereNull('receipt_path')
+            $missing = FinanceStart::scopeDay(FinanceExpense::whereNull('receipt_path'), 'spent_at')
                 ->when(FinanceExpense::typesReady(), fn ($q) => $q->whereNull('source_type'))
                 ->orderByDesc('spent_at')->get(['id', 'label', 'amount', 'spent_at']);
             foreach ($missing as $e) {

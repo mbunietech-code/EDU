@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -79,5 +81,27 @@ class FinanceCapitalEntry extends Model
     public function isFullyRepaid(): bool
     {
         return $this->is_loan && $this->outstandingAmount() <= 0;
+    }
+
+    /**
+     * Entries in Finance's books, or with $old the unorganised ones before
+     * them (FinanceStart): by the day received, else the day typed in.
+     */
+    public function scopeInBooks($query, bool $old = false)
+    {
+        if (! FinanceStart::isSet()) {
+            return $old ? $query->whereRaw('1 = 0') : $query;
+        }
+        $day = FinanceStart::date()->toDateString();
+
+        return $query->where(function ($w) use ($old, $day) {
+            if (! FinanceDates::hasReceivedDate()) {
+                FinanceStart::scopeMoment($w, 'created_at', $old);
+
+                return;
+            }
+            $w->where('received_at', $old ? '<' : '>=', $day)
+                ->orWhere(fn ($n) => FinanceStart::scopeMoment($n->whereNull('received_at'), 'created_at', $old));
+        });
     }
 }

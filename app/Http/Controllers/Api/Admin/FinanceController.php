@@ -13,7 +13,9 @@ use App\Models\Tool;
 use App\Services\DeletionService;
 use App\Services\Finance\MoneyAccountService;
 use App\Services\FinanceOverviewService;
+use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
+use App\Support\FinanceStart;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -117,7 +119,7 @@ class FinanceController extends Controller
         $this->gate($request);
         $this->assertUnlocked($request);
 
-        $expenses = FinanceExpense::with(['product:id,name', 'tool:id,name', 'creator:id,name'])
+        $expenses = FinanceStart::scopeDay(FinanceExpense::with(['product:id,name', 'tool:id,name', 'creator:id,name']), 'spent_at')
             ->latest('spent_at')
             ->paginate(30);
 
@@ -152,7 +154,7 @@ class FinanceController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01'],
             'category' => ['nullable', Rule::in(self::CATEGORIES)],
             'description' => ['nullable', 'string', 'max:2000'],
-            'spent_at' => ['required', 'date'],
+            'spent_at' => array_merge(['required', 'date'], FinanceStart::rule()),
             'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ]);
         $data['created_by'] = $request->user()->id;
@@ -197,6 +199,7 @@ class FinanceController extends Controller
     {
         $this->gate($request);
         $this->assertUnlocked($request);
+        FinanceStart::guard(FinanceDates::expense($expense), 'spent_at');
 
         $data = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
@@ -205,7 +208,7 @@ class FinanceController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01'],
             'category' => ['nullable', Rule::in(self::CATEGORIES)],
             'description' => ['nullable', 'string', 'max:2000'],
-            'spent_at' => ['required', 'date'],
+            'spent_at' => array_merge(['required', 'date'], FinanceStart::rule()),
         ]);
         $data['label'] = $this->resolveLabel($data);
         $data = $this->withTypeCategory($data);
@@ -222,6 +225,7 @@ class FinanceController extends Controller
     {
         $this->gate($request);
         $this->assertUnlocked($request);
+        FinanceStart::guard(FinanceDates::expense($expense), 'reason');
 
         $reason = $this->reason($request);
         $deletions->delete($expense, $reason);
@@ -245,6 +249,7 @@ class FinanceController extends Controller
         $this->assertUnlocked($request);
 
         $entries = FinanceCapitalEntry::with(['product:id,name', 'tool:id,name', 'creator:id,name'])
+            ->inBooks()
             ->latest()
             ->paginate(30);
 
@@ -311,6 +316,7 @@ class FinanceController extends Controller
     {
         $this->gate($request);
         $this->assertUnlocked($request);
+        FinanceStart::guard(FinanceDates::capital($capitalEntry), 'amount');
 
         $data = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
@@ -335,6 +341,7 @@ class FinanceController extends Controller
     {
         $this->gate($request);
         $this->assertUnlocked($request);
+        FinanceStart::guard(FinanceDates::capital($capitalEntry), 'reason');
 
         $reason = $this->reason($request);
         $deletions->delete($capitalEntry, $reason);

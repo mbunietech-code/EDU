@@ -64,9 +64,12 @@ class FinanceMoneyController extends Controller
 
         $account = FinanceMoneyAccount::findOrFail($id);
         $rows = $this->money->statement($account);
+        $window = $this->money->window($account);
 
         return response()->json(['data' => $this->row($account) + [
-            'balance' => round((float) $account->opening_balance + (float) $rows->sum('amount'), 2),
+            'starts_on' => $window['from']?->toDateString(),
+            'starts_with' => $window['opening'],
+            'balance' => round($window['opening'] + (float) $rows->sum('amount'), 2),
             'statement' => $rows->map(fn ($r) => [
                 'date' => $r['date']->toDateString(),
                 'kind' => $r['kind'],

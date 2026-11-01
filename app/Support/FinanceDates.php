@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\FinanceCapitalEntry;
+use App\Models\FinanceExpense;
+use App\Models\FinanceLoanRepayment;
 use App\Models\Payment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -74,6 +76,16 @@ class FinanceDates
         }
 
         return self::local($entry->created_at);
+    }
+
+    public static function expense(FinanceExpense $expense): ?Carbon
+    {
+        return $expense->spent_at ? self::day($expense->spent_at) : self::local($expense->created_at);
+    }
+
+    public static function repayment(FinanceLoanRepayment $repayment): ?Carbon
+    {
+        return $repayment->paid_at ? self::day($repayment->paid_at) : self::local($repayment->created_at);
     }
 
     /** False until database/alters/0036 (received_at on capital entries) is applied. */

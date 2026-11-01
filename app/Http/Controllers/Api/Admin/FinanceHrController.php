@@ -274,7 +274,10 @@ class FinanceHrController extends Controller
     {
         $this->finance($request);
 
-        $entries = FinanceCapitalEntry::where('is_loan', true)->withSum('repayments', 'amount')->latest()->get();
+        // Loans of the books, and ones from before the Finance start date still owed on it.
+        $brought = $loans->broughtForward()->map(fn ($l) => $l['loan']->id)->all();
+        $entries = FinanceCapitalEntry::where('is_loan', true)->withSum('repayments', 'amount')->latest()->get()
+            ->filter(fn ($e) => \App\Support\FinanceStart::keeps(\App\Support\FinanceDates::capital($e)) || in_array($e->id, $brought, true));
 
         return response()->json(['data' => [
             'totals' => $loans->totals(),
@@ -320,6 +323,7 @@ class FinanceHrController extends Controller
     {
         $this->finance($request);
         abort_unless((int) $repayment->finance_capital_entry_id === (int) $capitalEntry->id, 404);
+        \App\Support\FinanceStart::guard(\App\Support\FinanceDates::repayment($repayment), 'reason');
 
         $data = $request->validate(['reason' => ['required', 'string', 'max:2000']]);
         $deletion->delete($repayment, $data['reason']);

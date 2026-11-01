@@ -117,7 +117,8 @@ class FinancePeriod
             'month' => $this->from->format('F Y'),
             'year' => $this->from->format('Y'),
             'custom' => ($this->from?->format('d M Y') ?? 'Start').' – '.($this->to?->format('d M Y') ?? 'today'),
-            default => 'All time',
+            // "All time" is all of the books: from the Finance start date on.
+            default => FinanceStart::isSet() ? 'Since '.FinanceStart::label() : 'All time',
         };
     }
 

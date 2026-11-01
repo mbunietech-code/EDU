@@ -9,6 +9,7 @@ use App\Models\FinanceMoneyAccount;
 use App\Models\FinanceMoneyTransfer;
 use App\Models\Payment;
 use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -24,10 +25,18 @@ use Illuminate\Support\Collection;
  *   Loan repaid     Dr Loan: <source>             Cr Cash: <money account>
  *   Expense         Dr Expense: <type/category>   Cr Cash: <money account>
  *   Transfer        Dr Cash: <to>                 Cr Cash: <from>
+ *   Opening         Dr Cash: <money account>      Cr Opening balance
+ *   Loan brought    Dr Opening balance            Cr Loan: <source>
+ *
+ * Once Finance has a start date (FinanceStart) the books open that day: each
+ * money account with what it held, each loan with what was still owed, and
+ * only later movements. The ones before stay under "Unorganised data".
  */
 class LedgerService
 {
     public const UNASSIGNED_CASH = 'Cash: account not set';
+
+    public const OPENING = 'Opening balance';
 
     /** Separate journals (books of entry), each for one kind of movement. */
     public const JOURNALS = [
@@ -36,6 +45,7 @@ class LedgerService
         'capital' => ['label' => 'Capital & loans', 'kinds' => ['capital', 'loan'], 'note' => 'Owner capital and loans received. Dr the money account, Cr the owner or lender.'],
         'repayments' => ['label' => 'Loan repayments', 'kinds' => ['repayment'], 'note' => 'Loans paid back. Dr the lender (less owed), Cr the money account.'],
         'transfers' => ['label' => 'Transfers', 'kinds' => ['transfer'], 'note' => 'Money moved between our own accounts. Dr the receiving account, Cr the sending one.'],
+        'opening' => ['label' => 'Opening balances', 'kinds' => ['opening'], 'note' => 'What the books started with on the Finance start day: money in each account (Dr) and loans still owed (Cr).'],
     ];
 
     /** Lines of one journal ('all' = every line). */
@@ -47,9 +57,12 @@ class LedgerService
     }
 
     /**
+     * Journal lines of the books, or (with $old) of the unorganised records
+     * before the Finance start date.
+     *
      * @return Collection<int, array{date: Carbon, kind: string, description: string, ref: ?string, dr: string, cr: string, amount: float, url: ?string}>
      */
-    public function journal(?Carbon $from = null, ?Carbon $to = null): Collection
+    public function journal(?Carbon $from = null, ?Carbon $to = null, bool $old = false): Collection
     {
         $ready = MoneyAccountService::ready();
         $accounts = $ready ? FinanceMoneyAccount::pluck('name', 'id') : collect();
@@ -57,7 +70,7 @@ class LedgerService
         $cash = fn ($id) => $id && isset($accounts[$id]) ? 'Cash: '.$accounts[$id] : self::UNASSIGNED_CASH;
         $lines = collect();
 
-        Payment::where('status', 'approved')
+        FinanceStart::scopeMoment(Payment::where('status', 'approved'), 'created_at', $old)
             ->with('order:id,order_number,product_id,tool_id', 'order.product:id,name', 'order.tool:id,name')
             ->get()
             ->each(function (Payment $p) use ($lines, $methodMap) {
@@ -100,6 +113,11 @@ class LedgerService
                 $r->capitalEntry ? route('admin.finance.capital.repayments.index', $r->capitalEntry) : null, 5, $r->id));
         });
 
+        $lines = $lines->filter(fn ($l) => FinanceStart::keeps($l['date'], $old));
+        if (! $old && FinanceStart::isSet()) {
+            $lines = $lines->merge($this->opening($ready));
+        }
+
         return $lines
             ->filter(fn ($l) => ($from === null || $l['date']->gte($from)) && ($to === null || $l['date']->lte($to)))
             ->sortBy('sort')
@@ -124,7 +142,7 @@ class LedgerService
             $rows[$l['cr']]['cr'] = ($rows[$l['cr']]['cr'] ?? 0) + $l['amount'];
         }
 
-        $order = ['Cash' => 1, 'Sales' => 2, 'Owner capital' => 3, 'Loan' => 4, 'Expense' => 5];
+        $order = ['Cash' => 1, 'Sales' => 2, 'Owner capital' => 3, self::OPENING => 4, 'Loan' => 5, 'Expense' => 6];
 
         return collect($rows)->map(function ($r, $name) {
             $dr = round($r['dr'] ?? 0, 2);
@@ -134,6 +152,35 @@ class LedgerService
         })
             ->sortBy(fn ($r) => sprintf('%d|%s', $order[$r['group']] ?? 9, $r['account']))
             ->values();
+    }
+
+    /** Opening lines on the start day: money in each account, and loans still owed then. */
+    private function opening(bool $ready): Collection
+    {
+        $start = FinanceStart::date();
+        $lines = collect();
+
+        if ($ready) {
+            foreach (app(MoneyAccountService::class)->balances() as $b) {
+                $a = $b['account'];
+                $window = app(MoneyAccountService::class)->window($a);
+                if (round($b['opening'], 2) == 0 || ! $window['from']?->equalTo($start)) {
+                    continue;
+                }
+                [$dr, $cr] = $b['opening'] > 0 ? ['Cash: '.$a->name, self::OPENING] : [self::OPENING, 'Cash: '.$a->name];
+                $lines->push($this->line($start, 'opening', 'Opening balance: '.$a->name, null, $dr, $cr,
+                    abs($b['opening']), route('admin.finance.money.show', $a->id), 0, $a->id));
+            }
+        }
+
+        foreach (app(LoanService::class)->broughtForward() as $loan) {
+            $c = $loan['loan'];
+            $lines->push($this->line($start, 'opening', 'Loan brought forward: '.$c->label, null, self::OPENING,
+                'Loan: '.$this->person($c->source), $loan['outstanding'],
+                route('admin.finance.capital.repayments.index', $c), 0, 1000000 + $c->id));
+        }
+
+        return $lines;
     }
 
     /** "Dr. Mussa Awadhi" and "Mr. Mussa Awadhi" are one lender. */

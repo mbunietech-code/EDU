@@ -28,6 +28,7 @@ use App\Services\Finance\StaffService;
 use App\Services\FinanceOverviewService;
 use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
+use App\Support\FinanceStart;
 use App\Services\StatutoryPayrollService;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -154,7 +155,7 @@ class FinanceController extends Controller
         $to = (int) $validated['money_account_id'];
         $moved = 0.0;
         foreach (FinanceExpense::whereIn('id', $validated['expense_ids'])->get() as $expense) {
-            if ((int) $expense->money_account_id === $to) {
+            if ((int) $expense->money_account_id === $to || FinanceStart::isOld(FinanceDates::expense($expense))) {
                 continue;
             }
             $old = $names[$expense->money_account_id] ?? 'no account';
@@ -166,6 +167,15 @@ class FinanceController extends Controller
         }
 
         return back()->with('success', 'TZS '.number_format($moved).' of expenses now paid from '.$names[$to].'.');
+    }
+
+    /** A record from before the Finance start date is read-only: show it under Unorganised data instead. */
+    private function oldRecord(?Carbon $at)
+    {
+        return FinanceStart::isOld($at)
+            ? redirect()->route('admin.finance.unorganised.index')
+                ->with('error', 'That record is from before '.FinanceStart::label().', when Finance started again. It stays here, read-only.')
+            : null;
     }
 
     /** After an edit, back to the page it was opened from (a Finance page only). */
@@ -183,8 +193,10 @@ class FinanceController extends Controller
     {
         $entries = FinanceCapitalEntry::with(['product', 'tool', 'creator'])
             ->withSum('repayments', 'amount')
+            ->inBooks()
             ->latest()
             ->paginate(20);
+        $broughtForward = app(LoanService::class)->broughtForward();
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
@@ -192,14 +204,14 @@ class FinanceController extends Controller
 
         $moneyAccounts = app(MoneyAccountService::class)->options();
 
-        return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals', 'moneyAccounts'));
+        return view('admin.finance.capital', compact('entries', 'products', 'tools', 'loanTotals', 'moneyAccounts', 'broughtForward'));
     }
 
     /** The day the money actually came in (not in the future), once the column exists. */
     private function receivedRules(): array
     {
         return FinanceDates::hasReceivedDate()
-            ? ['received_at' => ['nullable', 'date', 'before_or_equal:'.FinanceDates::today()]]
+            ? ['received_at' => array_merge(['nullable', 'date', 'before_or_equal:'.FinanceDates::today()], FinanceStart::rule())]
             : [];
     }
 
@@ -230,6 +242,10 @@ class FinanceController extends Controller
 
     public function capitalEdit(FinanceCapitalEntry $capitalEntry)
     {
+        if ($old = $this->oldRecord(FinanceDates::capital($capitalEntry))) {
+            return $old;
+        }
+
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
@@ -240,6 +256,8 @@ class FinanceController extends Controller
 
     public function capitalUpdate(Request $request, FinanceCapitalEntry $capitalEntry)
     {
+        FinanceStart::guard(FinanceDates::capital($capitalEntry), 'amount');
+
         $validated = $request->validate(MoneyAccountService::fieldRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
@@ -281,7 +299,7 @@ class FinanceController extends Controller
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'allocated_at' => ['required', 'date', 'before_or_equal:'.FinanceDates::today()],
+            'allocated_at' => array_merge(['required', 'date', 'before_or_equal:'.FinanceDates::today()], FinanceStart::rule()),
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -311,6 +329,8 @@ class FinanceController extends Controller
 
     public function allocationDestroy(Request $request, FinanceAllocation $allocation, DeletionService $deletionService)
     {
+        FinanceStart::guard(FinanceDates::day($allocation->allocated_at), 'reason');
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
         ]);
@@ -322,6 +342,8 @@ class FinanceController extends Controller
 
     public function capitalDestroy(Request $request, FinanceCapitalEntry $capitalEntry, DeletionService $deletionService)
     {
+        FinanceStart::guard(FinanceDates::capital($capitalEntry), 'reason');
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
         ]);
@@ -355,6 +377,7 @@ class FinanceController extends Controller
     public function repaymentDestroy(Request $request, FinanceCapitalEntry $capitalEntry, FinanceLoanRepayment $repayment, DeletionService $deletionService)
     {
         abort_unless((int) $repayment->finance_capital_entry_id === (int) $capitalEntry->id, 404);
+        FinanceStart::guard(FinanceDates::repayment($repayment), 'reason');
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
@@ -368,7 +391,7 @@ class FinanceController extends Controller
     public function expenseIndex(Request $request)
     {
         $type = FinanceExpense::typesReady() ? (string) $request->query('type', '') : '';
-        $expenses = FinanceExpense::with(['product', 'tool', 'creator'])
+        $expenses = FinanceStart::scopeDay(FinanceExpense::with(['product', 'tool', 'creator']), 'spent_at')
             ->when($type === 'none', fn ($q) => $q->whereNull('expense_type'))
             ->when(isset(FinanceExpense::types()[$type]), fn ($q) => $q->where('expense_type', $type))
             ->latest('spent_at')
@@ -400,7 +423,7 @@ class FinanceController extends Controller
             ])],
             'description' => ['nullable', 'string', 'max:2000'],
             'receipt' => self::RECEIPT_RULES,
-            'spent_at' => ['required', 'date'],
+            'spent_at' => array_merge(['required', 'date'], FinanceStart::rule()),
         ]);
 
         unset($validated['receipt']);
@@ -421,6 +444,10 @@ class FinanceController extends Controller
 
     public function expenseEdit(FinanceExpense $expense)
     {
+        if ($old = $this->oldRecord(FinanceDates::expense($expense))) {
+            return $old;
+        }
+
         $products = Product::orderBy('name')->get(['id', 'name']);
         $tools = Tool::orderBy('name')->get(['id', 'name']);
 
@@ -433,6 +460,8 @@ class FinanceController extends Controller
 
     public function expenseUpdate(Request $request, FinanceExpense $expense)
     {
+        FinanceStart::guard(FinanceDates::expense($expense), 'spent_at');
+
         $validated = $request->validate(MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'product_id' => ['nullable', 'exists:products,id'],
             'tool_id' => ['nullable', 'exists:tools,id'],
@@ -448,7 +477,7 @@ class FinanceController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'receipt' => self::RECEIPT_RULES,
             'remove_receipt' => ['nullable', 'boolean'],
-            'spent_at' => ['required', 'date'],
+            'spent_at' => array_merge(['required', 'date'], FinanceStart::rule()),
         ]);
 
         $removeReceipt = (bool) ($validated['remove_receipt'] ?? false);
@@ -492,6 +521,8 @@ class FinanceController extends Controller
 
     public function expenseDestroy(Request $request, FinanceExpense $expense, DeletionService $deletionService)
     {
+        FinanceStart::guard(FinanceDates::expense($expense), 'reason');
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
         ]);

@@ -9,6 +9,7 @@ use App\Models\FinancePayrollPeriod;
 use App\Models\FinanceStatutoryReturn;
 use App\Models\Payment;
 use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Support\Carbon;
 
 /**
@@ -32,7 +33,7 @@ class MonthlyReportService
     {
         [$from, $to] = [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()];
 
-        $income = Payment::where('status', 'approved')
+        $income = FinanceStart::scopeMoment(Payment::where('status', 'approved'))
             ->with('order:id,product_id,tool_id', 'order.product:id,name', 'order.tool:id,name')
             ->get()
             ->filter(fn ($p) => FinanceDates::payment($p)?->format('Y-m') === $from->format('Y-m'))
@@ -43,8 +44,8 @@ class MonthlyReportService
 
         $cogs = [];
         $opex = [];
-        $expenses = FinanceExpense::with('product:id,name', 'tool:id,name')
-            ->whereBetween('spent_at', [$from->toDateString(), $to->toDateString()])->get();
+        $expenses = FinanceStart::scopeDay(FinanceExpense::with('product:id,name', 'tool:id,name')
+            ->whereBetween('spent_at', [$from->toDateString(), $to->toDateString()]), 'spent_at')->get();
         foreach ($expenses as $e) {
             $isCogs = ($e->expense_type ?? null) === 'product_accounts' || $e->category === 'Cost of Goods Sold (COGS)';
             if ($isCogs) {
@@ -70,7 +71,8 @@ class MonthlyReportService
         }
         uasort($products, fn ($a, $b) => $b['profit'] <=> $a['profit']);
 
-        $capital = FinanceCapitalEntry::all()->filter(fn ($c) => FinanceDates::capital($c)?->format('Y-m') === $from->format('Y-m'))->values();
+        $capital = FinanceCapitalEntry::all()->filter(fn ($c) => FinanceStart::keeps(FinanceDates::capital($c))
+            && FinanceDates::capital($c)?->format('Y-m') === $from->format('Y-m'))->values();
 
         return [
             'month' => $from->format('Y-m'),
@@ -85,7 +87,7 @@ class MonthlyReportService
             'cash' => [
                 'capital_in' => round((float) $capital->where('is_loan', false)->sum('amount'), 2),
                 'loans_in' => round((float) $capital->where('is_loan', true)->sum('amount'), 2),
-                'repaid' => round((float) FinanceLoanRepayment::whereBetween('paid_at', [$from->toDateString(), $to->toDateString()])->sum('amount'), 2),
+                'repaid' => round((float) FinanceStart::scopeDay(FinanceLoanRepayment::whereBetween('paid_at', [$from->toDateString(), $to->toDateString()]), 'paid_at')->sum('amount'), 2),
             ],
             'products' => $products,
         ];
@@ -106,7 +108,7 @@ class MonthlyReportService
             'detail' => $pending === 0 ? 'None waiting.' : "{$pending} waiting.", 'route' => route('admin.payments.index')];
 
         $untyped = FinanceExpense::typesReady()
-            ? FinanceExpense::whereNull('expense_type')->whereBetween('spent_at', [$from->toDateString(), $to->toDateString()])->count()
+            ? FinanceStart::scopeDay(FinanceExpense::whereNull('expense_type')->whereBetween('spent_at', [$from->toDateString(), $to->toDateString()]), 'spent_at')->count()
             : null;
         $items[] = ['label' => 'Give every expense a type', 'done' => $untyped === null ? null : $untyped === 0,
             'detail' => $untyped === null ? 'Apply database change 0035 first.' : ($untyped === 0 ? 'All typed.' : "{$untyped} without a type this month."),

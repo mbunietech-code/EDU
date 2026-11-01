@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Tool;
 use App\Support\FinanceDates;
 use App\Support\FinancePeriod;
+use App\Support\FinanceStart;
 use Illuminate\Support\Collection;
 
 class FinanceOverviewService
@@ -27,10 +28,13 @@ class FinanceOverviewService
      * (payments on the day the customer paid, capital on the day it was
      * received, expenses and repayments on their own dates — all on Tanzania
      * time, see FinanceDates) and the balance is the period's net.
+     *
+     * Only records from the Finance start date on count (FinanceStart); with
+     * $old, only the unorganised records before it.
      */
-    public function rows(?FinancePeriod $period = null): array
+    public function rows(?FinancePeriod $period = null, bool $old = false): array
     {
-        $in = fn ($at) => $period === null || $period->contains($at);
+        $in = fn ($at) => FinanceStart::keeps($at, $old) && ($period === null || $period->contains($at));
 
         $rows = [];
         $this->items = [];
@@ -73,7 +77,7 @@ class FinanceOverviewService
         }
 
         // Income: real revenue already flowing through the system (approved payments).
-        $payments = Payment::where('status', 'approved')
+        $payments = FinanceStart::scopeMoment(Payment::where('status', 'approved'), 'created_at', $old)
             ->whereHas('order', fn ($q) => $q->where(fn ($w) => $w->whereNotNull('product_id')->orWhereNotNull('tool_id')))
             ->with('order:id,order_number,product_id,tool_id', 'user:id,name')
             ->get();
@@ -99,7 +103,7 @@ class FinanceOverviewService
         }
 
         foreach (FinanceExpense::all() as $expense) {
-            if (! $in($expense->spent_at ? FinanceDates::day($expense->spent_at) : FinanceDates::local($expense->created_at))) {
+            if (! $in(FinanceDates::expense($expense))) {
                 continue;
             }
             // General costs with a type share one line per type ("Electricity
@@ -118,7 +122,7 @@ class FinanceOverviewService
         // Loan repayments: money paid back out, counted against the software that borrowed it.
         foreach (FinanceLoanRepayment::with('capitalEntry')->get() as $repayment) {
             $entry = $repayment->capitalEntry;
-            if (! $entry || ! $in($repayment->paid_at ? FinanceDates::day($repayment->paid_at) : FinanceDates::local($repayment->created_at))) {
+            if (! $entry || ! $in(FinanceDates::repayment($repayment))) {
                 continue;
             }
             $key = $this->keyFor($entry->product_id, $entry->tool_id, $entry->label);
@@ -163,9 +167,9 @@ class FinanceOverviewService
      *
      * @return array{row: array, income: Collection, capital: Collection, expenses: Collection, repaid: Collection, given: Collection}|null
      */
-    public function line(string $key, ?FinancePeriod $period = null): ?array
+    public function line(string $key, ?FinancePeriod $period = null, bool $old = false): ?array
     {
-        $row = collect($this->rows($period))->firstWhere('key', $key);
+        $row = collect($this->rows($period, $old))->firstWhere('key', $key);
         if (! $row && str_starts_with($key, 'type:') && isset(FinanceExpense::types()[substr($key, 5)])) {
             // A cost type with nothing recorded in this period yet.
             $row = $this->rowFor($key, FinanceExpense::types()[substr($key, 5)]['label']) + ['balance' => 0];

@@ -76,7 +76,7 @@ class PurchaseExpenseService
 
         $date = $item->purchased_at->toDateString();
         $amount = $this->costInTzs((float) $item->cost, $kind === 'account' ? $item->cost_currency : $item->currency);
-        if ($date > FinanceDates::today() || ! $amount || $this->auto->find("{$kind}:".substr($date, 0, 7), $item->id)) {
+        if ($date > FinanceDates::today() || \App\Support\FinanceStart::isOld(FinanceDates::day($date)) || ! $amount || $this->auto->find("{$kind}:".substr($date, 0, 7), $item->id)) {
             return null;
         }
 
@@ -91,12 +91,17 @@ class PurchaseExpenseService
         }
     }
 
-    /** Items with a cost that have no expense at all yet (bought before purchases recorded themselves). */
+    /**
+     * Items with a cost that have no expense at all yet (bought before purchases
+     * recorded themselves). One bought before the Finance start date belongs to
+     * the unorganised data, not to the books.
+     */
     public function pending(string $kind, Collection $items): Collection
     {
         $recorded = $this->recorded($kind);
 
-        return $items->reject(fn ($item) => isset($recorded[$item->id]))->values();
+        return $items->reject(fn ($item) => isset($recorded[$item->id])
+            || ($item->purchased_at && \App\Support\FinanceStart::isOld(FinanceDates::day($item->purchased_at))))->values();
     }
 
     /** Expenses typed in by hand that nothing is linked to yet (candidates for "already recorded"). */
@@ -133,7 +138,7 @@ class PurchaseExpenseService
     {
         return MoneyAccountService::fieldRules() + FinanceExpense::typeRules() + [
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'spent_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
+            'spent_at' => array_merge(['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()], \App\Support\FinanceStart::rule()),
         ];
     }
 

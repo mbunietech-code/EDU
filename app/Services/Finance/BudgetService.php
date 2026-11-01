@@ -9,6 +9,7 @@ use App\Models\FinanceLoanRepayment;
 use App\Models\Payment;
 use App\Models\Setting;
 use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Support\Carbon;
 
 /**
@@ -73,7 +74,7 @@ class BudgetService
         $from = $month->copy()->startOfMonth();
         $to = $month->copy()->endOfMonth();
 
-        $income = (float) Payment::where('status', 'approved')
+        $income = (float) FinanceStart::scopeMoment(Payment::where('status', 'approved'))
             ->get(['amount', 'reviewed_at', 'created_at'])
             ->filter(fn ($p) => FinanceDates::payment($p)?->format('Y-m') === $from->format('Y-m'))
             ->sum('amount');
@@ -82,7 +83,7 @@ class BudgetService
         $spent = array_fill_keys(array_keys($buckets), 0.0);
         $unbudgeted = 0.0;
 
-        $expenses = FinanceExpense::whereBetween('spent_at', [$from->toDateString(), $to->toDateString()])->get();
+        $expenses = FinanceStart::scopeDay(FinanceExpense::whereBetween('spent_at', [$from->toDateString(), $to->toDateString()]), 'spent_at')->get();
         foreach ($expenses as $e) {
             $key = $this->bucketFor($e, $buckets);
             if ($key === null) {
@@ -92,7 +93,7 @@ class BudgetService
             }
         }
 
-        $repayments = (float) FinanceLoanRepayment::whereBetween('paid_at', [$from->toDateString(), $to->toDateString()])->sum('amount');
+        $repayments = (float) FinanceStart::scopeDay(FinanceLoanRepayment::whereBetween('paid_at', [$from->toDateString(), $to->toDateString()]), 'paid_at')->sum('amount');
         $repayBucket = collect($buckets)->search(fn ($b) => ! empty($b['repayments']));
         if ($repayBucket !== false) {
             $spent[$repayBucket] += $repayments;
@@ -125,15 +126,15 @@ class BudgetService
         ];
     }
 
-    /** Months that have income or spending, newest first. */
+    /** Months that have income or spending, newest first (from the Finance start date on). */
     public function months(): array
     {
-        $dates = Payment::where('status', 'approved')->get(['reviewed_at', 'created_at'])
+        $dates = FinanceStart::scopeMoment(Payment::where('status', 'approved'))->get(['reviewed_at', 'created_at'])
             ->map(fn ($p) => FinanceDates::payment($p)?->format('Y-m'))
-            ->merge(FinanceExpense::pluck('spent_at')->map(fn ($d) => Carbon::parse($d)->format('Y-m')))
+            ->merge(FinanceStart::scopeDay(FinanceExpense::whereNotNull('spent_at'), 'spent_at')->pluck('spent_at')->map(fn ($d) => Carbon::parse($d)->format('Y-m')))
             ->push(FinanceDates::now()->format('Y-m'));
 
-        return $dates->unique()->sortDesc()->values()->all();
+        return $dates->filter()->unique()->sortDesc()->values()->all();
     }
 
     /**
@@ -143,7 +144,8 @@ class BudgetService
      */
     public function capitalShares(): array
     {
-        $entries = FinanceCapitalEntry::with('product:id,name', 'tool:id,name')->get();
+        $entries = FinanceCapitalEntry::with('product:id,name', 'tool:id,name')->get()
+            ->filter(fn ($c) => FinanceStart::keeps(FinanceDates::capital($c)));
         $total = (float) $entries->sum('amount');
 
         return $entries

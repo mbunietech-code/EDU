@@ -7,10 +7,16 @@
         </div>
     </div>
 
-    @if ($loanTotals['borrowed'] > 0)
-        <div class="mt-6 grid gap-5 sm:grid-cols-3">
+    @if ($loanTotals['borrowed'] > 0 || $loanTotals['brought'] > 0)
+        <div class="mt-6 grid gap-5 {{ $loanTotals['brought'] > 0 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3' }}">
+            @if ($loanTotals['brought'] > 0)
+                <x-mbui.card class="p-6">
+                    <p class="text-sm font-medium text-gray-500">Owed on {{ \App\Support\FinanceStart::label() }}</p>
+                    <p class="mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS {{ number_format($loanTotals['brought']) }}</p>
+                </x-mbui.card>
+            @endif
             <x-mbui.card class="p-6">
-                <p class="text-sm font-medium text-gray-500">Total borrowed</p>
+                <p class="text-sm font-medium text-gray-500">{{ $loanTotals['brought'] > 0 ? 'Borrowed since' : 'Total borrowed' }}</p>
                 <p class="mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS {{ number_format($loanTotals['borrowed']) }}</p>
             </x-mbui.card>
             <x-mbui.card class="p-6">
@@ -21,6 +27,25 @@
                 <p class="text-sm font-medium text-gray-500">Still owed</p>
                 <p class="mt-2 text-2xl font-bold tracking-tight {{ $loanTotals['outstanding'] > 0 ? 'text-amber-600' : 'text-gray-900' }}">TZS {{ number_format($loanTotals['outstanding']) }}</p>
             </x-mbui.card>
+        </div>
+    @endif
+
+    {{-- Loans from before the Finance start date, still owed on it: repay them here. --}}
+    @if ($broughtForward->isNotEmpty())
+        <div class="mt-6 mbui-card p-6">
+            <h2 class="text-base font-semibold text-gray-900">Loans brought forward</h2>
+            <p class="mt-1 text-sm text-gray-500">Received before {{ \App\Support\FinanceStart::label() }} and still owed then. The loan itself stays under <a href="{{ route('admin.finance.unorganised.index', ['tab' => 'capital']) }}" class="font-medium text-indigo-600 hover:text-indigo-500">Unorganised data</a>; repayments from the start date on count here.</p>
+            <ul class="mt-3 divide-y divide-gray-100 text-sm">
+                @foreach ($broughtForward as $l)
+                    <li class="flex flex-wrap items-center justify-between gap-3 py-2">
+                        <span class="text-gray-900"><span class="font-medium">{{ $l['loan']->label }}</span> · {{ $l['loan']->source }}</span>
+                        <span class="flex items-center gap-3">
+                            <span class="tabular-nums text-gray-500">Owed then TZS {{ number_format($l['outstanding']) }} · now TZS {{ number_format($l['loan']->outstandingAmount()) }}</span>
+                            <a href="{{ route('admin.finance.capital.repayments.index', $l['loan']) }}" class="font-semibold text-indigo-600 hover:text-indigo-500">{{ $l['loan']->isFullyRepaid() ? 'View repayments' : 'Repay' }} &rarr;</a>
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
         </div>
     @endif
 

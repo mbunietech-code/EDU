@@ -11,6 +11,7 @@ use App\Models\FinanceMoneyTransfer;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,9 @@ use Illuminate\Validation\Rule;
  *         − expenses and loan repayments paid from it
  *         ± transfers.
  * Movements dated before the opening date are left out: the opening balance
- * already includes them.
+ * already includes them. Once Finance has a start date (FinanceStart) an
+ * account starts that day with the money counted in it then, and what came
+ * before shows only under "Unorganised data" (see window()).
  */
 class MoneyAccountService
 {
@@ -147,7 +150,7 @@ class MoneyAccountService
             'from_account_id' => ['required', 'integer', Rule::exists('finance_money_accounts', 'id')],
             'to_account_id' => ['required', 'integer', 'different:from_account_id', Rule::exists('finance_money_accounts', 'id')],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'transferred_at' => ['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()],
+            'transferred_at' => array_merge(['required', 'date', 'before_or_equal:'.\App\Support\FinanceDates::today()], FinanceStart::rule()),
             'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
@@ -211,13 +214,73 @@ class MoneyAccountService
     // ------------------------------------------------------------------
 
     /**
-     * Every movement of one account, oldest first, with a running balance.
+     * Where an account's statement starts and ends, and the balance it starts
+     * from. In the books: the money counted on the Finance start day (or, for
+     * an account opened later, its own opening balance; for one not counted,
+     * what the earlier records leave in it). With $old: the account's own
+     * opening, up to the day before the start.
+     *
+     * @return array{from: ?Carbon, to: ?Carbon, opening: float, counted: bool}
+     */
+    public function window(FinanceMoneyAccount $account, bool $old = false): array
+    {
+        $own = $account->opening_date?->copy()->startOfDay();
+        $start = FinanceStart::date();
+        $ownWindow = ['from' => $own, 'to' => null, 'opening' => (float) $account->opening_balance, 'counted' => false];
+
+        if ($start === null) {
+            return $ownWindow;
+        }
+        if ($old) {
+            return ['to' => $start] + $ownWindow;
+        }
+        if (($counted = FinanceStart::balanceFor($account->id)) !== null) {
+            return ['from' => $start, 'to' => null, 'opening' => $counted, 'counted' => true];
+        }
+        if ($own && $own->gte($start)) {
+            return $ownWindow;
+        }
+
+        return ['from' => $start, 'to' => null, 'opening' => $this->balanceBefore($account, $start), 'counted' => false];
+    }
+
+    /** What the records leave in an account just before this moment (from its own opening). */
+    public function balanceBefore(FinanceMoneyAccount $account, Carbon $at): float
+    {
+        $own = $account->opening_date?->copy()->startOfDay();
+
+        return round((float) $account->opening_balance + (float) $this->movements($account)
+            ->filter(fn ($r) => ($own === null || $r['date']->gte($own)) && $r['date']->lt($at))
+            ->sum('amount'), 2);
+    }
+
+    /**
+     * Every movement of one account, oldest first, with a running balance:
+     * in the books, or (with $old) the unorganised ones before them.
      *
      * @return Collection<int, array{date: Carbon, kind: string, label: string, detail: ?string, ref: ?string, amount: float, balance: float, url: ?string}>
      */
-    public function statement(FinanceMoneyAccount $account): Collection
+    public function statement(FinanceMoneyAccount $account, bool $old = false): Collection
     {
-        $from = $account->opening_date?->copy()->startOfDay();
+        $window = $this->window($account, $old);
+        $balance = $window['opening'];
+
+        return $this->movements($account)
+            ->filter(fn ($r) => ($window['from'] === null || $r['date']->gte($window['from']))
+                && ($window['to'] === null || $r['date']->lt($window['to'])))
+            ->sortBy('sort')
+            ->values()
+            ->map(function ($r) use (&$balance) {
+                $balance = round($balance + $r['amount'], 2);
+                unset($r['sort']);
+
+                return $r + ['balance' => $balance];
+            });
+    }
+
+    /** Every movement of one account, any date, unsorted. */
+    private function movements(FinanceMoneyAccount $account): Collection
+    {
         $rows = collect();
 
         $codes = $account->methodCodes();
@@ -257,39 +320,32 @@ class MoneyAccountService
                 $t->notes, $t->reference, -(float) $t->amount, route('admin.finance.money.transfers.edit', $t->id), 6, $t->id));
         });
 
-        $balance = (float) $account->opening_balance;
-
-        return $rows
-            ->filter(fn ($r) => $from === null || $r['date']->gte($from))
-            ->sortBy('sort')
-            ->values()
-            ->map(function ($r) use (&$balance) {
-                $balance = round($balance + $r['amount'], 2);
-                unset($r['sort']);
-
-                return $r + ['balance' => $balance];
-            });
+        return $rows;
     }
 
     /**
-     * All accounts with their balance, money in and money out.
+     * All accounts with their opening, money in, money out and balance (in
+     * the books, or with $old before them).
      *
-     * @return Collection<int, array{account: FinanceMoneyAccount, in: float, out: float, balance: float}>
+     * @return Collection<int, array{account: FinanceMoneyAccount, opening: float, counted: bool, in: float, out: float, balance: float}>
      */
-    public function balances(bool $includeArchived = true): Collection
+    public function balances(bool $includeArchived = true, bool $old = false): Collection
     {
         return FinanceMoneyAccount::query()
             ->when(! $includeArchived, fn ($q) => $q->where('is_active', true))
             ->orderByDesc('is_active')->orderBy('name')
             ->get()
-            ->map(function (FinanceMoneyAccount $account) {
-                $rows = $this->statement($account);
+            ->map(function (FinanceMoneyAccount $account) use ($old) {
+                $window = $this->window($account, $old);
+                $rows = $this->statement($account, $old);
 
                 return [
                     'account' => $account,
+                    'opening' => $window['opening'],
+                    'counted' => $window['counted'],
                     'in' => (float) $rows->where('amount', '>', 0)->sum('amount'),
                     'out' => (float) -$rows->where('amount', '<', 0)->sum('amount'),
-                    'balance' => round((float) $account->opening_balance + (float) $rows->sum('amount'), 2),
+                    'balance' => round($window['opening'] + (float) $rows->sum('amount'), 2),
                 ];
             });
     }
@@ -299,20 +355,23 @@ class MoneyAccountService
      *
      * @return array{payments: Collection, expenses: Collection, capital: Collection, repayments: Collection, totals: array}
      */
-    public function unassigned(): array
+    public function unassigned(bool $old = false): array
     {
         $mapped = array_keys($this->methodMap());
 
-        $payments = Payment::where('status', 'approved')
+        $payments = FinanceStart::scopeMoment(Payment::where('status', 'approved'), 'created_at', $old)
             ->when($mapped !== [], fn ($q) => $q->whereNotIn('payment_method', $mapped))
             ->selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
             ->groupBy('payment_method')
             ->get()
             ->map(fn ($r) => ['code' => $r->payment_method, 'label' => $this->methodLabel((string) $r->payment_method), 'count' => (int) $r->count, 'total' => (float) $r->total]);
 
-        $expenses = FinanceExpense::whereNull('money_account_id')->orderBy('spent_at')->orderBy('id')->get();
-        $capital = FinanceCapitalEntry::whereNull('money_account_id')->orderBy('created_at')->orderBy('id')->get();
-        $repayments = FinanceLoanRepayment::whereNull('money_account_id')->with('capitalEntry:id,label,source')->orderBy('paid_at')->orderBy('id')->get();
+        $expenses = FinanceExpense::whereNull('money_account_id')->orderBy('spent_at')->orderBy('id')->get()
+            ->filter(fn ($e) => FinanceStart::keeps(FinanceDates::expense($e), $old))->values();
+        $capital = FinanceCapitalEntry::whereNull('money_account_id')->orderBy('created_at')->orderBy('id')->get()
+            ->filter(fn ($c) => FinanceStart::keeps(FinanceDates::capital($c), $old))->values();
+        $repayments = FinanceLoanRepayment::whereNull('money_account_id')->with('capitalEntry:id,label,source')->orderBy('paid_at')->orderBy('id')->get()
+            ->filter(fn ($r) => FinanceStart::keeps(FinanceDates::repayment($r), $old))->values();
 
         $totals = [
             'payments' => (float) $payments->sum('total'),
@@ -335,6 +394,7 @@ class MoneyAccountService
     /**
      * Tie earlier records to an account. Only money_account_id changes, and
      * only on rows that have none yet, so nothing already assigned moves.
+     * Records from before the Finance start date stay as they were.
      *
      * @param  array<string, list<int>>  $ids  kind => ids
      */
@@ -345,6 +405,10 @@ class MoneyAccountService
         DB::transaction(function () use ($ids, $account, &$count) {
             foreach (self::ASSIGNABLE as $kind => $model) {
                 $list = array_values(array_unique(array_map('intval', $ids[$kind] ?? [])));
+                if ($list !== [] && FinanceStart::isSet()) {
+                    $list = $model::whereIn('id', $list)->get()
+                        ->reject(fn ($r) => FinanceStart::isOld($this->dateOf($r)))->modelKeys();
+                }
                 if ($list !== []) {
                     $count += $model::whereIn('id', $list)->whereNull('money_account_id')->update(['money_account_id' => $account->id]);
                 }
@@ -354,6 +418,17 @@ class MoneyAccountService
         ActivityLog::log('finance_money_assigned', 'FinanceMoneyAccount', $account->id, ['records' => $count, 'ids' => $ids]);
 
         return $count;
+    }
+
+    /** The day an expense, capital entry or loan repayment counts on. */
+    private function dateOf($record): ?Carbon
+    {
+        return match (true) {
+            $record instanceof FinanceExpense => FinanceDates::expense($record),
+            $record instanceof FinanceCapitalEntry => FinanceDates::capital($record),
+            $record instanceof FinanceLoanRepayment => FinanceDates::repayment($record),
+            default => null,
+        };
     }
 
     private function row($date, string $kind, string $label, ?string $detail, ?string $ref, float $amount, ?string $url, int $order, int $id): array

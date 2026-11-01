@@ -44,12 +44,17 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 <tr class="bg-gray-50/50">
-                    <td class="mbui-td text-gray-500">{{ $account->opening_date?->format('d M Y') ?? '—' }}</td>
-                    <td class="mbui-td font-medium text-gray-700">Opening balance</td>
+                    <td class="mbui-td text-gray-500">{{ $window['from']?->format('d M Y') ?? '—' }}</td>
+                    <td class="mbui-td font-medium text-gray-700">
+                        Opening balance
+                        @if (\App\Support\FinanceStart::isSet() && $window['from']?->equalTo(\App\Support\FinanceStart::date()))
+                            <p class="text-xs font-normal text-gray-500">{{ $window['counted'] ? 'Counted' : 'Left by the earlier records (not counted)' }} on the day Finance started. <a href="{{ route('admin.finance.unorganised.index') }}" class="text-indigo-600 hover:text-indigo-500">Earlier records</a></p>
+                        @endif
+                    </td>
                     <td class="mbui-td"></td>
                     <td class="mbui-td"></td>
                     <td class="mbui-td"></td>
-                    <td class="mbui-td text-right font-semibold tabular-nums">{{ number_format($account->opening_balance) }}</td>
+                    <td class="mbui-td text-right font-semibold tabular-nums">{{ number_format($window['opening']) }}</td>
                 </tr>
                 @forelse ($rows as $r)
                     <tr>

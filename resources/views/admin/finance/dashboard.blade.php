@@ -11,6 +11,14 @@
         </div>
     </div>
 
+    {{-- The books start on a day; what came before is kept under Unorganised data. --}}
+    @if (\App\Support\FinanceStart::isSet())
+        <p class="mt-4 rounded-lg bg-indigo-50 px-4 py-2 text-sm text-indigo-800">
+            Counting from {{ \App\Support\FinanceStart::label() }}. Earlier records are kept, read-only, under
+            <a href="{{ route('admin.finance.unorganised.index') }}" class="font-semibold underline">Unorganised data</a>.
+        </p>
+    @endif
+
     {{-- Period: day, week, month, year (‹ › to step), all time, or a custom range. --}}
     @php($base = route('admin.finance.dashboard'))
     <div class="mt-6 flex flex-col gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-200 lg:flex-row lg:items-center lg:justify-between">

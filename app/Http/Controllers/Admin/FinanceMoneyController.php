@@ -8,6 +8,8 @@ use App\Models\FinanceMoneyTransfer;
 use App\Services\DeletionService;
 use App\Services\Finance\FinanceException;
 use App\Services\Finance\MoneyAccountService;
+use App\Support\FinanceDates;
+use App\Support\FinanceStart;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -69,11 +71,13 @@ class FinanceMoneyController extends Controller
         $moneyAccount = FinanceMoneyAccount::findOrFail($moneyAccount);
 
         $rows = $this->money->statement($moneyAccount);
+        $window = $this->money->window($moneyAccount);
 
         return view('admin.finance.money.show', [
             'account' => $moneyAccount,
             'rows' => $rows,
-            'balance' => round((float) $moneyAccount->opening_balance + (float) $rows->sum('amount'), 2),
+            'window' => $window,
+            'balance' => round($window['opening'] + (float) $rows->sum('amount'), 2),
             'methodLabels' => collect($moneyAccount->methodCodes())->map(fn ($c) => $this->money->methodLabel($c))->all(),
         ]);
     }
@@ -127,6 +131,10 @@ class FinanceMoneyController extends Controller
             return $redirect;
         }
         $transfer = FinanceMoneyTransfer::with('fromAccount:id,name', 'toAccount:id,name')->findOrFail($transfer);
+        if (FinanceStart::isOld(FinanceDates::day($transfer->transferred_at))) {
+            return redirect()->route('admin.finance.unorganised.index', ['tab' => 'transfers'])
+                ->with('error', 'That transfer is from before '.FinanceStart::label().', when Finance started again. It stays here, read-only.');
+        }
         $previous = url()->previous();
 
         return view('admin.finance.money.transfer-edit', [
@@ -142,6 +150,7 @@ class FinanceMoneyController extends Controller
             return $redirect;
         }
         $transfer = FinanceMoneyTransfer::findOrFail($transfer);
+        FinanceStart::guard(FinanceDates::day($transfer->transferred_at), 'transferred_at');
         $transfer->fill($request->validate($this->money->transferRules()));
         $changes = collect($transfer->getDirty())->except('updated_at')
             ->map(fn ($new, $field) => [$this->plain($transfer->getOriginal($field)), $this->plain($new)])->all();
@@ -159,6 +168,7 @@ class FinanceMoneyController extends Controller
             return $redirect;
         }
         $transfer = FinanceMoneyTransfer::findOrFail($transfer);
+        FinanceStart::guard(FinanceDates::day($transfer->transferred_at), 'reason');
         $deletion->delete($transfer, $request->validate(['reason' => ['required', 'string', 'max:2000']])['reason']);
 
         return $this->backTo($request, $transfer)->with('success', 'Transfer removed.');
