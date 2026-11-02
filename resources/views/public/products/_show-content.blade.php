@@ -58,7 +58,7 @@
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">{{ $plan->description }}</p>
                                 <p class="mt-2 text-xs font-medium text-gray-600">{{ $plan->durationLabel() }} duration</p>
-                                <a href="{{ route('user.orders.create', ['product' => $product->slug, 'plan' => $plan->id]) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                                <a href="{{ route('user.orders.create.plan', ['product' => $product->slug, 'plan' => $plan->id]) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
                                     Order now
                                 </a>
                             </div>

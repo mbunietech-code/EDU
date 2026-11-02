@@ -34,10 +34,16 @@ class OrderController extends Controller
         return view('user.orders.index', compact('orders'));
     }
 
-    public function create(Product $product, ?Plan $plan = null)
+    public function create(Request $request, Product $product, ?Plan $plan = null)
     {
         if ($product->status !== 'published') {
             abort(404);
+        }
+
+        // Older plan buttons linked to ?plan=<id>: honour it rather than
+        // silently falling back to the cheapest plan.
+        if (! $plan && $request->filled('plan')) {
+            $plan = $product->plans()->active()->whereKey((int) $request->query('plan'))->first();
         }
 
         if (! $plan) {
