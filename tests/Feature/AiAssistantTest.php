@@ -98,7 +98,7 @@ class AiAssistantTest extends TestCase
 
         $response->assertOk();
         $this->assertNull($response->json('tools_used'));
-        $this->assertStringContainsString('Sikuweza', $response->json('content'));
+        $this->assertStringContainsString("I couldn't recognise", $response->json('content'));
     }
 
     public function test_new_conversation_button_starts_a_separate_thread_kept_in_history(): void
@@ -194,38 +194,36 @@ class AiAssistantTest extends TestCase
         $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'how many users do we have today'])->assertOk();
 
         $this->assertStringContainsString('Total users:', $reply->json('content'));
-        $this->assertStringNotContainsString('Jumla ya users', $reply->json('content'));
     }
 
-    public function test_replies_in_swahili_when_asked_in_swahili(): void
+    public function test_a_swahili_question_is_understood_but_answered_in_english(): void
     {
         [, $c] = $this->freshConversation();
 
         $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'ni users ngapi tulionao leo'])->assertOk();
 
-        $this->assertStringContainsString('Jumla ya users:', $reply->json('content'));
+        $this->assertSame('get_users_summary', $reply->json('tools_used.0'));
+        $this->assertStringContainsString('Total users:', $reply->json('content'));
+        $this->assertStringNotContainsString('Jumla ya users', $reply->json('content'));
     }
 
-    public function test_a_quick_question_button_follows_the_language_last_typed(): void
+    public function test_quick_question_buttons_answer_in_english(): void
     {
         [, $c] = $this->freshConversation();
 
-        // No typed language yet: defaults to Swahili.
-        $first = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'Orders summary', 'question_id' => 'orders']);
-        $this->assertStringContainsString('Orders kwa hali:', $first->json('content'));
+        $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'naomba msaada tafadhali']);
+        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'Orders summary', 'question_id' => 'orders']);
 
-        // Admin types English, then clicks a button: still English.
-        $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'what is the total of the payments please']);
-        $second = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'Orders summary', 'question_id' => 'orders']);
-        $this->assertStringContainsString('Orders by status:', $second->json('content'));
+        $this->assertStringContainsString('Orders by status:', $reply->json('content'));
     }
 
-    public function test_help_text_is_in_the_language_asked(): void
+    public function test_help_text_is_in_english_even_when_asked_in_swahili(): void
     {
         [, $c] = $this->freshConversation();
 
-        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'can you tell me a joke about the weather'])->assertOk();
+        $reply = $this->postJson(route('admin.ai-assistant.send', $c), ['message' => 'habari yako leo mkuu'])->assertOk();
 
+        $this->assertNull($reply->json('tools_used'));
         $this->assertStringContainsString("I couldn't recognise", $reply->json('content'));
     }
 }
