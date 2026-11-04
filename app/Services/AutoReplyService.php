@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
 use App\Models\Setting;
-use App\Support\Language;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -21,8 +20,8 @@ use Throwable;
  *  - only ONE automatic reply per waiting stretch: after an auto-reply, the
  *    customer writing again does not trigger another until a person answers.
  *
- * The message goes out in the language the customer wrote in (Swahili or
- * English; Swahili when it can't tell, e.g. a photo or voice note).
+ * The message is always in English, the platform's main language, whatever
+ * language the customer wrote in.
  *
  * Runs from the scheduler, and also when the customer's chat is opened or
  * polled, because shared hosting may have no cron. It must never break chat,
@@ -31,8 +30,7 @@ use Throwable;
 class AutoReplyService
 {
     public const DEFAULT_MINUTES = 10;
-    public const DEFAULT_MESSAGE = "Habari {name}, asante kwa ujumbe wako. Timu yetu imechelewa kidogo kujibu — tutakujibu mapema iwezekanavyo. Tunaomba uvumilivu wako.";
-    public const DEFAULT_MESSAGE_EN = "Hello {name}, thank you for your message. Our team is running a little late in replying — we'll get back to you as soon as possible. Thank you for your patience.";
+    public const DEFAULT_MESSAGE = "Hello {name}, thank you for your message. Our team is running a little late in replying — we'll get back to you as soon as possible. Thank you for your patience.";
     private const MAX_AGE_HOURS = 24;
 
     public function __construct(private NotificationService $notifications)
@@ -49,15 +47,10 @@ class AutoReplyService
         return max(1, (int) Setting::get('autoreply_minutes', self::DEFAULT_MINUTES));
     }
 
-    public function messageTemplate(string $lang = Language::SWAHILI): string
+    /** Kept in autoreply_message_en; the old Swahili autoreply_message setting is no longer used. */
+    public function messageTemplate(): string
     {
-        if ($lang === Language::ENGLISH) {
-            $english = trim((string) Setting::get('autoreply_message_en', ''));
-
-            return $english !== '' ? $english : self::DEFAULT_MESSAGE_EN;
-        }
-
-        $message = trim((string) Setting::get('autoreply_message', ''));
+        $message = trim((string) Setting::get('autoreply_message_en', ''));
 
         return $message !== '' ? $message : self::DEFAULT_MESSAGE;
     }
@@ -102,8 +95,7 @@ class AutoReplyService
                 }
 
                 $locked->loadMissing('user');
-                $lang = Language::detect((string) $waitingOn->body) ?? Language::SWAHILI;
-                $body = str_replace('{name}', $locked->user?->name ?? '', $this->messageTemplate($lang));
+                $body = str_replace('{name}', $locked->user?->name ?? '', $this->messageTemplate());
 
                 $message = $locked->messages()->create([
                     'is_from_admin' => true,
