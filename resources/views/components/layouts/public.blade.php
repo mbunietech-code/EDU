@@ -98,7 +98,7 @@
                     <h4 class="mbui-section-label">Account</h4>
                     <ul class="mt-3 space-y-2 text-sm text-gray-600">
                         @auth
-                            <li><a class="hover:text-gray-900" href="{{ route('dashboard') }}">Dashboard</a></li>
+                            <li><a class="hover:text-gray-900" href="{{ auth()->user()->is_admin ? route('admin.dashboard') : route('dashboard') }}">Dashboard</a></li>
                             <li><a class="hover:text-gray-900" href="{{ route('user.subscriptions.index') }}">Subscriptions</a></li>
                         @else
                             <li><a class="hover:text-gray-900" href="{{ route('login') }}">Sign in</a></li>

@@ -22,6 +22,12 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
+        // Admins have their own home: the admin panel, not the customer dashboard
+        // (e.g. opening the site in a new tab during a live class).
+        if ($user->is_admin) {
+            return redirect()->route('admin.dashboard');
+        }
+
         $subscriptions = $user->subscriptions()
             ->with(['product', 'plan'])
             ->latest()

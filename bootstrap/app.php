@@ -24,6 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'research.contribute' => \App\Http\Middleware\EnsureCanWriteResearch::class,
         ]);
 
+        // Already signed in and opening the sign-in page (e.g. in a new tab):
+        // admins go to the admin panel, everyone else to their dashboard.
+        $middleware->redirectUsersTo(fn (\Illuminate\Http\Request $request) => $request->user()?->is_admin
+            ? route('admin.dashboard')
+            : route('dashboard'));
+
         // RestrictGuests: meeting guests (guest links) may only use their one room.
         $middleware->web(append: [UpdateLastSeen::class, \App\Http\Middleware\RestrictGuests::class]);
     })
