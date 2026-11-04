@@ -134,7 +134,7 @@ function formatBytes(bytes) {
 window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
     // lastMedia: my mic / camera just before the connection closed (restored after a reconnect or a room move).
-    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false } };
+    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false }, shapeObserver: null };
     // Speech recognition for my own captions (outside Alpine).
     const cap = { rec: null, running: false, lastInterim: 0, restart: null };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
@@ -291,6 +291,11 @@ window.learnClassroom = (cfg = {}) => {
         this.canHover = hover.matches;
         const onHover = (e) => { this.canHover = e.matches; };
         hover.addEventListener ? hover.addEventListener('change', onHover) : hover.addListener(onHover);
+
+        // Phone turned upright / sideways: my camera follows (9:16 ↔ 16:9).
+        const upright = window.matchMedia('(orientation: portrait)');
+        const onTurn = () => { if (this.media.cam) this.fitCameraShape(); };
+        upright.addEventListener ? upright.addEventListener('change', onTurn) : upright.addListener(onTurn);
 
         this.state = this.initialState();
         this.mini.supported = typeof HTMLVideoElement !== 'undefined'
@@ -994,15 +999,15 @@ window.learnClassroom = (cfg = {}) => {
         // frozen one. Computers send 1080p (+ 720p and 360p copies); phones send 720p
         // (+ 360p and 180p) — less to upload and to encode on a weak phone. Under
         // congestion a camera lowers its quality a little before dropping frames.
+        // A phone held upright films upright (9:16), see cameraResolution().
         const phone = !this.canHover;
-        const camPreset = phone ? mod.VideoPresets.h720 : mod.VideoPresets.h1080;
         const room = new mod.Room({
             // Picks the copy that fits each viewer's screen and connection, and pauses
             // cameras nobody has on screen (so many cameras do not make everyone download all of them).
             adaptiveStream: true,
             dynacast: true,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
-            videoCaptureDefaults: { resolution: camPreset.resolution },
+            videoCaptureDefaults: { resolution: this.cameraResolution(mod) },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
                 simulcast: true,
@@ -1208,8 +1213,32 @@ window.learnClassroom = (cfg = {}) => {
                 track.attach(el);
                 el._lkTrack = track;
             }
+            if (source !== 'screen') this.watchVideoShape(el);
         });
         this.syncMini();
+    },
+
+    /**
+     * Cameras fill their tile, except when the picture and the tile are turned
+     * different ways (an upright 9:16 phone camera in a wide tile, or a wide
+     * camera on an upright phone screen): then the whole picture shows, with
+     * bars at the sides, instead of a thin cropped strip.
+     */
+    watchVideoShape(el) {
+        if (el._lkShape) { el._lkShape(); return; }
+        const fit = () => {
+            const vw = el.videoWidth, vh = el.videoHeight, bw = el.clientWidth, bh = el.clientHeight;
+            const mismatch = vw && vh && bw && bh && (vh > vw) !== (bh > bw);
+            el.style.objectFit = mismatch ? 'contain' : '';
+        };
+        el._lkShape = fit;
+        el.addEventListener('loadedmetadata', fit);
+        el.addEventListener('resize', fit); // the picture changed size (a phone was turned)
+        if (typeof ResizeObserver !== 'undefined') {
+            if (!lk.shapeObserver) lk.shapeObserver = new ResizeObserver((entries) => entries.forEach((en) => en.target._lkShape && en.target._lkShape()));
+            lk.shapeObserver.observe(el);
+        }
+        fit();
     },
 
     tileState(identity) {
@@ -2713,13 +2742,45 @@ window.learnClassroom = (cfg = {}) => {
         this.mediaBusy.cam = true;
         this.mediaError = '';
         try {
-            await room.localParticipant.setCameraEnabled(on);
+            await room.localParticipant.setCameraEnabled(on, on ? { resolution: this.cameraResolution() } : undefined);
+            // Turned back on after the phone was turned: film the way it is held now.
+            if (on) await this.fitCameraShape();
         } catch (e) {
             this.mediaError = this.deviceHelp('camera', e);
         } finally {
             this.mediaBusy.cam = false;
             this.scheduleRefresh();
         }
+    },
+
+    /**
+     * The camera picture's shape. A phone or tablet held upright films upright
+     * (9:16, 720×1280) like every phone video call; turned sideways it films
+     * 16:9. Computers film 1080p 16:9. LiveKit's presets carry a 16:9
+     * aspectRatio, which made upright phones send a sideways (cropped) picture.
+     */
+    cameraResolution(mod = lk.mod) {
+        if (this.canHover) return mod.VideoPresets.h1080.resolution;
+        const upright = window.matchMedia('(orientation: portrait)').matches;
+        return upright
+            ? { width: 720, height: 1280, frameRate: 30, aspectRatio: 9 / 16 }
+            : mod.VideoPresets.h720.resolution;
+    },
+
+    /** Phone turned while my camera is on: change the picture's shape without restarting the camera. */
+    async fitCameraShape() {
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod || this.canHover) return;
+        const pub = room.localParticipant.getTrackPublication(mod.Track.Source.Camera);
+        const track = pub && !pub.isMuted ? pub.track : null;
+        if (!track || typeof track.applyConstraints !== 'function') return;
+        const want = this.cameraResolution(mod);
+        const now = track.constraints || {};
+        if (now.width === want.width && now.height === want.height) return;
+        try {
+            await track.applyConstraints({ width: want.width, height: want.height, aspectRatio: want.aspectRatio, frameRate: want.frameRate });
+        } catch (e) { /* this camera cannot change shape: keep its current picture */ }
     },
 
     toggleMic() {
