@@ -199,6 +199,20 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Order::class);
     }
 
+    /**
+     * My notifications, without the staff ones I may not see (see
+     * AdminNotifications): a customer never sees "New order" or "Error
+     * occurred", even ones left from a time they were an admin. The bell,
+     * the notifications pages, the app and every unread count use this.
+     */
+    public function notifications()
+    {
+        $relation = $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')->latest();
+        $hidden = \App\Support\AdminNotifications::hiddenFor($this);
+
+        return $hidden === [] ? $relation : $relation->whereNotIn('type', $hidden);
+    }
+
     public function deviceTokens(): HasMany
     {
         return $this->hasMany(DeviceToken::class);

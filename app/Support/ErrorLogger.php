@@ -145,7 +145,7 @@ class ErrorLogger
     private static function notifyAdmins(ErrorLog $log): void
     {
         try {
-            $admins = User::where('is_admin', true)->get();
+            $admins = AdminNotifications::recipientsFor(ErrorOccurred::class);
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new ErrorOccurred($log));
             }

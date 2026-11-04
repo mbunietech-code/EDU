@@ -22,6 +22,7 @@ use App\Notifications\Admin\AccountUnavailable;
 use App\Notifications\ChatMessageReceived;
 use App\Notifications\Admin\ResearchSubmitted;
 use App\Notifications\User\ResearchReviewed;
+use App\Support\AdminNotifications;
 use Illuminate\Support\Facades\Notification;
 
 class NotificationService
@@ -29,7 +30,7 @@ class NotificationService
     public function notifyOrderCreated(User $user, $order): void
     {
         Notification::send($user, new OrderCreated($order));
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(NewOrder::class);
         Notification::send($admins, new NewOrder($order));
     }
 
@@ -62,7 +63,7 @@ class NotificationService
     public function notifyAdminsOnlinePayment(\App\Models\Payment $payment, \App\Models\GatewayPayment $gatewayPayment): void
     {
         try {
-            $admins = User::where('is_admin', true)->get();
+            $admins = AdminNotifications::recipientsFor(\App\Notifications\Admin\OnlinePaymentReceived::class);
             Notification::sendNow($admins, new \App\Notifications\Admin\OnlinePaymentReceived($payment, $gatewayPayment));
         } catch (\Throwable $e) {
             report($e);
@@ -106,25 +107,25 @@ class NotificationService
 
     public function notifyAdminNewOrder($order): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(NewOrder::class);
         Notification::send($admins, new NewOrder($order));
     }
 
     public function notifyAdminNewPaymentProof($payment): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(NewPaymentProof::class);
         Notification::send($admins, new NewPaymentProof($payment));
     }
 
     public function notifyAdminNewContactMessage($contactMessage): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(NewContactMessage::class);
         Notification::send($admins, new NewContactMessage($contactMessage));
     }
 
     public function notifyAdminsResearchSubmitted(\App\Models\Research $research): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(ResearchSubmitted::class);
         Notification::send($admins, new ResearchSubmitted($research));
     }
 
@@ -137,13 +138,13 @@ class NotificationService
 
     public function notifyAdminExpiringSubscription($subscription): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(ExpiringSubscription::class);
         Notification::send($admins, new ExpiringSubscription($subscription));
     }
 
     public function notifyAdminAccountUnavailable(Product $product): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipientsFor(AccountUnavailable::class);
         Notification::send($admins, new AccountUnavailable($product));
     }
 
@@ -154,7 +155,7 @@ class NotificationService
 
     public function notifyAdminsNewChatMessage(\App\Models\Conversation $conversation): void
     {
-        $admins = User::where('is_admin', true)->get();
+        $admins = AdminNotifications::recipients('chat.view');
         Notification::send($admins, new ChatMessageReceived($conversation, $conversation->user->name));
     }
 }

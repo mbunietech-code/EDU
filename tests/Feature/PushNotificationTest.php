@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\DeviceToken;
 use App\Models\Product;
 use App\Models\User;
-use App\Notifications\Admin\NewOrder;
+use App\Notifications\User\OrderCreated;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -61,7 +61,7 @@ class PushNotificationTest extends TestCase
     public function test_notifications_endpoint_returns_the_users_notifications(): void
     {
         $user = User::factory()->create();
-        $user->notify(new NewOrder(
+        $user->notify(new OrderCreated(
             $user->orders()->create([
                 'order_number' => 'MBT-N1',
                 'product_id' => Product::factory()->create()->id,

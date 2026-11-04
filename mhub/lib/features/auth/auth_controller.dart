@@ -143,7 +143,15 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(busy: true);
-    unawaited(_ref.read(notificationCenterProvider).stop());
+    // Unregister this phone's push token BEFORE signing out: once the session
+    // is gone the server refuses the request, and the phone kept getting the
+    // previous person's (e.g. an admin's) notifications.
+    try {
+      await _ref
+          .read(notificationCenterProvider)
+          .stop()
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {}
     await _repo.logout();
     await _tokens.clear();
     state = const AuthState(status: AuthStatus.unauthenticated);
