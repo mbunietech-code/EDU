@@ -246,29 +246,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('admin')->prefix('admin')->name('api.admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
 
-        Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
-        Route::get('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
-        Route::put('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'update']);
-        Route::post('/orders/{order}/reject', [\App\Http\Controllers\Api\Admin\OrderController::class, 'reject']);
-        Route::delete('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'destroy']);
-        Route::get('/orders/{order}/receipt-url', [\App\Http\Controllers\Api\Admin\OrderController::class, 'receiptUrl']);
+        Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index'])->middleware('can:orders.view');
+        Route::get('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show'])->middleware('can:orders.view');
+        Route::put('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'update'])->middleware('can:orders.manage');
+        Route::post('/orders/{order}/reject', [\App\Http\Controllers\Api\Admin\OrderController::class, 'reject'])->middleware('can:orders.manage');
+        Route::delete('/orders/{order}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'destroy'])->middleware('can:orders.manage');
+        Route::get('/orders/{order}/receipt-url', [\App\Http\Controllers\Api\Admin\OrderController::class, 'receiptUrl'])->middleware('can:orders.view');
 
-        Route::get('/payments', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'index']);
-        Route::get('/payments/{payment}', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'show']);
-        Route::post('/payments/{payment}/approve', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'approve']);
-        Route::post('/payments/{payment}/reject', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'reject']);
+        Route::get('/payments', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'index'])->middleware('can:payments.view');
+        Route::get('/payments/{payment}', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'show'])->middleware('can:payments.view');
+        Route::post('/payments/{payment}/approve', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'approve'])->middleware('can:payments.manage');
+        Route::post('/payments/{payment}/reject', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'reject'])->middleware('can:payments.manage');
         Route::get('/payments/{payment}/proofs/{proof}', [\App\Http\Controllers\Api\Admin\PaymentController::class, 'proof'])
+            ->middleware('can:payments.view')
             ->name('payments.proof');
 
-        Route::get('/users', [\App\Http\Controllers\Api\Admin\UserController::class, 'index']);
-        Route::get('/users/{user}', [\App\Http\Controllers\Api\Admin\UserController::class, 'show']);
-        Route::post('/users/{user}/status', [\App\Http\Controllers\Api\Admin\UserController::class, 'setStatus']);
+        Route::get('/users', [\App\Http\Controllers\Api\Admin\UserController::class, 'index'])->middleware('can:users.view');
+        Route::get('/users/{user}', [\App\Http\Controllers\Api\Admin\UserController::class, 'show'])->middleware('can:users.view');
+        Route::post('/users/{user}/status', [\App\Http\Controllers\Api\Admin\UserController::class, 'setStatus'])->middleware('can:users.manage');
 
-        Route::get('/chat', [\App\Http\Controllers\Api\Admin\ChatController::class, 'index']);
-        Route::get('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'show']);
-        Route::post('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'store']);
+        Route::get('/chat', [\App\Http\Controllers\Api\Admin\ChatController::class, 'index'])->middleware('can:chat.view');
+        Route::get('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'show'])->middleware('can:chat.view');
+        Route::post('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'store'])->middleware('can:chat.manage');
 
-        Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index']);
+        Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index'])->middleware('can:reports.view');
 
         // Platform settings: alerts + AI optimization (super admin), email, Finance PIN
         Route::controller(\App\Http\Controllers\Api\Admin\PlatformSettingsController::class)->group(function () {
@@ -332,33 +333,33 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // System: error logs, deleted records, activity, settings, subscriptions, payment methods
         Route::controller(\App\Http\Controllers\Api\Admin\SystemController::class)->group(function () {
-            Route::get('/error-logs', 'errorLogs');
-            Route::get('/error-logs/{errorLog}', 'errorLog');
-            Route::post('/error-logs/{errorLog}/resolve', 'resolveError');
-            Route::post('/error-logs/{errorLog}/reopen', 'reopenError');
-            Route::delete('/error-logs/{errorLog}', 'deleteError');
+            Route::get('/error-logs', 'errorLogs')->middleware('can:error_logs.view');
+            Route::get('/error-logs/{errorLog}', 'errorLog')->middleware('can:error_logs.view');
+            Route::post('/error-logs/{errorLog}/resolve', 'resolveError')->middleware('can:error_logs.view');
+            Route::post('/error-logs/{errorLog}/reopen', 'reopenError')->middleware('can:error_logs.view');
+            Route::delete('/error-logs/{errorLog}', 'deleteError')->middleware('can:error_logs.view');
 
-            Route::get('/deleted-records', 'deletedRecords');
-            Route::get('/deleted-records/{deletedRecord}', 'deletedRecord');
+            Route::get('/deleted-records', 'deletedRecords')->middleware('can:deleted_records.view');
+            Route::get('/deleted-records/{deletedRecord}', 'deletedRecord')->middleware('can:deleted_records.view');
 
-            Route::get('/activity', 'activity');
+            Route::get('/activity', 'activity')->middleware('can:activity_logs.view');
 
-            Route::get('/settings', 'settings');
-            Route::post('/settings/dev', 'updateDev');
+            Route::get('/settings', 'settings')->middleware('can:settings.manage');
+            Route::post('/settings/dev', 'updateDev')->middleware('can:settings.manage');
 
-            Route::get('/subscriptions', 'subscriptions');
-            Route::get('/subscriptions/{subscription}', 'subscription');
-            Route::post('/subscriptions/{subscription}/extend', 'extendSubscription');
-            Route::post('/subscriptions/{subscription}/state', 'setSubscriptionState');
+            Route::get('/subscriptions', 'subscriptions')->middleware('can:subscriptions.view');
+            Route::get('/subscriptions/{subscription}', 'subscription')->middleware('can:subscriptions.view');
+            Route::post('/subscriptions/{subscription}/extend', 'extendSubscription')->middleware('can:subscriptions.manage');
+            Route::post('/subscriptions/{subscription}/state', 'setSubscriptionState')->middleware('can:subscriptions.manage');
 
-            Route::get('/payment-methods', 'paymentMethods');
-            Route::post('/payment-methods', 'storePaymentMethod');
-            Route::put('/payment-methods/{paymentMethod}', 'updatePaymentMethod');
-            Route::post('/payment-methods/{paymentMethod}/qr', 'uploadPaymentMethodQr');
+            Route::get('/payment-methods', 'paymentMethods')->middleware('can:payment_methods.manage');
+            Route::post('/payment-methods', 'storePaymentMethod')->middleware('can:payment_methods.manage');
+            Route::put('/payment-methods/{paymentMethod}', 'updatePaymentMethod')->middleware('can:payment_methods.manage');
+            Route::post('/payment-methods/{paymentMethod}/qr', 'uploadPaymentMethodQr')->middleware('can:payment_methods.manage');
 
-            Route::get('/contact-messages', 'contactMessages');
-            Route::get('/contact-messages/{contactMessage}', 'contactMessage');
-            Route::delete('/contact-messages/{contactMessage}', 'deleteContactMessage');
+            Route::get('/contact-messages', 'contactMessages')->middleware('can:contact_messages.view');
+            Route::get('/contact-messages/{contactMessage}', 'contactMessage')->middleware('can:contact_messages.view');
+            Route::delete('/contact-messages/{contactMessage}', 'deleteContactMessage')->middleware('can:contact_messages.manage');
         });
 
         // Database (super admin only)
@@ -473,22 +474,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('catalogue')->group(function () {
             $c = \App\Http\Controllers\Api\Admin\CatalogueController::class;
 
-            Route::get('/products', [$c, 'products']);
-            Route::post('/products', [$c, 'productStore']);
-            Route::get('/products/{product}', [$c, 'productShow']);
-            Route::put('/products/{product}', [$c, 'productUpdate']);
-            Route::post('/products/{product}/image', [$c, 'productImage']);
-            Route::delete('/products/{product}', [$c, 'productDestroy']);
+            Route::get('/products', [$c, 'products'])->middleware('can:products.view');
+            Route::post('/products', [$c, 'productStore'])->middleware('can:products.manage');
+            Route::get('/products/{product}', [$c, 'productShow'])->middleware('can:products.view');
+            Route::put('/products/{product}', [$c, 'productUpdate'])->middleware('can:products.manage');
+            Route::post('/products/{product}/image', [$c, 'productImage'])->middleware('can:products.manage');
+            Route::delete('/products/{product}', [$c, 'productDestroy'])->middleware('can:products.manage');
 
-            Route::post('/products/{product}/plans', [$c, 'planStore']);
-            Route::put('/plans/{plan}', [$c, 'planUpdate']);
-            Route::delete('/plans/{plan}', [$c, 'planDestroy']);
+            Route::post('/products/{product}/plans', [$c, 'planStore'])->middleware('can:products.manage');
+            Route::put('/plans/{plan}', [$c, 'planUpdate'])->middleware('can:products.manage');
+            Route::delete('/plans/{plan}', [$c, 'planDestroy'])->middleware('can:products.manage');
 
-            Route::get('/tools', [$c, 'tools']);
-            Route::post('/tools', [$c, 'toolStore']);
-            Route::get('/tools/{tool}', [$c, 'toolShow']);
-            Route::put('/tools/{tool}', [$c, 'toolUpdate']);
-            Route::post('/tools/{tool}/image', [$c, 'toolImage']);
+            Route::get('/tools', [$c, 'tools'])->middleware('can:tools.view');
+            Route::post('/tools', [$c, 'toolStore'])->middleware('can:tools.manage');
+            Route::get('/tools/{tool}', [$c, 'toolShow'])->middleware('can:tools.view');
+            Route::put('/tools/{tool}', [$c, 'toolUpdate'])->middleware('can:tools.manage');
+            Route::post('/tools/{tool}/image', [$c, 'toolImage'])->middleware('can:tools.manage');
 
             // Installers (exe, dmg, apk …) on the private disk
             $f = \App\Http\Controllers\Api\Admin\CatalogueFileController::class;
@@ -496,14 +497,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/products/{product}/software-file', [$f, 'destroyProductFile']);
             Route::post('/tools/{tool}/file', [$f, 'storeToolFile']);
             Route::delete('/tools/{tool}/file', [$f, 'destroyToolFile']);
-            Route::delete('/tools/{tool}', [$c, 'toolDestroy']);
+            Route::delete('/tools/{tool}', [$c, 'toolDestroy'])->middleware('can:tools.manage');
 
-            Route::get('/scholarships', [$c, 'scholarships']);
-            Route::post('/scholarships', [$c, 'scholarshipStore']);
-            Route::get('/scholarships/{scholarship}', [$c, 'scholarshipShow']);
-            Route::put('/scholarships/{scholarship}', [$c, 'scholarshipUpdate']);
-            Route::post('/scholarships/{scholarship}/image', [$c, 'scholarshipImage']);
-            Route::delete('/scholarships/{scholarship}', [$c, 'scholarshipDestroy']);
+            Route::get('/scholarships', [$c, 'scholarships'])->middleware('can:scholarships.view');
+            Route::post('/scholarships', [$c, 'scholarshipStore'])->middleware('can:scholarships.manage');
+            Route::get('/scholarships/{scholarship}', [$c, 'scholarshipShow'])->middleware('can:scholarships.view');
+            Route::put('/scholarships/{scholarship}', [$c, 'scholarshipUpdate'])->middleware('can:scholarships.manage');
+            Route::post('/scholarships/{scholarship}/image', [$c, 'scholarshipImage'])->middleware('can:scholarships.manage');
+            Route::delete('/scholarships/{scholarship}', [$c, 'scholarshipDestroy'])->middleware('can:scholarships.manage');
         });
     });
 });
