@@ -396,6 +396,20 @@
                     <h1 class="text-lg font-semibold text-gray-900">{{ $header ?? $title }}</h1>
                 </div>
                 <div class="flex items-center gap-3">
+                    {{-- Team notes: every admin and helpdesk member. The dot = notes others added since your last visit. --}}
+                    @php($unseenNotes = \App\Models\StickyNote::unseenCountFor(auth()->user()))
+                    <a href="{{ route('admin.sticky-notes.index') }}" title="Team notes" aria-label="Team notes"
+                       class="group relative rounded-lg p-2 transition {{ request()->routeIs('admin.sticky-notes.*') ? 'bg-amber-50 text-amber-600' : 'text-gray-600 hover:bg-amber-50 hover:text-amber-600' }}">
+                        <svg class="h-6 w-6 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25h8.25l6-6V6A2.25 2.25 0 0018 3.75h-2.25zM14.25 20.25v-4.5a1.5 1.5 0 011.5-1.5h4.5M7.5 8.25h9M7.5 11.25h6" />
+                        </svg>
+                        @if ($unseenNotes > 0)
+                            <span class="absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-semibold text-white">
+                                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60"></span>
+                                <span class="relative">{{ $unseenNotes > 9 ? '9+' : $unseenNotes }}</span>
+                            </span>
+                        @endif
+                    </a>
                     <livewire:shared.notification-bell />
                     <x-account-menu />
                 </div>

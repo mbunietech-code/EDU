@@ -23,8 +23,6 @@
         </div>
     </div>
 
-    @include('admin.dashboard._sticky-notes')
-
     <div class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <x-mbui.stats-card title="Total Users" :value="number_format($metrics['total_users'])" />
         <x-mbui.stats-card title="Total Products" :value="number_format($metrics['total_products'])" />

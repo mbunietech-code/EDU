@@ -33,7 +33,8 @@ class StickyNotesAndVaultTest extends TestCase
         $this->actingAs($dmo)->post(route('admin.sticky-notes.store'), ['body' => 'Call the bank at 10', 'color' => 'green'])->assertRedirect();
         $note = StickyNote::firstOrFail();
 
-        $this->actingAs($other)->get(route('admin.dashboard'))->assertOk()->assertSee('Call the bank at 10');
+        $this->actingAs($other)->get(route('admin.dashboard'))->assertOk()->assertSee(route('admin.sticky-notes.index'), false);
+        $this->actingAs($other)->get(route('admin.sticky-notes.index'))->assertOk()->assertSee('Call the bank at 10');
         $this->actingAs($other)->put(route('admin.sticky-notes.update', $note), ['body' => 'x', 'color' => 'yellow'])->assertForbidden();
         $this->actingAs($other)->delete(route('admin.sticky-notes.destroy', $note))->assertForbidden();
 

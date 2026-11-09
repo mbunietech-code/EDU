@@ -186,6 +186,7 @@ Route::prefix('admin')
 
         // --- Sticky notes on the dashboard (every admin & helpdesk member) ---
         Route::controller(\App\Http\Controllers\Admin\StickyNoteController::class)->prefix('sticky-notes')->name('sticky-notes.')->group(function () {
+            Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
             Route::put('{note}', 'update')->whereNumber('note')->name('update');
             Route::post('{note}/pin', 'pin')->whereNumber('note')->name('pin');
