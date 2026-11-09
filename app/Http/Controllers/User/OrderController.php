@@ -40,6 +40,11 @@ class OrderController extends Controller
             abort(404);
         }
 
+        // Mbunie VPN is bought on vpn.mbuniehub.com, not here.
+        if ($product->isVpn()) {
+            return redirect()->away(Product::vpnStoreUrl());
+        }
+
         // Older plan buttons linked to ?plan=<id>: honour it rather than
         // silently falling back to the cheapest plan.
         if (! $plan && $request->filled('plan')) {
@@ -62,6 +67,9 @@ class OrderController extends Controller
         $validated = $request->validated();
 
         $product = Product::findOrFail($validated['product_id']);
+        if ($product->isVpn()) {
+            return redirect()->away(Product::vpnStoreUrl());
+        }
         $plan = Plan::where('id', $validated['plan_id'])
             ->where('product_id', $product->id)
             ->where('status', 'active')

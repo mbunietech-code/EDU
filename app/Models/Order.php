@@ -179,6 +179,10 @@ class Order extends Model
         if (! $this->isConfirmed() || $this->isToolOrder() || ! $this->product || $this->product->isSoftware()) {
             return false;
         }
+        // Mbunie VPN is renewed on vpn.mbuniehub.com (the order page links there).
+        if ($this->product->isVpn()) {
+            return false;
+        }
         if ($this->product->status !== 'published' || ! $this->product->plans()->active()->exists()) {
             return false;
         }

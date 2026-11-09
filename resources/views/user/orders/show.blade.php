@@ -139,6 +139,7 @@
                                 <li>Sign in with this account's email ({{ auth()->user()->email }}); we send you a one-time code.</li>
                                 <li>Tap <strong>Connect</strong>.</li>
                             </ol>
+                            <p class="mt-3 text-sm text-emerald-900">To renew or buy more time, go to <a href="{{ \App\Models\Product::vpnStoreUrl() }}" class="font-semibold underline">vpn.mbuniehub.com</a>.</p>
                         </div>
                     @else
                         <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">

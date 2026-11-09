@@ -53,6 +53,8 @@ return [
         'timeout' => (int) env('MVPN_TIMEOUT', 20),
         'download_android' => env('MVPN_DOWNLOAD_ANDROID', 'https://vpn.mbuniehub.com/storage/downloads/Mbunie-VPN-1.0.13.apk'),
         'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', 'https://vpn.mbuniehub.com/storage/downloads/Mbunie-VPN-Setup-1.0.13.exe'),
+        // Mbunie VPN is sold on its own site: every VPN link here leads to this page.
+        'store_url' => env('MVPN_STORE_URL', 'https://vpn.mbuniehub.com/download'),
     ],
 
 ];

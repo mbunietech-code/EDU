@@ -140,7 +140,30 @@ class OrderRenewalTest extends TestCase
         $this->assertSame(0, Order::whereNotNull('renews_order_id')->count());
     }
 
-    public function test_vpn_order_can_be_renewed_and_the_renewal_is_activated(): void
+    public function test_vpn_order_is_renewed_on_the_vpn_site_not_here(): void
+    {
+        config(['services.mvpn.store_url' => 'https://vpn.test/download']);
+
+        $product = Product::factory()->create(['status' => 'published', 'type' => 'vpn']);
+        $plan = Plan::factory()->create(['product_id' => $product->id, 'status' => 'active', 'duration_days' => 30, 'price' => 15000, 'mvpn_plan_code' => 'm1']);
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $order = Order::factory()->create([
+            'user_id' => $user->id, 'product_id' => $product->id, 'plan_id' => $plan->id,
+            'amount' => $plan->price, 'status' => 'confirmed', 'confirmed_at' => now()->subDays(27),
+        ]);
+        $order->forceFill(['vpn_activated_at' => now()->subDays(27), 'vpn_expires_at' => now()->addDays(3)])->save();
+
+        $this->assertFalse($order->fresh()->canBeRenewed());
+        $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('error');
+        $this->assertSame(0, Order::where('renews_order_id', $order->id)->count());
+
+        $this->actingAs($user)->get(route('user.orders.show', $order))
+            ->assertOk()
+            ->assertDontSee('Renew now')
+            ->assertSee('https://vpn.test/download', false);
+    }
+
+    public function test_a_vpn_renewal_already_waiting_for_payment_is_still_activated_when_paid(): void
     {
         config(['services.mvpn.url' => 'https://vpn.test', 'services.mvpn.partner_secret' => 'test-partner-secret-0123456789abcdef0123']);
         Http::fake([
@@ -159,9 +182,11 @@ class OrderRenewalTest extends TestCase
         ]);
         $order->forceFill(['vpn_activated_at' => now()->subDays(27), 'vpn_expires_at' => now()->addDays(3)])->save();
 
-        $this->assertTrue($order->fresh()->canBeRenewed());
-        $this->actingAs($user)->post(route('user.orders.renew', $order));
-        $renewal = Order::where('renews_order_id', $order->id)->firstOrFail();
+        // Made before VPN moved to its own site; it must still work.
+        $renewal = Order::factory()->create([
+            'user_id' => $user->id, 'product_id' => $product->id, 'plan_id' => $plan->id,
+            'amount' => $plan->price, 'status' => 'pending', 'renews_order_id' => $order->id,
+        ]);
         $this->approveRenewal($renewal);
 
         $renewal->refresh();

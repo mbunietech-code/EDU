@@ -45,6 +45,15 @@ class Product extends Model
         return $this->type === 'vpn';
     }
 
+    /**
+     * Mbunie VPN is bought on vpn.mbuniehub.com, not here: its product page,
+     * order page and renewals all lead to this page instead.
+     */
+    public static function vpnStoreUrl(): string
+    {
+        return (string) config('services.mvpn.store_url', 'https://vpn.mbuniehub.com/download');
+    }
+
     public function imageUrl(): ?string
     {
         return $this->image ? asset('storage/'.$this->image) : null;

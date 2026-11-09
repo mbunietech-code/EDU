@@ -44,6 +44,12 @@ class OrderController extends Controller
             ]);
         } else {
             $product = Product::where('id', $data['product_id'])->where('status', 'published')->firstOrFail();
+            if ($product->isVpn()) {
+                return response()->json([
+                    'message' => 'Mbunie VPN is bought on its own site: '.Product::vpnStoreUrl(),
+                    'url' => Product::vpnStoreUrl(),
+                ], 422);
+            }
             $plan = Plan::where('id', $data['plan_id'])
                 ->where('product_id', $product->id)
                 ->where('status', 'active')

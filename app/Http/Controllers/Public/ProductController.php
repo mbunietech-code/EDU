@@ -19,6 +19,11 @@ class ProductController extends Controller
             abort(404);
         }
 
+        // Mbunie VPN is sold on its own site.
+        if ($product->isVpn()) {
+            return redirect()->away(Product::vpnStoreUrl());
+        }
+
         $product->load(['plans' => function ($query) {
             $query->active()->orderBy('sort_order');
         }]);
