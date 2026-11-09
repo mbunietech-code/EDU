@@ -96,6 +96,12 @@
     .sn-act { padding: .3rem; border-radius: .45rem; color: #4b5563; transition: background .15s, color .15s, transform .15s; }
     .sn-act:hover { background: rgba(255, 255, 255, .7); color: #111827; transform: scale(1.08); }
     .sn-act.is-danger:hover { color: #b91c1c; }
+    .sn-copy { display: inline-flex; align-items: center; gap: .25rem; padding: .25rem .55rem; border-radius: .5rem; font-size: .72rem; font-weight: 700;
+        color: #374151; background: rgba(255, 255, 255, .65); border: 1px solid rgba(0, 0, 0, .08);
+        transition: background .15s, color .15s, transform .15s var(--sn-ease), border-color .15s; }
+    .sn-copy:hover { background: #fff; color: #111827; transform: translateY(-1px); }
+    .sn-copy.is-done { background: #059669; border-color: #059669; color: #fff; animation: sn-copied .4s var(--sn-ease); }
+    @keyframes sn-copied { 0% { transform: scale(.9); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .sn-edit textarea { width: 100%; border: 0; border-radius: .6rem; padding: .6rem .7rem; background: rgba(255, 255, 255, .7); font-size: .9rem; min-height: 110px; }
     .sn-edit textarea:focus { outline: none; box-shadow: inset 0 0 0 2px rgba(99, 102, 241, .35); }
 
@@ -118,6 +124,23 @@
         .sn-note, .sn-note:hover { transform: none; transition: none; }
     }
 </style>
+
+<script>
+    // Copies a note's text; falls back to the old way where the clipboard API is not allowed.
+    window.snCopy = async function (text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+        } catch (e) { /* fall through */ }
+        const t = document.createElement('textarea');
+        t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.appendChild(t); t.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        t.remove();
+        if (!ok) alert('Copy did not work here. Select the text and press Ctrl + C.');
+        return ok;
+    };
+</script>
 
 <div class="sn-wrap"
      x-data="{
@@ -221,8 +244,9 @@
                     <article class="sn-note {{ $note->id === $newId ? 'is-new' : '' }}"
                              style="background: {{ $bg }}; border-color: {{ $border }}; --delay: {{ min($i, 12) * 45 }}ms"
                              data-color="{{ $note->color }}" data-text="{{ \Illuminate\Support\Str::lower($note->body.' '.$author) }}"
-                             x-data="{ editing: false, leaving: false }" x-show="show($el)" x-transition.opacity.duration.200ms
+                             x-data="{ editing: false, leaving: false, copied: false }" x-show="show($el)" x-transition.opacity.duration.200ms
                              :class="leaving && 'is-leaving'">
+                        <textarea x-ref="raw" hidden aria-hidden="true">{{ $note->body }}</textarea>
                         @if ($note->pinned)
                             <span class="sn-pin" title="Pinned">📌</span>
                         @endif
@@ -266,6 +290,14 @@
                                     @if ($note->editor && $note->updated_by !== $note->created_by) <span class="text-gray-500">(edited by {{ $note->editor->name }})</span> @endif
                                 </span>
                             </div>
+                            <div class="flex shrink-0 items-center gap-1">
+                            {{-- Copy: for everyone, always visible. --}}
+                            <button type="button" class="sn-copy" :class="copied && 'is-done'" title="Copy the note" aria-label="Copy the note"
+                                    @click="window.snCopy($refs.raw.value).then(ok => { if (ok) { copied = true; setTimeout(() => copied = false, 1600) } })">
+                                <svg x-show="!copied" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+                                <svg x-show="copied" x-cloak class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                <span x-text="copied ? 'Copied' : 'Copy'">Copy</span>
+                            </button>
                             @if ($mine)
                                 <div class="sn-actions">
                                     <form method="POST" action="{{ route('admin.sticky-notes.pin', $note) }}">
@@ -286,6 +318,7 @@
                                     </form>
                                 </div>
                             @endif
+                            </div>
                         </div>
                     </article>
                 @endforeach
