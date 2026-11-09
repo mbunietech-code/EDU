@@ -29,7 +29,13 @@ class BrowseProducts extends Component
 
     public function render()
     {
-        $query = Product::published()->withCount('plans');
+        // Mbunie VPN gets its own card that leads to vpn.mbuniehub.com.
+        $query = Product::published()->where('type', '!=', 'vpn')->withCount('plans');
+
+        $term = mb_strtolower(trim($this->search));
+        $showVpn = $this->getPage() === 1
+            && ($term === '' || str_contains('mbunie vpn internet china travel', $term));
+        $vpnProduct = $showVpn ? Product::where('type', 'vpn')->latest()->first() : null;
 
         if ($this->search !== '') {
             $query->where(function ($q) {
@@ -47,6 +53,11 @@ class BrowseProducts extends Component
 
         $rates = app(CurrencyRateService::class)->rates();
 
-        return view('livewire.public.browse-products', ['products' => $products, 'rates' => $rates]);
+        return view('livewire.public.browse-products', [
+            'products' => $products,
+            'rates' => $rates,
+            'showVpn' => $showVpn,
+            'vpnProduct' => $vpnProduct,
+        ]);
     }
 }

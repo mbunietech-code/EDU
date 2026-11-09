@@ -35,6 +35,18 @@ class VpnSoldOnItsOwnSiteTest extends TestCase
         $this->actingAs($this->customer())->get(route('public.products.show', $product))->assertRedirect(self::STORE);
     }
 
+    public function test_customers_see_a_mbunie_vpn_card_that_opens_the_download_page(): void
+    {
+        $this->vpn();
+        $user = $this->customer();
+
+        $this->actingAs($user)->get(route('dashboard'))
+            ->assertOk()->assertSee('Mbunie VPN')->assertSee('href="'.self::STORE.'"', false);
+
+        \Livewire\Livewire::actingAs($user)->test(\App\Livewire\Public\BrowseProducts::class)
+            ->assertSee('Mbunie VPN')->assertSee('href="'.self::STORE.'"', false);
+    }
+
     private function customer(): User
     {
         return User::factory()->create(['email_verified_at' => now()]);

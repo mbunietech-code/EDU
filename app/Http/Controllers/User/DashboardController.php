@@ -45,8 +45,10 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
+        // Mbunie VPN has its own card in this section (it leads to vpn.mbuniehub.com).
         $featuredProducts = Product::published()
             ->featured()
+            ->where('type', '!=', 'vpn')
             ->withCount('plans')
             ->get();
 

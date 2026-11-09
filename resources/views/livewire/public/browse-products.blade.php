@@ -17,10 +17,13 @@
         </div>
     </div>
 
-    @if ($products->isEmpty())
+    @if ($products->isEmpty() && ! $showVpn)
         <x-mbui.empty-state title="No AI tools found" message="Try adjusting your search or filters." />
     @else
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @if ($showVpn)
+                <x-vpn-card :product="$vpnProduct" />
+            @endif
             @foreach ($products as $product)
                 <a href="{{ route('public.products.show', $product) }}" class="mbui-card group flex items-center gap-3 p-3 transition hover:shadow-md">
                     <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-gray-50">

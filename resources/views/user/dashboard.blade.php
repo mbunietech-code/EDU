@@ -130,7 +130,7 @@
         </div>
     @endif
 
-    @if ($featuredProducts->isNotEmpty())
+    {{-- Always shown: Mbunie VPN has a card here even with no featured products. --}}
         <div class="mt-10">
             <div class="mbui-page-header">
                 <div>
@@ -140,6 +140,7 @@
                 <a href="{{ route('public.products.index') }}" class="mbui-anchor text-sm">View all</a>
             </div>
             <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <x-vpn-card :product="\App\Models\Product::where('type', 'vpn')->latest()->first()" />
                 @foreach ($featuredProducts as $product)
                     <a href="{{ route('public.products.show', $product) }}" class="mbui-card group flex items-center gap-3 p-3 transition hover:shadow-md">
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
@@ -162,7 +163,6 @@
                 @endforeach
             </div>
         </div>
-    @endif
 
     @if ($pendingOrders->isNotEmpty())
         <div class="mt-10">
