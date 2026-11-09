@@ -9,15 +9,20 @@
     .sn-wrap { --sn-ease: cubic-bezier(.2, .8, .2, 1); }
 
     /* Header */
-    .sn-hero { position: relative; overflow: hidden; border-radius: 1rem; padding: 1.5rem; color: #fff;
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 120%); box-shadow: 0 10px 30px -12px rgba(79, 70, 229, .55); }
-    .sn-hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%;
-        background: rgba(255, 255, 255, .12); }
-    .sn-hero-count { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .65rem; border-radius: 999px;
-        background: rgba(255, 255, 255, .18); font-size: .75rem; font-weight: 600; backdrop-filter: blur(4px); }
-    .sn-new-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .4rem; padding: .6rem 1rem; border-radius: .75rem;
-        background: #fff; color: #4338ca; font-weight: 700; font-size: .875rem; transition: transform .2s var(--sn-ease), box-shadow .2s; }
-    .sn-new-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .35); }
+    /* Same look as the homepage hero: the education photo under a dark slate veil. */
+    .sn-hero { position: relative; overflow: hidden; border-radius: 1rem; padding: 1.75rem 1.5rem; color: #fff; background-color: #020617;
+        background-image: linear-gradient(90deg, #020617 0%, rgba(2, 6, 23, .85) 50%, rgba(2, 6, 23, .25) 100%),
+                          linear-gradient(rgba(2, 6, 23, .7), rgba(2, 6, 23, .7)),
+                          url('{{ asset('images/home-education-hero.jpg') }}');
+        background-size: cover; background-position: center; border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 30px -14px rgba(2, 6, 23, .6); animation: sn-hero-in .6s var(--sn-ease) backwards; }
+    .sn-hero-count { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .65rem; border-radius: .5rem;
+        border: 1px solid rgba(255, 255, 255, .15); background: rgba(2, 6, 23, .45); font-size: .75rem; font-weight: 600; }
+    .sn-new-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .4rem; padding: .7rem 1.1rem; border-radius: .5rem;
+        background: #fff; color: #020617; font-weight: 600; font-size: .875rem; box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+        transition: transform .2s var(--sn-ease), box-shadow .2s, background .2s; }
+    .sn-new-btn:hover { background: #f1f5f9; transform: translateY(-2px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .45); }
+    @keyframes sn-hero-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
     .sn-new-btn svg { transition: transform .3s var(--sn-ease); }
     .sn-new-btn.is-open svg { transform: rotate(45deg); }
 
@@ -99,7 +104,7 @@
     @keyframes sn-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
 
     @media (prefers-reduced-motion: reduce) {
-        .sn-note, .sn-note.is-new, .sn-pin, .sn-empty-icon { animation: none !important; }
+        .sn-hero, .sn-note, .sn-note.is-new, .sn-pin, .sn-empty-icon { animation: none !important; }
         .sn-note, .sn-note:hover { transform: none; transition: none; }
     }
 </style>
