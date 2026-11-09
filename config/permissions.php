@@ -81,6 +81,12 @@ return [
             'finance.access'   => 'Open the Finance area (PIN still required)',
         ],
 
+        // Must be ticked explicitly, even for older "unrestricted" admins (see AuthServiceProvider).
+        'Password vault' => [
+            'vault.view'   => 'Open the Password vault and see / copy passwords (PIN still required)',
+            'vault.manage' => 'Add / edit / delete logins in the Password vault',
+        ],
+
         // Note: "Database" and "Team" are always super-admin only and cannot
         // be granted to a normal admin (see AuthServiceProvider).
 

@@ -184,6 +184,31 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
+        // --- Sticky notes on the dashboard (every admin & helpdesk member) ---
+        Route::controller(\App\Http\Controllers\Admin\StickyNoteController::class)->prefix('sticky-notes')->name('sticky-notes.')->group(function () {
+            Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
+            Route::put('{note}', 'update')->whereNumber('note')->name('update');
+            Route::post('{note}/pin', 'pin')->whereNumber('note')->name('pin');
+            Route::delete('{note}', 'destroy')->whereNumber('note')->name('destroy');
+        });
+
+        // --- Password vault (vault.view + PIN; vault.manage to change) ------
+        Route::middleware('can:vault.view')->prefix('vault')->name('vault.')->controller(\App\Http\Controllers\Admin\VaultController::class)->group(function () {
+            Route::get('pin', 'pin')->name('pin');
+            Route::post('pin', 'verify')->middleware('throttle:10,1')->name('pin.verify');
+            Route::post('pin/set', 'setPin')->middleware('throttle:10,1')->name('pin.set');
+            Route::post('lock', 'lock')->name('lock');
+            Route::middleware('vault.unlocked')->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('{entry}/reveal', 'reveal')->whereNumber('entry')->middleware('throttle:60,1')->name('reveal');
+                Route::middleware('can:vault.manage')->group(function () {
+                    Route::post('/', 'store')->name('store');
+                    Route::put('{entry}', 'update')->whereNumber('entry')->name('update');
+                    Route::delete('{entry}', 'destroy')->whereNumber('entry')->name('destroy');
+                });
+            });
+        });
+
         // --- Users --------------------------------------------------------
         Route::middleware('can:users.view')->group(function () {
             Route::resource('users', AdminUserController::class)->only(['index', 'show']);

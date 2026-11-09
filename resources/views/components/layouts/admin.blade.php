@@ -36,7 +36,7 @@
                 @php
                     $canAny = fn (...$perms) => collect($perms)->contains(fn ($p) => auth()->user()->can($p));
                     $me = auth()->user();
-                    $systemSectionVisible = $canAny('settings.manage', 'finance.access', 'database.access', 'ai.access', 'team.manage');
+                    $systemSectionVisible = $canAny('settings.manage', 'finance.access', 'vault.view', 'database.access', 'ai.access', 'team.manage');
                     $adminNavSection = match (true) {
                         request()->routeIs('admin.tasks.*', 'admin.assets.*') => 'company',
                         request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
@@ -325,6 +325,12 @@
                 @can('finance.access')
                 <x-admin.sidebar-link :route="route('admin.finance.pin')" :active="request()->routeIs('admin.finance.*')" label="Finance">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.625c.621 0 1.125.504 1.125 1.125v.375m-18 0h18M3.75 6.75h16.5M4.5 6.75v10.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V6.75M8.25 9.75h7.5M8.25 12.75h5.25" />
+                </x-admin.sidebar-link>
+                @endcan
+
+                @can('vault.view')
+                <x-admin.sidebar-link :route="route('admin.vault.pin')" :active="request()->routeIs('admin.vault.*')" label="Password vault">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </x-admin.sidebar-link>
                 @endcan
 

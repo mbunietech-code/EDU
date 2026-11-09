@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             '2fa' => TwoFactorMiddleware::class,
             'finance.unlocked' => EnsureFinanceUnlocked::class,
+            'vault.unlocked' => \App\Http\Middleware\EnsureVaultUnlocked::class,
             'research.contribute' => \App\Http\Middleware\EnsureCanWriteResearch::class,
         ]);
 

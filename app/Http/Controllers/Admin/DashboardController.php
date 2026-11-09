@@ -36,7 +36,12 @@ class DashboardController extends Controller
 
         $rates = app(CurrencyRateService::class)->rates();
 
-        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport', 'rates'));
+        // Team board: pinned first, then the newest. Empty if the table is not created yet.
+        $stickyNotes = \Illuminate\Support\Facades\Schema::hasTable('sticky_notes')
+            ? \App\Models\StickyNote::with('creator')->orderByDesc('pinned')->latest('updated_at')->take(30)->get()
+            : collect();
+
+        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport', 'rates', 'stickyNotes'));
     }
 
     protected function fillMissingMonths(array $revenue, int $months = 6): array

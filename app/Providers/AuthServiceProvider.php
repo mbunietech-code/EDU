@@ -72,5 +72,12 @@ class AuthServiceProvider extends ServiceProvider
         // Mbunie VPN dashboard (customers, payments, who is online) — super admin only.
         Gate::define('vpn.view', fn (User $user) => $user->isSuperAdmin());
         Gate::define('vpn.manage', fn (User $user) => $user->isSuperAdmin());
+
+        // Password vault: only admins it was explicitly given to (super admins via
+        // Gate::before). An admin with no permission list ("unrestricted") does NOT
+        // get it, and manage needs view too.
+        $explicit = fn (User $user, string $key) => $user->is_admin && is_array($user->permissions) && in_array($key, $user->permissions, true);
+        Gate::define('vault.view', fn (User $user) => $explicit($user, 'vault.view'));
+        Gate::define('vault.manage', fn (User $user) => $explicit($user, 'vault.view') && $explicit($user, 'vault.manage'));
     }
 }
