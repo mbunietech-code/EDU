@@ -1086,6 +1086,7 @@ window.learnClassroom = (cfg = {}) => {
                     el.dataset.lkAudio = '1';
                     this.$refs.audioSink && this.$refs.audioSink.appendChild(el);
                     if (this.loud) this.applyLoud();
+                    this.recAttachAudio(); // their voice goes into a recording in progress
                 }
                 refresh();
             })
@@ -1096,9 +1097,9 @@ window.learnClassroom = (cfg = {}) => {
             })
             .on(E.TrackSubscriptionFailed, () => this.flash('A participant’s video could not be received. It will retry automatically.'))
             .on(E.TrackMuted, refresh)
-            .on(E.TrackUnmuted, refresh)
+            .on(E.TrackUnmuted, () => { this.recAttachAudio(); refresh(); })
             .on(E.LocalTrackPublished, (pub) => {
-                this.recAttachMic();
+                this.recAttachAudio();
                 if (pub && pub.source === mod.Track.Source.Camera && this.bg.mode !== 'none') this.applyBackground();
                 refresh();
             })
@@ -2931,6 +2932,7 @@ window.learnClassroom = (cfg = {}) => {
         if (!room || !id) return;
         try {
             await room.switchActiveDevice(kind, id);
+            if (kind === 'audioinput') this.recAttachAudio(); // the new microphone into a recording in progress
             // The loud speaker plays through its own output: move it along.
             if (kind === 'audiooutput' && lk.loud && typeof lk.loud.ctx.setSinkId === 'function') lk.loud.ctx.setSinkId(id).catch(() => {});
         } catch (e) {
@@ -3199,16 +3201,17 @@ window.learnClassroom = (cfg = {}) => {
         this.rec.error = '';
         let display;
         try {
-            // "This tab" is offered first; tick "Also share tab audio" to record everyone's voices.
+            // "This tab" is offered first. Only the picture is taken from the screen: the sound
+            // is everyone's audio straight from the call (see recAttachAudio), so it does not
+            // depend on ticking "Also share tab audio" and is never recorded twice.
             const preset = REC_PRESETS[this.recQuality] || REC_PRESETS.standard;
             display = await navigator.mediaDevices.getDisplayMedia({
                 // Captured at the preset size: the recording is compressed as it is made.
                 video: { frameRate: { max: preset.fps }, width: { max: preset.width }, height: { max: preset.height } },
-                audio: true,
+                audio: false,
                 preferCurrentTab: true,
                 selfBrowserSurface: 'include',
                 surfaceSwitching: 'exclude',
-                systemAudio: 'include',
             });
         } catch (e) {
             this.rec.starting = false;
@@ -3218,12 +3221,12 @@ window.learnClassroom = (cfg = {}) => {
             return;
         }
 
-        // Mix the tab's sound (the class) with my microphone into one audio track.
+        // Mix everyone's voices (mine and every participant's) into one audio track.
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const dest = ctx.createMediaStreamDestination();
-        display.getAudioTracks().forEach((t) => ctx.createMediaStreamSource(new MediaStream([t])).connect(dest));
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {}); // a paused mixer records silence
         Object.assign(recorder, { display, ctx, dest, chunks: [], mics: new WeakSet() });
-        this.recAttachMic();
+        this.recAttachAudio();
 
         const stream = new MediaStream([...display.getVideoTracks(), ...dest.stream.getAudioTracks()]);
         const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
@@ -3258,30 +3261,34 @@ window.learnClassroom = (cfg = {}) => {
         if (this.rec.downloadUrl) URL.revokeObjectURL(this.rec.downloadUrl);
         this.rec.downloadUrl = '';
 
-        if (!display.getAudioTracks().length) {
-            this.flash('Recording without the class sound: choose "This tab" and tick "Also share tab audio" next time.', 9000);
-        } else {
-            this.flash('Recording started. Everyone in the class can see that it is being recorded.');
-        }
+        this.flash('Recording started with everyone’s voices. Everyone in the class can see that it is being recorded.');
 
         this.room.is_recording = true;
         await this.post(this.urls.studio.recordingBrowser, { recording: true }).catch(() => {});
         this.nudge('feed');
     },
 
-    /** Add my microphone to the recording mix (also when I turn it on later). */
-    recAttachMic() {
-        if (!this.rec.active && !recorder.ctx) return;
+    /**
+     * Add every voice to the recording mix: my microphone, everyone else's
+     * microphone and any screen-share sound — also the ones that start later
+     * (someone joins, unmutes for the first time or switches microphone).
+     */
+    recAttachAudio() {
         const room = lk.room;
         const mod = lk.mod;
-        if (!room || !mod || !recorder.ctx) return;
+        if (!room || !mod || !recorder.ctx || !recorder.dest) return;
 
-        const pub = room.localParticipant.getTrackPublication(mod.Track.Source.Microphone);
-        const track = pub && pub.track && pub.track.mediaStreamTrack;
-        if (!track || recorder.mics.has(track)) return;
+        const add = (pub) => {
+            const track = pub && pub.track && pub.track.mediaStreamTrack;
+            if (!track || track.kind !== 'audio' || track.readyState === 'ended' || recorder.mics.has(track)) return;
+            recorder.mics.add(track);
+            try {
+                recorder.ctx.createMediaStreamSource(new MediaStream([track])).connect(recorder.dest);
+            } catch (e) { /* this track cannot be mixed; the others still are */ }
+        };
 
-        recorder.mics.add(track);
-        recorder.ctx.createMediaStreamSource(new MediaStream([track])).connect(recorder.dest);
+        room.localParticipant.audioTrackPublications.forEach(add);
+        room.remoteParticipants.forEach((p) => p.audioTrackPublications.forEach(add));
     },
 
     stopBrowserRecording() {
