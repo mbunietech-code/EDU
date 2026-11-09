@@ -44,3 +44,9 @@ Schedule::command(\App\Console\Commands\TasksRemindCommand::class)->dailyAt('07:
 
 // Copy the VPN's plans onto the EduHub "vpn" product (prices live in Mbunie VPN → Plans).
 Schedule::command('mvpn:sync-plans')->hourly()->withoutOverlapping();
+
+// Security: look for web shells, miners, changed code, new SSH keys / cron jobs /
+// admins and leaked secrets on every site of the hosting account. New problems
+// are emailed at once; the daily run also sends a summary (even when all is clean).
+Schedule::command('security:scan --quick')->hourlyAt(17)->withoutOverlapping(50)->runInBackground();
+Schedule::command('security:scan --report')->dailyAt('04:30')->withoutOverlapping(120)->runInBackground();

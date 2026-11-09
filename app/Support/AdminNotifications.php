@@ -31,6 +31,7 @@ final class AdminNotifications
         ExpiringSubscription::class => 'subscriptions.view',
         AccountUnavailable::class => 'accounts.view',
         ErrorOccurred::class => 'error_logs.view',
+        \App\Notifications\Admin\SecurityAlert::class => 'settings.manage',
     ];
 
     /**

@@ -99,6 +99,17 @@ class AdminAlertService
     }
 
     /**
+     * Send any message to the alert recipients (Admin > AI Optimization > Alerts,
+     * else the super admins). Used by the daily security scan.
+     *
+     * @return array{alerts:list<string>,sent:bool,email:bool,sms:bool,errors:list<string>}
+     */
+    public function send(string $subject, string $message, bool $withSms = false): array
+    {
+        return $this->dispatch($message, ['alerts' => [], 'sent' => false, 'email' => false, 'sms' => false, 'errors' => []], $subject, $withSms);
+    }
+
+    /**
      * Send a test message through every configured channel.
      *
      * @return array{alerts:list<string>,sent:bool,email:bool,sms:bool,errors:list<string>}
@@ -115,13 +126,13 @@ class AdminAlertService
      * @param  array{alerts:list<string>,sent:bool,email:bool,sms:bool,errors:list<string>}  $result
      * @return array{alerts:list<string>,sent:bool,email:bool,sms:bool,errors:list<string>}
      */
-    private function dispatch(string $message, array $result): array
+    private function dispatch(string $message, array $result, string $subject = 'Tahadhari ya mfumo', bool $withSms = true): array
     {
         $emails = $this->emailRecipients();
         if ($emails !== []) {
             try {
                 foreach ($emails as $email) {
-                    Mail::raw($message, fn ($m) => $m->to($email)->subject('Tahadhari ya mfumo'));
+                    Mail::raw($message, fn ($m) => $m->to($email)->subject($subject));
                 }
                 $result['email'] = true;
             } catch (Throwable $e) {
@@ -130,7 +141,7 @@ class AdminAlertService
         }
 
         $phones = $this->list(Setting::get('alert_phones'));
-        if ($phones !== [] && $this->sms->isConfigured()) {
+        if ($withSms && $phones !== [] && $this->sms->isConfigured()) {
             try {
                 $this->sms->send($phones, $message);
                 $result['sms'] = true;
