@@ -65,12 +65,12 @@ class SecurityScanCommand extends Command
             return $at === null || \Illuminate\Support\Carbon::parse($at)->diffInDays(now()) >= self::REALERT_DAYS;
         }));
 
-        $this->print($findings);
-        $this->log($quick, $findings);
+        $this->printFindings($findings);
+        $this->writeLog($quick, $findings);
 
         if (! $this->option('silent')) {
             if ($new !== []) {
-                $this->alert($alerts, $new);
+                $this->sendAlert($alerts, $new);
                 foreach ($new as $f) {
                     $state['alerted'][$f['key']] = now()->toIso8601String();
                 }
@@ -96,7 +96,7 @@ class SecurityScanCommand extends Command
     }
 
     /** @param list<array{level:string,check:string,title:string,detail:string,key:string}> $new */
-    private function alert(AdminAlertService $alerts, array $new): void
+    private function sendAlert(AdminAlertService $alerts, array $new): void
     {
         $critical = collect($new)->where('level', 'critical')->count();
         $subject = ($critical ? 'URGENT security alert' : 'Security warning').' — '.parse_url((string) config('app.url'), PHP_URL_HOST);
@@ -169,7 +169,7 @@ class SecurityScanCommand extends Command
     }
 
     /** @param list<array<string,string>> $findings */
-    private function print(array $findings): void
+    private function printFindings(array $findings): void
     {
         if ($findings === []) {
             $this->info('Nothing suspicious found.');
@@ -183,7 +183,7 @@ class SecurityScanCommand extends Command
     }
 
     /** @param list<array<string,string>> $findings */
-    private function log(bool $quick, array $findings): void
+    private function writeLog(bool $quick, array $findings): void
     {
         $line = '['.now()->toDateTimeString().'] '.($quick ? 'quick' : 'full').' scan: '
             .count($findings).' finding(s)'.($findings ? ' — '.implode('; ', array_map(fn ($f) => "{$f['level']}: {$f['title']} ({$f['detail']})", $findings)) : '')."\n";
