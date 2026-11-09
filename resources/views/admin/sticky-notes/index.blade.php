@@ -76,6 +76,16 @@
     .sn-pin { position: absolute; top: .55rem; right: .7rem; font-size: 1rem; animation: sn-drop .45s var(--sn-ease) both; }
     .sn-body { white-space: pre-line; overflow-wrap: anywhere; font-size: .925rem; line-height: 1.55; color: #1f2937; padding-right: 1rem; }
     .sn-body a { color: #4338ca; text-decoration: underline; }
+    /* Long notes stay short on the board until "Show more". */
+    .sn-clip { position: relative; max-height: 16rem; overflow: hidden; transition: max-height .45s var(--sn-ease); }
+    .sn-clip.is-open { max-height: none; }
+    .sn-clip.is-long:not(.is-open)::after { content: ""; position: absolute; inset: auto 0 0 0; height: 3.5rem;
+        background: linear-gradient(to bottom, transparent, var(--sn-bg)); pointer-events: none; }
+    .sn-more { margin-top: .4rem; display: inline-flex; align-items: center; gap: .25rem; font-size: .75rem; font-weight: 700; color: #4338ca;
+        padding: .2rem .5rem; border-radius: .4rem; background: rgba(255, 255, 255, .6); transition: background .15s, transform .15s; }
+    .sn-more:hover { background: rgba(255, 255, 255, .9); transform: translateY(-1px); }
+    .sn-more svg { transition: transform .25s var(--sn-ease); }
+    .sn-more.is-open svg { transform: rotate(180deg); }
     .sn-foot { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .9rem; padding-top: .6rem;
         border-top: 1px dashed rgba(0, 0, 0, .12); font-size: .72rem; color: #4b5563; }
     .sn-avatar { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 999px;
@@ -146,7 +156,7 @@
               x-data="{ c: @js(old('color', 'yellow')), body: @js(old('body', '')), palette: @js(collect($colors)->map(fn ($p) => $p[0])) }"
               @keydown.ctrl.enter="$el.requestSubmit()" @keydown.meta.enter="$el.requestSubmit()">
             @csrf
-            <textarea name="body" x-ref="newBody" x-model="body" maxlength="1000" required placeholder="What should the team know? (Ctrl + Enter to save)"
+            <textarea name="body" x-ref="newBody" x-model="body" required placeholder="What should the team know? (Ctrl + Enter to save)"
                       :style="'background-color:' + palette[c]"></textarea>
             <x-input-error :messages="$errors->get('body')" class="mt-2" />
             <input type="hidden" name="color" :value="c">
@@ -158,7 +168,7 @@
                     @endforeach
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-xs tabular-nums text-gray-400" x-text="body.length + ' / 1000'"></span>
+                    <span class="text-xs tabular-nums text-gray-400" x-show="body.length" x-text="body.length.toLocaleString() + ' characters'"></span>
                     <button type="submit" class="sn-primary" :disabled="!body.trim()">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                         Stick it
@@ -217,13 +227,21 @@
                             <span class="sn-pin" title="Pinned">📌</span>
                         @endif
 
-                        <div x-show="!editing" class="sn-body">{!! \App\Support\StickyNoteText::render($note->body) !!}</div>
+                        <div x-show="!editing" x-data="{ long: false, open: false }" x-init="$nextTick(() => long = $refs.clip.scrollHeight > $refs.clip.clientHeight + 4)">
+                            <div x-ref="clip" class="sn-clip" :class="{ 'is-long': long, 'is-open': open }" style="--sn-bg: {{ $bg }}">
+                                <div class="sn-body">{!! \App\Support\StickyNoteText::render($note->body) !!}</div>
+                            </div>
+                            <button type="button" x-show="long" x-cloak class="sn-more" :class="open && 'is-open'" @click="open = !open">
+                                <span x-text="open ? 'Show less' : 'Show more'">Show more</span>
+                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                            </button>
+                        </div>
 
                         @if ($mine)
                             <form x-show="editing" x-cloak method="POST" action="{{ route('admin.sticky-notes.update', $note) }}" class="sn-edit"
                                   x-data="{ c: @js($note->color) }" @keydown.ctrl.enter="$el.requestSubmit()" @keydown.escape="editing = false">
                                 @csrf @method('PUT')
-                                <textarea name="body" maxlength="1000" required x-ref="edit">{{ $note->body }}</textarea>
+                                <textarea name="body" required x-ref="edit">{{ $note->body }}</textarea>
                                 <input type="hidden" name="color" :value="c">
                                 <div class="mt-2 flex items-center justify-between gap-2">
                                     <div class="flex items-center gap-1.5">
