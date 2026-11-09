@@ -284,6 +284,32 @@ class LearnerRoomsTest extends TestCase
         $this->actingAs($learner)->get(route('learn.rooms.ics', $private))->assertForbidden();
     }
 
+    public function test_room_page_offers_add_to_google_calendar_with_the_class_filled_in(): void
+    {
+        $host = $this->instructor();
+        $room = $this->room($host, [
+            'title' => 'Research methods & ethics',
+            'scheduled_at' => now()->setTimezone(config('app.timezone'))->addDays(2)->setTime(9, 0),
+            'duration_minutes' => 60,
+        ]);
+
+        $url = \App\Http\Controllers\Learn\RoomController::googleCalendarUrl($room);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+
+        $this->assertStringStartsWith('https://calendar.google.com/calendar/render?', $url);
+        $this->assertSame('TEMPLATE', $q['action']);
+        $this->assertSame('Research methods & ethics', $q['text']);
+        $start = $room->scheduled_at->copy()->utc()->format('Ymd\THis\Z');
+        $end = $room->scheduled_at->copy()->addHour()->utc()->format('Ymd\THis\Z');
+        $this->assertSame("{$start}/{$end}", $q['dates']);
+        $this->assertStringContainsString(route('learn.rooms.show', $room), $q['details']);
+
+        $this->actingAs($this->member())->get(route('learn.rooms.show', $room))->assertOk()
+            ->assertSee('Google Calendar')->assertSee('calendar.google.com/calendar/render', false);
+
+        $this->assertNull(\App\Http\Controllers\Learn\RoomController::googleCalendarUrl($this->room($host, ['status' => 'draft', 'scheduled_at' => null])));
+    }
+
     // --- Classroom page ----------------------------------------------------------
     public function test_live_page_renders_config_with_manager_urls_only_for_managers(): void
     {

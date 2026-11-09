@@ -153,6 +153,34 @@ class RoomController extends Controller
         return self::icsResponse($room);
     }
 
+    /**
+     * "Add to Google Calendar" link: opens Google Calendar with the class filled
+     * in (title, time in UTC, description with the join link). Null when the
+     * room has no time yet. Holds nothing secret: only what the viewer already sees.
+     */
+    public static function googleCalendarUrl(LearningRoom $room): ?string
+    {
+        if ($room->scheduled_at === null) {
+            return null;
+        }
+
+        $start = $room->scheduled_at->copy()->utc();
+        $end = ($room->endsAt() ?? $room->scheduled_at->copy()->addHour())->utc();
+        $url = route('learn.rooms.show', $room);
+
+        $description = trim(Str::limit(strip_tags((string) $room->description), 1000));
+        $description = trim(($description !== '' ? $description."\n\n" : '').'Join: '.$url);
+
+        return 'https://calendar.google.com/calendar/render?'.http_build_query([
+            'action' => 'TEMPLATE',
+            'text' => $room->title,
+            'dates' => $start->format('Ymd\THis\Z').'/'.$end->format('Ymd\THis\Z'),
+            'details' => $description,
+            'location' => $url,
+            'ctz' => 'Africa/Dar_es_Salaam',
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
     /** The .ics file itself; callers check that the viewer may see the room (web and app). */
     public static function icsResponse(LearningRoom $room)
     {

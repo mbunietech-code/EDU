@@ -177,6 +177,7 @@ class LearningController extends Controller
             'events' => $rooms->map(fn (LearningRoom $r) => $this->roomCard($r) + [
                 'day' => ($r->scheduled_at ?? $r->started_at)?->format('Y-m-d'),
                 'calendar_url' => $this->calendarUrl($r, $user),
+                'google_calendar_url' => $this->calendarUrl($r, $user) ? \App\Http\Controllers\Learn\RoomController::googleCalendarUrl($r) : null,
             ])->values(),
         ]);
     }
@@ -715,6 +716,7 @@ class LearningController extends Controller
             'join_url' => route('api.learning.rooms.join', $room->slug),
             'web_url' => route('learn.rooms.live', $room),
             'calendar_url' => $this->calendarUrl($room, $user),
+            'google_calendar_url' => $this->calendarUrl($room, $user) ? \App\Http\Controllers\Learn\RoomController::googleCalendarUrl($room) : null,
             'shared_recordings_count' => $room->recordings()
                 ->where('status', 'ready')->whereNotNull('path')
                 ->when(! $isManager, fn (Builder $q) => $q->where('is_shared', true))

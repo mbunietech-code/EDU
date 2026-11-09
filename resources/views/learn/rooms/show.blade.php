@@ -93,6 +93,16 @@
                             </svg>
                             Add to calendar
                         </x-mbui.btn-link>
+                        <x-mbui.btn-link :href="\App\Http\Controllers\Learn\RoomController::googleCalendarUrl($room)" variant="secondary" target="_blank" rel="noopener noreferrer" title="Opens Google Calendar with this class filled in">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="3" y="4" width="18" height="17" rx="2.5" fill="#fff" stroke="#dadce0" stroke-width="1.2" />
+                                <path d="M3 8.5V6.5A2.5 2.5 0 015.5 4h13A2.5 2.5 0 0121 6.5v2z" fill="#4285F4" />
+                                <rect x="7" y="2.5" width="1.8" height="3.5" rx=".9" fill="#1967D2" />
+                                <rect x="15.2" y="2.5" width="1.8" height="3.5" rx=".9" fill="#1967D2" />
+                                <text x="12" y="18.2" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="700" fill="#1967D2">{{ $room->scheduled_at->timezone(config('app.timezone'))->format('j') }}</text>
+                            </svg>
+                            Google Calendar
+                        </x-mbui.btn-link>
                     @endif
                 </div>
 
