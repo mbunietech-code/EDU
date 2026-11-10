@@ -13,6 +13,7 @@ import 'admin_common.dart';
 import 'admin_form_kit.dart';
 import 'finance_contracts_tab.dart';
 import 'finance_hr_tabs.dart';
+import 'finance_extras.dart';
 
 class AdminFinanceScreen extends ConsumerWidget {
   const AdminFinanceScreen({super.key});
@@ -149,13 +150,15 @@ class _FinanceTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 8,
+      length: 10,
       child: Column(
         children: [
           const Material(
             color: Colors.white,
             child: TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [
               Tab(text: 'Overview'),
+              Tab(text: 'Money'),
+              Tab(text: 'Audit'),
               Tab(text: 'Expenses'),
               Tab(text: 'Capital'),
               Tab(text: 'Loans'),
@@ -168,6 +171,8 @@ class _FinanceTabs extends StatelessWidget {
           const Expanded(
             child: TabBarView(children: [
               _OverviewTab(),
+              FinanceMoneyTab(),
+              FinanceAuditTab(),
               _ExpensesTab(),
               _CapitalTab(),
               FinanceLoansTab(),
@@ -196,6 +201,31 @@ class _OverviewTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _TotalsCard(totals: o.totals),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.flag_outlined, size: 18),
+                  label: const Text('Start date'),
+                  onPressed: () async {
+                    final changed = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(builder: (_) => const FinanceStartScreen()));
+                    if (changed == true) ref.invalidate(financeOverviewProvider);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.inventory_outlined, size: 18),
+                  label: const Text('Unorganised data'),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const FinanceUnorganisedScreen())),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           const MbuiSectionLabel('By product / tool'),
           const SizedBox(height: 8),
@@ -204,6 +234,11 @@ class _OverviewTab extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: MbuiCard(
                 padding: const EdgeInsets.all(14),
+                onTap: r.key == null
+                    ? null
+                    : () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => FinanceLineScreen(lineKey: r.key!, label: r.label),
+                        )),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

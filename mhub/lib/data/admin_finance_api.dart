@@ -16,6 +16,7 @@ class FinanceStatus {
 
 class FinanceRow {
   const FinanceRow({
+    this.key,
     required this.label,
     required this.type,
     required this.capital,
@@ -24,6 +25,8 @@ class FinanceRow {
     required this.balance,
   });
 
+  /// Overview line key (opens the line page); null on old servers.
+  final String? key;
   final String label;
   final String type;
   final double capital;
@@ -32,6 +35,7 @@ class FinanceRow {
   final double balance;
 
   factory FinanceRow.fromJson(Map<String, dynamic> j) => FinanceRow(
+        key: j['key'] as String?,
         label: j['label'] as String? ?? '',
         type: j['type'] as String? ?? '',
         capital: (j['capital'] as num?)?.toDouble() ?? 0,
