@@ -19,36 +19,18 @@ class ChatController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->input('search', ''));
-        $status = in_array($request->input('status'), ['unread', 'awaiting', 'replied', 'online'], true)
+        $status = in_array($request->input('status'), Conversation::INBOX_STATUSES, true)
             ? $request->input('status') : 'all';
-        $period = in_array($request->input('period'), ['today', '7d', '30d'], true)
+        $period = in_array($request->input('period'), Conversation::INBOX_PERIODS, true)
             ? $request->input('period') : null;
 
         // Search + period narrow everything; the status tabs then split that set,
         // and each tab shows how many conversations it holds.
-        $base = Conversation::query()
-            ->whereHas('user', fn ($q) => $q->realUsers())
-            ->when($search !== '', fn ($query) => $query->where(fn ($outer) => $outer
-                ->whereHas('user', fn ($q) => $q->where(fn ($inner) => $inner
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")))
-                ->orWhereHas('messages', fn ($q) => $q->where('body', 'like', "%{$search}%"))
-            ))
-            ->when($period, fn ($query) => $query->whereHas('messages', fn ($q) => $q->where('created_at', '>=', match ($period) {
-                'today' => now()->startOfDay(),
-                '7d' => now()->subDays(7),
-                '30d' => now()->subDays(30),
-            })));
+        $counts = Conversation::inboxCounts($search, $period);
 
-        $counts = [
-            'all' => (clone $base)->count(),
-            'unread' => $this->applyStatus(clone $base, 'unread')->count(),
-            'awaiting' => $this->applyStatus(clone $base, 'awaiting')->count(),
-            'replied' => $this->applyStatus(clone $base, 'replied')->count(),
-            'online' => $this->applyStatus(clone $base, 'online')->count(),
-        ];
-
-        $conversations = $this->applyStatus(clone $base, $status)
+        $conversations = Conversation::query()
+            ->adminInbox($search, $period)
+            ->inboxStatus($status)
             ->with(['user', 'latestMessage'])
             ->withCount(['messages as unread' => fn ($query) => $query->where('is_from_admin', false)->where('is_read', false)])
             ->latest('updated_at')
@@ -56,17 +38,6 @@ class ChatController extends Controller
             ->withQueryString();
 
         return view('admin.chat.index', compact('conversations', 'search', 'status', 'period', 'counts'));
-    }
-
-    protected function applyStatus($query, string $status)
-    {
-        return match ($status) {
-            'unread' => $query->whereHas('messages', fn ($q) => $q->where('is_from_admin', false)->where('is_read', false)),
-            'awaiting' => $query->whereHas('latestMessage', fn ($q) => $q->where('is_from_admin', false)),
-            'replied' => $query->whereHas('latestMessage', fn ($q) => $q->where('is_from_admin', true)),
-            'online' => $query->whereHas('user', fn ($q) => $q->where('last_seen_at', '>', now()->subMinutes(2))),
-            default => $query,
-        };
     }
 
     public function create()

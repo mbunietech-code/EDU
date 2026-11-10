@@ -13,27 +13,60 @@ class ChatController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $conversations = Conversation::with(['user:id,name,email', 'latestMessage'])
+        $search = trim((string) $request->input('search', ''));
+        $status = in_array($request->input('status'), Conversation::INBOX_STATUSES, true)
+            ? $request->input('status') : 'all';
+        $period = in_array($request->input('period'), Conversation::INBOX_PERIODS, true)
+            ? $request->input('period') : null;
+
+        $query = Conversation::query()
+            ->adminInbox($search, $period)
+            ->inboxStatus($status)
+            ->with(['user:id,name,email,last_seen_at', 'latestMessage'])
             ->withCount(['messages as unread' => fn ($q) => $q
                 ->where('is_from_admin', false)->where('is_read', false)])
-            ->when($request->filled('search'), fn ($q) => $q->whereHas('user', fn ($u) => $u
-                ->where('name', 'like', '%'.$request->string('search').'%')
-                ->orWhere('email', 'like', '%'.$request->string('search').'%')))
-            ->latest('updated_at')
-            ->get();
+            ->latest('updated_at');
+
+        $unreadTotal = ChatMessage::query()
+            ->where('is_from_admin', false)
+            ->where('is_read', false)
+            ->whereHas('conversation', fn ($q) => $q->adminInbox())
+            ->count();
+
+        $meta = [
+            'unread_total' => $unreadTotal,
+            'counts' => Conversation::inboxCounts($search, $period),
+            'status' => $status,
+            'period' => $period,
+        ];
+
+        // App 1.2.0 and older send no page and expect the whole list; newer
+        // builds ask page by page.
+        if ($request->filled('page')) {
+            $page = $query->paginate(min(50, max(5, (int) $request->input('per_page', 20))));
+            $conversations = collect($page->items());
+            $meta += [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'total' => $page->total(),
+            ];
+        } else {
+            $conversations = $query->get();
+        }
 
         return response()->json([
             'data' => $conversations->map(fn (Conversation $c) => [
                 'id' => $c->id,
                 'user_name' => $c->user->name ?? '—',
                 'user_email' => $c->user->email ?? '—',
+                'online' => (bool) $c->user?->isOnline(),
                 'unread' => $c->unread,
                 'last_message' => $c->latestMessage?->body
                     ?? ($c->latestMessage ? '['.$c->latestMessage->type.']' : null),
                 'last_from_admin' => (bool) ($c->latestMessage?->is_from_admin),
                 'updated_ago' => optional($c->updated_at)->diffForHumans(),
-            ])->all(),
-            'meta' => ['unread_total' => $conversations->sum('unread')],
+            ])->values()->all(),
+            'meta' => $meta,
         ]);
     }
 

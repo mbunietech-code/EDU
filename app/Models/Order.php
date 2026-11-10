@@ -124,6 +124,45 @@ class Order extends Model
             : $query;
     }
 
+    /** Status filter values: stored statuses plus the computed ones admins see on badges. */
+    public const STATUS_FILTERS = ['pending', 'paid', 'confirmed', 'active', 'expired', 'renewed', 'rejected', 'cancelled'];
+
+    /** What was bought: a product type, or a tool. */
+    public const KIND_FILTERS = ['subscription', 'software', 'vpn', 'tool'];
+
+    /** "active" / "expired" / "renewed" follow the same rules as displayStatus(). */
+    public function scopeFilterStatus($query, string $status)
+    {
+        $renewalsReady = self::renewalsReady();
+        $expired = function ($q) {
+            $q->whereHas('subscription', fn ($s) => $s->where(fn ($e) => $e->where('status', 'expired')->orWhereDate('expiry_date', '<=', now()->toDateString())))
+                ->orWhere(fn ($v) => $v->whereNotNull('vpn_expires_at')->where('vpn_expires_at', '<', now()))
+                ->orWhere(fn ($s) => $s->whereHas('product', fn ($p) => $p->where('type', 'software'))
+                    ->where(fn ($w) => $w->whereNull('software_access_expires_at')->orWhere('software_access_expires_at', '<', now())));
+        };
+        $renewed = fn ($q) => $q->whereHas('renewals', fn ($r) => $r->where('status', 'confirmed'));
+
+        return match ($status) {
+            'renewed' => $renewalsReady ? $query->where('status', 'confirmed')->where($renewed) : $query->whereRaw('1 = 0'),
+            'expired' => $query->where('status', 'confirmed')->where($expired)
+                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
+            'active' => $query->whereIn('status', ['confirmed', 'paid'])->whereNot($expired)
+                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
+            default => $query->where('status', $status),
+        };
+    }
+
+    /** Orders for one kind of thing: subscription, software, vpn (product type) or tool. */
+    public function scopeOfKind($query, string $kind)
+    {
+        return match ($kind) {
+            'tool' => $query->whereNotNull('tool_id'),
+            'subscription' => $query->whereNull('tool_id')->whereHas('product', fn ($p) => $p
+                ->where(fn ($t) => $t->where('type', 'subscription')->orWhereNull('type')->orWhere('type', ''))),
+            default => $query->whereNull('tool_id')->whereHas('product', fn ($p) => $p->where('type', $kind)),
+        };
+    }
+
     /** A paid renewal took over this order's service. */
     public function wasRenewed(): bool
     {

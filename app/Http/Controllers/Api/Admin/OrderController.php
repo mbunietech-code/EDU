@@ -13,8 +13,20 @@ class OrderController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $orders = Order::with(['user:id,name,email', 'product:id,name,type', 'tool:id,name', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'])
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+        $renewalsReady = Order::renewalsReady();
+        $status = (string) $request->input('status', '');
+        $kind = (string) $request->input('kind', '');
+        $type = (string) $request->input('type', '');
+
+        $orders = Order::with(array_merge(
+                ['user:id,name,email', 'product:id,name,type', 'tool:id,name', 'plan:id,name', 'subscription:id,order_id,status,expiry_date'],
+                $renewalsReady ? ['renewsOrder:id,order_number'] : []
+            ))
+            ->withConfirmedRenewalsCount()
+            ->when(in_array($status, Order::STATUS_FILTERS, true), fn ($q) => $q->filterStatus($status))
+            ->when(in_array($kind, Order::KIND_FILTERS, true), fn ($q) => $q->ofKind($kind))
+            ->when($renewalsReady && $type === 'renewal', fn ($q) => $q->whereNotNull('renews_order_id'))
+            ->when($renewalsReady && $type === 'new', fn ($q) => $q->whereNull('renews_order_id'))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = $request->string('search');
                 $q->where(function ($inner) use ($term) {
@@ -34,6 +46,9 @@ class OrderController extends Controller
                 'last_page' => $orders->lastPage(),
                 'total' => $orders->total(),
                 'pending' => Order::where('status', 'pending')->count(),
+                'status_filters' => Order::STATUS_FILTERS,
+                'kind_filters' => Order::KIND_FILTERS,
+                'renewals_ready' => $renewalsReady,
             ],
         ]);
     }
@@ -137,6 +152,12 @@ class OrderController extends Controller
             'id' => $o->id,
             'order_number' => $o->order_number,
             'title' => $o->product->name ?? $o->tool->name ?? 'Order',
+            'kind' => $o->isToolOrder() ? 'tool' : ($o->product?->type ?: 'subscription'),
+            'type_label' => $o->typeLabel(),
+            'is_renewal' => Order::renewalsReady() && $o->isRenewal(),
+            'renews_order_number' => Order::renewalsReady() ? $o->renewsOrder?->order_number : null,
+            'renews_order_id' => Order::renewalsReady() ? $o->renews_order_id : null,
+            'was_renewed' => $o->wasRenewed(),
             'customer_name' => $o->user->name ?? '—',
             'plan' => $o->plan->name ?? null,
             'amount_label' => 'TZS '.number_format((float) $o->amount),

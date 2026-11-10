@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     /** Status filter values: stored statuses plus the computed ones admins see on badges. */
-    public const STATUS_FILTERS = ['pending', 'paid', 'confirmed', 'active', 'expired', 'renewed', 'rejected', 'cancelled'];
+    public const STATUS_FILTERS = Order::STATUS_FILTERS;
 
     public const SORTS = ['newest', 'oldest', 'amount_desc', 'amount_asc'];
 
@@ -32,7 +32,7 @@ class OrderController extends Controller
                         ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
                 });
             })
-            ->when(in_array($f['status'] ?? null, self::STATUS_FILTERS, true), fn ($q) => $this->filterStatus($q, $f['status'], $renewalsReady))
+            ->when(in_array($f['status'] ?? null, self::STATUS_FILTERS, true), fn ($q) => $q->filterStatus($f['status']))
             ->when(ctype_digit((string) ($f['user'] ?? '')), fn ($q) => $q->where('user_id', $f['user']))
             ->when(ctype_digit((string) ($f['product'] ?? '')), fn ($q) => $q->where('product_id', $f['product']))
             ->when(ctype_digit((string) ($f['plan'] ?? '')), fn ($q) => $q->where('plan_id', $f['plan']))
@@ -58,27 +58,6 @@ class OrderController extends Controller
         $filterUser = ctype_digit((string) ($f['user'] ?? '')) ? \App\Models\User::find($f['user'], ['id', 'name']) : null;
 
         return view('admin.orders.index', compact('orders', 'products', 'plans', 'devices', 'filterUser', 'renewalsReady'));
-    }
-
-    /** "active" / "expired" / "renewed" follow the same rules as Order::displayStatus(). */
-    private function filterStatus($query, string $status, bool $renewalsReady)
-    {
-        $expired = function ($q) {
-            $q->whereHas('subscription', fn ($s) => $s->where(fn ($e) => $e->where('status', 'expired')->orWhereDate('expiry_date', '<=', now()->toDateString())))
-                ->orWhere(fn ($v) => $v->whereNotNull('vpn_expires_at')->where('vpn_expires_at', '<', now()))
-                ->orWhere(fn ($s) => $s->whereHas('product', fn ($p) => $p->where('type', 'software'))
-                    ->where(fn ($w) => $w->whereNull('software_access_expires_at')->orWhere('software_access_expires_at', '<', now())));
-        };
-        $renewed = fn ($q) => $q->whereHas('renewals', fn ($r) => $r->where('status', 'confirmed'));
-
-        return match ($status) {
-            'renewed' => $renewalsReady ? $query->where('status', 'confirmed')->where($renewed) : $query->whereRaw('1 = 0'),
-            'expired' => $query->where('status', 'confirmed')->where($expired)
-                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
-            'active' => $query->whereIn('status', ['confirmed', 'paid'])->whereNot($expired)
-                ->when($renewalsReady, fn ($q) => $q->whereDoesntHave('renewals', fn ($r) => $r->where('status', 'confirmed'))),
-            default => $query->where('status', $status),
-        };
     }
 
     public function show(Order $order)
