@@ -10,6 +10,10 @@ class AppConfig {
 
   static const String appName = 'MHub';
 
+  /// This build's version. Keep it equal to `version:` in pubspec.yaml; the
+  /// update check compares it with the website's App downloads version.
+  static const String version = '1.2.1';
+
   /// The production backend.
   static const String defaultBase = 'https://mbuniehub.com';
 
