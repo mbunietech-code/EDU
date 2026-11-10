@@ -443,6 +443,7 @@ class MoneyAccountService
             'ref' => $ref,
             'amount' => round($amount, 2),
             'url' => $url,
+            'id' => $id,
             'sort' => $date->format('Y-m-d').sprintf('|%d|%010d', $order, $id),
         ];
     }

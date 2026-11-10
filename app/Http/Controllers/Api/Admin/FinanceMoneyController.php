@@ -71,6 +71,7 @@ class FinanceMoneyController extends Controller
             'starts_with' => $window['opening'],
             'balance' => round($window['opening'] + (float) $rows->sum('amount'), 2),
             'statement' => $rows->map(fn ($r) => [
+                'id' => $r['id'] ?? null,
                 'date' => $r['date']->toDateString(),
                 'kind' => $r['kind'],
                 'label' => $r['label'],

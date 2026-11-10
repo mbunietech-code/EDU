@@ -488,6 +488,19 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         // Finance money accounts ("mifuko"): where the money is.
+        // Finance: audit, one line's records, start date, unorganised data, transfer edit
+        Route::controller(\App\Http\Controllers\Api\Admin\FinanceExtrasController::class)->prefix('finance')->group(function () {
+            Route::get('/audit', 'audit');
+            Route::get('/line', 'line');
+            Route::get('/start', 'start');
+            Route::put('/start', 'saveStart');
+            Route::delete('/start', 'clearStart');
+            Route::get('/unorganised', 'unorganised');
+            Route::get('/money/transfers/{transfer}', 'transfer')->whereNumber('transfer');
+            Route::put('/money/transfers/{transfer}', 'updateTransfer')->whereNumber('transfer');
+            Route::delete('/money/transfers/{transfer}', 'destroyTransfer')->whereNumber('transfer');
+        });
+
         Route::controller(\App\Http\Controllers\Api\Admin\FinanceMoneyController::class)->prefix('finance/money')->group(function () {
             Route::get('/', 'index');
             Route::post('/', 'store');

@@ -99,6 +99,7 @@ class FinanceController extends Controller
                 'to' => $period->to?->toDateString(),
             ],
             'rows' => collect($rows)->map(fn ($r) => [
+                'key' => $r['key'] ?? null,
                 'label' => $r['label'],
                 'type' => $r['type'] ?? '',
                 'capital' => (float) $r['capital'],
