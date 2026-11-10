@@ -15,6 +15,14 @@ class AdminOrder {
     this.confirmedAt,
     this.paymentInstructions,
     this.payments = const [],
+    this.kind,
+    this.typeLabel,
+    this.displayStatus,
+    this.displayStatusLabel,
+    this.isRenewal = false,
+    this.renewsOrderId,
+    this.renewsOrderNumber,
+    this.wasRenewed = false,
   });
 
   final int id;
@@ -30,6 +38,20 @@ class AdminOrder {
   final String? confirmedAt;
   final String? paymentInstructions;
   final List<AdminOrderPayment> payments;
+
+  /// subscription, software, vpn or tool (null from servers before Nov 2026).
+  final String? kind;
+
+  /// "Subscription", "Software", "Mbunie VPN" or "Tool".
+  final String? typeLabel;
+
+  /// Badge status as the web shows it (active, expired, renewed, pending...).
+  final String? displayStatus;
+  final String? displayStatusLabel;
+  final bool isRenewal;
+  final int? renewsOrderId;
+  final String? renewsOrderNumber;
+  final bool wasRenewed;
 
   bool get isPending => status == 'pending';
   bool get isConfirmed => status == 'confirmed';
@@ -51,6 +73,14 @@ class AdminOrder {
                 ?.map((e) => AdminOrderPayment.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
+        kind: j['kind'] as String?,
+        typeLabel: j['type_label'] as String?,
+        displayStatus: j['display_status'] as String?,
+        displayStatusLabel: j['display_status_label'] as String?,
+        isRenewal: j['is_renewal'] == true,
+        renewsOrderId: (j['renews_order_id'] as num?)?.toInt(),
+        renewsOrderNumber: j['renews_order_number'] as String?,
+        wasRenewed: j['was_renewed'] == true,
       );
 }
 
@@ -334,12 +364,14 @@ class AdminConversation {
     this.lastMessage,
     this.lastFromAdmin = false,
     this.updatedAgo,
+    this.online = false,
   });
 
   final int id;
   final String userName;
   final String userEmail;
   final int unread;
+  final bool online;
   final String? lastMessage;
   final bool lastFromAdmin;
   final String? updatedAgo;
@@ -352,5 +384,6 @@ class AdminConversation {
         lastMessage: j['last_message'] as String?,
         lastFromAdmin: j['last_from_admin'] == true,
         updatedAgo: j['updated_ago'] as String?,
+        online: j['online'] == true,
       );
 }

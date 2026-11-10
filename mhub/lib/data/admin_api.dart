@@ -11,26 +11,72 @@ List<T> _list<T>(dynamic data, T Function(Map<String, dynamic>) fromJson) {
 
 /// A list plus the `meta.pending` counter the admin queues show as a badge.
 class AdminList<T> {
-  const AdminList(this.items, {this.pending = 0});
+  const AdminList(
+    this.items, {
+    this.pending = 0,
+    this.currentPage = 1,
+    this.lastPage = 1,
+    this.total,
+  });
   final List<T> items;
   final int pending;
+  final int currentPage;
+  final int lastPage;
+  final int? total;
+
+  bool get hasMore => currentPage < lastPage;
 }
+
+/// One page of the admin chat inbox plus how many conversations each tab holds.
+class AdminInbox {
+  const AdminInbox(
+    this.items, {
+    this.counts = const {},
+    this.unreadTotal = 0,
+    this.currentPage = 1,
+    this.lastPage = 1,
+  });
+  final List<AdminConversation> items;
+  final Map<String, int> counts;
+  final int unreadTotal;
+  final int currentPage;
+  final int lastPage;
+
+  bool get hasMore => currentPage < lastPage;
+}
+
+int _int(dynamic v, [int fallback = 0]) => (v as num?)?.toInt() ?? fallback;
 
 class AdminRepository {
   AdminRepository(this._api);
   final ApiClient _api;
 
   // --- Orders ---
-  Future<AdminList<AdminOrder>> orders({String? status, String? search}) async {
+  /// [status]: pending, paid, confirmed, active, expired, renewed, rejected, cancelled.
+  /// [kind]: subscription, software, vpn or tool. [type]: renewal or new.
+  Future<AdminList<AdminOrder>> orders({
+    String? status,
+    String? kind,
+    String? type,
+    String? search,
+    int page = 1,
+  }) async {
     final data = await _api.get('/admin/orders', query: {
       'status': ?status,
+      'kind': ?kind,
+      'type': ?type,
       if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
     }) as Map<String, dynamic>;
+    final meta = data['meta'] as Map<String, dynamic>? ?? const {};
     return AdminList(
       (data['data'] as List)
           .map((e) => AdminOrder.fromJson(e as Map<String, dynamic>))
           .toList(),
-      pending: (data['meta']?['pending'] as num?)?.toInt() ?? 0,
+      pending: _int(meta['pending']),
+      currentPage: _int(meta['current_page'], page),
+      lastPage: _int(meta['last_page'], page),
+      total: (meta['total'] as num?)?.toInt(),
     );
   }
 
@@ -95,12 +141,31 @@ class AdminRepository {
       _api.post('/admin/users/$id/status', data: {'status': status});
 
   // --- Chat ---
-  Future<List<AdminConversation>> conversations({String? search}) async => _list(
-        await _api.get('/admin/chat', query: {
-          if (search != null && search.isNotEmpty) 'search': search,
-        }),
-        AdminConversation.fromJson,
-      );
+  /// [status]: all, unread, awaiting, replied or online. [period]: today, 7d or 30d.
+  /// [search] matches the customer's name, email or any message text.
+  Future<AdminInbox> conversations({
+    String status = 'all',
+    String? period,
+    String? search,
+    int page = 1,
+  }) async {
+    final data = await _api.get('/admin/chat', query: {
+      'status': status,
+      'period': ?period,
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+    }) as Map<String, dynamic>;
+    final meta = data['meta'] as Map<String, dynamic>? ?? const {};
+    final counts = (meta['counts'] as Map<String, dynamic>? ?? const {})
+        .map((k, v) => MapEntry(k, _int(v)));
+    return AdminInbox(
+      _list(data, AdminConversation.fromJson),
+      counts: counts,
+      unreadTotal: _int(meta['unread_total']),
+      currentPage: _int(meta['current_page'], page),
+      lastPage: _int(meta['last_page'], page),
+    );
+  }
 
   Future<List<ChatMessage>> conversation(int id) async {
     final data = await _api.get('/admin/chat/$id') as Map<String, dynamic>;
@@ -124,11 +189,18 @@ final adminRepositoryProvider =
 
 // Filter state for the admin order/payment queues.
 final adminOrderFilterProvider = StateProvider<String?>((ref) => null);
+final adminOrderKindProvider = StateProvider<String?>((ref) => null);
+final adminOrderTypeProvider = StateProvider<String?>((ref) => null);
+final adminOrderSearchProvider = StateProvider<String>((ref) => '');
 final adminPaymentFilterProvider = StateProvider<String?>((ref) => 'pending');
 
+/// First page of orders for the current filters; the screen loads further pages itself.
 final adminOrdersProvider = FutureProvider.autoDispose<AdminList<AdminOrder>>(
     (ref) => ref.watch(adminRepositoryProvider).orders(
           status: ref.watch(adminOrderFilterProvider),
+          kind: ref.watch(adminOrderKindProvider),
+          type: ref.watch(adminOrderTypeProvider),
+          search: ref.watch(adminOrderSearchProvider),
         ));
 
 final adminOrderProvider = FutureProvider.autoDispose.family<AdminOrder, int>(
@@ -150,9 +222,17 @@ final adminUsersProvider = FutureProvider.autoDispose<List<AdminUser>>((ref) =>
 final adminUserProvider = FutureProvider.autoDispose.family<AdminUser, int>(
     (ref, id) => ref.watch(adminRepositoryProvider).user(id));
 
-final adminConversationsProvider =
-    FutureProvider.autoDispose<List<AdminConversation>>(
-        (ref) => ref.watch(adminRepositoryProvider).conversations());
+final adminChatStatusProvider = StateProvider<String>((ref) => 'all');
+final adminChatPeriodProvider = StateProvider<String?>((ref) => null);
+final adminChatSearchProvider = StateProvider<String>((ref) => '');
+
+/// First page of the chat inbox for the current tab, period and search.
+final adminConversationsProvider = FutureProvider.autoDispose<AdminInbox>(
+    (ref) => ref.watch(adminRepositoryProvider).conversations(
+          status: ref.watch(adminChatStatusProvider),
+          period: ref.watch(adminChatPeriodProvider),
+          search: ref.watch(adminChatSearchProvider),
+        ));
 
 /// Months covered by the reports screen (3, 6, 12 or 24).
 final adminReportsMonthsProvider = StateProvider.autoDispose<int>((ref) => 6);

@@ -10,119 +10,384 @@ import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import 'admin_common.dart';
 
-class AdminOrdersScreen extends ConsumerWidget {
+const _orderStatuses = <String?, String>{
+  null: 'All',
+  'pending': 'Pending',
+  'paid': 'Paid',
+  'active': 'Active',
+  'expired': 'Expired',
+  'renewed': 'Renewed',
+  'confirmed': 'Confirmed',
+  'rejected': 'Rejected',
+  'cancelled': 'Cancelled',
+};
+
+const _orderKinds = <String?, String>{
+  null: 'All types',
+  'subscription': 'Subscription',
+  'software': 'Software',
+  'vpn': 'Mbunie VPN',
+  'tool': 'Tool',
+};
+
+const _orderTypes = <String?, String>{
+  null: 'New and renewals',
+  'new': 'New orders',
+  'renewal': 'Renewals',
+};
+
+MbuiAppearance _kindAppearance(String? kind) => switch (kind) {
+      'software' => MbuiAppearance.info,
+      'vpn' => MbuiAppearance.success,
+      'tool' => MbuiAppearance.warning,
+      _ => MbuiAppearance.neutral,
+    };
+
+/// Status as the web badge shows it (active / expired / renewed when known).
+Widget _orderStatusBadge(AdminOrder o) {
+  final status = o.displayStatus ?? o.status;
+  final label = o.displayStatusLabel;
+  if (label == null) return MbuiStatusBadge(status);
+  final appearance = switch (status) {
+    'active' || 'confirmed' || 'paid' => MbuiAppearance.success,
+    'pending' => MbuiAppearance.warning,
+    'renewed' => MbuiAppearance.info,
+    'expired' || 'rejected' || 'cancelled' => MbuiAppearance.danger,
+    _ => MbuiAppearance.neutral,
+  };
+  return MbuiBadge(label, appearance: appearance);
+}
+
+class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
+}
+
+class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
+  final _search = TextEditingController();
+
+  /// Pages 2, 3... loaded with "Load more"; page 1 comes from the provider.
+  final List<AdminOrder> _more = [];
+  int _page = 1;
+  int _lastPage = 1;
+  bool _loadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.text = ref.read(adminOrderSearchProvider);
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    try {
+      final next = await ref.read(adminRepositoryProvider).orders(
+            status: ref.read(adminOrderFilterProvider),
+            kind: ref.read(adminOrderKindProvider),
+            type: ref.read(adminOrderTypeProvider),
+            search: ref.read(adminOrderSearchProvider),
+            page: _page + 1,
+          );
+      if (!mounted) return;
+      setState(() {
+        _more.addAll(next.items);
+        _page = next.currentPage;
+        _lastPage = next.lastPage;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _pick(
+    String title,
+    Map<String?, String> options,
+    StateProvider<String?> provider,
+  ) async {
+    final current = ref.read(provider);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: MbuiSectionLabel(title),
+              ),
+            ),
+            for (final e in options.entries)
+              ListTile(
+                title: Text(e.value),
+                trailing: current == e.key
+                    ? const Icon(Icons.check, color: AppColors.indigo600)
+                    : null,
+                onTap: () => Navigator.of(context).pop(e.key ?? ''),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    ref.read(provider.notifier).state = picked.isEmpty ? null : picked;
+  }
+
+  void _applySearch(String value) {
+    ref.read(adminOrderSearchProvider.notifier).state = value.trim();
+  }
+
+  void _clearAll() {
+    _search.clear();
+    ref.read(adminOrderFilterProvider.notifier).state = null;
+    ref.read(adminOrderKindProvider.notifier).state = null;
+    ref.read(adminOrderTypeProvider.notifier).state = null;
+    ref.read(adminOrderSearchProvider.notifier).state = '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // A new first page (filter change, refresh, edit) starts the list over.
+    ref.listen<AsyncValue<AdminList<AdminOrder>>>(adminOrdersProvider,
+        (_, next) {
+      final list = next.valueOrNull;
+      if (list == null) return;
+      setState(() {
+        _more.clear();
+        _page = list.currentPage;
+        _lastPage = list.lastPage;
+      });
+    });
+
     final async = ref.watch(adminOrdersProvider);
-    final filter = ref.watch(adminOrderFilterProvider);
+    final status = ref.watch(adminOrderFilterProvider);
+    final kind = ref.watch(adminOrderKindProvider);
+    final type = ref.watch(adminOrderTypeProvider);
+    final search = ref.watch(adminOrderSearchProvider);
+    final filtered =
+        status != null || kind != null || type != null || search.isNotEmpty;
+    final total = async.valueOrNull?.total;
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
       appBar: AppBar(title: const Text('Orders')),
       body: Column(
         children: [
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              onSubmitted: _applySearch,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Order number, customer name or email',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: search.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _search.clear();
+                          _applySearch('');
+                        },
+                      ),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: const Icon(Icons.category_outlined, size: 16),
+                    label: Text(_orderKinds[kind] ?? 'All types'),
+                    selected: kind != null,
+                    onSelected: (_) =>
+                        _pick('Type', _orderKinds, adminOrderKindProvider),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: const Icon(Icons.autorenew, size: 16),
+                    label: Text(_orderTypes[type] ?? 'New and renewals'),
+                    selected: type != null,
+                    onSelected: (_) =>
+                        _pick('Orders', _orderTypes, adminOrderTypeProvider),
+                  ),
+                ),
+                if (filtered)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      label: const Text('Clear'),
+                      onPressed: _clearAll,
+                    ),
+                  ),
+              ],
+            ),
+          ),
           AdminFilterBar(
-            options: const {
-              null: 'All',
-              'pending': 'Pending',
-              'confirmed': 'Confirmed',
-              'rejected': 'Rejected',
-              'cancelled': 'Cancelled',
-            },
-            selected: filter,
+            options: _orderStatuses,
+            selected: status,
             onSelected: (v) =>
                 ref.read(adminOrderFilterProvider.notifier).state = v,
           ),
-          const SizedBox(height: 4),
+          if (total != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '$total ${total == 1 ? 'order' : 'orders'}',
+                  style:
+                      const TextStyle(fontSize: 12, color: AppColors.gray500),
+                ),
+              ),
+            ),
           Expanded(
             child: AsyncValueView<AdminList<AdminOrder>>(
               value: async,
               onRefresh: () async => ref.refresh(adminOrdersProvider.future),
-              data: (list) {
-                if (list.items.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No orders here.',
-                      style: TextStyle(color: AppColors.gray500),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: list.items.length,
-                  itemBuilder: (context, i) {
-                    final o = list.items[i];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: MbuiCard(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AdminOrderDetailScreen(orderId: o.id),
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    o.title,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.gray900,
-                                    ),
-                                  ),
-                                ),
-                                MbuiStatusBadge(o.status),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${o.customerName} · ${o.orderNumber}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.gray500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  o.amountLabel,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.gray700,
-                                  ),
-                                ),
-                                const Spacer(),
-                                if (o.createdAgo != null)
-                                  Text(
-                                    o.createdAgo!,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.gray400,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
+              data: (page) {
+                final list = [...page.items, ..._more];
+                if (list.isEmpty) {
+                  return ListView(
+                    children: [
+                      const SizedBox(height: 120),
+                      Center(
+                        child: Text(
+                          filtered
+                              ? 'No orders match these filters.'
+                              : 'No orders here.',
+                          style: const TextStyle(color: AppColors.gray500),
                         ),
                       ),
-                    );
+                    ],
+                  );
+                }
+                final hasMore = _page < _lastPage;
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: list.length + (hasMore ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (i == list.length) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 16),
+                        child: MbuiButton(
+                          label: 'Load more',
+                          variant: MbuiVariant.secondary,
+                          fullWidth: true,
+                          loading: _loadingMore,
+                          onPressed: _loadMore,
+                        ),
+                      );
+                    }
+                    return _OrderTile(order: list[i]);
                   },
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OrderTile extends StatelessWidget {
+  const _OrderTile({required this.order});
+  final AdminOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = order;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: MbuiCard(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AdminOrderDetailScreen(orderId: o.id),
+          ),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    o.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.gray900,
+                    ),
+                  ),
+                ),
+                _orderStatusBadge(o),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (o.typeLabel != null)
+                  MbuiBadge(o.typeLabel!, appearance: _kindAppearance(o.kind)),
+                if (o.isRenewal)
+                  const MbuiBadge('Renewal', appearance: MbuiAppearance.info),
+                if (o.plan != null) MbuiBadge(o.plan!),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${o.customerName} · ${o.orderNumber}',
+              style: const TextStyle(fontSize: 12, color: AppColors.gray500),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  o.amountLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray700,
+                  ),
+                ),
+                const Spacer(),
+                if (o.createdAgo != null)
+                  Text(
+                    o.createdAgo!,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.gray400),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -205,14 +470,34 @@ class AdminOrderDetailScreen extends ConsumerWidget {
             Row(
               children: [
                 Expanded(child: MbuiTitle(o.title)),
-                MbuiStatusBadge(o.status),
+                _orderStatusBadge(o),
               ],
             ),
+            if (o.isRenewal || o.wasRenewed) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.sky50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  o.isRenewal
+                      ? 'Renewal of order ${o.renewsOrderNumber ?? ''}. Approving its '
+                          'payment extends the customer\'s existing '
+                          '${o.kind == 'vpn' ? 'VPN' : 'subscription'}.'
+                      : 'This order was renewed by a newer paid order.',
+                  style: const TextStyle(fontSize: 13, color: AppColors.sky700),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             MbuiCard(
               child: Column(
                 children: [
                   AdminRow('Order number', o.orderNumber),
+                  if (o.typeLabel != null) AdminRow('Type', o.typeLabel!),
                   AdminRow('Customer', o.customerName),
                   if (o.customerEmail != null)
                     AdminRow('Email', o.customerEmail!),

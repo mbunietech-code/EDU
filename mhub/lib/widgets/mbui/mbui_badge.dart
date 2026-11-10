@@ -61,6 +61,7 @@ class MbuiStatusBadge extends StatelessWidget {
     'cancelled': MbuiAppearance.danger,
     'archived': MbuiAppearance.danger,
     'assigned': MbuiAppearance.info,
+    'renewed': MbuiAppearance.info,
   };
 
   @override
