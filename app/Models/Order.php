@@ -279,6 +279,21 @@ class Order extends Model
         return $this->tool_id !== null;
     }
 
+    /** What kind of thing was bought: Subscription, Software, Mbunie VPN or Tool. */
+    public function typeLabel(): string
+    {
+        if ($this->isToolOrder()) {
+            return 'Tool';
+        }
+
+        return match ($this->product?->type) {
+            'software' => 'Software',
+            'vpn' => 'Mbunie VPN',
+            'subscription', null, '' => $this->product ? 'Subscription' : 'Unknown',
+            default => ucfirst((string) $this->product->type),
+        };
+    }
+
     public function itemName(): string
     {
         return $this->tool?->name ?? $this->product?->name ?? 'N/A';

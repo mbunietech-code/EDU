@@ -59,6 +59,12 @@
                         <dd class="mt-1 font-medium text-gray-900">{{ $order->itemName() }}</dd>
                     </div>
                     <div>
+                        <dt class="mbui-section-label">Type</dt>
+                        <dd class="mt-1">
+                            <x-mbui.badge appearance="{{ match ($order->typeLabel()) { 'Software' => 'info', 'Mbunie VPN' => 'success', 'Tool' => 'warning', default => 'neutral' } }}">{{ $order->typeLabel() }}</x-mbui.badge>
+                        </dd>
+                    </div>
+                    <div>
                         <dt class="mbui-section-label">Plan</dt>
                         <dd class="mt-1 text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '—' }}</dd>
                     </div>

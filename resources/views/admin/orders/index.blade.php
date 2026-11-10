@@ -137,6 +137,7 @@
                             @else
                                 <span class="font-medium text-gray-900">{{ $order->itemName() }}</span>
                             @endif
+                            <span class="ml-1 inline-flex rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">{{ $order->typeLabel() }}</span>
                             @if ($order->plan)
                                 <p class="mt-0.5 text-xs text-gray-500">
                                     <a href="{{ $by(['product' => $order->product_id, 'plan' => $order->plan_id]) }}" class="hover:text-indigo-600 hover:underline" title="Show orders on this plan">{{ $order->plan->name }}</a>
