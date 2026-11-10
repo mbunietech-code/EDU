@@ -271,6 +271,32 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index'])->middleware('can:reports.view');
 
+        // Mbunie VPN (same as admin/vpn on the web)
+        Route::controller(\App\Http\Controllers\Api\Admin\VpnController::class)->prefix('vpn')->middleware('can:vpn.view')->group(function () {
+            Route::get('/', 'overview');
+            Route::get('/customers', 'customers');
+            Route::get('/customers/{id}', 'customer')->whereNumber('id');
+            Route::get('/devices', 'devices');
+            Route::get('/payments', 'payments');
+            Route::get('/payments/{id}/proof', 'proof')->whereNumber('id');
+            Route::get('/plans', 'plans');
+
+            Route::middleware('can:vpn.manage')->group(function () {
+                Route::post('/orders/{order}/retry', 'retry');
+                Route::post('/customers/{id}/status', 'customerStatus')->whereNumber('id');
+                Route::post('/customers/{id}/grant', 'grant')->whereNumber('id');
+                Route::post('/subscriptions/{id}/extend', 'extend')->whereNumber('id');
+                Route::post('/subscriptions/{id}/suspend', 'suspend')->whereNumber('id');
+                Route::post('/subscriptions/{id}/restore', 'restore')->whereNumber('id');
+                Route::post('/devices/{id}/remove', 'removeDevice')->whereNumber('id');
+                Route::post('/devices/{id}/allow', 'allowDevice')->whereNumber('id');
+                Route::post('/payments/{id}/approve', 'approve')->whereNumber('id');
+                Route::post('/payments/{id}/reject', 'reject')->whereNumber('id');
+                Route::put('/plans/{id}', 'updatePlan')->whereNumber('id');
+                Route::post('/plans/sync', 'syncPlans');
+            });
+        });
+
         // Platform settings: alerts + AI optimization (super admin), email, Finance PIN
         Route::controller(\App\Http\Controllers\Api\Admin\PlatformSettingsController::class)->group(function () {
             Route::get('/alerts', 'alerts');
