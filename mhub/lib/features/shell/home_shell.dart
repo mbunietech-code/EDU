@@ -13,6 +13,7 @@ import '../admin/admin_learning_screen.dart';
 import '../admin/admin_research_screen.dart';
 import '../admin/admin_system_screen.dart';
 import '../admin/admin_users_screen.dart';
+import '../admin/admin_assets_screen.dart';
 import '../admin/admin_tasks_screen.dart';
 import '../admin/admin_vpn_screen.dart';
 import '../auth/auth_controller.dart';
@@ -105,6 +106,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           Icons.account_balance_outlined,
           AdminFinanceScreen(),
         ),
+        _Destination('Company assets', Icons.inventory_outlined, AdminAssetsScreen()),
         _Destination('Mbunie VPN', Icons.vpn_lock_outlined, AdminVpnScreen()),
         _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
         _Destination(

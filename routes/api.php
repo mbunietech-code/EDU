@@ -283,6 +283,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{task}', 'destroy')->whereNumber('task');
         });
 
+        // Company assets (what Mbunie pays for and when it ends)
+        Route::controller(\App\Http\Controllers\Api\Admin\CompanyAssetController::class)->prefix('assets')->middleware('can:assets.view')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/options', 'options');
+            Route::post('/', 'store');
+            Route::get('/{asset}', 'show')->whereNumber('asset');
+            Route::put('/{asset}', 'update')->whereNumber('asset');
+            Route::post('/{asset}/renew', 'renew')->whereNumber('asset');
+            Route::delete('/{asset}', 'destroy')->whereNumber('asset');
+        });
+
         // Mbunie VPN (same as admin/vpn on the web)
         Route::controller(\App\Http\Controllers\Api\Admin\VpnController::class)->prefix('vpn')->middleware('can:vpn.view')->group(function () {
             Route::get('/', 'overview');

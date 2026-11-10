@@ -27,33 +27,13 @@ class CompanyAssetController extends Controller
         $status = (string) $request->query('status', 'all');
         $category = (string) $request->query('category', '');
         $search = trim((string) $request->query('q', ''));
-        $today = Carbon::today();
-        $soon = $today->copy()->addDays(CompanyAsset::SOON_DAYS);
-
         $assets = CompanyAsset::query()
             ->with('responsible:id,name,job_title')
-            ->when($category !== '' && isset(CompanyAsset::CATEGORIES[$category]), fn ($q) => $q->where('category', $category))
-            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q
-                ->where('name', 'like', '%'.$search.'%')
-                ->orWhere('vendor', 'like', '%'.$search.'%')
-                ->orWhere('account', 'like', '%'.$search.'%')))
-            ->when($status === 'attention', fn ($q) => $q->whereNotNull('expires_at')->whereDate('expires_at', '<=', $soon))
-            ->when($status === 'expired', fn ($q) => $q->whereDate('expires_at', '<', $today))
-            ->when($status === 'soon', fn ($q) => $q->whereDate('expires_at', '>=', $today)->whereDate('expires_at', '<=', $soon))
-            ->when($status === 'active', fn ($q) => $q->whereDate('expires_at', '>', $soon))
-            ->when($status === 'no_expiry', fn ($q) => $q->whereNull('expires_at'))
-            // Soonest end first; things that never end last.
-            ->orderByRaw('expires_at IS NULL')
-            ->orderBy('expires_at')
-            ->orderBy('name')
+            ->listFilter($status, $category, $search)
             ->paginate(25)
             ->withQueryString();
 
-        $counts = [
-            'all' => CompanyAsset::query()->count(),
-            'expired' => CompanyAsset::query()->whereDate('expires_at', '<', $today)->count(),
-            'soon' => CompanyAsset::query()->whereDate('expires_at', '>=', $today)->whereDate('expires_at', '<=', $soon)->count(),
-        ];
+        $counts = CompanyAsset::counts();
 
         return view('admin.assets.index', compact('assets', 'counts', 'status', 'category', 'search'));
     }
@@ -135,31 +115,11 @@ class CompanyAssetController extends Controller
     /** @return array<string,mixed> */
     private function validated(Request $request): array
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'category' => ['required', Rule::in(array_keys(CompanyAsset::CATEGORIES))],
-            'vendor' => ['nullable', 'string', 'max:150'],
-            // Only web links: never javascript: or other schemes in a clickable link.
-            'purchase_url' => ['nullable', 'url:http,https', 'max:500'],
-            'account' => ['nullable', 'string', 'max:150'],
-            'purchased_at' => ['nullable', 'date'],
-            'expires_at' => ['nullable', 'date', 'after_or_equal:purchased_at'],
-            'billing_cycle' => ['required', Rule::in(array_keys(CompanyAsset::CYCLES))],
-            'cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
-            'currency' => ['required', 'string', 'size:3', 'alpha'],
-            'auto_renew' => ['sometimes', 'boolean'],
-            'responsible_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('is_admin', 1)->where('is_guest', 0)],
-            'notes' => ['nullable', 'string', 'max:5000'],
-        ]);
-
-        $data['currency'] = strtoupper($data['currency']);
-        $data['auto_renew'] = $request->boolean('auto_renew');
-
-        return $data;
+        return CompanyAsset::validatedFrom($request);
     }
 
     private function admins()
     {
-        return User::query()->where('is_admin', true)->where('is_guest', false)->orderBy('name')->get(['id', 'name', 'job_title']);
+        return CompanyAsset::admins();
     }
 }
