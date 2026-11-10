@@ -283,6 +283,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{task}', 'destroy')->whereNumber('task');
         });
 
+        // Team notes (sticky-note board; every admin)
+        Route::controller(\App\Http\Controllers\Api\Admin\StickyNoteController::class)->prefix('sticky-notes')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/unseen', 'unseen');
+            Route::post('/', 'store')->middleware('throttle:30,1');
+            Route::put('/{note}', 'update')->whereNumber('note');
+            Route::post('/{note}/pin', 'pin')->whereNumber('note');
+            Route::delete('/{note}', 'destroy')->whereNumber('note');
+        });
+
         // Company assets (what Mbunie pays for and when it ends)
         Route::controller(\App\Http\Controllers\Api\Admin\CompanyAssetController::class)->prefix('assets')->middleware('can:assets.view')->group(function () {
             Route::get('/', 'index');

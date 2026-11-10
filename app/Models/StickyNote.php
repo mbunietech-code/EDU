@@ -33,6 +33,20 @@ class StickyNote extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    /** Validation for a note from the web board or the app. */
+    public static function rules(): array
+    {
+        return [
+            // No length limit for people; only the database column's own size (TEXT, ~64 KB).
+            'body' => ['required', 'string', function (string $attr, mixed $value, \Closure $fail) {
+                if (strlen((string) $value) > 65000) {
+                    $fail('This note is too long to save. Split it into two notes.');
+                }
+            }],
+            'color' => ['required', \Illuminate\Validation\Rule::in(array_keys(self::COLORS))],
+        ];
+    }
+
     /** The author and super admins may change or remove a note; everyone else reads it. */
     public function canBeChangedBy(User $user): bool
     {

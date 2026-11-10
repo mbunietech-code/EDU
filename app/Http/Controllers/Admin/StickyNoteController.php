@@ -73,14 +73,6 @@ class StickyNoteController extends Controller
     /** @return array{body:string,color:string} */
     private function validated(Request $request): array
     {
-        return $request->validate([
-            // No length limit for people; only the database column's own size (TEXT, ~64 KB).
-            'body' => ['required', 'string', function (string $attr, mixed $value, \Closure $fail) {
-                if (strlen((string) $value) > 65000) {
-                    $fail('This note is too long to save. Split it into two notes.');
-                }
-            }],
-            'color' => ['required', Rule::in(array_keys(StickyNote::COLORS))],
-        ]);
+        return $request->validate(StickyNote::rules());
     }
 }
