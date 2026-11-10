@@ -12,6 +12,7 @@ import '../../widgets/async_value_view.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../studio/studio_room_extras_screen.dart';
 import 'admin_common.dart';
+import 'admin_learning_extras.dart';
 
 void _toast(BuildContext context, String text) {
   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -27,7 +28,16 @@ class AdminLearningScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overview = ref.watch(adminLearningOverviewProvider).valueOrNull;
-    final tabs = ['Courses', 'Categories', if (overview?.canTrash ?? false) 'Trash'];
+    final tabs = [
+      'Courses',
+      'Categories',
+      'Topics',
+      'Live',
+      'Attendance',
+      'Progress',
+      'Instructors',
+      if (overview?.canTrash ?? false) 'Trash',
+    ];
 
     return DefaultTabController(
       key: ValueKey(tabs.length),
@@ -59,12 +69,21 @@ class AdminLearningScreen extends ConsumerWidget {
                 ],
               ),
           ],
-          bottom: TabBar(tabs: [for (final t in tabs) Tab(text: t)]),
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final t in tabs) Tab(text: t)],
+          ),
         ),
         body: TabBarView(
           children: [
             const _CoursesTab(),
             const _CategoriesTab(),
+            const LearningTopicsTab(),
+            const LearningLiveTab(),
+            const LearningAttendanceTab(),
+            const LearningProgressTab(),
+            const LearningInstructorsTab(),
             if (overview?.canTrash ?? false) const _TrashTab(),
           ],
         ),

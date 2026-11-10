@@ -369,6 +369,30 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/trash/{type}/{id}', 'purge')->whereIn('type', ['category', 'course', 'video', 'room'])->whereNumber('id');
         });
 
+        // Learning admin: live sessions, attendance, progress, instructors, topics
+        Route::controller(\App\Http\Controllers\Api\Admin\LearningExtrasController::class)->prefix('learning')->group(function () {
+            Route::middleware('can:rooms.view')->group(function () {
+                Route::get('/live', 'live');
+                Route::get('/live/{room}', 'liveRoom')->whereNumber('room');
+                Route::delete('/live/{room}/messages/{message}', 'destroyLiveMessage')->whereNumber(['room', 'message']);
+                Route::get('/attendance', 'attendance');
+            });
+            Route::middleware('can:learning.view')->group(function () {
+                Route::get('/progress', 'progress');
+                Route::get('/progress/{user}', 'learner')->whereNumber('user');
+                Route::get('/instructors', 'instructors');
+                Route::get('/topics', 'topics');
+            });
+            Route::middleware('can:learning.manage')->group(function () {
+                Route::get('/instructors/candidates', 'instructorCandidates');
+                Route::post('/instructors', 'grantInstructor');
+                Route::delete('/instructors/{user}', 'revokeInstructor')->whereNumber('user');
+                Route::post('/topics', 'storeTopic');
+                Route::put('/topics/{topic}', 'updateTopic')->whereNumber('topic');
+                Route::delete('/topics/{topic}', 'destroyTopic')->whereNumber('topic');
+            });
+        });
+
         // Research review (research.view / research.manage)
         Route::controller(\App\Http\Controllers\Api\Admin\ResearchReviewController::class)->group(function () {
             Route::get('/research', 'index');
