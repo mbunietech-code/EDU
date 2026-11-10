@@ -61,6 +61,27 @@ class AppDownloads
     }
 
     /**
+     * What the app's update check reads: platform => {version, url} for every
+     * download that has a link. The version is the admin label without a
+     * leading "v" (e.g. "v1.2.1" -> "1.2.1"), or null when not set.
+     *
+     * @return array<string, array{version:?string, url:string}>
+     */
+    public static function latest(): array
+    {
+        $out = [];
+        foreach (self::available() as $row) {
+            $version = $row['version'] ? ltrim(trim($row['version']), 'vV') : null;
+            $out[$row['platform']] = [
+                'version' => $version !== '' ? $version : null,
+                'url' => $row['url'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Raw settings for the admin form (all platforms, whether set or not).
      *
      * @return array<string, array{url:?string, path:?string, version:?string}>

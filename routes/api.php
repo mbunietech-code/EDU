@@ -26,6 +26,12 @@ Route::post('/register/verify', [AuthController::class, 'verifyRegistration'])->
 Route::post('/forgot-password', [\App\Http\Controllers\Api\SupportController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/contact', [\App\Http\Controllers\Api\SupportController::class, 'contact'])->middleware('throttle:5,1');
 
+// The app's update check: newest version + download link per platform
+// (from Settings -> App downloads). Public, so it works before sign-in.
+Route::get('/app/latest', fn () => response()->json(['platforms' => \App\Support\AppDownloads::latest()]))
+    ->middleware('throttle:60,1')
+    ->name('api.app.latest');
+
 // Self-hosted LiveKit webhooks — authenticated by the signed Authorization token, not a session.
 Route::post('/webhooks/livekit', \App\Http\Controllers\Api\LiveKitWebhookController::class)
     ->middleware('throttle:600,1')
