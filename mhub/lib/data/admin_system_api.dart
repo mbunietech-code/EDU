@@ -53,9 +53,30 @@ class AdminSystemRepository {
   }
 
   // Subscriptions
-  Future<List<AdminSubscription>> subscriptions({String? status}) async => _list(
-      await _api.get('/admin/subscriptions', query: {'status': ?status}),
-      AdminSubscription.fromJson);
+  /// [filters]: status, search, user, product, plan, account, device,
+  /// expires (past | 7d | 30d | later | Y-m-d) and sort, as on the web page.
+  Future<AdminSubscriptionPage> subscriptions(
+      {Map<String, String> filters = const {}, int page = 1}) async {
+    final j = await _api.get('/admin/subscriptions', query: {
+      for (final e in filters.entries)
+        if (e.value.isNotEmpty) e.key: e.value,
+      'page': page,
+    }) as Map<String, dynamic>;
+    final meta = j['meta'] as Map<String, dynamic>? ?? const {};
+    Map<int, String> idNames(dynamic list) => {
+          for (final e in (list as List? ?? const []))
+            ((e as Map)['id'] as num).toInt(): '${e['name']}',
+        };
+    return AdminSubscriptionPage(
+      _list(j, AdminSubscription.fromJson),
+      currentPage: (meta['current_page'] as num?)?.toInt() ?? page,
+      lastPage: (meta['last_page'] as num?)?.toInt() ?? page,
+      total: (meta['total'] as num?)?.toInt() ?? 0,
+      products: idNames(meta['products']),
+      plans: idNames(meta['plans']),
+      devices: [for (final d in (meta['devices'] as List? ?? const [])) '$d'],
+    );
+  }
 
   Future<AdminSubscription> subscription(int id) async =>
       AdminSubscription.fromJson(
@@ -120,11 +141,20 @@ final adminSettingsProvider = FutureProvider.autoDispose<AdminSettings>(
     (ref) => ref.watch(adminSystemRepositoryProvider).settings());
 
 final adminSubStatusProvider = StateProvider<String?>((ref) => null);
+/// Filters other than status: search, user, product, plan, device, expires, sort.
+/// Labels for the user / product / plan chips are kept under "`key`_label".
+final adminSubFiltersProvider = StateProvider<Map<String, String>>((ref) => const {});
+
 final adminSubscriptionsProvider =
-    FutureProvider.autoDispose<List<AdminSubscription>>((ref) =>
-        ref.watch(adminSystemRepositoryProvider).subscriptions(
-              status: ref.watch(adminSubStatusProvider),
-            ));
+    FutureProvider.autoDispose<AdminSubscriptionPage>((ref) {
+  final status = ref.watch(adminSubStatusProvider);
+  final filters = {
+    for (final e in ref.watch(adminSubFiltersProvider).entries)
+      if (!e.key.endsWith('_label')) e.key: e.value,
+    'status': ?status,
+  };
+  return ref.watch(adminSystemRepositoryProvider).subscriptions(filters: filters);
+});
 final adminSubscriptionProvider =
     FutureProvider.autoDispose.family<AdminSubscription, int>((ref, id) =>
         ref.watch(adminSystemRepositoryProvider).subscription(id));

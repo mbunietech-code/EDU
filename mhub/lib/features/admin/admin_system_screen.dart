@@ -613,20 +613,183 @@ class ActivityLogScreen extends ConsumerWidget {
 }
 
 // ======================================================== Subscriptions
-class AdminSubscriptionsScreen extends ConsumerWidget {
+class AdminSubscriptionsScreen extends ConsumerStatefulWidget {
   const AdminSubscriptionsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminSubscriptionsScreen> createState() =>
+      _AdminSubscriptionsScreenState();
+}
+
+class _AdminSubscriptionsScreenState
+    extends ConsumerState<AdminSubscriptionsScreen> {
+  final _search = TextEditingController();
+  final List<AdminSubscription> _more = [];
+  int _page = 1;
+  int _lastPage = 1;
+  bool _loadingMore = false;
+
+  static const _expires = {
+    'past': 'Ended',
+    '7d': 'Ends within 7 days',
+    '30d': 'Ends within 30 days',
+    'later': 'Ends later',
+  };
+  static const _sorts = {
+    'expires_asc': 'Ends soonest first',
+    'expires_desc': 'Ends latest first',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _search.text = ref.read(adminSubFiltersProvider)['search'] ?? '';
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Map<String, String> get _filters => ref.read(adminSubFiltersProvider);
+
+  /// Set (or clear with null) one filter; [label] is what its chip shows.
+  void _set(String key, String? value, {String? label}) {
+    final next = Map<String, String>.from(_filters);
+    if (value == null || value.isEmpty) {
+      next.remove(key);
+      next.remove('${key}_label');
+    } else {
+      next[key] = value;
+      if (label != null) next['${key}_label'] = label;
+    }
+    if (key == 'product') {
+      next.remove('plan');
+      next.remove('plan_label');
+    }
+    ref.read(adminSubFiltersProvider.notifier).state = next;
+  }
+
+  Future<void> _pick(String key, String title, Map<String, String> options) async {
+    final current = _filters[key];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: MbuiSectionLabel(title),
+            ),
+            for (final e in {'': 'Any', ...options}.entries)
+              ListTile(
+                title: Text(e.value),
+                trailing: (current ?? '') == e.key
+                    ? const Icon(Icons.check, color: AppColors.indigo600)
+                    : null,
+                onTap: () => Navigator.pop(ctx, e.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    _set(key, picked, label: options[picked]);
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    try {
+      final status = ref.read(adminSubStatusProvider);
+      final next = await ref.read(adminSystemRepositoryProvider).subscriptions(
+        filters: {
+          for (final e in _filters.entries)
+            if (!e.key.endsWith('_label')) e.key: e.value,
+          'status': ?status,
+        },
+        page: _page + 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _more.addAll(next.items);
+        _page = next.currentPage;
+        _lastPage = next.lastPage;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AdminSubscriptionPage>>(adminSubscriptionsProvider,
+        (_, next) {
+      final p = next.valueOrNull;
+      if (p == null) return;
+      setState(() {
+        _more.clear();
+        _page = p.currentPage;
+        _lastPage = p.lastPage;
+      });
+    });
+
     final async = ref.watch(adminSubscriptionsProvider);
     final status = ref.watch(adminSubStatusProvider);
+    final f = ref.watch(adminSubFiltersProvider);
+    final page = async.valueOrNull;
+
+    Widget chip(String key, String empty, VoidCallback onPick) {
+      final on = (f[key] ?? '').isNotEmpty;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: on
+            ? InputChip(
+                label: Text(f['${key}_label'] ?? f[key]!),
+                selected: true,
+                onPressed: onPick,
+                onDeleted: () => _set(key, null),
+              )
+            : ActionChip(label: Text(empty), onPressed: onPick),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
       appBar: AppBar(title: const Text('Subscriptions')),
       body: Column(
         children: [
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (v) => _set('search', v.trim()),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Customer name or email',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: (f['search'] ?? '').isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _search.clear();
+                          _set('search', null);
+                        },
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
           AdminFilterBar(
             options: const {
               null: 'All',
@@ -640,23 +803,85 @@ class AdminSubscriptionsScreen extends ConsumerWidget {
             onSelected: (v) =>
                 ref.read(adminSubStatusProvider.notifier).state = v,
           ),
-          const SizedBox(height: 4),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                if ((f['user'] ?? '').isNotEmpty) chip('user', 'Customer', () {}),
+                chip('product', 'Product', () => _pick('product', 'Product',
+                    {for (final e in (page?.products ?? const <int, String>{}).entries) '${e.key}': e.value})),
+                if ((f['product'] ?? '').isNotEmpty && (page?.plans.isNotEmpty ?? false))
+                  chip('plan', 'Plan', () => _pick('plan', 'Plan',
+                      {for (final e in page!.plans.entries) '${e.key}': e.value})),
+                chip('expires', 'Ends', () => _pick('expires', 'Ends', _expires)),
+                chip('device', 'Device', () => _pick('device', 'Device', {
+                      'none': 'No device set',
+                      for (final d in page?.devices ?? const <String>[]) d: d,
+                    })),
+                chip('sort', 'Newest first', () => _pick('sort', 'Order', _sorts)),
+                if (f.isNotEmpty || status != null)
+                  ActionChip(
+                    label: const Text('Clear all'),
+                    onPressed: () {
+                      _search.clear();
+                      ref.read(adminSubFiltersProvider.notifier).state = const {};
+                      ref.read(adminSubStatusProvider.notifier).state = null;
+                    },
+                  ),
+              ],
+            ),
+          ),
+          if (page != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('${page.total} subscriptions · tap a product, customer or date to filter by it',
+                    style: const TextStyle(fontSize: 11, color: AppColors.gray500)),
+              ),
+            ),
           Expanded(
-            child: AsyncValueView<List<AdminSubscription>>(
+            child: AsyncValueView<AdminSubscriptionPage>(
               value: async,
               onRefresh: () async =>
                   ref.refresh(adminSubscriptionsProvider.future),
-              data: (items) {
+              data: (p) {
+                final items = [...p.items, ..._more];
                 if (items.isEmpty) {
-                  return const Center(
-                      child: Text('No subscriptions here.',
-                          style: TextStyle(color: AppColors.gray500)));
+                  return ListView(children: const [
+                    SizedBox(height: 120),
+                    Center(
+                        child: Text('No subscriptions here.',
+                            style: TextStyle(color: AppColors.gray500))),
+                  ]);
                 }
+                final hasMore = _page < _lastPage;
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: items.length,
+                  itemCount: items.length + (hasMore ? 1 : 0),
                   itemBuilder: (context, i) {
+                    if (i == items.length) {
+                      return MbuiButton(
+                        label: 'Load more',
+                        variant: MbuiVariant.secondary,
+                        fullWidth: true,
+                        loading: _loadingMore,
+                        onPressed: _loadMore,
+                      );
+                    }
                     final s = items[i];
+                    Widget link(String text, VoidCallback onTap, {bool bold = false}) =>
+                        InkWell(
+                          onTap: onTap,
+                          child: Text(text,
+                              style: TextStyle(
+                                fontSize: bold ? 14 : 12,
+                                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                                color: bold ? AppColors.gray900 : AppColors.indigo600,
+                              )),
+                        );
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: MbuiCard(
@@ -671,25 +896,42 @@ class AdminSubscriptionsScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text('${s.product} · ${s.customerName}',
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.gray900)),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    children: [
+                                      link(s.product, () => s.productId == null
+                                          ? null
+                                          : _set('product', '${s.productId}', label: s.product), bold: true),
+                                      const Text('·'),
+                                      link(s.customerName, () => s.userId == null
+                                          ? null
+                                          : _set('user', '${s.userId}', label: s.customerName), bold: true),
+                                    ],
+                                  ),
                                 ),
                                 MbuiStatusBadge(s.status),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              [
-                                if (s.plan != null) s.plan!,
-                                if (s.expiryDate != null) 'ends ${s.expiryDate}',
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 4,
+                              children: [
+                                if (s.plan != null)
+                                  link(s.plan!, () => s.planId == null || s.productId == null
+                                      ? null
+                                      : _set('plan', '${s.planId}', label: s.plan)),
+                                if (s.expiryDate != null)
+                                  link('ends ${s.expiryDate}', () => _set('expires', s.expiryDate, label: 'Ends ${s.expiryDate}')),
                                 if (s.daysRemaining != null)
-                                  '${s.daysRemaining}d left',
-                              ].join(' · '),
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.gray500),
+                                  Text('${s.daysRemaining}d left',
+                                      style: const TextStyle(fontSize: 12, color: AppColors.gray500)),
+                                if (s.device != null)
+                                  link(s.device!, () => _set('device', s.device, label: s.device)),
+                                if (s.account != null)
+                                  Text('Account: ${s.account}',
+                                      style: const TextStyle(fontSize: 12, color: AppColors.gray500)),
+                              ],
                             ),
                           ],
                         ),

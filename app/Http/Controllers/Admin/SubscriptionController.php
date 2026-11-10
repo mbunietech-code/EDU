@@ -20,50 +20,8 @@ class SubscriptionController extends Controller
     public function index(Request $request)
     {
         $subscriptions = Subscription::with(['user', 'product', 'plan', 'order:id,device'])
-            ->when($request->filled('status'), function ($query) use ($request) {
-                if ($request->input('status') === 'expiring_soon') {
-                    // Date-based, so it works even when the daily expiry job
-                    // (which flips status to expiring_soon) hasn't run — e.g.
-                    // no cron on shared hosting. Same window the job uses.
-                    $today = now(config('app.timezone'))->toDateString();
-                    $until = now(config('app.timezone'))
-                        ->addDays((int) config('app.expiry_warning_days', 3))
-                        ->toDateString();
-
-                    $query->whereIn('status', ['active', 'expiring_soon'])
-                        ->whereDate('expiry_date', '>=', $today)
-                        ->whereDate('expiry_date', '<=', $until);
-
-                    return;
-                }
-
-                $query->where('status', $request->input('status'));
-            })
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $term = $request->input('search');
-                $query->whereHas('user', function ($q) use ($term) {
-                    $q->where('name', 'like', "%{$term}%")
-                      ->orWhere('email', 'like', "%{$term}%");
-                });
-            })
             // Each value in the table is a link that adds one of these.
-            ->when($this->id($request, 'user'), fn ($q, $id) => $q->where('user_id', $id))
-            ->when($this->id($request, 'product'), fn ($q, $id) => $q->where('product_id', $id))
-            ->when($this->id($request, 'plan'), fn ($q, $id) => $q->where('plan_id', $id))
-            ->when($request->input('account') === 'none', fn ($q) => $q->whereNull('account_id'))
-            ->when($this->id($request, 'account'), fn ($q, $id) => $q->where('account_id', $id))
-            ->when($request->filled('device'), function ($q) use ($request) {
-                $device = (string) $request->input('device');
-                $device === 'none'
-                    ? $q->whereDoesntHave('order', fn ($o) => $o->whereNotNull('device')->where('device', '!=', ''))
-                    : $q->whereHas('order', fn ($o) => $o->where('device', $device));
-            })
-            ->when($request->input('expires'), fn ($q, $window) => $this->filterExpiry($q, (string) $window))
-            ->when(true, fn ($q) => match ($request->input('sort')) {
-                'expires_asc' => $q->orderBy('expiry_date')->latest('id'),
-                'expires_desc' => $q->orderByDesc('expiry_date')->latest('id'),
-                default => $q->latest(),
-            })
+            ->adminFilter($request->only(['status', 'search', 'user', 'product', 'plan', 'account', 'device', 'expires', 'sort']))
             ->paginate(15)
             ->withQueryString();
 
@@ -85,22 +43,6 @@ class SubscriptionController extends Controller
         $value = (string) $request->input($key, '');
 
         return ctype_digit($value) && (int) $value > 0 ? (int) $value : null;
-    }
-
-    /** Expiry windows, or one exact day (Y-m-d) when a date in the table is clicked. */
-    private function filterExpiry($query, string $window)
-    {
-        $tz = config('app.timezone');
-        $today = now($tz)->toDateString();
-
-        return match (true) {
-            $window === 'past' => $query->whereDate('expiry_date', '<', $today),
-            $window === '7d' => $query->whereDate('expiry_date', '>=', $today)->whereDate('expiry_date', '<=', now($tz)->addDays(7)->toDateString()),
-            $window === '30d' => $query->whereDate('expiry_date', '>=', $today)->whereDate('expiry_date', '<=', now($tz)->addDays(30)->toDateString()),
-            $window === 'later' => $query->whereDate('expiry_date', '>', now($tz)->addDays(30)->toDateString()),
-            (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $window) => $query->whereDate('expiry_date', $window),
-            default => $query,
-        };
     }
 
     public function show(Subscription $subscription)

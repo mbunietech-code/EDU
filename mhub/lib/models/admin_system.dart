@@ -237,9 +237,19 @@ class AdminSubscription {
     this.customerEmail,
     this.orderNumber,
     this.startDate,
+    this.userId,
+    this.productId,
+    this.planId,
+    this.device,
+    this.account,
   });
 
   final int id;
+  final int? userId;
+  final int? productId;
+  final int? planId;
+  final String? device;
+  final String? account;
   final String customerName;
   final String product;
   final String? plan;
@@ -261,7 +271,34 @@ class AdminSubscription {
         customerEmail: j['customer_email'] as String?,
         orderNumber: j['order_number'] as String?,
         startDate: j['start_date'] as String?,
+        userId: (j['user_id'] as num?)?.toInt(),
+        productId: (j['product_id'] as num?)?.toInt(),
+        planId: (j['plan_id'] as num?)?.toInt(),
+        device: j['device'] as String?,
+        account: j['account'] as String?,
       );
+}
+
+/// One page of admin subscriptions plus the choices for its filter chips.
+class AdminSubscriptionPage {
+  const AdminSubscriptionPage(
+    this.items, {
+    this.currentPage = 1,
+    this.lastPage = 1,
+    this.total = 0,
+    this.products = const {},
+    this.plans = const {},
+    this.devices = const [],
+  });
+  final List<AdminSubscription> items;
+  final int currentPage;
+  final int lastPage;
+  final int total;
+
+  /// id → name
+  final Map<int, String> products;
+  final Map<int, String> plans;
+  final List<String> devices;
 }
 
 class ContactMessageRow {

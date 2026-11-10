@@ -199,13 +199,11 @@ class SystemController extends Controller
     // ---------------------------------------------------------- Subscriptions
     public function subscriptions(Request $request): JsonResponse
     {
-        $subs = Subscription::with(['user:id,name,email', 'product:id,name', 'plan:id,name'])
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->when($request->filled('search'), fn ($q) => $q->whereHas('user', fn ($u) => $u
-                ->where('name', 'like', '%'.$request->string('search').'%')
-                ->orWhere('email', 'like', '%'.$request->string('search').'%')))
-            ->latest()
+        $f = $request->only(['status', 'search', 'user', 'product', 'plan', 'account', 'device', 'expires', 'sort']);
+        $subs = Subscription::with(['user:id,name,email', 'product:id,name', 'plan:id,name', 'order:id,device', 'account:id,name'])
+            ->adminFilter($f)
             ->paginate(20);
+        $productId = ctype_digit((string) ($f['product'] ?? '')) ? (int) $f['product'] : null;
 
         return response()->json([
             'data' => collect($subs->items())->map(fn (Subscription $s) => $this->subRow($s))->all(),
@@ -213,6 +211,12 @@ class SystemController extends Controller
                 'current_page' => $subs->currentPage(),
                 'last_page' => $subs->lastPage(),
                 'total' => $subs->total(),
+                // Choices for the filter chips (same as the web page).
+                'products' => \App\Models\Product::orderBy('name')->get(['id', 'name']),
+                'plans' => $productId ? \App\Models\Plan::where('product_id', $productId)->orderBy('sort_order')->get(['id', 'name']) : [],
+                'devices' => \App\Models\Order::whereNotNull('device')->where('device', '!=', '')
+                    ->whereIn('id', Subscription::whereNotNull('order_id')->select('order_id'))
+                    ->distinct()->orderBy('device')->pluck('device'),
             ],
         ]);
     }
@@ -387,6 +391,12 @@ class SystemController extends Controller
             'customer_name' => $s->user->name ?? '—',
             'product' => $s->product->name ?? '—',
             'plan' => $s->plan->name ?? null,
+            'user_id' => $s->user_id,
+            'product_id' => $s->product_id,
+            'plan_id' => $s->plan_id,
+            'device' => $s->relationLoaded('order') ? ($s->order?->device ?: null) : null,
+            'account_id' => $s->account_id,
+            'account' => $s->relationLoaded('account') ? $s->account?->name : null,
             'status' => $s->status,
             'expiry_date' => optional($s->expiry_date)->toDateString(),
             'days_remaining' => $s->expiry_date ? (int) now()->diffInDays($s->expiry_date, false) : null,
