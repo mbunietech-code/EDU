@@ -14,11 +14,39 @@
     </div>
 
     <div class="mt-6 mbui-card overflow-hidden">
+        @php
+            $tabs = [
+                'all' => 'All',
+                'unread' => 'Unread',
+                'awaiting' => 'Awaiting reply',
+                'replied' => 'Replied',
+                'online' => 'Online now',
+            ];
+            $keep = array_filter(['search' => $search ?: null, 'period' => $period]);
+        @endphp
+        <div class="flex gap-1 overflow-x-auto border-b border-gray-200 px-2">
+            @foreach ($tabs as $key => $label)
+                <a href="{{ route('admin.chat.index', $key === 'all' ? $keep : $keep + ['status' => $key]) }}"
+                   class="inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium {{ $status === $key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
+                    {{ $label }}
+                    <span class="rounded-full px-2 py-0.5 text-xs {{ $status === $key ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">{{ $counts[$key] }}</span>
+                </a>
+            @endforeach
+        </div>
         <div class="border-b border-gray-200 px-4 py-3">
-            <form method="GET" class="flex gap-3">
-                <input type="search" name="search" value="{{ $search }}" placeholder="Search by name or email..." class="mbui-input sm:w-80">
+            <form method="GET" class="flex flex-col gap-3 sm:flex-row">
+                @if ($status !== 'all')
+                    <input type="hidden" name="status" value="{{ $status }}">
+                @endif
+                <input type="search" name="search" value="{{ $search }}" placeholder="Name, email or message text..." class="mbui-input sm:w-80">
+                <select name="period" class="mbui-input sm:w-44">
+                    <option value="">Any time</option>
+                    <option value="today" @selected($period === 'today')>Active today</option>
+                    <option value="7d" @selected($period === '7d')>Last 7 days</option>
+                    <option value="30d" @selected($period === '30d')>Last 30 days</option>
+                </select>
                 <x-mbui.button type="submit" variant="secondary" class="!px-4 !py-2">Filter</x-mbui.button>
-                @if ($search)
+                @if ($search || $period || $status !== 'all')
                     <a href="{{ route('admin.chat.index') }}" class="mbui-anchor self-center text-sm">Clear</a>
                 @endif
             </form>
@@ -70,8 +98,14 @@
                 </div>
             </a>
         @empty
-            <x-mbui.empty-state title="No conversations yet" message="When a customer sends a message it will appear here." />
+            @if ($search || $period || $status !== 'all')
+                <x-mbui.empty-state title="No conversations match" message="Try another tab, period or search." />
+            @else
+                <x-mbui.empty-state title="No conversations yet" message="When a customer sends a message it will appear here." />
+            @endif
         @endforelse
     </div>
+
+    <div class="mt-6">{{ $conversations->links() }}</div>
 
 </x-layouts.admin>
