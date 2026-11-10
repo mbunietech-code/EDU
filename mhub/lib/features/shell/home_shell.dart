@@ -13,6 +13,7 @@ import '../admin/admin_learning_screen.dart';
 import '../admin/admin_research_screen.dart';
 import '../admin/admin_system_screen.dart';
 import '../admin/admin_users_screen.dart';
+import '../admin/admin_tasks_screen.dart';
 import '../admin/admin_vpn_screen.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_screen.dart';
@@ -117,6 +118,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           StudioScreen(),
         ),
         _Destination('Team chat', Icons.forum_outlined, TeamChatScreen()),
+        _Destination('Team tasks', Icons.task_alt_outlined, AdminTasksScreen()),
         _Destination(
           'AI Assistant',
           Icons.smart_toy_outlined,

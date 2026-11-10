@@ -271,6 +271,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\ReportController::class, 'index'])->middleware('can:reports.view');
 
+        // Team tasks (every admin: tasks they give or get)
+        Route::controller(\App\Http\Controllers\Api\Admin\TaskController::class)->prefix('tasks')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/people', 'people');
+            Route::post('/', 'store');
+            Route::get('/{task}', 'show')->whereNumber('task');
+            Route::put('/{task}', 'update')->whereNumber('task');
+            Route::post('/{task}/status', 'status')->whereNumber('task');
+            Route::post('/{task}/comments', 'comment')->whereNumber('task')->middleware('throttle:30,1');
+            Route::delete('/{task}', 'destroy')->whereNumber('task');
+        });
+
         // Mbunie VPN (same as admin/vpn on the web)
         Route::controller(\App\Http\Controllers\Api\Admin\VpnController::class)->prefix('vpn')->middleware('can:vpn.view')->group(function () {
             Route::get('/', 'overview');

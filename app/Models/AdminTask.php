@@ -56,6 +56,62 @@ class AdminTask extends Model
         return (int) $this->assigned_to === (int) $user->id || (int) $this->created_by === (int) $user->id;
     }
 
+    /** See it and comment: who gave or got it, or a tasks manager. */
+    public function canBeSeenBy(User $user): bool
+    {
+        return $this->involves($user) || $user->can('tasks.manage');
+    }
+
+    /** Edit / delete / re-assign: who gave it, or a tasks manager. */
+    public function canBeEditedBy(User $user): bool
+    {
+        return (int) $this->created_by === (int) $user->id || $user->can('tasks.manage');
+    }
+
+    /** Change the status: the person who got it, who gave it, or a tasks manager. */
+    public function canBeMovedBy(User $user): bool
+    {
+        return $this->involves($user) || $user->can('tasks.manage');
+    }
+
+    /** Tell the person it was given to, unless they gave it to themselves. */
+    public function notifyAssignee(User $by): void
+    {
+        $this->load('assignee');
+
+        if ($this->assignee && (int) $this->assignee->id !== (int) $by->id) {
+            $this->assignee->notify(new \App\Notifications\Admin\TaskAssigned($this, $by->name));
+        }
+    }
+
+    /** Tell whoever gave / got the task, except the person who just acted. */
+    public function notifyOthers(User $by, string $message): void
+    {
+        collect([$this->assigned_to, $this->created_by])
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => (int) $id === (int) $by->id)
+            ->each(fn ($id) => User::query()->find($id)?->notify(new \App\Notifications\Admin\TaskUpdated($this, $message)));
+    }
+
+    /** Admins a task can be given to, by job title then name. */
+    public static function people()
+    {
+        return User::query()->where('is_admin', true)->where('is_guest', false)->where('status', 'active')
+            ->orderByRaw('job_title IS NULL')->orderBy('job_title')->orderBy('name')
+            ->get(['id', 'name', 'job_title']);
+    }
+
+    /** Tasks list ordering: in progress, then urgent, then soonest due. */
+    public function scopeWorkOrder(Builder $q): Builder
+    {
+        return $q->orderByRaw("CASE status WHEN 'in_progress' THEN 0 WHEN 'todo' THEN 1 ELSE 2 END")
+            ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
+            ->orderByRaw('due_at IS NULL')
+            ->orderBy('due_at')
+            ->latest('id');
+    }
+
     public function scopeOpen(Builder $q): Builder
     {
         return $q->whereIn('status', self::OPEN);
