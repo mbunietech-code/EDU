@@ -265,6 +265,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users/{user}', [\App\Http\Controllers\Api\Admin\UserController::class, 'show'])->middleware('can:users.view');
         Route::post('/users/{user}/status', [\App\Http\Controllers\Api\Admin\UserController::class, 'setStatus'])->middleware('can:users.manage');
 
+        // Before /chat/{conversation} so "auto-reply" is not read as a conversation id.
+        Route::get('/chat/auto-reply', [\App\Http\Controllers\Api\Admin\ChatController::class, 'autoReply'])->middleware('can:chat.manage');
+        Route::put('/chat/auto-reply', [\App\Http\Controllers\Api\Admin\ChatController::class, 'saveAutoReply'])->middleware('can:chat.manage');
         Route::get('/chat', [\App\Http\Controllers\Api\Admin\ChatController::class, 'index'])->middleware('can:chat.view');
         Route::get('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'show'])->middleware('can:chat.view');
         Route::post('/chat/{conversation}', [\App\Http\Controllers\Api\Admin\ChatController::class, 'store'])->middleware('can:chat.manage');

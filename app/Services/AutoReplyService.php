@@ -47,6 +47,25 @@ class AutoReplyService
         return max(1, (int) Setting::get('autoreply_minutes', self::DEFAULT_MINUTES));
     }
 
+    /** Validation for the settings form (web) and the app. */
+    public const RULES = [
+        'minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+        'message' => ['required', 'string', 'max:1000'],
+    ];
+
+    /** Save the settings and log who changed them. */
+    public function save(bool $enabled, int $minutes, string $message): void
+    {
+        Setting::set('autoreply_enabled', $enabled ? '1' : '0', 'string', 'autoreply');
+        Setting::set('autoreply_minutes', (string) $minutes, 'integer', 'autoreply');
+        Setting::set('autoreply_message_en', $message, 'string', 'autoreply');
+
+        \App\Models\ActivityLog::log('chat_auto_reply_updated', 'Setting', null, [
+            'enabled' => $enabled,
+            'minutes' => $minutes,
+        ]);
+    }
+
     /** Kept in autoreply_message_en; the old Swahili autoreply_message setting is no longer used. */
     public function messageTemplate(): string
     {

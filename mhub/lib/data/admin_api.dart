@@ -167,6 +167,21 @@ class AdminRepository {
     );
   }
 
+  /// Auto-reply settings: {enabled, minutes, message}.
+  Future<Map<String, dynamic>> autoReply() async =>
+      Map<String, dynamic>.from(await _api.get('/admin/chat/auto-reply') as Map);
+
+  Future<void> saveAutoReply({
+    required bool enabled,
+    required int minutes,
+    required String message,
+  }) =>
+      _api.put('/admin/chat/auto-reply', data: {
+        'enabled': enabled,
+        'minutes': minutes,
+        'message': message,
+      });
+
   Future<List<ChatMessage>> conversation(int id) async {
     final data = await _api.get('/admin/chat/$id') as Map<String, dynamic>;
     return (data['messages'] as List)

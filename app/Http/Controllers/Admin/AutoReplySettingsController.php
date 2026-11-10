@@ -25,19 +25,9 @@ class AutoReplySettingsController extends Controller
 
     public function update(Request $request)
     {
-        $data = $request->validate([
-            'minutes' => ['required', 'integer', 'min:1', 'max:1440'],
-            'message' => ['required', 'string', 'max:1000'],
-        ]);
+        $data = $request->validate(AutoReplyService::RULES);
 
-        Setting::set('autoreply_enabled', $request->boolean('enabled') ? '1' : '0', 'string', 'autoreply');
-        Setting::set('autoreply_minutes', (string) $data['minutes'], 'integer', 'autoreply');
-        Setting::set('autoreply_message_en', $data['message'], 'string', 'autoreply');
-
-        ActivityLog::log('chat_auto_reply_updated', 'Setting', null, [
-            'enabled' => $request->boolean('enabled'),
-            'minutes' => $data['minutes'],
-        ]);
+        $this->autoReply->save($request->boolean('enabled'), (int) $data['minutes'], $data['message']);
 
         return back()->with('success', 'Auto-reply settings saved.');
     }

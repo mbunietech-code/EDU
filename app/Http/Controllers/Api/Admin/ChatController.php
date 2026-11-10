@@ -70,6 +70,25 @@ class ChatController extends Controller
         ]);
     }
 
+    /** Chat auto-reply settings (chat.manage), as on admin/messages/auto-reply. */
+    public function autoReply(\App\Services\AutoReplyService $autoReply): JsonResponse
+    {
+        return response()->json([
+            'enabled' => $autoReply->enabled(),
+            'minutes' => $autoReply->minutes(),
+            'message' => $autoReply->messageTemplate(),
+        ]);
+    }
+
+    public function saveAutoReply(Request $request, \App\Services\AutoReplyService $autoReply): JsonResponse
+    {
+        $data = $request->validate(\App\Services\AutoReplyService::RULES + ['enabled' => ['required', 'boolean']]);
+
+        $autoReply->save((bool) $data['enabled'], (int) $data['minutes'], $data['message']);
+
+        return response()->json(['message' => 'Auto-reply settings saved.']);
+    }
+
     public function show(Conversation $conversation): JsonResponse
     {
         $conversation->messages()

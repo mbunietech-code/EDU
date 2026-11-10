@@ -130,7 +130,18 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(
+        title: const Text('Messages'),
+        actions: [
+          IconButton(
+            tooltip: 'Auto-reply settings',
+            icon: const Icon(Icons.schedule_send_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const AdminAutoReplyScreen(),
+            )),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -545,6 +556,156 @@ class _Composer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Chat auto-reply: the one message a customer gets when nobody answers in time.
+class AdminAutoReplyScreen extends ConsumerStatefulWidget {
+  const AdminAutoReplyScreen({super.key});
+
+  @override
+  ConsumerState<AdminAutoReplyScreen> createState() =>
+      _AdminAutoReplyScreenState();
+}
+
+class _AdminAutoReplyScreenState extends ConsumerState<AdminAutoReplyScreen> {
+  final _minutes = TextEditingController();
+  final _message = TextEditingController();
+  bool _enabled = true;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _minutes.dispose();
+    _message.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final s = await ref.read(adminRepositoryProvider).autoReply();
+      if (!mounted) return;
+      setState(() {
+        _enabled = s['enabled'] == true;
+        _minutes.text = '${s['minutes'] ?? 10}';
+        _message.text = '${s['message'] ?? ''}';
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    final minutes = int.tryParse(_minutes.text.trim());
+    if (minutes == null || minutes < 1 || minutes > 1440) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Waiting time must be 1 to 1440 minutes.')));
+      return;
+    }
+    if (_message.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Write the auto-reply message.')));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref.read(adminRepositoryProvider).saveAutoReply(
+            enabled: _enabled,
+            minutes: minutes,
+            message: _message.text.trim(),
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Auto-reply settings saved.')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.pageBackground,
+      appBar: AppBar(title: const Text('Auto-reply')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(_error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.red700)),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    const Text(
+                      'When a customer writes and nobody answers within the set time, '
+                      'the system sends them this message once. It is sent only once '
+                      'until someone replies.',
+                      style: TextStyle(fontSize: 13, color: AppColors.gray500),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Auto-reply is on'),
+                      value: _enabled,
+                      onChanged: (v) => setState(() => _enabled = v),
+                    ),
+                    TextField(
+                      controller: _minutes,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Wait this many minutes first',
+                        helperText: '1 to 1440 (24 hours)',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _message,
+                      minLines: 4,
+                      maxLines: 8,
+                      maxLength: 1000,
+                      decoration: const InputDecoration(
+                        labelText: 'Message',
+                        alignLabelWithHint: true,
+                        helperText:
+                            'Sent in English. Write {name} where the customer\'s name should go.',
+                        helperMaxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    MbuiButton(
+                      label: 'Save',
+                      fullWidth: true,
+                      loading: _saving,
+                      onPressed: _save,
+                    ),
+                  ],
+                ),
     );
   }
 }
