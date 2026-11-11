@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
@@ -54,6 +55,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> _restore() async {
     final token = await _tokens.read();
     if (token == null || token.isEmpty) {
+      debugPrint('[MHub] restore: no saved token');
       state = state.copyWith(status: AuthStatus.unauthenticated);
       return;
     }
@@ -62,13 +64,15 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
       unawaited(_ref.read(notificationCenterProvider).start());
     } on ApiException catch (e) {
+      debugPrint('[MHub] restore: ${e.statusCode} ${e.message}');
       // Only a rejected token is thrown away; offline keeps it for next time.
       if (e.isUnauthorized) await _tokens.clear();
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         clearUser: true,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[MHub] restore failed: $e');
       // Anything unexpected: show sign-in rather than an endless spinner.
       state = state.copyWith(
         status: AuthStatus.unauthenticated,

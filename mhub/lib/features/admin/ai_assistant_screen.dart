@@ -50,7 +50,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         await _newConversation();
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -67,6 +67,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   Future<void> _open(int id) async {
     final data = (await _api.get('/admin/ai-assistant/$id') as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    if (!mounted) return;
     setState(() {
       _conversationId = id;
       _title = data['title'] as String? ?? 'AI Assistant';
@@ -79,6 +80,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   Future<void> _newConversation() async {
     final data = (await _api.post('/admin/ai-assistant') as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    if (!mounted) return;
     setState(() {
       _conversationId = (data['id'] as num).toInt();
       _title = data['title'] as String? ?? 'New chat';

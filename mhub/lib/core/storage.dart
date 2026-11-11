@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -14,8 +15,9 @@ class TokenStorage {
   /// of waiting forever.
   Future<String?> read() async {
     try {
-      return await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 5));
-    } catch (_) {
+      return await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('[MHub] token read failed: $e');
       return null;
     }
   }
