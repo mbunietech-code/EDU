@@ -1,8 +1,8 @@
-# Brief: MHub 1.2.2 for iPhone and Mac
+# Brief: MHub 1.2.3 for iPhone and Mac
 
 Read `docs/MHUB-APPLE-HANDOFF.md` first. It has the background, the rules and the plugin table.
 
-**Goal:** the same MHub app as Android and Windows (same features, same layout, **same version 1.2.2 build 5**)
+**Goal:** the same MHub app as Android and Windows (same features, same layout, **same version 1.2.3 build 6**)
 running on iPhone and on Mac. Then install it on this Mac, make it downloadable from
 https://mbuniehub.com, and make the in-app update check work for both platforms.
 
@@ -36,7 +36,7 @@ need.
 4. App icon: the macOS icon must be the MHub logo (`assets/icon/mhub_icon_square.png`,
    `flutter_launcher_icons` in `pubspec.yaml` has `macos: generate: true`).
    Run `dart run flutter_launcher_icons` if it is not.
-5. Package a DMG named **`MHub-1.2.2-macos.dmg`** (for example with `hdiutil create -volname MHub
+5. Package a DMG named **`MHub-1.2.3-macos.dmg`** (for example with `hdiutil create -volname MHub
    -srcfolder <folder with MHub.app and an /Applications link> -ov -format UDZO`).
    - Paid account: sign with **Developer ID Application**, turn on hardened runtime, **notarize**
      (`xcrun notarytool submit … --wait`) and **staple** it.
@@ -66,7 +66,22 @@ need.
    - Sign-in page with logo, sign-in remembered after closing the app.
    - Bottom bar plus "More" sheet (iPhone width), every menu item opens.
    - Camera and microphone prompts on a live class page.
-8. Distribution:
+8. Screen sharing in live classes (added in 1.2.3 for Android, Windows and macOS: see `_toggleShare`
+   and `_shareSupported` in `lib/features/learning/live_class_screen.dart`).
+   - **macOS** already uses the desktop path (screen/window picker). Check that the "Share screen" button
+     shows in a live class where sharing is allowed, and that macOS asks for Screen Recording permission.
+     Add `NSScreenCaptureUsageDescription` to `macos/Runner/Info.plist` if needed.
+   - **iPhone** needs a **Broadcast Upload Extension**, the LiveKit / flutter_webrtc way. Add a Broadcast
+     Upload Extension target (for example `MHubBroadcast`, bundle id `com.mbunie.mhub.broadcast`) and an
+     **App Group** shared by app and extension (for example `group.com.mbunie.mhub`). Use the
+     flutter_webrtc `SampleHandler` / `SocketConnection` sample code in the extension. In the app's
+     Info.plist set `RTCAppGroupIdentifier` and `RTCScreenSharingExtension`. In Dart, add `Platform.isIOS`
+     to `_shareSupported`, and on iOS call
+     `me.setScreenShareEnabled(true, screenShareCaptureOptions: const ScreenShareCaptureOptions(useiOSBroadcastExtension: true))`.
+     Keep Android, Windows and macOS behaviour unchanged.
+   - App Groups and extensions need the paid developer account. Without one, leave this step, keep the
+     button hidden on iPhone, and tell the owner.
+9. Distribution:
    - Paid account: create the app in App Store Connect (bundle id `com.mbunie.mhub`, name "MHub"),
      `flutter build ipa --release`, upload (Transporter or `xcrun altool`/`notarytool`), and set up
      **TestFlight** with a public link. That public link is what the website's iPhone download button
@@ -76,22 +91,22 @@ need.
 
 ## 3. Put it on the website (same as Android and Windows)
 
-- macOS: upload `MHub-1.2.2-macos.dmg` and set the macOS version to `v1.2.2`. iPhone: set the iOS link
-  (TestFlight public link or App Store link) and the iOS version to `v1.2.2`.
+- macOS: upload `MHub-1.2.3-macos.dmg` and set the macOS version to `v1.2.3`. iPhone: set the iOS link
+  (TestFlight public link or App Store link) and the iOS version to `v1.2.3`.
 - With SSH (see the handoff): `scp -P 65002` the DMG to
   `domains/mbuniehub.com/public_html/storage/app/public/app-downloads/`, then in
-  `php artisan tinker` update the settings `app_macos_path` = `app-downloads/MHub-1.2.2-macos.dmg`,
-  `app_macos_version` = `v1.2.2`, `app_ios_url` = `<link>`, `app_ios_version` = `v1.2.2`, and run
+  `php artisan tinker` update the settings `app_macos_path` = `app-downloads/MHub-1.2.3-macos.dmg`,
+  `app_macos_version` = `v1.2.3`, `app_ios_url` = `<link>`, `app_ios_version` = `v1.2.3`, and run
   `\App\Support\AppDownloads::forget()`.
 - Without SSH: tell the owner to do it in **Admin → Settings → App downloads**.
-- Check: `curl -s https://mbuniehub.com/api/app/latest` shows `macos` and `ios` with `1.2.2` and a
+- Check: `curl -s https://mbuniehub.com/api/app/latest` shows `macos` and `ios` with `1.2.3` and a
   working link, and the home page footer shows the macOS and iPhone versions.
 
 ## 4. Update check on Apple
 
-- With the site at 1.2.2 the app must **not** ask to update (same version).
-- Temporarily make the app think it is older (run once with `AppConfig.version` changed to `1.2.1`,
-  **do not commit that**) and confirm the "MHub 1.2.2 is available" dialog appears. Update must open
+- With the site at 1.2.3 the app must **not** ask to update (same version).
+- Temporarily make the app think it is older (run once with `AppConfig.version` changed to `1.2.2`,
+  **do not commit that**) and confirm the "MHub 1.2.3 is available" dialog appears. Update must open
   the DMG link on Mac and the TestFlight/App Store link on iPhone. Restore the version afterwards.
 
 ## 5. Release notes and handover

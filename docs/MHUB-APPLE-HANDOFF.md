@@ -2,15 +2,15 @@
 
 Written 2026-11-11 on the Windows PC, for the Claude Code session that continues on a Mac.
 It describes the state of the `main` branch of `https://github.com/mbunietech-code/EDU` on that date.
-Read this file first, then do the work in `docs/MHUB-APPLE-1.2.2-BRIEF.md`.
+Read this file first, then do the work in `docs/MHUB-APPLE-1.2.3-BRIEF.md`.
 
 ## What exists today
 
 | Part | Where | State |
 |---|---|---|
 | Website + API (Laravel 11) | repo root (`app/`, `routes/`, `resources/`) | Live at https://mbuniehub.com. **Auto-deploys from `main`.** |
-| MHub app (Flutter) | `mhub/` | **1.2.2 (build 5)** released for Android and Windows on 2026-11-11 |
-| macOS project | `mhub/macos/` | Exists (bundle id `com.mbunie.mhub`, sandboxed, camera/mic entitlements). Not released as 1.2.2 |
+| MHub app (Flutter) | `mhub/` | **1.2.3 (build 6)** released for Android and Windows on 2026-11-11 |
+| macOS project | `mhub/macos/` | Exists (bundle id `com.mbunie.mhub`, sandboxed, camera/mic entitlements). Not released as 1.2.3 |
 | iOS project | `mhub/ios/` | **Does not exist yet.** Create it with `flutter create --platforms=ios .` inside `mhub/` |
 
 The app is one Flutter code base for everyone (customers, instructors, admins). The account type
@@ -26,13 +26,13 @@ decides the menu. It talks to `https://mbuniehub.com/api` with a Sanctum bearer 
 - **Narrower** (iPhone): bottom navigation bar plus a "More" sheet, the same as Android.
 - Lists can be dragged with mouse/trackpad (`_AppScrollBehavior` in `app.dart`).
 
-### Version (all must be equal: 1.2.2)
+### Version (all must be equal: 1.2.3)
 
 | File | Value |
 |---|---|
-| `mhub/pubspec.yaml` | `version: 1.2.2+5` (iOS/macOS take `CFBundleShortVersionString` 1.2.2 and build 5 from here) |
-| `mhub/lib/core/config.dart` | `AppConfig.version = '1.2.2'` (the update check compares it with the site) |
-| `mhub/installer/mhub.iss` | Windows only, already 1.2.2 |
+| `mhub/pubspec.yaml` | `version: 1.2.3+6` (iOS/macOS take `CFBundleShortVersionString` 1.2.3 and build 6 from here) |
+| `mhub/lib/core/config.dart` | `AppConfig.version = '1.2.3'` (the update check compares it with the site) |
+| `mhub/installer/mhub.iss` | Windows only, already 1.2.3 |
 
 ### In-app update check (`mhub/lib/core/app_update.dart`)
 
@@ -61,8 +61,8 @@ The server already accepts `platform: ios|macos` for push device tokens.
 
 - **Pushing to `main` deploys the live website.** On the Mac, only change files under `mhub/` and `docs/`.
   Do not touch Laravel code, migrations, `.env` or anything outside those two folders.
-- Do not change the version: Apple builds are **1.2.2 build 5**, the same as Android and Windows.
-- Android and Windows 1.2.2 are already released. Any Dart change must not break them. Keep
+- Do not change the version: Apple builds are **1.2.3 build 6**, the same as Android and Windows.
+- Android and Windows 1.2.3 are already released. Any Dart change must not break them. Keep
   Apple-only fixes behind `Platform.isIOS` / `Platform.isMacOS`, or in the `ios/` and `macos/` folders.
 - English only in the app's text.
 - Never commit secrets: `GoogleService-Info.plist`, `google-services.json`, signing certificates,
@@ -75,7 +75,7 @@ The server already accepts `platform: ios|macos` for push device tokens.
 
 `ssh -p 65002 u125644160@46.202.182.173`, app at `~/domains/mbuniehub.com/public_html`.
 If there is no SSH key on the Mac, do not try to get one. The owner uploads the files in
-**Admin → Settings → App downloads** (upload the file, type the version `v1.2.2`, save).
+**Admin → Settings → App downloads** (upload the file, type the version `v1.2.3`, save).
 
 ## Mac setup checklist
 
