@@ -6,6 +6,8 @@
 	<string>MHub uses the camera when you turn on video in a live class.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>MHub uses the microphone when you speak in a live class.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>MHub records your screen only when you share it in a live class.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

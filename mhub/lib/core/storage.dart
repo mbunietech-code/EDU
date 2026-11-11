@@ -35,6 +35,9 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
   return TokenStorage(
     const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
+      // The data-protection keychain needs a signing team (keychain-access-groups);
+      // ad-hoc signed Mac builds get -34018 there, so use the login keychain.
+      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
     ),
   );
 });
