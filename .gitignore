@@ -21,6 +21,12 @@ yarn-error.log
 # Firebase
 /storage/app/firebase/*.json
 mhub/android/app/google-services.json
+mhub/ios/Runner/GoogleService-Info.plist
+mhub/macos/Runner/GoogleService-Info.plist
+*.p12
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
 mhub/lib/firebase_options.dart
 
 # Compiled app builds + signing material — NEVER commit these
