@@ -34,15 +34,17 @@
                     <svg class="h-3.5 w-3.5 rotate-90 lg:rotate-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                 </button>
 
-                {{-- Bring it back: a button kept clear of the right edge (on a computer the mouse at that
-                     edge slides the side panel in, which would cover it) --}}
+                {{-- Bring it back without covering the video: on phones the same small tab on the bottom edge;
+                     on a computer a small faded icon in the top corner (kept clear of the right edge, where
+                     the mouse slides the side panel in). Also in ⚙ More → Show other cameras. --}}
                 <button type="button" x-show="!stripOpen && filmstripTiles.length" x-cloak @click="toggleStrip()"
-                    class="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-gray-800/90 px-3 py-1.5 text-xs font-medium text-gray-100 shadow-lg ring-1 ring-gray-600 hover:bg-gray-700 hover:text-white
-                        lg:bottom-auto lg:right-10 lg:top-1/2 lg:-translate-y-1/2"
+                    class="absolute z-10 flex items-center justify-center bg-gray-800/90 text-gray-200 shadow hover:bg-gray-700 hover:text-white
+                        bottom-0 left-1/2 h-5 w-12 -translate-x-1/2 rounded-t-md
+                        lg:bottom-auto lg:left-auto lg:right-10 lg:top-3 lg:h-7 lg:w-auto lg:translate-x-0 lg:gap-1 lg:rounded-full lg:bg-gray-800/60 lg:px-2 lg:text-xs lg:opacity-60 lg:ring-1 lg:ring-gray-600 lg:hover:opacity-100 lg:focus-visible:opacity-100"
                     aria-expanded="false" aria-controls="camera-strip" aria-label="Show the other cameras" title="Show cameras">
-                    @include('learn.rooms.partials.icon', ['name' => 'users', 'class' => 'h-4 w-4'])
-                    <span>Cameras</span>
-                    <span class="tabular-nums text-gray-400" x-text="filmstripTiles.length"></span>
+                    <svg class="h-3.5 w-3.5 -rotate-90 lg:hidden" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    <span class="hidden lg:inline">@include('learn.rooms.partials.icon', ['name' => 'users', 'class' => 'h-4 w-4'])</span>
+                    <span class="hidden tabular-nums lg:inline" x-text="filmstripTiles.length"></span>
                 </button>
             </div>
 

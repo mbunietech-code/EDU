@@ -179,6 +179,10 @@
                     @include('learn.rooms.partials.icon', ['name' => 'grid'])
                     <span x-text="layout === 'grid' ? 'Speaker view' : 'Grid view'"></span>
                 </button>
+                <button type="button" role="menuitem" x-show="inCall && layout === 'speaker' && !board.active && filmstripTiles.length" @click="toggleStrip(); open = false" class="{{ $menuItem }}">
+                    @include('learn.rooms.partials.icon', ['name' => 'users'])
+                    <span x-text="stripOpen ? 'Hide other cameras' : 'Show other cameras'"></span>
+                </button>
                 <button type="button" role="menuitem" x-show="fullscreenSupported" @click="toggleFullscreen(); open = false" class="{{ $menuItem }}">
                     @include('learn.rooms.partials.icon', ['name' => 'expand'])
                     <span x-text="isFullscreen ? 'Exit full screen' : 'Full screen'"></span>
