@@ -415,6 +415,7 @@ class LiveJoinConfig {
     required this.relayOnly,
     required this.canSpeak,
     required this.canVideo,
+    this.canShare = false,
     required this.isModerator,
   });
 
@@ -425,6 +426,9 @@ class LiveJoinConfig {
   final bool relayOnly;
   final bool canSpeak;
   final bool canVideo;
+
+  /// May share their screen (the class allows it, or the host allowed this person).
+  final bool canShare;
   final bool isModerator;
 
   factory LiveJoinConfig.fromJson(Map<String, dynamic> j) {
@@ -447,6 +451,7 @@ class LiveJoinConfig {
       relayOnly: j['ice_transport_policy'] == 'relay',
       canSpeak: perms['audio'] as bool? ?? false,
       canVideo: perms['video'] as bool? ?? false,
+      canShare: perms['screen'] as bool? ?? false,
       isModerator: j['moderator'] as bool? ?? false,
     );
   }
@@ -672,6 +677,7 @@ class LiveRoomFeed {
     this.breakoutsOpen = false,
     this.breakoutCount = 0,
     this.myBreakout,
+    this.canShareNow,
   });
 
   final int cursor;
@@ -695,6 +701,9 @@ class LiveRoomFeed {
 
   /// The breakout room I am in (null = main room).
   final int? myBreakout;
+
+  /// My screen-share right as of this poll (the host can change it mid-class).
+  final bool? canShareNow;
 
   List<LiveRoomMessage> get chatMessages =>
       messages.where((m) => !m.isQuestion).toList();
@@ -728,6 +737,7 @@ class LiveRoomFeed {
       breakoutsOpen: breakouts['open'] as bool? ?? false,
       breakoutCount: _int(breakouts['count']),
       myBreakout: me['breakout'] == null ? null : _int(me['breakout']),
+      canShareNow: (me['permissions'] as Map?)?['screen'] as bool?,
     );
   }
 }

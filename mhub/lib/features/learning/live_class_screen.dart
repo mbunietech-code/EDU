@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_background/flutter_background.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show DesktopCapturerSource, Helper;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -408,6 +412,67 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
     }
   }
 
+  /// Screen sharing works in the app on Android, Windows and macOS. iPhone
+  /// needs a Broadcast Upload Extension (not built yet); phone browsers
+  /// cannot share the screen at all.
+  bool get _shareSupported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isWindows || Platform.isMacOS);
+
+  bool get _desktop => !kIsWeb && (Platform.isWindows || Platform.isMacOS);
+
+  Future<void> _toggleShare() async {
+    final me = _room?.localParticipant;
+    if (me == null) return;
+    setState(() => _busy = true);
+    try {
+      if (me.isScreenShareEnabled()) {
+        await me.setScreenShareEnabled(false);
+        if (!kIsWeb && Platform.isAndroid && FlutterBackground.isBackgroundExecutionEnabled) {
+          await FlutterBackground.disableBackgroundExecution();
+        }
+        return;
+      }
+
+      if (_desktop) {
+        // Pick a whole screen or one window.
+        final source = await showDialog<DesktopCapturerSource>(
+          context: context,
+          builder: (_) => ScreenSelectDialog(),
+        );
+        if (source == null) return;
+        final track = await LocalVideoTrack.createScreenShareTrack(
+          ScreenShareCaptureOptions(sourceId: source.id, maxFrameRate: 15.0),
+        );
+        await me.publishVideoTrack(track);
+        return;
+      }
+
+      // Android: ask to capture the screen, then keep a foreground service
+      // (with a notification) running while sharing, as Android requires.
+      final allowed = await Helper.requestCapturePermission();
+      if (!allowed) return;
+      const androidConfig = FlutterBackgroundAndroidConfig(
+        notificationTitle: 'MHub is sharing your screen',
+        notificationText: 'Everyone in the live class can see your screen.',
+        notificationImportance: AndroidNotificationImportance.normal,
+        notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+      );
+      var ok = await FlutterBackground.initialize(androidConfig: androidConfig);
+      if (!ok) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        ok = await FlutterBackground.initialize(androidConfig: androidConfig);
+      }
+      if (ok && !FlutterBackground.isBackgroundExecutionEnabled) {
+        await FlutterBackground.enableBackgroundExecution();
+      }
+      await me.setScreenShareEnabled(true, captureScreenAudio: true);
+    } catch (_) {
+      _snack('Screen sharing could not start. Allow MHub to record or cast the screen and try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _snack(String text) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -548,6 +613,23 @@ class _LiveClassScreenState extends ConsumerState<LiveClassScreen> {
                         ? 'Stop video'
                         : 'Start video',
                     onTap: _busy ? null : _toggleCamera,
+                  ),
+                if (_shareSupported &&
+                    ((_feed?.canShareNow ?? config.canShare) ||
+                        config.isModerator ||
+                        (_feed?.isManager ?? false) ||
+                        (me?.isScreenShareEnabled() ?? false)))
+                  _RoundButton(
+                    icon: (me?.isScreenShareEnabled() ?? false)
+                        ? Icons.stop_screen_share_outlined
+                        : Icons.screen_share_outlined,
+                    label: (me?.isScreenShareEnabled() ?? false)
+                        ? 'Stop sharing'
+                        : 'Share screen',
+                    color: (me?.isScreenShareEnabled() ?? false)
+                        ? AppColors.red600
+                        : null,
+                    onTap: _busy ? null : _toggleShare,
                   ),
                 _RoundButton(
                   icon: Icons.chat_bubble_outline,
