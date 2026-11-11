@@ -85,3 +85,31 @@ If there is no SSH key on the Mac, do not try to get one. The owner uploads the 
 4. Sign in to Xcode with the Apple ID (Xcode → Settings → Accounts). Plug in the iPhone and turn on
    Developer Mode (Settings → Privacy & Security).
 5. Start Claude Code in the cloned folder and give it the one-line brief from the owner.
+
+## State on the Mac (2026-11-12)
+
+- Mac: macOS 27.2, Xcode 27.0, Flutter 3.47.2, CocoaPods 1.17. `flutter doctor` green.
+- **No Apple account is signed in to Xcode and there is no signing certificate**, so: macOS is ad-hoc
+  signed (not notarized), iOS builds with `--no-codesign` only, no TestFlight, no iOS screen sharing
+  (needs App Groups + a Broadcast Upload Extension, paid account only; the button stays hidden on iPhone).
+- No SSH access from this Mac: the owner uploads the DMG and sets the versions in Admin → App downloads.
+- macOS: window opens at 1280x720 (same as Windows) and does not restore an old size, so the sidebar
+  layout always shows. The sign-in token uses the login keychain on macOS (`useDataProtectionKeyChain: false`).
+- iOS: `mhub/ios/` exists (bundle id `com.mbunie.mhub`, iOS 15+). Tested in the iPhone 17 Pro simulator
+  (starts on the sign-in page with the logo). Not tested on a real iPhone (none was plugged in).
+
+## Releasing the next version on Apple
+
+1. Bump `version:` in `mhub/pubspec.yaml` (e.g. `1.2.4+7`) and `AppConfig.version` in
+   `mhub/lib/core/config.dart` (`1.2.4`). They must match (the DMG script checks this).
+2. macOS: `cd mhub && ./installer/macos/make-dmg.sh` → `mhub/installer/Output/MHub-<version>-macos.dmg`.
+   With a paid account: `SIGN_ID="Developer ID Application: … (TEAMID)" NOTARY_PROFILE=mhub ./installer/macos/make-dmg.sh`
+   (create the profile once with `xcrun notarytool store-credentials mhub`). It then signs with hardened
+   runtime, notarizes and staples.
+   Without a paid account users must allow it once: System Settings → Privacy & Security → Open Anyway.
+3. iPhone (paid account only): open `mhub/ios/Runner.xcworkspace`, pick the team in Signing & Capabilities,
+   then `flutter build ipa --release` and upload `build/ios/ipa/*.ipa` with Transporter. Add the build to
+   the TestFlight public group.
+4. Website: Admin → Settings → App downloads. macOS: upload the DMG, version `v<version>`.
+   iPhone: TestFlight public link (or App Store link), version `v<version>`. Then check
+   `curl -s https://mbuniehub.com/api/app/latest`.
