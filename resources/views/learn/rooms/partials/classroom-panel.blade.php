@@ -138,11 +138,20 @@
                         </div>
                     </div>
 
-                    <button type="button" x-show="m.can_delete" @click="askDelete(m)" :disabled="busy.message === m.id"
-                        class="mb-1 shrink-0 rounded p-1 text-gray-500 opacity-100 hover:bg-gray-800 hover:text-red-400 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                        aria-label="Delete message">
-                        @include('learn.rooms.partials.icon', ['name' => 'trash', 'class' => 'h-4 w-4'])
-                    </button>
+                    <div class="mb-1 flex shrink-0 items-center" :class="isMine(m) ? 'flex-row-reverse' : ''">
+                        <button type="button" x-show="!m.is_deleted && m.body" @click="copyMessage(m)"
+                            class="rounded p-1 opacity-100 hover:bg-gray-800 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                            :class="copiedId === m.id ? 'text-emerald-400 lg:opacity-100' : 'text-gray-500 hover:text-gray-200'"
+                            :aria-label="copiedId === m.id ? 'Message copied' : 'Copy message'" :title="copiedId === m.id ? 'Copied' : 'Copy'">
+                            <span x-show="copiedId !== m.id">@include('learn.rooms.partials.icon', ['name' => 'copy', 'class' => 'h-4 w-4'])</span>
+                            <span x-show="copiedId === m.id" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'check', 'class' => 'h-4 w-4'])</span>
+                        </button>
+                        <button type="button" x-show="m.can_delete" @click="askDelete(m)" :disabled="busy.message === m.id"
+                            class="rounded p-1 text-gray-500 opacity-100 hover:bg-gray-800 hover:text-red-400 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                            aria-label="Delete message" title="Delete">
+                            @include('learn.rooms.partials.icon', ['name' => 'trash', 'class' => 'h-4 w-4'])
+                        </button>
+                    </div>
                 </div>
             </template>
         </div>
@@ -227,11 +236,19 @@
                     </p>
                     <p x-show="!q.is_deleted" class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-gray-100">@include('learn.rooms.partials.classroom-linked-text', ['text' => 'q.body', 'linkClass' => 'text-indigo-300 underline underline-offset-2 hover:text-indigo-200'])</p>
                     <p x-show="q.is_deleted" class="mt-1 text-sm italic text-gray-500">Question removed</p>
-                    <div class="mt-2 flex flex-wrap gap-2" x-show="q.can_answer || q.can_delete">
+                    <div class="mt-2 flex flex-wrap gap-2" x-show="!q.is_deleted || q.can_answer || q.can_delete">
                         <button type="button" x-show="q.can_answer" @click="answer(q)" :disabled="busy.message === q.id"
                             class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60">
                             @include('learn.rooms.partials.icon', ['name' => 'check-circle', 'class' => 'h-4 w-4'])
                             Mark answered
+                        </button>
+                        <button type="button" x-show="!q.is_deleted && q.body" @click="copyMessage(q)"
+                            class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ring-gray-700"
+                            :class="copiedId === q.id ? 'text-emerald-400' : 'text-gray-300 hover:text-white'"
+                            :aria-label="copiedId === q.id ? 'Question copied' : 'Copy question'">
+                            <span x-show="copiedId !== q.id">@include('learn.rooms.partials.icon', ['name' => 'copy', 'class' => 'h-4 w-4'])</span>
+                            <span x-show="copiedId === q.id" x-cloak>@include('learn.rooms.partials.icon', ['name' => 'check', 'class' => 'h-4 w-4'])</span>
+                            <span x-text="copiedId === q.id ? 'Copied' : 'Copy'">Copy</span>
                         </button>
                         <button type="button" x-show="q.can_delete" @click="askDelete(q)" :disabled="busy.message === q.id"
                             class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-300 ring-1 ring-inset ring-gray-700 hover:text-red-400"

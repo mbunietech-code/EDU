@@ -276,6 +276,7 @@ window.learnClassroom = (cfg = {}) => {
     sending: { chat: false, question: false },
     composerError: { chat: '', question: '' },
     busy: { start: false, end: false, remove: null, message: null, mod: null, upload: false },
+    copiedId: null,
     upload: { title: '', error: '' },
     confirm: { open: false, kind: '', title: '', body: '', confirmLabel: '', payload: null },
     elapsed: '',
@@ -3541,6 +3542,36 @@ window.learnClassroom = (cfg = {}) => {
         } finally {
             this.busy.message = null;
         }
+    },
+
+    // Copies a chat message or question to the clipboard (falls back to a hidden textarea on older phones).
+    async copyMessage(message) {
+        if (!message || message.is_deleted || !message.body) return;
+        let ok = false;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(message.body);
+                ok = true;
+            }
+        } catch (e) { /* try the fallback below */ }
+        if (!ok) {
+            const area = document.createElement('textarea');
+            area.value = message.body;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            area.remove();
+        }
+        if (!ok) {
+            this.flash('The message could not be copied. Select the text and copy it by hand.');
+            return;
+        }
+        this.copiedId = message.id;
+        clearTimeout(this._copiedTimer);
+        this._copiedTimer = setTimeout(() => { if (this.copiedId === message.id) this.copiedId = null; }, 1500);
     },
 
     askDelete(message) {
