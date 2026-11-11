@@ -134,7 +134,9 @@ function formatBytes(bytes) {
 window.learnClassroom = (cfg = {}) => {
     // LiveKit objects stay outside Alpine's reactive proxy on purpose.
     // lastMedia: my mic / camera just before the connection closed (restored after a reconnect or a room move).
-    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false }, shapeObserver: null };
+    // localTracks: every track I published on this connection. keptScreen: my screen share, kept running
+    // while the call reconnects after a network drop and published again afterwards.
+    const lk = { mod: null, room: null, intentional: false, refreshFrame: null, bgProcessor: null, lastMedia: { mic: false, cam: false }, shapeObserver: null, localTracks: new Set(), keptScreen: [] };
     // Speech recognition for my own captions (outside Alpine).
     const cap = { rec: null, running: false, lastInterim: 0, restart: null };
     // Browser recording internals (MediaRecorder, captured streams, audio mixer).
@@ -309,7 +311,10 @@ window.learnClassroom = (cfg = {}) => {
         });
         // Out of the call (left, ended, removed): the mini window closes too.
         this.$watch('state', (state) => {
-            if (!['in_call', 'joining', 'reconnecting'].includes(state)) this.closeMini(true);
+            if (!['in_call', 'joining', 'reconnecting'].includes(state)) {
+                this.closeMini(true);
+                this.dropKeptScreen(); // not coming back: end a screen share kept for the reconnect
+            }
         });
         // Long classes default to the small recording preset; the host's choice is remembered.
         this.recQuality = (this.room.duration_minutes || 0) > 90 ? 'small' : 'standard';
@@ -1008,6 +1013,11 @@ window.learnClassroom = (cfg = {}) => {
             adaptiveStream: true,
             dynacast: true,
             disconnectOnPageLeave: false, // pagehide is handled below (leave beacon first)
+            // A network drop must not end my screen share: the browser only lets a share start
+            // from a click, so a stopped one could not come back by itself after the reconnect.
+            // Tracks survive the drop; onDisconnected stops the ones we do not keep, and a share
+            // I stop (or the host stops) while connected is stopped in LocalTrackUnpublished.
+            stopLocalTrackOnUnpublish: false,
             videoCaptureDefaults: { resolution: this.cameraResolution(mod) },
             audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
             publishDefaults: {
@@ -1100,11 +1110,27 @@ window.learnClassroom = (cfg = {}) => {
             .on(E.TrackMuted, refresh)
             .on(E.TrackUnmuted, () => { this.recAttachAudio(); refresh(); })
             .on(E.LocalTrackPublished, (pub) => {
+                if (pub && pub.track) lk.localTracks.add(pub.track);
                 this.recAttachAudio();
                 if (pub && pub.source === mod.Track.Source.Camera && this.bg.mode !== 'none') this.applyBackground();
                 refresh();
             })
-            .on(E.LocalTrackUnpublished, refresh)
+            .on(E.LocalTrackUnpublished, (pub) => {
+                // Unpublished while still connected (I pressed Stop sharing, or the host took the right
+                // away): end the capture too. After a network drop the room is no longer connected and
+                // onDisconnected decides instead.
+                const track = pub && pub.track;
+                const S = mod.Track.Source;
+                if (track && (track.source === S.ScreenShare || track.source === S.ScreenShareAudio)) {
+                    setTimeout(() => {
+                        if (lk.room === room && room.state === mod.ConnectionState.Connected && !lk.keptScreen.includes(track)) {
+                            lk.localTracks.delete(track);
+                            track.stop();
+                        }
+                    }, 0);
+                }
+                refresh();
+            })
             .on(E.ActiveSpeakersChanged, refresh)
             .on(E.ConnectionQualityChanged, refresh)
             .on(E.ParticipantPermissionsChanged, (prev, participant) => {
@@ -2575,6 +2601,11 @@ window.learnClassroom = (cfg = {}) => {
         this.lkState = 'disconnected';
         this.stopPresence();
 
+        // Only a network / server drop reconnects: then my screen share keeps running for it.
+        const final = intentional || ['removed', 'ended', 'error'].includes(this.state)
+            || [R.PARTICIPANT_REMOVED, R.ROOM_DELETED, R.DUPLICATE_IDENTITY].includes(reason);
+        this.releaseLocalTracks(!final);
+
         if (intentional || ['removed', 'ended', 'error'].includes(this.state)) return;
 
         if (reason === R.PARTICIPANT_REMOVED) {
@@ -2627,8 +2658,64 @@ window.learnClassroom = (cfg = {}) => {
                 this.flash('Reconnected to the class.');
                 if (wasPublishing.mic && this.canUseMic) this.setMic(true, true);
                 if (wasPublishing.cam && this.canUseCam) this.setCam(true, true);
+                if (lk.keptScreen.length) await this.republishKeptScreen();
             }
         }, wait);
+    },
+
+    /**
+     * After the connection dropped: stop my camera and microphone tracks (they are started
+     * again after the reconnect), and keep my screen share running if we are reconnecting.
+     */
+    releaseLocalTracks(keepScreen) {
+        const S = lk.mod ? lk.mod.Track.Source : {};
+        this.dropKeptScreen();
+        lk.localTracks.forEach((track) => {
+            const live = track.mediaStreamTrack && track.mediaStreamTrack.readyState === 'live';
+            if (keepScreen && live && (track.source === S.ScreenShare || track.source === S.ScreenShareAudio)) {
+                lk.keptScreen.push(track);
+            } else {
+                try { track.stop(); } catch (e) { /* already stopped */ }
+            }
+        });
+        lk.localTracks.clear();
+    },
+
+    /** Reconnected: share the same screen again, without asking (the browser kept the capture). */
+    async republishKeptScreen() {
+        const room = lk.room;
+        const tracks = lk.keptScreen;
+        lk.keptScreen = [];
+        const live = tracks.filter((t) => t.mediaStreamTrack && t.mediaStreamTrack.readyState === 'live');
+        tracks.filter((t) => !live.includes(t)).forEach((t) => { try { t.stop(); } catch (e) { /* ended */ } });
+        if (!live.length) return;
+        if (!room || !this.canShare) {
+            live.forEach((t) => t.stop());
+            return;
+        }
+        this.mediaBusy.screen = true;
+        try {
+            // Video first, then the screen's sound (LiveKit expects that order).
+            live.sort((a, b) => (a.kind === 'video' ? -1 : 1) - (b.kind === 'video' ? -1 : 1));
+            for (const track of live) {
+                await room.localParticipant.publishTrack(track, track.kind === 'video'
+                    ? { source: track.source, degradationPreference: 'maintain-resolution' }
+                    : { source: track.source });
+            }
+            this.flash('Reconnected to the class. Your screen is still being shared.');
+        } catch (e) {
+            live.forEach((t) => { try { t.stop(); } catch (err) { /* ended */ } });
+            this.flash('Reconnected, but your screen share stopped. Press Share screen to share again.', 8000);
+        } finally {
+            this.mediaBusy.screen = false;
+            this.scheduleRefresh();
+        }
+    },
+
+    /** End a screen share that was kept for a reconnect that is not going to happen. */
+    dropKeptScreen() {
+        lk.keptScreen.forEach((t) => { try { t.stop(); } catch (e) { /* ended */ } });
+        lk.keptScreen = [];
     },
 
     cleanupRoom() {
@@ -2663,6 +2750,8 @@ window.learnClassroom = (cfg = {}) => {
         if (!room) return;
         lk.intentional = intentional;
         this.cleanupRoom();
+        // Stops every track, also ones unpublished but still running (stopLocalTrackOnUnpublish is off).
+        this.releaseLocalTracks(false);
         room.disconnect(true).catch(() => {});
     },
 
