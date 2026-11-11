@@ -92,7 +92,9 @@ If there is no SSH key on the Mac, do not try to get one. The owner uploads the 
 - **No Apple account is signed in to Xcode and there is no signing certificate**, so: macOS is ad-hoc
   signed (not notarized), iOS builds with `--no-codesign` only, no TestFlight, no iOS screen sharing
   (needs App Groups + a Broadcast Upload Extension, paid account only; the button stays hidden on iPhone).
-- No SSH access from this Mac: the owner uploads the DMG and sets the versions in Admin → App downloads.
+- SSH works from this Mac (owner allowed it). 1.2.3 DMG uploaded to `storage/app/public/app-downloads/` and
+  `app_macos_*` set to it with version `v1.2.3`. A server-only `.htaccess` in that folder
+  (`AddType application/x-apple-diskimage .dmg`) makes browsers download the DMG instead of showing text.
 - macOS: window opens at 1280x720 (same as Windows) and does not restore an old size, so the sidebar
   layout always shows. The sign-in token uses the login keychain on macOS (`useDataProtectionKeyChain: false`).
 - iOS: `mhub/ios/` exists (bundle id `com.mbunie.mhub`, iOS 15+). Tested in the iPhone 17 Pro simulator
