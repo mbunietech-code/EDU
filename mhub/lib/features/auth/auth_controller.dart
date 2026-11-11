@@ -61,8 +61,15 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await _repo.me();
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
       unawaited(_ref.read(notificationCenterProvider).start());
-    } on ApiException {
-      await _tokens.clear();
+    } on ApiException catch (e) {
+      // Only a rejected token is thrown away; offline keeps it for next time.
+      if (e.isUnauthorized) await _tokens.clear();
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        clearUser: true,
+      );
+    } catch (_) {
+      // Anything unexpected: show sign-in rather than an endless spinner.
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         clearUser: true,

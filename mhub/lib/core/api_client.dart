@@ -35,7 +35,7 @@ class ApiClient {
               // Identify the app to the host's edge/CDN so bot protection can
               // allow it (the JS "checking your browser" challenge cannot be
               // solved by a native HTTP client).
-              'User-Agent': 'MHubApp/1.0 (+https://mbuniehub.com)',
+              'User-Agent': 'MHubApp/${AppConfig.version} (+https://mbuniehub.com)',
               'X-Requested-With': 'com.mbuniehub.mhub',
             },
             validateStatus: (code) => code != null && code < 500,
@@ -44,10 +44,12 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _tokenStorage.read();
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
+          try {
+            final token = await _tokenStorage.read();
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {}
           handler.next(options);
         },
         onResponse: (response, handler) {

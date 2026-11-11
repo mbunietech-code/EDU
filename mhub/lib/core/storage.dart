@@ -9,11 +9,24 @@ class TokenStorage {
 
   static const _tokenKey = 'mhub_api_token';
 
-  Future<String?> read() => _storage.read(key: _tokenKey);
+  /// Never throws: a storage failure (e.g. an unreadable file on Windows)
+  /// counts as "no saved token", so the app shows the sign-in screen instead
+  /// of waiting forever.
+  Future<String?> read() async {
+    try {
+      return await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> write(String token) => _storage.write(key: _tokenKey, value: token);
 
-  Future<void> clear() => _storage.delete(key: _tokenKey);
+  Future<void> clear() async {
+    try {
+      await _storage.delete(key: _tokenKey);
+    } catch (_) {}
+  }
 }
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) {

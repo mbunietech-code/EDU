@@ -30,6 +30,13 @@ if (-not $SkipFlutterBuild) {
 $release = Join-Path $root 'build\windows\x64\runner\Release'
 if (-not (Test-Path (Join-Path $release 'mhub.exe'))) { throw "No release build in $release" }
 
+# Guard: a damaged pub cache once left the Dart-side Windows plugins out of
+# the build (the app then hung on its start-up spinner). Refuse to package it.
+$appSo = [IO.File]::ReadAllText((Join-Path $release 'data\app.so'), [Text.Encoding]::GetEncoding(28591))
+foreach ($plugin in 'PathProviderWindows', 'SharedPreferencesWindows', 'FlutterSecureStorageWindows') {
+    if (-not $appSo.Contains($plugin)) { throw "$plugin is missing from the build: run 'flutter clean; flutter pub get' and build again" }
+}
+
 $work  = Join-Path $root 'installer\setup\work'
 $stage = Join-Path $work 'app'
 $out   = Join-Path $root 'installer\Output'

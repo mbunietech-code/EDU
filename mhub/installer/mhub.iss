@@ -6,7 +6,7 @@
 #define AppPublisher   "MbunieEduHub"
 #define AppURL         "https://mbuniehub.com"
 #define AppExeName     "mhub.exe"
-#define AppVersion     "1.2.1"
+#define AppVersion     "1.2.2"
 ; Stable GUID — keep this the SAME across releases so updates replace cleanly.
 #define AppId          "{{27A97713-D53A-4E61-962D-02BCDB5F4AD1}"
 
