@@ -1,3 +1,4 @@
+import '../../widgets/brand_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -305,23 +306,5 @@ class _BrandMark extends StatelessWidget {
   const _BrandMark();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.indigo600,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'M',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const BrandLogo(size: 52, radius: 12);
 }

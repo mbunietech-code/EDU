@@ -223,13 +223,14 @@ class AdminRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Wider label column on a PC window so long labels (emails) fit.
+    return LayoutBuilder(builder: (context, c) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: c.maxWidth >= 700 ? 260 : 120,
             child: Text(label,
                 style: const TextStyle(fontSize: 13, color: AppColors.gray500)),
           ),
@@ -243,7 +244,7 @@ class AdminRow extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

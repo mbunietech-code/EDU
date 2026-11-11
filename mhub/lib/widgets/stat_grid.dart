@@ -14,14 +14,19 @@ class StatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = (constraints.maxWidth ~/ 260).clamp(1, 4);
-        return GridView.count(
-          crossAxisCount: columns,
+        // Fixed-height tiles (like the website), so they stay compact on a
+        // wide PC window instead of growing with the column width.
+        final columns = (constraints.maxWidth ~/ 220).clamp(1, 4);
+        final hasHint = stats.any((s) => s.hint != null);
+        return GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: columns == 1 ? 3.6 : 1.9,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: hasHint ? 112 : 96,
+          ),
           children: [for (final s in stats) _StatTile(stat: s)],
         );
       },

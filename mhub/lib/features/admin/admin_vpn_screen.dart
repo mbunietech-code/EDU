@@ -257,13 +257,15 @@ class _OverviewTab extends ConsumerWidget {
     final nodes = (stats['nodes'] as List? ?? const []).cast<Map>();
 
     return [
-      GridView.count(
-        crossAxisCount: 2,
+      GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.45,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 280,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          mainAxisExtent: 116,
+        ),
         children: [
           _StatCard('Using the VPN now', '${online['devices'] ?? 0}',
               '${online['customers'] ?? 0} customers'),

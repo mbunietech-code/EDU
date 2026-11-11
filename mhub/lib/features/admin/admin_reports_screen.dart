@@ -50,13 +50,15 @@ class AdminReportsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             LayoutBuilder(builder: (context, c) {
               final cols = (c.maxWidth ~/ 200).clamp(1, 4);
-              return GridView.count(
-                crossAxisCount: cols,
+              return GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: cols == 1 ? 3.6 : 1.8,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: 104,
+                ),
                 children: [
                   for (final m in r.metrics)
                     MbuiCard(

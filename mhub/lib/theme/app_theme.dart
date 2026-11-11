@@ -55,7 +55,7 @@ class AppTheme {
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        shape: Border(bottom: BorderSide(color: AppColors.gray100)),
+        shape: Border(bottom: BorderSide(color: AppColors.gray200)),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.gray200,
@@ -166,10 +166,25 @@ class AppTheme {
           fontSize: 12,
         ),
       ),
+      // Filter/choice chips: grey pill, indigo when picked (like the site's
+      // filter pills). The label colour must be set or it renders near-white.
       chipTheme: const ChipThemeData(
         backgroundColor: AppColors.gray100,
+        selectedColor: AppColors.indigo100,
+        disabledColor: AppColors.gray100,
+        checkmarkColor: AppColors.indigo700,
+        iconTheme: IconThemeData(color: AppColors.gray600, size: 16),
         side: BorderSide.none,
-        labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.gray700,
+        ),
+        secondaryLabelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppColors.indigo700,
+        ),
       ),
       listTileTheme: const ListTileThemeData(
         iconColor: AppColors.gray500,
