@@ -49,6 +49,13 @@ Route::get('/up', function () {
 
 Route::get('/', [HomeController::class, 'index'])->name('public.home');
 
+// Counted MHub app download: records it for Reports -> Analytics, then
+// redirects to the file / store link from Settings -> App downloads.
+Route::get('/app/download/{platform}', [\App\Http\Controllers\AppDownloadController::class, 'download'])
+    ->whereIn('platform', array_keys(\App\Support\AppDownloads::PLATFORMS))
+    ->middleware('throttle:30,1')
+    ->name('app.download');
+
 // Signed, session-independent receipt link — used by the mobile app (which
 // has no web session/cookie), generated server-side by the API layer only
 // after it has verified the caller may see the order.
@@ -459,6 +466,7 @@ Route::prefix('admin')
         // --- Reports ---------------------------------------------
         Route::middleware('can:reports.view')->group(function () {
             Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+            Route::get('reports/analytics', [ReportController::class, 'analytics'])->name('reports.analytics');
             Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
             Route::get('reports/orders', [ReportController::class, 'orders'])->name('reports.orders');
             Route::get('reports/products', [ReportController::class, 'products'])->name('reports.products');

@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'config.dart';
@@ -47,6 +49,25 @@ class AppUpdate {
         },
       ));
 
+  /// A random id made once per install (not tied to the person or phone
+  /// hardware), so the website can tell one device from many. Null if
+  /// storage is unavailable.
+  static Future<String?> _installId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var id = prefs.getString('mhub_install_id');
+      if (id == null || id.length < 16) {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        final rnd = Random.secure();
+        id = List.generate(32, (_) => chars[rnd.nextInt(chars.length)]).join();
+        await prefs.setString('mhub_install_id', id);
+      }
+      return id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// True when [latest] (e.g. "1.2.2") is newer than [current] ("1.2.1").
   @visibleForTesting
   static bool isNewer(String latest, String current) {
@@ -67,7 +88,13 @@ class AppUpdate {
     final platform = _platform;
     if (platform == null) return;
     try {
-      final res = await _dio().get('${AppConfig.apiUrl}/app/latest');
+      // platform, version and an anonymous install id let the website's
+      // Analytics count app opens per platform and per device.
+      final res = await _dio().get('${AppConfig.apiUrl}/app/latest', queryParameters: {
+        'platform': platform,
+        'v': AppConfig.version,
+        'device': await _installId(),
+      });
       final info = (res.data?['platforms'] as Map?)?[platform] as Map?;
       final latest = info?['version'] as String?;
       final url = info?['url'] as String?;

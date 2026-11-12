@@ -49,6 +49,33 @@ class ReportController extends Controller
         return view('admin.reports.subscriptions', compact('report'));
     }
 
+    /**
+     * Website views, app downloads and app opens — totals and unique devices,
+     * per minute / hour / day / month / year.
+     */
+    public function analytics(Request $request, \App\Services\AnalyticsReport $analytics)
+    {
+        $w = $analytics->window(
+            (string) $request->input('range', 'days'),
+            $request->input('from'),
+            $request->input('to'),
+            $request->input('by'),
+        );
+
+        return view('admin.reports.analytics', [
+            'w' => $w,
+            'ranges' => \App\Services\AnalyticsReport::RANGES,
+            'groups' => \App\Services\AnalyticsReport::GROUPS,
+            'types' => \App\Services\AnalyticsReport::TYPES,
+            'summary' => $analytics->summary(),
+            'totals' => $analytics->totals($w),
+            'series' => $analytics->series($w),
+            'breakdowns' => $analytics->breakdowns($w),
+            'topDevices' => $analytics->topDevices($w),
+            'platforms' => \App\Support\AppDownloads::PLATFORMS,
+        ]);
+    }
+
     public function index()
     {
         $metrics = $this->reportService->getDashboardMetrics();

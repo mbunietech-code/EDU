@@ -18,7 +18,8 @@
             </div>
             <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
                 @foreach ($downloads as $d)
-                    <a href="{{ $d['url'] }}"
+                    {{-- Counted link (Reports -> Analytics); it redirects to $d['url']. --}}
+                    <a href="{{ \App\Support\AppDownloads::trackedUrl($d['platform'], 'web', $d['url']) }}"
                        @if (\Illuminate\Support\Str::startsWith($d['url'], ['http://', 'https://']) && ! \Illuminate\Support\Str::contains($d['url'], request()->getHost()))
                            target="_blank" rel="noopener"
                        @endif

@@ -28,7 +28,8 @@ Route::post('/contact', [\App\Http\Controllers\Api\SupportController::class, 'co
 
 // The app's update check: newest version + download link per platform
 // (from Settings -> App downloads). Public, so it works before sign-in.
-Route::get('/app/latest', fn () => response()->json(['platforms' => \App\Support\AppDownloads::latest()]))
+// Runs on every app start, so it also counts app opens (Reports -> Analytics).
+Route::get('/app/latest', [\App\Http\Controllers\AppDownloadController::class, 'latest'])
     ->middleware('throttle:60,1')
     ->name('api.app.latest');
 

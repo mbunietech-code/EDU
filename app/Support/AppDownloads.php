@@ -74,11 +74,26 @@ class AppDownloads
             $version = $row['version'] ? ltrim(trim($row['version']), 'vV') : null;
             $out[$row['platform']] = [
                 'version' => $version !== '' ? $version : null,
-                'url' => $row['url'],
+                // Through the counted download route, so in-app updates show
+                // in Reports -> Analytics; it redirects to the real link.
+                'url' => self::trackedUrl($row['platform'], 'update', $row['url']),
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * The counted download link (/app/download/{platform}) that redirects to
+     * $fallback; $fallback itself if the route is unavailable.
+     */
+    public static function trackedUrl(string $platform, string $source, string $fallback): string
+    {
+        try {
+            return route('app.download', $source === 'update' ? ['platform' => $platform, 'src' => 'update'] : ['platform' => $platform]);
+        } catch (Throwable $e) {
+            return $fallback;
+        }
     }
 
     /**

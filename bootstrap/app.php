@@ -32,7 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
             : route('dashboard'));
 
         // RestrictGuests: meeting guests (guest links) may only use their one room.
-        $middleware->web(append: [UpdateLastSeen::class, \App\Http\Middleware\RestrictGuests::class]);
+        // TrackPageView: page views + unique devices for Reports -> Analytics.
+        $middleware->web(append: [UpdateLastSeen::class, \App\Http\Middleware\RestrictGuests::class, \App\Http\Middleware\TrackPageView::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->report(function (\Throwable $e) {
