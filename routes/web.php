@@ -79,6 +79,9 @@ Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');
 Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('public.contact.store');
+// Website chatbot widget (public pages). Provider calls happen server-side only.
+Route::get('/chatbot/history', [\App\Http\Controllers\Public\ChatbotController::class, 'history'])->middleware('throttle:30,1')->name('public.chatbot.history');
+Route::post('/chatbot/message', [\App\Http\Controllers\Public\ChatbotController::class, 'send'])->middleware('throttle:chatbot')->name('public.chatbot.send');
 Route::view('/terms', 'public.legal.terms')->name('public.terms');
 Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
 Route::view('/account/delete', 'public.legal.account-deletion')->name('public.account-deletion');
@@ -497,6 +500,13 @@ Route::prefix('admin')
             Route::post('error-logs/{errorLog}/resolve', [ErrorLogController::class, 'resolve'])->name('error-logs.resolve');
             Route::post('error-logs/{errorLog}/reopen', [ErrorLogController::class, 'reopen'])->name('error-logs.reopen');
             Route::delete('error-logs/{errorLog}', [ErrorLogController::class, 'destroy'])->name('error-logs.destroy');
+        });
+
+        // --- Website chatbot (API keys, provider, model) ------------------
+        Route::middleware('can:chatbot.manage')->prefix('chatbot')->name('chatbot.')->controller(\App\Http\Controllers\Admin\ChatbotSettingsController::class)->group(function () {
+            Route::get('/', 'edit')->name('edit');
+            Route::put('/', 'update')->name('update');
+            Route::post('test', 'test')->middleware('throttle:10,1')->name('test');
         });
 
         Route::middleware('can:settings.manage')->group(function () {

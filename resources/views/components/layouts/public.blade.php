@@ -118,6 +118,8 @@
         </div>
     </footer>
 
+    <x-chatbot-widget />
+
     @livewireScripts
     @stack('scripts')
 </body>

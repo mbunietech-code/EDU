@@ -34,5 +34,11 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
+
+        // Website chatbot: each message can cost money at the AI provider.
+        \Illuminate\Support\Facades\RateLimiter::for('chatbot', fn (\Illuminate\Http\Request $request) => [
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(6)->by('chatbot-min:'.$request->ip()),
+            \Illuminate\Cache\RateLimiting\Limit::perDay(60)->by('chatbot-day:'.$request->ip()),
+        ]);
     }
 }

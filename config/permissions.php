@@ -78,6 +78,7 @@ return [
 
         'System' => [
             'settings.manage'  => 'Change site settings',
+            'chatbot.manage'   => 'Website chatbot: API keys, provider, model and visitor chats',
             'finance.access'   => 'Open the Finance area (PIN still required)',
         ],
 

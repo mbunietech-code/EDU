@@ -22,7 +22,7 @@ class SettingController extends Controller
 
     public function index()
     {
-        $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP, AppDownloads::GROUP])
+        $settings = Setting::whereNotIn('group', ['mail', Branding::GROUP, AppDownloads::GROUP, \App\Support\ChatbotSettings::GROUP])
             ->where('key', '!=', DevSettings::KEY)
             ->orderBy('group')
             ->orderBy('key')
