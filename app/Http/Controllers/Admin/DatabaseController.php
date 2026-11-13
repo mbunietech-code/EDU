@@ -94,20 +94,35 @@ class DatabaseController extends Controller
     {
         $database = DB::connection()->getDatabaseName();
 
-        $rows = DB::select(
-            'SELECT t.TABLE_NAME as name, t.TABLE_ROWS as row_estimate,
-                    (SELECT COUNT(*) FROM information_schema.COLUMNS c
-                     WHERE c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME) as column_count
-             FROM information_schema.TABLES t
-             WHERE t.TABLE_SCHEMA = ? AND t.TABLE_TYPE = "BASE TABLE"
-             ORDER BY t.TABLE_NAME',
-            [$database],
-        );
+        // Two plain queries filtered by our schema name. The old version counted
+        // columns with a per-table subquery, which on shared MariaDB scans every
+        // database on the server and hit max_statement_time (120s): page 500.
+        try {
+            $tables = DB::select(
+                'SELECT TABLE_NAME as name, TABLE_ROWS as row_estimate
+                 FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = "BASE TABLE"
+                 ORDER BY TABLE_NAME',
+                [$database],
+            );
+            $columns = collect(DB::select(
+                'SELECT TABLE_NAME as name, COUNT(*) as n
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = ?
+                 GROUP BY TABLE_NAME',
+                [$database],
+            ))->pluck('n', 'name');
+        } catch (\Throwable $e) {
+            // The page must still open (pending alters, backups) if this is slow.
+            report($e);
+
+            return [];
+        }
 
         return array_map(fn ($r) => [
             'name' => $r->name,
-            'columns' => (int) $r->column_count,
+            'columns' => (int) ($columns[$r->name] ?? 0),
             'rows' => (int) $r->row_estimate,
-        ], $rows);
+        ], $tables);
     }
 }
