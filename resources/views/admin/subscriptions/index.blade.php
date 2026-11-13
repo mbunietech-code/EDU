@@ -105,6 +105,11 @@
                     <th class="mbui-th px-3">Device</th>
                     <th class="mbui-th px-3">Account</th>
                     <th class="mbui-th px-3">
+                        <a href="{{ $by(['sort' => $sort === 'created_desc' ? 'created_asc' : 'created_desc']) }}" class="inline-flex items-center gap-1 hover:text-gray-900" title="Sort by created date">
+                            Created <span aria-hidden="true">{{ $sort === 'created_asc' ? '↑' : ($sort === 'created_desc' ? '↓' : '') }}</span>
+                        </a>
+                    </th>
+                    <th class="mbui-th px-3">
                         <a href="{{ $by(['sort' => $sort === 'expires_asc' ? 'expires_desc' : 'expires_asc']) }}" class="inline-flex items-center gap-1 hover:text-gray-900" title="Sort by expiry date">
                             Expires <span aria-hidden="true">{{ $sort === 'expires_asc' ? '↑' : ($sort === 'expires_desc' ? '↓' : '') }}</span>
                         </a>
@@ -141,6 +146,9 @@
                                 -
                             @endif
                         </td>
+                        <td class="mbui-td px-3 text-gray-600" title="{{ $subscription->created_at?->timezone(config('app.business_timezone', 'Africa/Dar_es_Salaam'))->format('d M Y H:i') }}">
+                            {{ $subscription->created_at?->timezone(config('app.business_timezone', 'Africa/Dar_es_Salaam'))->format('d M Y') ?? '—' }}
+                        </td>
                         <td class="mbui-td px-3">
                             <a href="{{ $by(['expires' => $subscription->expiry_date->toDateString()]) }}" class="hover:text-indigo-600 hover:underline" title="Show subscriptions ending this day">{{ $subscription->expiry_date->format('d M Y') }}</a>
                         </td>
@@ -154,7 +162,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="mbui-td text-center text-gray-400">No subscriptions found</td></tr>
+                    <tr><td colspan="8" class="mbui-td text-center text-gray-400">No subscriptions found</td></tr>
                 @endforelse
             </tbody>
         </x-mbui.table>

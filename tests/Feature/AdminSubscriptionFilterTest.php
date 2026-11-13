@@ -86,4 +86,27 @@ class AdminSubscriptionFilterTest extends TestCase
         // Junk values are ignored rather than breaking the page.
         $this->assertCount(3, $this->ids(['user' => 'x', 'account' => '1 or 1', 'expires' => '2026-99-99x', 'sort' => 'nope']));
     }
+
+    public function test_created_date_column_shows_before_expires_and_sorts(): void
+    {
+        $this->actingAs(User::factory()->create([
+            'is_admin' => true,
+            'role' => Permissions::ROLE_SUPER_ADMIN,
+            'permissions' => null,
+        ]));
+
+        $old = Subscription::factory()->create(['expiry_date' => now()->addDays(10)]);
+        $old->forceFill(['created_at' => now()->subDays(40)->setTime(10, 0)])->save();
+        $new = Subscription::factory()->create(['expiry_date' => now()->addDays(20)]);
+        $new->forceFill(['created_at' => now()->subDays(2)->setTime(10, 0)])->save();
+
+        $tz = config('app.business_timezone', 'Africa/Dar_es_Salaam');
+        $this->get(route('admin.subscriptions.index'))->assertOk()
+            ->assertSeeInOrder(['Created', 'Expires'])
+            ->assertSee($old->fresh()->created_at->timezone($tz)->format('d M Y'))
+            ->assertSee('sort=created_desc', false);
+
+        $this->assertSame([$old->id, $new->id], $this->ids(['sort' => 'created_asc']));
+        $this->assertSame([$new->id, $old->id], $this->ids(['sort' => 'created_desc']));
+    }
 }

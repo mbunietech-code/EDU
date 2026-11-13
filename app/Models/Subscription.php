@@ -92,7 +92,8 @@ class Subscription extends Model
      * Admin list filters, shared by admin/subscriptions and the app API:
      * status (incl. expiring_soon by date), search, user, product, plan,
      * account (id or "none"), device (name or "none"), expires
-     * (past | 7d | 30d | later | Y-m-d) and sort (expires_asc | expires_desc).
+     * (past | 7d | 30d | later | Y-m-d) and sort (expires_asc | expires_desc |
+     * created_asc | created_desc).
      */
     public function scopeAdminFilter($query, array $f)
     {
@@ -138,6 +139,8 @@ class Subscription extends Model
             ->when(true, fn ($q) => match ($f['sort'] ?? null) {
                 'expires_asc' => $q->orderBy('expiry_date')->latest('id'),
                 'expires_desc' => $q->orderByDesc('expiry_date')->latest('id'),
+                'created_asc' => $q->orderBy('created_at')->orderBy('id'),
+                'created_desc' => $q->latest()->latest('id'),
                 default => $q->latest(),
             });
     }
