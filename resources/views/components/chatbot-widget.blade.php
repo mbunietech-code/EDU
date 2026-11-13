@@ -12,7 +12,6 @@
         .mb-bot { --mbh-navy: #1b2471; --mbh-blue: #1565c0; --mbh-cyan: #00b4f0; --mbh-ink: #0f1d4a; position: fixed; right: 16px; bottom: 16px; z-index: 9998; font-family: inherit; }
         .mb-bot [hidden] { display: none !important; }
         .mb-bot__fab { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; cursor: pointer; }
-        .mb-bot__fab-label { display: none; padding: 8px 12px; border-radius: 12px; background: #fff; color: var(--mbh-ink); font-size: 14px; font-weight: 600; box-shadow: 0 10px 25px rgba(15,29,74,.18); border: 1px solid #dbe4f5; }
         .mb-bot__fab:focus-visible { outline: 3px solid #a5e3f9; outline-offset: 4px; border-radius: 16px; }
         .mb-bot__fab-btn { display: block; width: 60px; transition: transform .15s; }
         .mb-bot__fab:hover .mb-bot__fab-btn { transform: scale(1.08); }
@@ -43,7 +42,7 @@
         .mb-bot__send { border: 0; border-radius: 12px; background: linear-gradient(135deg, var(--mbh-blue), var(--mbh-cyan)); color: #fff; font-weight: 700; font-size: 14px; padding: 0 16px; cursor: pointer; }
         .mb-bot__send:disabled { opacity: .5; cursor: default; }
         .mb-bot__note { padding: 0 12px 8px; font-size: 11px; color: #94a3b8; background: #fff; }
-        @media (min-width: 640px) { .mb-bot { right: 24px; bottom: 24px; } .mb-bot__fab-label { display: block; } .mb-bot__panel { right: 24px; bottom: 24px; } }
+        @media (min-width: 640px) { .mb-bot { right: 24px; bottom: 24px; } .mb-bot__panel { right: 24px; bottom: 24px; } }
 
         /* Robot mascot: floats, waves and its antenna glows. CSS only. */
         .mb-bot__buddy { display: block; width: 100%; animation: mbh-bob 3.2s ease-in-out infinite; }
@@ -66,8 +65,7 @@
         data-history-url="{{ route('public.chatbot.history') }}"
         data-support-url="{{ auth()->check() ? route('user.chat.index') : route('public.contact') }}"
         data-avatar="{{ asset('images/chatbot/mbuniehub-robot-head.webp') }}">
-        <button type="button" class="mb-bot__fab" data-bot-open aria-label="Fungua chat na MbunieHub AI" title="Ongea na MbunieHub AI">
-            <span class="mb-bot__fab-label">Uliza MbunieHub AI</span>
+        <button type="button" class="mb-bot__fab" data-bot-open aria-label="Chat with MbunieHub AI" title="Chat with MbunieHub AI">
             <span class="mb-bot__fab-btn">
                 <span class="mb-bot__buddy" aria-hidden="true">
                     <span class="mb-bot__tilt">
