@@ -51,7 +51,7 @@
                                     <td class="mbui-td text-right text-sm">{{ number_format($learner->started_count) }}</td>
                                     <td class="mbui-td text-right text-sm">{{ number_format($learner->completed_count) }}</td>
                                     <td class="mbui-td text-right text-sm">{{ \App\Services\Learning\LearningAnalytics::duration($learner->watch_seconds) }}</td>
-                                    <td class="mbui-td text-sm text-gray-500">{{ $learner->last_activity_at ? \Illuminate\Support\Carbon::parse($learner->last_activity_at)->diffForHumans() : '—' }}</td>
+                                    <td class="mbui-td text-sm text-gray-500">{{ $learner->last_activity_at ? \Illuminate\Support\Carbon::parse($learner->last_activity_at)->diffForHumans() : '-' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -69,7 +69,7 @@
                             <div><dt>Done</dt><dd class="text-sm font-semibold text-gray-900">{{ $learner->completed_count }}</dd></div>
                             <div><dt>Watched</dt><dd class="text-sm font-semibold text-gray-900">{{ \App\Services\Learning\LearningAnalytics::duration($learner->watch_seconds) }}</dd></div>
                         </dl>
-                        <p class="mt-2 text-xs text-gray-500">Last activity: {{ $learner->last_activity_at ? \Illuminate\Support\Carbon::parse($learner->last_activity_at)->diffForHumans() : '—' }}</p>
+                        <p class="mt-2 text-xs text-gray-500">Last activity: {{ $learner->last_activity_at ? \Illuminate\Support\Carbon::parse($learner->last_activity_at)->diffForHumans() : '-' }}</p>
                     </li>
                 @endforeach
             </ul>
@@ -97,7 +97,7 @@
                                 <tr class="hover:bg-gray-50">
                                     <td class="mbui-td">
                                         <a href="{{ route('admin.learning.courses.show', [$course, 'tab' => 'enrolments']) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $course->title }}</a>
-                                        <span class="block text-xs text-gray-500">{{ $course->category?->name ?? '—' }} · {{ $course->published_videos_count }} published {{ Str::plural('lesson', $course->published_videos_count) }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $course->category?->name ?? '-' }} · {{ $course->published_videos_count }} published {{ Str::plural('lesson', $course->published_videos_count) }}</span>
                                     </td>
                                     <td class="mbui-td text-right text-sm">{{ number_format($course->enrollments_count) }}</td>
                                     <td class="mbui-td text-right text-sm">{{ number_format($course->started_learners) }}</td>
@@ -113,7 +113,7 @@
                 @foreach ($courses as $course)
                     <li class="mbui-card p-4">
                         <a href="{{ route('admin.learning.courses.show', [$course, 'tab' => 'enrolments']) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $course->title }}</a>
-                        <p class="text-xs text-gray-500">{{ $course->category?->name ?? '—' }}</p>
+                        <p class="text-xs text-gray-500">{{ $course->category?->name ?? '-' }}</p>
                         <dl class="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-gray-500">
                             <div><dt>Enrolled</dt><dd class="text-sm font-semibold text-gray-900">{{ $course->enrollments_count }}</dd></div>
                             <div><dt>Started</dt><dd class="text-sm font-semibold text-gray-900">{{ $course->started_learners }}</dd></div>

@@ -50,7 +50,7 @@ class UserController extends Controller
                 'role' => $user->roleName(),
                 'created_at' => optional($user->created_at)->toIso8601String(),
                 'subscriptions' => $user->subscriptions->map(fn ($s) => [
-                    'product' => $s->product->name ?? '—',
+                    'product' => $s->product->name ?? '-',
                     'status' => $s->status,
                     'ends_at' => optional($s->expiry_date)->toDateString(),
                 ])->all(),

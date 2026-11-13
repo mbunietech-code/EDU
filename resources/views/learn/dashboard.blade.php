@@ -146,7 +146,7 @@
             ])
             <div class="mt-3">
                 @if ($completedLessons->isEmpty())
-                    <x-learning.empty title="No completed lessons yet." message="Finish a lesson to see it here — you can always watch it again." />
+                    <x-learning.empty title="No completed lessons yet." message="Finish a lesson to see it here. You can always watch it again." />
                 @else
                     <ul class="mbui-card divide-y divide-gray-100">
                         @foreach ($completedLessons as $row)

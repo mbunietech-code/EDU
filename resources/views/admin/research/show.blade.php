@@ -14,9 +14,9 @@
                 <x-mbui.status-badge :status="$research->status" />
             </div>
             <p class="mt-1 text-sm text-gray-500">
-                by {{ $research->author->name ?? '—' }} ({{ $research->author->email ?? '' }}) ·
+                by {{ $research->author->name ?? '-' }} ({{ $research->author->email ?? '' }}) ·
                 {{ $research->category->name ?? 'Uncategorised' }} ·
-                submitted {{ $research->submitted_at?->diffForHumans() ?? '—' }}
+                submitted {{ $research->submitted_at?->diffForHumans() ?? '-' }}
             </p>
             @if ($research->summary)
                 <p class="mt-3 text-sm leading-relaxed text-gray-700">{{ $research->summary }}</p>

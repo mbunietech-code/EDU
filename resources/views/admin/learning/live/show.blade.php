@@ -15,7 +15,7 @@
             <h1 class="mbui-title mt-1 truncate">{{ $room->title }}</h1>
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
                 <x-learning.room-status :status="$room->status" />
-                <span>Host: {{ $room->host?->name ?? '—' }}</span>
+                <span>Host: {{ $room->host?->name ?? '-' }}</span>
                 @if ($session)
                     <span>· Started {{ $session->started_at?->format('D, d M Y · H:i') }}</span>
                     <span>· {{ $hms($session->durationSeconds()) }}</span>
@@ -89,7 +89,7 @@
                                 </p>
                                 <p class="truncate text-xs text-gray-500">
                                     {{ $attendance->user?->email }}
-                                    · joined {{ $attendance->first_joined_at?->format('H:i') ?? '—' }}
+                                    · joined {{ $attendance->first_joined_at?->format('H:i') ?? '-' }}
                                     · {{ $hms((int) $attendance->total_seconds) }} in class
                                     · {{ $attendance->join_count }} {{ Str::plural('join', $attendance->join_count) }}
                                 </p>

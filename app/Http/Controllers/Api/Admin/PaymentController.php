@@ -47,8 +47,8 @@ class PaymentController extends Controller
                 'admin_note' => $payment->admin_note,
                 'reviewed_by' => $payment->reviewer->name ?? null,
                 'customer' => [
-                    'name' => $payment->user->name ?? '—',
-                    'email' => $payment->user->email ?? '—',
+                    'name' => $payment->user->name ?? '-',
+                    'email' => $payment->user->email ?? '-',
                 ],
                 'order' => [
                     'id' => $payment->order->id,
@@ -126,7 +126,7 @@ class PaymentController extends Controller
             'id' => $p->id,
             'order_id' => $p->order_id,
             'title' => $p->order?->product?->name ?? $p->order?->tool?->name ?? 'Payment',
-            'customer_name' => $p->user->name ?? '—',
+            'customer_name' => $p->user->name ?? '-',
             'amount_label' => 'TZS '.number_format((float) $p->amount),
             'method' => $p->payment_method,
             'status' => $p->status,

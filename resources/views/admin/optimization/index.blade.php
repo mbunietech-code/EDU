@@ -16,7 +16,7 @@
 
     @if (! $supported)
         <div class="mt-6">
-            <x-mbui.alert type="error">This feature requires a MySQL connection — the current database driver does not support it.</x-mbui.alert>
+            <x-mbui.alert type="error">This feature requires a MySQL connection. The current database driver does not support it.</x-mbui.alert>
         </div>
     @elseif (! $scan)
         <div class="mt-6 mbui-card p-10 text-center">
@@ -44,7 +44,7 @@
             </div>
 
             @if ($scan->recommendations->isEmpty())
-                <p class="p-6 text-sm text-gray-500">No issues found — the database looks clean.</p>
+                <p class="p-6 text-sm text-gray-500">No issues found. The database looks clean.</p>
             @else
                 <div class="divide-y divide-gray-200">
                     @foreach ($scan->recommendations as $rec)
@@ -89,14 +89,14 @@
 
                                 @if ($rec->status === 'executed')
                                     <p class="text-xs text-emerald-700">
-                                        Executed {{ $rec->executed_at?->diffForHumans() }} by {{ $rec->executedBy?->name ?? 'system' }} —
+                                        Executed {{ $rec->executed_at?->diffForHumans() }} by {{ $rec->executedBy?->name ?? 'system' }}:
                                         {{ number_format((int) $rec->executed_count) }} row(s) affected.
                                         @if ($rec->backup_path)
                                             Backup: <span class="font-mono">{{ $rec->backup_path }}</span>
                                         @endif
                                     </p>
                                 @elseif ($rec->status === 'rejected')
-                                    <p class="text-xs text-red-700">Rejected{{ $rec->rejection_reason ? ' — '.$rec->rejection_reason : '' }}.</p>
+                                    <p class="text-xs text-red-700">Rejected{{ $rec->rejection_reason ? ': '.$rec->rejection_reason : '' }}.</p>
                                 @else
                                     <div class="flex flex-wrap gap-2 pt-1">
                                         @if ($rec->status === 'pending')
@@ -117,7 +117,7 @@
                                                     <x-mbui.button type="submit" variant="danger">Backup &amp; Execute</x-mbui.button>
                                                 </form>
                                             @else
-                                                <p class="text-xs text-gray-500">Detection-only finding — no automatic execution available. Review manually.</p>
+                                                <p class="text-xs text-gray-500">Detection-only finding. No automatic execution available. Review manually.</p>
                                             @endif
                                             <form method="POST" action="{{ route('admin.optimization.reject', $rec) }}"
                                                   onsubmit="return confirm('Reject this recommendation?');">

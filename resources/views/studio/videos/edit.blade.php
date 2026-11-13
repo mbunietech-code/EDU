@@ -80,7 +80,7 @@
                     @if ($video->hasFile())
                         The current file is deleted once the new one is saved. Learner progress, comments and resources are kept.
                     @else
-                        This lesson has no video yet — upload it to be able to publish.
+                        This lesson has no video yet. Upload it to be able to publish.
                     @endif
                 </p>
                 <form method="POST" action="{{ route('studio.videos.replace', $video) }}" enctype="multipart/form-data" class="mt-4 space-y-4">
@@ -132,7 +132,7 @@
                 <dl class="divide-y divide-gray-100 text-sm">
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">File</dt>
-                        <dd class="min-w-0 truncate text-right text-gray-900" title="{{ $video->original_name }}">{{ $video->original_name ?? '—' }}</dd>
+                        <dd class="min-w-0 truncate text-right text-gray-900" title="{{ $video->original_name }}">{{ $video->original_name ?? '-' }}</dd>
                     </div>
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">Size</dt>
@@ -148,13 +148,13 @@
                             @if ($video->width && $video->height)
                                 {{ $video->width }}×{{ $video->height }} ({{ $video->sourceQualityLabel() }})
                             @else
-                                —
+                                -
                             @endif
                         </dd>
                     </div>
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">Extra qualities</dt>
-                        <dd class="text-gray-900">{{ $video->renditions->pluck('quality')->implode(', ') ?: '—' }}</dd>
+                        <dd class="text-gray-900">{{ $video->renditions->pluck('quality')->implode(', ') ?: '-' }}</dd>
                     </div>
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">Views</dt>
@@ -162,7 +162,7 @@
                     </div>
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">Instructor</dt>
-                        <dd class="text-gray-900">{{ $video->instructor->name ?? '—' }}</dd>
+                        <dd class="text-gray-900">{{ $video->instructor->name ?? '-' }}</dd>
                     </div>
                     <div class="flex justify-between gap-3 px-5 py-3">
                         <dt class="text-gray-500">Published</dt>

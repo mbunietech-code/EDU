@@ -89,7 +89,7 @@
                                         title="{{ $at->format('H:i') }} · {{ $room->title }} ({{ $room->statusLabel() }})">
                                         @if ($room->isLive())<span class="mr-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-600 align-middle" aria-hidden="true"></span>@endif
                                         <span class="tabular-nums">{{ $at->format('H:i') }}</span> {{ $room->title }}
-                                        <span class="sr-only">— {{ $room->statusLabel() }}</span>
+                                        <span class="sr-only">, {{ $room->statusLabel() }}</span>
                                     </a>
                                 </li>
                             @endforeach

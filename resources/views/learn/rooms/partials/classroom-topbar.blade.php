@@ -78,7 +78,7 @@
 
         <button type="button" @click="togglePanel('people')"
             class="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-gray-200 hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
-            :aria-label="counts.participants + ' in the call — show people'">
+            :aria-label="counts.participants + ' in the call. Show people'">
             @include('learn.rooms.partials.icon', ['name' => 'users', 'class' => 'h-5 w-5'])
             <span class="tabular-nums" x-text="counts.participants">0</span>
         </button>

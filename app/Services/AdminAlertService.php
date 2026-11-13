@@ -117,7 +117,7 @@ class AdminAlertService
     public function sendTest(): array
     {
         return $this->dispatch(
-            'Huu ni ujumbe wa majaribio kutoka AI Optimization — tahadhari zinafanya kazi.',
+            'Huu ni ujumbe wa majaribio kutoka AI Optimization. Tahadhari zinafanya kazi.',
             ['alerts' => [], 'sent' => false, 'email' => false, 'sms' => false, 'errors' => []],
         );
     }

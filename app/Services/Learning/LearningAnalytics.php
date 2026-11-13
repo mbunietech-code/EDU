@@ -160,7 +160,7 @@ class LearningAnalytics
     {
         $seconds = (int) round((float) $seconds);
         if ($seconds <= 0) {
-            return '—';
+            return '-';
         }
         if ($seconds < 60) {
             return $seconds.'s';

@@ -45,7 +45,7 @@ return [
         // 'icon' is a keyword mapped to an SVG in the ticker component:
         // bolt | unlock | tool | product | scholarship | members | shield | star
         'promos' => [
-            ['icon' => 'bolt', 'text' => 'Claude, ChatGPT & more — activated fast after payment', 'url' => '/ai-tools'],
+            ['icon' => 'bolt', 'text' => 'Claude, ChatGPT & more, activated fast after payment', 'url' => '/ai-tools'],
             ['icon' => 'scholarship', 'text' => 'Fresh scholarship opportunities added every week', 'url' => '/scholarships'],
             ['icon' => 'shield', 'text' => 'Authorized access, managed subscriptions, real support', 'url' => '/about'],
         ],

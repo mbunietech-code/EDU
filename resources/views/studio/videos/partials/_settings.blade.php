@@ -20,7 +20,7 @@
                         <span class="block text-xs text-gray-500">
                             @switch($value)
                                 @case('course') Anyone who can open the course (or every member for a standalone lesson). @break
-                                @case('members') Every signed-in member, even without enrolling — good for previews. @break
+                                @case('members') Every signed-in member, even without enrolling. Good for previews. @break
                                 @default Only you, the course instructor and learning staff.
                             @endswitch
                         </span>
@@ -47,7 +47,7 @@
             @error('instructor_id')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
         @else
             <p id="video-instructor" class="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                {{ $video->exists ? ($video->instructor->name ?? '—') : auth()->user()->name.' (you)' }}
+                {{ $video->exists ? ($video->instructor->name ?? '-') : auth()->user()->name.' (you)' }}
             </p>
         @endif
     </div>

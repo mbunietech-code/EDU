@@ -1,4 +1,4 @@
-<x-layouts.app :title="$chapter->title . ' — ' . $research->title">
+<x-layouts.app :title="$chapter->title . ' - ' . $research->title">
 
     <div x-data="researchReader({{ $research->id }})" class="lg:grid lg:grid-cols-[16rem_1fr] lg:gap-8">
 

@@ -64,6 +64,6 @@ class ErrorLog extends Model
 
     public function location(): string
     {
-        return $this->file ? $this->file.($this->line ? ':'.$this->line : '') : '—';
+        return $this->file ? $this->file.($this->line ? ':'.$this->line : '') : '-';
     }
 }

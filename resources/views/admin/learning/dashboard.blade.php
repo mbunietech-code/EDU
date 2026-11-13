@@ -102,7 +102,7 @@
             </div>
             <dl class="mt-4 space-y-2 text-sm">
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">Server</dt><dd class="text-right font-medium text-gray-900">{{ $provider['label'] }}</dd></div>
-                <div class="flex justify-between gap-4"><dt class="text-gray-500">Address</dt><dd class="truncate text-right font-mono text-xs text-gray-900">{{ $provider['server_url'] ?? '—' }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Address</dt><dd class="truncate text-right font-mono text-xs text-gray-900">{{ $provider['server_url'] ?? '-' }}</dd></div>
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">TURN relay</dt><dd class="text-right text-gray-900">{{ $provider['turn'] ? 'Configured' : 'Not configured' }}</dd></div>
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">Server recording</dt><dd class="text-right text-gray-900">{{ $provider['recording'] ? 'Available' : 'Not enabled' }}</dd></div>
             </dl>
@@ -135,7 +135,7 @@
                         <li class="flex items-center gap-3 px-4 py-3 sm:px-6">
                             <div class="min-w-0 flex-1">
                                 <a href="{{ route('admin.learning.courses.show', $course['id']) }}" class="block truncate text-sm font-medium text-gray-900 hover:text-indigo-600">{{ $course['title'] }}</a>
-                                <p class="truncate text-xs text-gray-500">{{ $course['category'] ?? '—' }}</p>
+                                <p class="truncate text-xs text-gray-500">{{ $course['category'] ?? '-' }}</p>
                             </div>
                             <x-mbui.status-badge :status="$course['status']" />
                             <div class="w-28 shrink-0 text-right text-xs text-gray-500">

@@ -46,7 +46,7 @@ class CompressPaymentProofsCommand extends Command
         });
 
         $this->info("Converted {$converted} image(s), saving ".round($saved / 1048576, 2).' MB'
-            .($this->option('delete-originals') ? '.' : ' (originals kept — re-run with --delete-originals to free the space).'));
+            .($this->option('delete-originals') ? '.' : ' (originals kept; re-run with --delete-originals to free the space).'));
 
         return self::SUCCESS;
     }

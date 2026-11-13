@@ -34,7 +34,7 @@
                     </div>
                     <div>
                         <dt class="mbui-section-label">Plan</dt>
-                        <dd class="mt-1 font-medium text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '—' }}</dd>
+                        <dd class="mt-1 font-medium text-gray-900">{{ $order->plan ? $order->plan->name . ' (' . $order->plan->durationLabel() . ')' : '-' }}</dd>
                     </div>
                     <div>
                         <dt class="mbui-section-label">Amount</dt>

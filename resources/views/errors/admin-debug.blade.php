@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ class_basename($e) }} — MbunieEduHub (admin debug)</title>
+    <title>{{ class_basename($e) }} | MbunieEduHub (admin debug)</title>
     <style>
         *{box-sizing:border-box}
         body{margin:0;background:#0d1117;color:#c9d1d9;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5}
@@ -30,7 +30,7 @@
 </head>
 <body>
 <div class="wrap">
-    <span class="tag">ADMIN DEBUG — visitors see a friendly page</span>
+    <span class="tag">ADMIN DEBUG: visitors see a friendly page</span>
     <h1>{{ class_basename($e) }}</h1>
     <div class="exc">{{ get_class($e) }}</div>
 
@@ -46,7 +46,7 @@
     <table>
         <tr><td class="k">Method</td><td>{{ $request['method'] }}</td></tr>
         <tr><td class="k">URL</td><td style="word-break:break-all">{{ $request['url'] }}</td></tr>
-        <tr><td class="k">Route</td><td>{{ $request['route'] ?? '—' }}</td></tr>
+        <tr><td class="k">Route</td><td>{{ $request['route'] ?? '-' }}</td></tr>
         <tr><td class="k">User</td><td>{{ auth()->user()->name }} &lt;{{ auth()->user()->email }}&gt;</td></tr>
         @if (!empty($request['input']))
             <tr><td class="k">Input</td><td><pre style="padding:10px;border:none;background:#0d1117">{{ json_encode($request['input'], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) }}</pre></td></tr>

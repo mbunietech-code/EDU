@@ -22,7 +22,7 @@ class OptimizationScanCommand extends Command
 
         $scan = $optimizer->scan();
 
-        $this->info("Scan #{$scan->id} complete — {$scan->recommendations->count()} recommendation(s), ".
+        $this->info("Scan #{$scan->id} complete: {$scan->recommendations->count()} recommendation(s), ".
             "estimated {$scan->estimated_recovery_mb} MB recoverable.");
 
         $result = $alerts->notifyFor($scan);

@@ -32,7 +32,7 @@
         <x-mbui.alert type="warning" class="mb-4">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <p class="font-semibold">Preview — learners cannot see this lesson right now.</p>
+                    <p class="font-semibold">Preview: learners cannot see this lesson right now.</p>
                     <ul class="mt-1 list-disc pl-5">
                         @foreach ($preview as $reason)
                             <li>{{ $reason }}</li>

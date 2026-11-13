@@ -70,7 +70,7 @@
         <div class="mt-4">
             @if ($counts['all'] === 0 && $search === '')
                 <x-learning.empty title="No live rooms yet"
-                    :message="$canCreate ? 'Create a room to host a live class with video, chat and questions — learners join from their browser.' : 'Rooms appear here once hosts create them.'"
+                    :message="$canCreate ? 'Create a room to host a live class with video, chat and questions. Learners join from their browser.' : 'Rooms appear here once hosts create them.'"
                     :action-href="$canCreate ? route('studio.rooms.create') : null" :action-label="$canCreate ? 'Create room' : null" />
             @else
                 <x-learning.empty title="No rooms here"
@@ -108,8 +108,8 @@
                                     <span class="2xl:hidden"> · {{ $room->host->name ?? 'No host' }}</span>
                                 </p>
                             </td>
-                            <td class="mbui-td whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere]">{{ $room->category->name ?? '—' }}</td>
-                            <td class="mbui-td hidden whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere] 2xl:table-cell">{{ $room->host->name ?? '—' }}</td>
+                            <td class="mbui-td whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere]">{{ $room->category->name ?? '-' }}</td>
+                            <td class="mbui-td hidden whitespace-normal px-4 text-sm text-gray-600 [overflow-wrap:anywhere] 2xl:table-cell">{{ $room->host->name ?? '-' }}</td>
                             <td class="mbui-td whitespace-normal px-4 text-sm text-gray-700">
                                 {{ $start ? $start->format('D, d M Y') : 'Not set' }}
                                 @if ($start)
@@ -121,7 +121,7 @@
                                 @forelse ($participantsLabel($room) as [$text, $cls])
                                     <span class="block {{ $cls }}">{{ $text }}</span>
                                 @empty
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-400">-</span>
                                 @endforelse
                             </td>
                             <td class="mbui-td px-4">
@@ -154,7 +154,7 @@
                         </div>
                         <div>
                             <dt class="text-gray-500">Time</dt>
-                            <dd class="font-medium text-gray-900">{{ $start ? $start->format('H:i') : '—' }}</dd>
+                            <dd class="font-medium text-gray-900">{{ $start ? $start->format('H:i') : '-' }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500">Participants</dt>
@@ -162,7 +162,7 @@
                                 @forelse ($participantsLabel($room) as [$text, $cls])
                                     <span class="block {{ $cls }}">{{ $text }}</span>
                                 @empty
-                                    —
+                                    -
                                 @endforelse
                             </dd>
                         </div>

@@ -32,7 +32,7 @@
                     @foreach ($sessions as $session)
                         <tr>
                             <td class="mbui-td whitespace-nowrap text-sm text-gray-700">
-                                {{ $session->started_at?->copy()->setTimezone($tz)->format('D, d M Y · H:i') ?? '—' }}
+                                {{ $session->started_at?->copy()->setTimezone($tz)->format('D, d M Y · H:i') ?? '-' }}
                                 @if ($session->starter)<span class="block text-xs text-gray-500">by {{ $session->starter->name }}</span>@endif
                             </td>
                             <td class="mbui-td whitespace-nowrap text-sm text-gray-700">
@@ -65,7 +65,7 @@
             @foreach ($sessions as $session)
                 <li class="flex items-start justify-between gap-3 py-3">
                     <div class="min-w-0 text-sm">
-                        <p class="font-medium text-gray-900">{{ $session->started_at?->copy()->setTimezone($tz)->format('d M Y · H:i') ?? '—' }}</p>
+                        <p class="font-medium text-gray-900">{{ $session->started_at?->copy()->setTimezone($tz)->format('d M Y · H:i') ?? '-' }}</p>
                         <p class="mt-0.5 text-xs text-gray-500">
                             {{ $session->ended_at ? $hms($session->durationSeconds()) : 'Running' }}
                             · peak {{ (int) $session->peak_participants }}

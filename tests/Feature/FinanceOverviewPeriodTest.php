@@ -225,7 +225,7 @@ class FinanceOverviewPeriodTest extends TestCase
         $internet = route('admin.finance.line', ['line' => 'type:internet']);
         $chat = route('admin.finance.line', ['line' => 'product:'.$product->id]);
 
-        $this->finance()->get($internet)->assertOk()->assertSee('+ Add expense here')->assertSee('Office – Internet');
+        $this->finance()->get($internet)->assertOk()->assertSee('+ Add expense here')->assertSee('Office - Internet');
         $this->finance()->get($chat)->assertOk()->assertSee('Buying / renewing product accounts');
 
         // What the two forms send.

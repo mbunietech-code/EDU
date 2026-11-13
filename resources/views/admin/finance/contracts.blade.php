@@ -66,8 +66,8 @@
                     <tr>
                         <td class="mbui-td font-medium text-gray-900">{{ $contract->contract_number }}</td>
                         <td class="mbui-td">{{ $contract->staff?->fullName() }}</td>
-                        <td class="mbui-td">{{ $contract->department?->name ?? '—' }}</td>
-                        <td class="mbui-td">{{ $contract->start_date?->format('d M Y') }} — {{ $contract->end_date?->format('d M Y') ?? 'Open' }}</td>
+                        <td class="mbui-td">{{ $contract->department?->name ?? '-' }}</td>
+                        <td class="mbui-td">{{ $contract->start_date?->format('d M Y') }} to {{ $contract->end_date?->format('d M Y') ?? 'Open' }}</td>
                         <td class="mbui-td">TZS {{ number_format((float) $contract->basic_salary) }}</td>
                         <td class="mbui-td"><x-mbui.badge appearance="{{ $contract->status === 'active' ? 'success' : 'neutral' }}">{{ ucfirst($contract->status) }}</x-mbui.badge></td>
                     </tr>

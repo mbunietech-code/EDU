@@ -66,7 +66,7 @@ class AnalyticsReport
         };
 
         $label = $range === 'custom'
-            ? $start->format('d M Y').' – '.$end->format('d M Y').' (per '.strtolower(self::GROUPS[$by]).')'
+            ? $start->format('d M Y').' - '.$end->format('d M Y').' (per '.strtolower(self::GROUPS[$by]).')'
             : self::RANGES[$range][0];
 
         return ['range' => $range, 'group' => $by, 'from' => $start, 'to' => $end, 'label' => $label];

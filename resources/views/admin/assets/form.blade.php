@@ -36,9 +36,9 @@
                 <div>
                     <label for="responsible_id" class="mbui-label">Who looks after it</label>
                     <select id="responsible_id" name="responsible_id" class="mbui-input mt-1">
-                        <option value="">— Nobody yet —</option>
+                        <option value="">Nobody yet</option>
                         @foreach ($admins as $admin)
-                            <option value="{{ $admin->id }}" @selected((int) old('responsible_id', $asset->responsible_id) === $admin->id)>{{ $admin->name }}{{ $admin->job_title ? ' — '.$admin->job_title : '' }}</option>
+                            <option value="{{ $admin->id }}" @selected((int) old('responsible_id', $asset->responsible_id) === $admin->id)>{{ $admin->name }}{{ $admin->job_title ? ' ('.$admin->job_title.')' : '' }}</option>
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('responsible_id')" class="mt-1" />

@@ -96,7 +96,7 @@
                                     <td class="mbui-td text-right tabular-nums text-emerald-700">{{ number_format($b['in']) }}</td>
                                     <td class="mbui-td text-right tabular-nums text-red-600">{{ number_format($b['out']) }}</td>
                                     <td class="mbui-td text-right font-semibold tabular-nums">{{ number_format($b['balance']) }}</td>
-                                    <td class="mbui-td text-right tabular-nums">{{ $b['counted_at_start'] === null ? '—' : number_format($b['counted_at_start']) }}</td>
+                                    <td class="mbui-td text-right tabular-nums">{{ $b['counted_at_start'] === null ? '-' : number_format($b['counted_at_start']) }}</td>
                                     <td class="mbui-td text-right tabular-nums">
                                         @if ($b['counted_at_start'] !== null)
                                             @php($diff = round($b['counted_at_start'] - $b['balance'], 2))

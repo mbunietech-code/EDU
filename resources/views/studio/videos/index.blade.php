@@ -79,7 +79,7 @@
         <div class="mt-4">
             @if ($counts['all'] === 0 && ! $filtered)
                 <x-learning.empty title="No video lessons yet"
-                    :message="$canCreate ? 'Upload your first lesson — large files are uploaded in pieces, so a slow connection is fine.' : 'Lessons appear here once instructors upload them.'"
+                    :message="$canCreate ? 'Upload your first lesson. Large files are uploaded in pieces, so a slow connection is fine.' : 'Lessons appear here once instructors upload them.'"
                     :action-href="$canCreate ? route('studio.videos.create') : null" :action-label="$canCreate ? 'Add video' : null" />
             @else
                 <x-learning.empty title="No lessons match"
@@ -124,12 +124,12 @@
                                         @endcan
                                         <p class="mt-0.5 truncate text-xs text-gray-500">
                                             @if ($seesAll){{ $video->instructor->name ?? 'No instructor' }} · @endif
-                                            <span class="lg:hidden">{{ $video->category->name ?? '—' }} · </span>{{ $video->durationLabel() }}
+                                            <span class="lg:hidden">{{ $video->category->name ?? '-' }} · </span>{{ $video->durationLabel() }}
                                         </p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="mbui-td hidden text-sm text-gray-600 lg:table-cell">{{ $video->category->name ?? '—' }}</td>
+                            <td class="mbui-td hidden text-sm text-gray-600 lg:table-cell">{{ $video->category->name ?? '-' }}</td>
                             <td class="mbui-td text-sm text-gray-600">
                                 @if ($video->course)
                                     <span class="line-clamp-2">{{ $video->course->title }}</span>
@@ -149,7 +149,7 @@
                             <td class="mbui-td text-right text-sm tabular-nums text-gray-700">{{ number_format((int) $video->views) }}</td>
                             <td class="mbui-td">
                                 @if ($rate === null)
-                                    <span class="text-sm text-gray-400">—</span>
+                                    <span class="text-sm text-gray-400">-</span>
                                 @else
                                     <div class="w-24">
                                         <x-learning.progress-bar :percent="$rate" />
@@ -186,7 +186,7 @@
                                 <a href="{{ route('learn.videos.show', $video) }}" class="line-clamp-2 text-sm font-medium text-gray-900">{{ $video->title }}</a>
                             @endcan
                             <p class="mt-0.5 truncate text-xs text-gray-500">
-                                {{ $video->category->name ?? '—' }}
+                                {{ $video->category->name ?? '-' }}
                                 · {{ $video->course ? $video->course->title : 'Standalone' }}
                             </p>
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -204,7 +204,7 @@
                         </div>
                         <div>
                             <dt class="text-gray-500">Completion</dt>
-                            <dd class="font-medium text-gray-900">{{ $rate === null ? '—' : $rate.'%' }}</dd>
+                            <dd class="font-medium text-gray-900">{{ $rate === null ? '-' : $rate.'%' }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500">Created</dt>

@@ -208,13 +208,13 @@ class DatabaseOptimizationService
                 'column_name' => 'expiry_date',
                 'affected_count' => $count,
                 'expiration_status' => 'expiring within 7 days',
-                'action' => "{$count} subscription(s) expire within 7 days. Informational only — the daily subscriptions:process-expiry job already handles status transitions and account release.",
+                'action' => "{$count} subscription(s) expire within 7 days. Informational only. The daily subscriptions:process-expiry job already handles status transitions and account release.",
                 'risk_level' => 'low',
                 'estimated_recovery_mb' => 0.0,
                 'where_sql' => null,
                 'where_bindings' => null,
                 'sql_preview' => "SELECT * FROM subscriptions WHERE status IN ('active','expiring_soon') AND expiry_date BETWEEN '{$today->toDateString()}' AND '{$soon->toDateString()}';",
-                'rollback_note' => 'No action taken — read-only signal.',
+                'rollback_note' => 'No action taken (read-only signal).',
             ];
         }
 
@@ -242,7 +242,7 @@ class DatabaseOptimizationService
                 column: 'created_at',
                 affected: $count,
                 expirationStatus: 'older than 180 days',
-                action: "Delete {$count} activity-log entr(y/ies) older than 180 days. Download a full backup first — this is an append-only audit trail, not business data, but it has no expiry column of its own.",
+                action: "Delete {$count} activity-log entr(y/ies) older than 180 days. Download a full backup first. This is an append-only audit trail, not business data, but it has no expiry column of its own.",
                 risk: 'low',
                 whereSql: 'created_at < ?',
                 bindings: [$cutoff->toDateTimeString()],
@@ -280,7 +280,7 @@ class DatabaseOptimizationService
                     column: 'last_activity',
                     affected: $count,
                     expirationStatus: 'idle more than 30 days',
-                    action: "Delete {$count} session row(s) idle for 30+ days. Safe — these users will simply log in again.",
+                    action: "Delete {$count} session row(s) idle for 30+ days. Safe: these users will simply log in again.",
                     risk: 'low',
                     whereSql: 'last_activity < ?',
                     bindings: [$cutoff],
@@ -481,7 +481,7 @@ class DatabaseOptimizationService
                     'where_sql' => null,
                     'where_bindings' => null,
                     'sql_preview' => "SELECT email, subject, message, COUNT(*) FROM contact_messages GROUP BY email, subject, message HAVING COUNT(*) > 1;",
-                    'rollback_note' => 'Detection only — review the listed groups, then delete duplicates by id manually or re-run analysis after confirming.',
+                    'rollback_note' => 'Detection only. Review the listed groups, then delete duplicates by id manually or re-run analysis after confirming.',
                 ];
             }
         }
@@ -511,7 +511,7 @@ class DatabaseOptimizationService
                     'where_sql' => null,
                     'where_bindings' => null,
                     'sql_preview' => "SELECT user_id, platform, COUNT(*) FROM device_tokens GROUP BY user_id, platform HAVING COUNT(*) > 1;",
-                    'rollback_note' => 'Detection only — no rows removed automatically; verify which token is the active device before deleting others.',
+                    'rollback_note' => 'Detection only. No rows removed automatically; verify which token is the active device before deleting others.',
                 ];
             }
         }
@@ -554,7 +554,7 @@ class DatabaseOptimizationService
                 'column_name' => $row->column_name,
                 'affected_count' => 0,
                 'expiration_status' => null,
-                'action' => "Foreign key {$row->table_name}.{$row->column_name} (references {$row->ref_table}) has no covering index — lookups and cascade deletes on it do a full scan as the table grows.",
+                'action' => "Foreign key {$row->table_name}.{$row->column_name} (references {$row->ref_table}) has no covering index, so lookups and cascade deletes on it do a full scan as the table grows.",
                 'risk_level' => 'low',
                 'estimated_recovery_mb' => 0.0,
                 'where_sql' => null,
@@ -615,7 +615,7 @@ class DatabaseOptimizationService
                     'where_sql' => null,
                     'where_bindings' => null,
                     'sql_preview' => 'EXPLAIN '.$row->query,
-                    'rollback_note' => 'Detection only — review with EXPLAIN and add an index or rewrite the query as needed.',
+                    'rollback_note' => 'Detection only. Review with EXPLAIN and add an index or rewrite the query as needed.',
                 ];
             }
         } catch (Throwable) {
@@ -667,13 +667,13 @@ class DatabaseOptimizationService
                     'column_name' => $rel['fk'],
                     'affected_count' => $count,
                     'expiration_status' => null,
-                    'action' => "{$count} row(s) in {$rel['child']} reference a {$rel['parent']} row that no longer exists. This should not happen given the foreign-key constraints — likely legacy data from before a constraint was added. Investigate before touching.",
+                    'action' => "{$count} row(s) in {$rel['child']} reference a {$rel['parent']} row that no longer exists. This should not happen given the foreign-key constraints, so it is likely legacy data from before a constraint was added. Investigate before touching.",
                     'risk_level' => 'high',
                     'estimated_recovery_mb' => 0.0,
                     'where_sql' => null,
                     'where_bindings' => null,
                     'sql_preview' => "SELECT c.* FROM {$rel['child']} c WHERE c.{$rel['fk']} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM {$rel['parent']} p WHERE p.{$rel['parentKey']} = c.{$rel['fk']});",
-                    'rollback_note' => 'Detection only — no automatic fix. Decide per-row whether to relink or remove after manual review.',
+                    'rollback_note' => 'Detection only. No automatic fix. Decide per-row whether to relink or remove after manual review.',
                 ];
             }
         }

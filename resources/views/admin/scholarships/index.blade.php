@@ -31,9 +31,9 @@
                                 <span class="font-medium text-gray-900">{{ $scholarship->title }}</span>
                             </div>
                         </td>
-                        <td class="mbui-td text-gray-500">{{ $scholarship->country ?? '—' }}</td>
+                        <td class="mbui-td text-gray-500">{{ $scholarship->country ?? '-' }}</td>
                         <td class="mbui-td">
-                            {{ $scholarship->deadline?->format('d M Y') ?? '—' }}
+                            {{ $scholarship->deadline?->format('d M Y') ?? '-' }}
                             @if ($scholarship->isExpired())
                                 <x-mbui.badge appearance="danger">Expired</x-mbui.badge>
                             @endif

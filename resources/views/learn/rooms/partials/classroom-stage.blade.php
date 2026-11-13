@@ -239,7 +239,7 @@
 
         {{-- Only me in the room --}}
         <div x-show="tiles.length === 1" x-cloak class="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-            <p class="rounded-full bg-black/60 px-3 py-1 text-xs text-gray-200">You are the only one here — others will appear as they join.</p>
+            <p class="rounded-full bg-black/60 px-3 py-1 text-xs text-gray-200">You are the only one here. Others will appear as they join.</p>
         </div>
 
         {{-- The host asks me to turn on my microphone / camera --}}
@@ -274,7 +274,7 @@
             <p class="mt-1 text-sm text-gray-300" x-show="room.scheduled_label">
                 Scheduled for <span class="font-medium text-white" x-text="room.scheduled_label"></span>
             </p>
-            <p class="mt-3 text-sm text-gray-400">This page updates automatically — you will be able to join as soon as the host starts the class.</p>
+            <p class="mt-3 text-sm text-gray-400">This page updates automatically. You will be able to join as soon as the host starts the class.</p>
             <template x-if="isManager">
                 <div class="mt-6">
                     <button type="button" @click="startSession()" :disabled="busy.start"
@@ -307,12 +307,12 @@
                 </li>
                 <li class="flex gap-2" x-show="canUseMic || canUseCam">
                     @include('learn.rooms.partials.icon', ['name' => 'info', 'class' => 'mt-0.5 h-4 w-4 shrink-0 text-sky-300'])
-                    <span>When you turn on your camera or microphone, the browser asks for permission — choose <strong class="text-white">Allow</strong>.
+                    <span>When you turn on your camera or microphone, the browser asks for permission. Choose <strong class="text-white">Allow</strong>.
                         <span x-show="!isManager">You join with both off.</span></span>
                 </li>
                 <li class="flex gap-2" x-show="!canUseMic && !canUseCam">
                     @include('learn.rooms.partials.icon', ['name' => 'mic-off', 'class' => 'mt-0.5 h-4 w-4 shrink-0 text-amber-300'])
-                    <span>The host has turned off participant microphones and cameras. You can watch, chat and ask questions — the host can let you speak.</span>
+                    <span>The host has turned off participant microphones and cameras. You can watch, chat and ask questions. The host can let you speak.</span>
                 </li>
                 <li class="flex gap-2">
                     @include('learn.rooms.partials.icon', ['name' => 'chat', 'class' => 'mt-0.5 h-4 w-4 shrink-0 text-sky-300'])

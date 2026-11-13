@@ -47,7 +47,7 @@
                 @forelse ($spent as $cur => $sum)
                     <span class="block">{{ $cur }} {{ number_format($sum, $cur === 'TZS' ? 0 : 2) }}</span>
                 @empty
-                    <span class="text-gray-400">—</span>
+                    <span class="text-gray-400">-</span>
                 @endforelse
             </p>
         </div>
@@ -92,17 +92,17 @@
                     @endphp
                     <tr>
                         <td class="mbui-td">
-                            <a href="{{ route('admin.accounts.show', $account) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $account->product->name ?? '—' }}</a>
+                            <a href="{{ route('admin.accounts.show', $account) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $account->product->name ?? '-' }}</a>
                             <p class="text-xs text-gray-500">{{ $account->name }}</p>
                         </td>
                         <td class="mbui-td">
-                            {{ $account->plan_name ?: '—' }}
+                            {{ $account->plan_name ?: '-' }}
                             @if ($account->auto_renew)
                                 <span class="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">auto-renew</span>
                             @endif
                         </td>
-                        <td class="mbui-td whitespace-nowrap">{{ $account->purchased_at?->format('d M Y') ?? '—' }}</td>
-                        <td class="mbui-td whitespace-nowrap font-medium text-gray-900">{{ $account->expires_at?->format('d M Y') ?? '—' }}</td>
+                        <td class="mbui-td whitespace-nowrap">{{ $account->purchased_at?->format('d M Y') ?? '-' }}</td>
+                        <td class="mbui-td whitespace-nowrap font-medium text-gray-900">{{ $account->expires_at?->format('d M Y') ?? '-' }}</td>
                         <td class="mbui-td min-w-[10rem]">
                             <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $badge[$state] }}">
                                 @switch($state)
@@ -119,7 +119,7 @@
                             @endif
                         </td>
                         <td class="mbui-td whitespace-nowrap">
-                            {{ $account->cost !== null ? ($account->cost_currency ?: 'TZS').' '.number_format((float) $account->cost, ($account->cost_currency ?: 'TZS') === 'TZS' ? 0 : 2) : '—' }}
+                            {{ $account->cost !== null ? ($account->cost_currency ?: 'TZS').' '.number_format((float) $account->cost, ($account->cost_currency ?: 'TZS') === 'TZS' ? 0 : 2) : '-' }}
                         </td>
                         <td class="mbui-td">{{ $account->users_count }}</td>
                         <td class="mbui-td">

@@ -31,7 +31,7 @@
                             'config' => $uploader,
                             'label' => 'Video file',
                             'inputId' => 'video-file',
-                            'help' => 'We read the duration and capture a thumbnail in your browser — nothing is converted on the server.',
+                            'help' => 'We read the duration and capture a thumbnail in your browser. Nothing is converted on the server.',
                         ])
                     </div>
                 </x-mbui.card>

@@ -109,8 +109,8 @@
                 @forelse ($staff as $person)
                     <tr>
                         <td class="mbui-td"><span class="font-medium text-gray-900">{{ $person->fullName() }}</span><br><span class="text-xs text-gray-500">{{ $person->staff_number }}</span></td>
-                        <td class="mbui-td">{{ $person->department?->name ?? '—' }}</td>
-                        <td class="mbui-td">{{ $person->position?->name ?? '—' }}</td>
+                        <td class="mbui-td">{{ $person->department?->name ?? '-' }}</td>
+                        <td class="mbui-td">{{ $person->position?->name ?? '-' }}</td>
                         <td class="mbui-td">TZS {{ number_format((float) $person->basic_salary) }}</td>
                         <td class="mbui-td"><x-mbui.badge appearance="neutral">{{ str_replace('_', ' ', ucfirst($person->status)) }}</x-mbui.badge></td>
                     </tr>

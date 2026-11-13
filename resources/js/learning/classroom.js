@@ -407,10 +407,10 @@ window.learnClassroom = (cfg = {}) => {
     },
 
     get connectionBannerText() {
-        if (!this.online) return 'You are offline — we will reconnect when your connection returns.';
-        if (this.state === 'reconnecting') return 'Connection lost — reconnecting to the class…';
+        if (!this.online) return 'You are offline. We will reconnect when your connection returns.';
+        if (this.state === 'reconnecting') return 'Connection lost. Reconnecting to the class…';
 
-        return 'Connection lost — retrying…';
+        return 'Connection lost. Retrying…';
     },
 
     get panelVisible() {
@@ -1054,7 +1054,7 @@ window.learnClassroom = (cfg = {}) => {
             this.fail('Could not connect to the live classroom',
                 (timedOut ? 'The video server (' + config.server_url + ') did not answer within ' + (CONNECT_TIMEOUT_MS / 1000) + ' seconds. '
                     : 'The video server did not answer. ')
-                + 'Check your connection; on a work or school network video calls may be blocked — try another network, then Retry.');
+                + 'Check your connection; on a work or school network video calls may be blocked. Try another network, then Retry.');
             return;
         } finally {
             clearTimeout(timer);
@@ -1308,7 +1308,7 @@ window.learnClassroom = (cfg = {}) => {
         this.loud = !this.loud;
         try { window.localStorage.setItem('classroom.loud', this.loud ? '1' : '0'); } catch (e) { /* storage unavailable */ }
         this.applyLoud();
-        this.flash(this.loud ? '🔊 Loud speaker on — everyone sounds louder.' : 'Loud speaker off.');
+        this.flash(this.loud ? '🔊 Loud speaker on. Everyone sounds louder.' : 'Loud speaker off.');
     },
 
     applyLoud() {
@@ -1500,7 +1500,7 @@ window.learnClassroom = (cfg = {}) => {
         ctx.fillText(title === full ? full : title.trimEnd() + '…', width / 2, height / 2 + 10);
         ctx.fillStyle = '#9ca3af';
         ctx.font = '22px system-ui, sans-serif';
-        ctx.fillText('No video right now — you are still in the class', width / 2, height / 2 + 55);
+        ctx.fillText('No video right now. You are still in the class', width / 2, height / 2 + 55);
         const track = card.stream.getVideoTracks()[0];
         if (track && typeof track.requestFrame === 'function') track.requestFrame();
     },
@@ -2085,7 +2085,7 @@ window.learnClassroom = (cfg = {}) => {
         } catch (e) {
             wb.pending = wb.pending.filter((st) => st !== stroke);
             this.renderBoard();
-            this.flash('Could not reach the server — the last line was not saved.', 7000);
+            this.flash('Could not reach the server. The last line was not saved.', 7000);
         }
     },
 
@@ -2339,7 +2339,7 @@ window.learnClassroom = (cfg = {}) => {
         if (!link) return;
         try {
             await navigator.clipboard.writeText(link);
-            this.flash('Guest link copied. Share it with anyone — they join with just a name.');
+            this.flash('Guest link copied. Share it with anyone; they join with just a name.');
         } catch (e) {
             window.prompt('Copy the guest link:', link);
         }
@@ -2485,7 +2485,7 @@ window.learnClassroom = (cfg = {}) => {
             const d = new Date(l.at);
             return '[' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '] ' + l.name + ': ' + l.text;
         };
-        const text = (this.room.title || 'Class') + ' — transcript\n\n' + this.transcript.map(line).join('\n') + '\n';
+        const text = (this.room.title || 'Class') + ': transcript\n\n' + this.transcript.map(line).join('\n') + '\n';
         const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
         const a = document.createElement('a');
         a.href = url;

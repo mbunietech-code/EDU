@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  */
 class Dates
 {
-    public static function to(mixed $value, string $format, string $fallback = '—'): string
+    public static function to(mixed $value, string $format, string $fallback = '-'): string
     {
         $date = self::carbon($value);
 
@@ -25,13 +25,13 @@ class Dates
     }
 
     /** "d M Y" — e.g. 31 Aug 2026. */
-    public static function human(mixed $value, string $fallback = '—'): string
+    public static function human(mixed $value, string $fallback = '-'): string
     {
         return self::to($value, 'd M Y', $fallback);
     }
 
     /** "d M Y H:i" — e.g. 31 Aug 2026 14:05. */
-    public static function humanTime(mixed $value, string $fallback = '—'): string
+    public static function humanTime(mixed $value, string $fallback = '-'): string
     {
         return self::to($value, 'd M Y H:i', $fallback);
     }

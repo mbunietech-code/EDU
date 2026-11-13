@@ -44,7 +44,7 @@
                         <input type="radio" name="duration_type" value="lifetime" class="mt-1 h-4 w-4 text-indigo-600" @checked(old('duration_type', $plan->duration_type) === 'lifetime')>
                         <span>
                             <span class="block text-sm font-medium text-gray-900">Single purchase / Lifetime</span>
-                            <span class="block text-xs text-gray-500">No expiry — permanent access</span>
+                            <span class="block text-xs text-gray-500">No expiry, permanent access</span>
                         </span>
                     </label>
                 </div>

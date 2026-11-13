@@ -36,7 +36,7 @@ class FinanceReportController extends Controller
 
         return response()->streamDownload(function () use ($p) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Mbunie EduHub – profit and loss', $p['month']]);
+            fputcsv($out, ['Mbunie EduHub: profit and loss', $p['month']]);
             fputcsv($out, []);
             fputcsv($out, ['Section', 'Line', 'TZS']);
             foreach ($p['income'] as $k => $v) {

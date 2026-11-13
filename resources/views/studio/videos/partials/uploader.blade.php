@@ -57,7 +57,7 @@
             <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500 focus:outline-none focus-visible:underline"
                 @click="$refs.picker.click()">choose a file</button>
         </p>
-        <p class="mt-1 text-xs text-gray-500">Large files upload in small pieces — you can pause and resume.</p>
+        <p class="mt-1 text-xs text-gray-500">Large files upload in small pieces. You can pause and resume.</p>
     </div>
 
     {{-- Working / done / error --}}
@@ -95,7 +95,7 @@
                     <p x-show="status === 'completing'" class="text-gray-600">Checking the file…</p>
                     <p x-show="status === 'done'" class="flex items-center gap-1 text-emerald-700">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Uploaded — it will be attached when you save.
+                        Uploaded. It will be attached when you save.
                     </p>
                     <p x-show="status === 'error'" class="text-red-700" role="alert" x-text="error"></p>
                 </div>

@@ -23,7 +23,7 @@ class InstructorAccessGranted extends Notification implements ShouldQueue
 
     private function headline(): string
     {
-        return 'You are now an instructor — you can host live classes and upload lessons.';
+        return 'You are now an instructor. You can host live classes and upload lessons.';
     }
 
     public function toDatabase($notifiable): array

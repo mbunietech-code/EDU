@@ -94,7 +94,7 @@
                     <div>
                         <x-input-label for="cap-received" value="Date received" />
                         <x-text-input id="cap-received" class="mbui-input mt-1" type="date" name="received_at" :value="old('received_at', \App\Support\FinanceDates::today())" :max="\App\Support\FinanceDates::today()" required />
-                        <p class="mt-1 text-xs text-gray-500">The day the money actually came in — it counts on this date.</p>
+                        <p class="mt-1 text-xs text-gray-500">The day the money actually came in. It counts on this date.</p>
                         <x-input-error :messages="$errors->get('received_at')" class="mt-2" />
                     </div>
                 @endif

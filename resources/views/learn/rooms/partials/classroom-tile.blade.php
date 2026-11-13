@@ -16,7 +16,7 @@
     <div x-show="t.selfShare" class="absolute inset-x-0 top-0 flex justify-center p-2">
         <div class="flex max-w-full items-center gap-2 rounded-full bg-black/75 py-1 pl-3 pr-1 text-white shadow-lg {{ $big ? 'text-xs sm:text-sm' : 'text-[11px]' }}">
             <span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500" aria-hidden="true"></span>
-            <span class="truncate">You are sharing — everyone sees this</span>
+            <span class="truncate">You are sharing: everyone sees this</span>
             <button type="button" @click.stop="toggleShare()"
                 class="shrink-0 rounded-full bg-red-600 px-2.5 py-1 font-semibold hover:bg-red-500">Stop sharing</button>
         </div>

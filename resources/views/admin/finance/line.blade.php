@@ -1,7 +1,7 @@
 @php
     $back = request()->fullUrl();
     $overview = route('admin.finance.dashboard', $period->query());
-    $date = fn ($d) => $d?->format('d M Y') ?? '—';
+    $date = fn ($d) => $d?->format('d M Y') ?? '-';
     [$kind, $id] = array_pad(explode(':', $row['key'], 2), 2, null);
     $types = \App\Models\FinanceExpense::typesReady() ? \App\Models\FinanceExpense::types() : [];
     $today = \App\Support\FinanceDates::today();

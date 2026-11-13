@@ -288,7 +288,7 @@ class PayrollService
 
             if ((float) $payroll->net_pay > 0) {
                 app(AutoExpenseService::class)->record('payroll', $payroll->id, [
-                    'label' => "Salaries – {$payroll->name}",
+                    'label' => "Salaries - {$payroll->name}",
                     'amount' => (float) $payroll->net_pay,
                     'spent_at' => $validated['paid_at'],
                     'expense_type' => 'salaries',
@@ -394,7 +394,7 @@ class PayrollService
 
             $period = $return->payrollPeriod?->name;
             app(AutoExpenseService::class)->record('statutory_return', $return->id, [
-                'label' => trim('Payroll taxes – '.$return->label().' '.$period),
+                'label' => trim('Payroll taxes - '.$return->label().' '.$period),
                 'amount' => (float) $return->amount,
                 'spent_at' => $validated['paid_at'],
                 'expense_type' => 'payroll_taxes',

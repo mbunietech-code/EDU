@@ -30,7 +30,7 @@ use Throwable;
 class AutoReplyService
 {
     public const DEFAULT_MINUTES = 10;
-    public const DEFAULT_MESSAGE = "Hello {name}, thank you for your message. Our team is running a little late in replying — we'll get back to you as soon as possible. Thank you for your patience.";
+    public const DEFAULT_MESSAGE = "Hello {name}, thank you for your message. Our team is running a little late in replying. We'll get back to you as soon as possible. Thank you for your patience.";
     private const MAX_AGE_HOURS = 24;
 
     public function __construct(private NotificationService $notifications)

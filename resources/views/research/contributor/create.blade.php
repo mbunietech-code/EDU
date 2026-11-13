@@ -16,7 +16,7 @@
             <div>
                 <label class="mbui-label">Area</label>
                 <select name="research_category_id" class="mbui-input mt-1">
-                    <option value="">— choose an area —</option>
+                    <option value="">Choose an area</option>
                     @foreach ($categories as $category)
                         <option value="{{ $category->id }}" @selected(old('research_category_id') == $category->id)>{{ $category->name }}</option>
                     @endforeach

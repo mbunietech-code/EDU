@@ -143,7 +143,7 @@
                         <span class="block text-sm font-medium text-gray-900">Show error details to admins</span>
                         <span class="block text-sm text-gray-500">
                             When on, signed-in admins see the full error (message, file, line, stack trace)
-                            instead of the generic page. <strong>Visitors always see the friendly page</strong> —
+                            instead of the generic page. <strong>Visitors always see the friendly page</strong>;
                             this never exposes anything publicly. Turn it off when you're done debugging.
                         </span>
                     </span>

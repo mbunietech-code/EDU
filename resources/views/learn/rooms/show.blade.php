@@ -3,7 +3,7 @@
     $ends = $room->endsAt();
     $durationLabel = function (int $seconds): string {
         if ($seconds <= 0) {
-            return '—';
+            return '-';
         }
         $h = intdiv($seconds, 3600);
         $m = intdiv($seconds % 3600, 60);
@@ -158,7 +158,7 @@
                         <div>
                             <dt class="text-gray-500">Time</dt>
                             <dd class="font-medium text-gray-900">
-                                {{ $room->scheduled_at->format('H:i') }}@if ($ends) – {{ $ends->format('H:i') }}@endif
+                                {{ $room->scheduled_at->format('H:i') }}@if ($ends) - {{ $ends->format('H:i') }}@endif
                                 <span class="font-normal text-gray-500">({{ config('app.timezone') }})</span>
                             </dd>
                         </div>

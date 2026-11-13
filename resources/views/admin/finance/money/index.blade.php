@@ -56,7 +56,7 @@
                                 <p class="text-xs text-gray-500">{{ $acc->typeLabel() }}@if ($acc->number) · {{ $acc->number }}@endif @unless ($acc->is_active) · Archived @endunless</p>
                             </td>
                             <td class="mbui-td whitespace-normal text-xs text-gray-600">
-                                {{ collect($acc->methodCodes())->map(fn ($c) => $methodChoices[$c] ?? $c)->implode(', ') ?: '—' }}
+                                {{ collect($acc->methodCodes())->map(fn ($c) => $methodChoices[$c] ?? $c)->implode(', ') ?: '-' }}
                             </td>
                             <td class="mbui-td text-right tabular-nums text-emerald-700">{{ number_format($b['in']) }}</td>
                             <td class="mbui-td text-right tabular-nums text-red-600">{{ number_format($b['out']) }}</td>

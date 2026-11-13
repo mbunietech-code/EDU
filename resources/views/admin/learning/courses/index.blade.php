@@ -71,9 +71,9 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="mbui-td">
                                     <a href="{{ route('admin.learning.courses.show', $course) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $course->title }}</a>
-                                    <span class="block text-xs text-gray-500">{{ $course->category?->name ?? '—' }} · {{ $course->levelLabel() }}</span>
+                                    <span class="block text-xs text-gray-500">{{ $course->category?->name ?? '-' }} · {{ $course->levelLabel() }}</span>
                                 </td>
-                                <td class="mbui-td text-sm">{{ $course->instructor?->name ?? '—' }}</td>
+                                <td class="mbui-td text-sm">{{ $course->instructor?->name ?? '-' }}</td>
                                 <td class="mbui-td">
                                     <div class="flex flex-wrap gap-1">
                                         <x-mbui.status-badge :status="$course->status" />
@@ -105,7 +105,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <a href="{{ route('admin.learning.courses.show', $course) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $course->title }}</a>
-                            <p class="text-xs text-gray-500">{{ $course->category?->name ?? '—' }} · {{ $course->instructor?->name ?? 'No instructor' }}</p>
+                            <p class="text-xs text-gray-500">{{ $course->category?->name ?? '-' }} · {{ $course->instructor?->name ?? 'No instructor' }}</p>
                         </div>
                         <x-mbui.status-badge :status="$course->status" />
                     </div>

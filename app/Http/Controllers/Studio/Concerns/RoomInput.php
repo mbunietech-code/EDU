@@ -98,7 +98,7 @@ trait RoomInput
         // (e.g. renaming a completed room); anything new must be now or later.
         $unchanged = $at !== null && $room?->scheduled_at !== null && $room->scheduled_at->equalTo($at);
         if ($at !== null && $at->lt(now()->subMinute()) && ($action === 'schedule' || ! $unchanged)) {
-            $errors['scheduled_date'] = 'The start time has already passed — pick a time from now on.';
+            $errors['scheduled_date'] = 'The start time has already passed. Pick a time from now on.';
         }
 
         // --- Where ------------------------------------------------------
@@ -114,7 +114,7 @@ trait RoomInput
         if ($topicId) {
             $topic = LearningTopic::query()->find($topicId);
             if (! $course) {
-                $errors['learning_topic_id'] = 'Choose the course first — a topic belongs to a course.';
+                $errors['learning_topic_id'] = 'Choose the course first. A topic belongs to a course.';
             } elseif ($topic && (int) $topic->learning_course_id !== (int) $course->id) {
                 $errors['learning_topic_id'] = 'The topic does not belong to the selected course.';
             }

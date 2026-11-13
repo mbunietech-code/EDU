@@ -214,7 +214,7 @@ class RoomService
 
             // A live room without an open session is repaired by opening one.
             if (! $locked->isLive() && ! in_array($locked->status, ['draft', 'scheduled', 'completed'], true)) {
-                throw ValidationException::withMessages(['status' => 'A cancelled room cannot be started — publish it again first.']);
+                throw ValidationException::withMessages(['status' => 'A cancelled room cannot be started. Publish it again first.']);
             }
 
             $now = now();
@@ -547,7 +547,7 @@ class RoomService
     public function removeParticipant(LearningRoom $room, User $target, User $actor): void
     {
         if ((int) $target->id === (int) $actor->id) {
-            throw ValidationException::withMessages(['user' => 'You cannot remove yourself — leave the session instead.']);
+            throw ValidationException::withMessages(['user' => 'You cannot remove yourself. Leave the session instead.']);
         }
 
         if ($room->isManageableBy($target)) {

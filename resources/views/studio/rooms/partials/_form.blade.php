@@ -27,7 +27,7 @@
                     <label for="room-title" class="mbui-label">Title <span class="text-red-600">*</span></label>
                     <input id="room-title" name="title" type="text" required maxlength="255" autocomplete="off"
                         value="{{ old('title', $room->title) }}" class="mbui-input mt-1 w-full"
-                        placeholder="e.g. Weekly Q&A — Cell biology">
+                        placeholder="e.g. Weekly Q&A: Cell biology">
                     @error('title')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
                 </div>
 
@@ -63,7 +63,7 @@
                         </select>
                         @unless ($anyCourse)
                             <p class="mt-1 text-xs text-gray-500">
-                                {{ $courses->isEmpty() ? 'You do not teach a course yet — the room can still sit in any category.' : 'You can link a room only to courses you teach.' }}
+                                {{ $courses->isEmpty() ? 'You do not teach a course yet. The room can still sit in any category.' : 'You can link a room only to courses you teach.' }}
                             </p>
                         @endunless
                         <p x-show="needsCourse" x-cloak class="mt-1 text-xs text-amber-700">A course room needs a course.</p>
@@ -172,7 +172,7 @@
                     <label for="room-duration" class="mbui-label">Duration (minutes) <span class="text-red-600">*</span></label>
                     <input id="room-duration" name="duration_minutes" type="number" required min="5" max="1440" step="5"
                         value="{{ old('duration_minutes', $room->duration_minutes ?? 60) }}" class="mbui-input mt-1 w-full {{ $lockedCls }}" @disabled($locked)>
-                    <p class="mt-1 text-xs text-gray-500">Used for the calendar and reminders — the call is not cut off.</p>
+                    <p class="mt-1 text-xs text-gray-500">Used for the calendar and reminders. The call is not cut off.</p>
                     @error('duration_minutes')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
                 </div>
             </div>

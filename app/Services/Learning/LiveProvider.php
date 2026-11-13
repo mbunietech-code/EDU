@@ -284,18 +284,18 @@ class LiveProvider
 
         $server = (string) $this->serverUrl();
         if ($server !== '' && str_starts_with(strtolower($server), 'ws://') && ! $this->isLocalUrl($server)) {
-            $warnings[] = 'LIVE_SERVER_URL uses ws:// — browsers need wss:// (TLS) for a public server.';
+            $warnings[] = 'LIVE_SERVER_URL uses ws://, but browsers need wss:// (TLS) for a public server.';
         }
 
         $hasTurn = $this->urlList('learning.live.ice.turn_urls', ['turn:', 'turns:']) !== [];
         if (! $hasTurn) {
             $warnings[] = 'No TURN server (TURN_SERVER_URL): learners behind strict firewalls or mobile networks may not connect.';
         } elseif ((string) config('learning.live.ice.turn_secret') === '' && (string) config('learning.live.ice.turn_username') === '') {
-            $warnings[] = 'TURN_SERVER_URL is set but neither TURN_SERVER_SECRET nor TURN_SERVER_USERNAME — TURN will be skipped.';
+            $warnings[] = 'TURN_SERVER_URL is set but neither TURN_SERVER_SECRET nor TURN_SERVER_USERNAME, so TURN will be skipped.';
         }
 
         if ((bool) config('learning.live.recording.enabled') && (string) config('learning.live.recording.import_dir') === '') {
-            $warnings[] = 'Recording is enabled but LIVE_RECORDING_IMPORT_DIR is empty — finished recordings cannot be imported.';
+            $warnings[] = 'Recording is enabled but LIVE_RECORDING_IMPORT_DIR is empty, so finished recordings cannot be imported.';
         }
 
         return [

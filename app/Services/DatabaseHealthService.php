@@ -129,7 +129,7 @@ class DatabaseHealthService
             'ok' => $pending === 0,
             'detail' => $pending === 0
                 ? 'All applied'
-                : "{$pending} pending — apply below",
+                : "{$pending} pending, apply below",
         ];
 
         // Failed alters recorded
@@ -142,7 +142,7 @@ class DatabaseHealthService
             $checks[] = [
                 'label' => 'Failed schema changes',
                 'ok' => false,
-                'detail' => "{$failedAlters} file(s) errored — see history",
+                'detail' => "{$failedAlters} file(s) errored, see history",
             ];
         }
 

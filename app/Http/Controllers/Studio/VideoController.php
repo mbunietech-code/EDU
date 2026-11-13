@@ -161,7 +161,7 @@ class VideoController extends Controller
         return redirect()
             ->route('studio.videos.edit', $video)
             ->with('success', $video->isPublished()
-                ? 'Lesson published'.($request->boolean('notify') ? ' — eligible learners are being notified.' : '.')
+                ? 'Lesson published'.($request->boolean('notify') ? '. Eligible learners are being notified.' : '.')
                 : 'Lesson saved as a draft.');
     }
 
@@ -249,7 +249,7 @@ class VideoController extends Controller
         $this->videos->publish($video, $request->user(), $notify);
 
         return $this->backToVideo($video)->with('success', $notify && ! $wasPublishedBefore
-            ? 'Lesson published — eligible learners are being notified.'
+            ? 'Lesson published. Eligible learners are being notified.'
             : 'Lesson published.');
     }
 

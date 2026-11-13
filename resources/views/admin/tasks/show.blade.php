@@ -8,7 +8,7 @@
                 <x-mbui.badge :appearance="['todo' => 'neutral', 'in_progress' => 'info', 'done' => 'success', 'cancelled' => 'neutral'][$task->status] ?? 'neutral'">{{ \App\Models\AdminTask::STATUSES[$task->status] ?? $task->status }}</x-mbui.badge>
                 <x-mbui.badge :appearance="$task->priority === 'urgent' ? 'danger' : ($task->priority === 'high' ? 'warning' : 'neutral')">{{ \App\Models\AdminTask::PRIORITIES[$task->priority] ?? $task->priority }} priority</x-mbui.badge>
                 @if ($task->due_at)
-                    <span class="{{ $task->isOverdue() ? 'font-semibold text-red-600' : 'text-gray-600' }}">{{ $task->isOverdue() ? 'Overdue — was due' : 'Due' }} {{ $task->due_at->format('D, d M Y') }}</span>
+                    <span class="{{ $task->isOverdue() ? 'font-semibold text-red-600' : 'text-gray-600' }}">{{ $task->isOverdue() ? 'Overdue, was due' : 'Due' }} {{ $task->due_at->format('D, d M Y') }}</span>
                 @endif
             </div>
         </div>
@@ -74,7 +74,7 @@
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500">Given by</dt>
-                        <dd class="text-gray-900">{{ $task->creator?->name ?? '—' }}</dd>
+                        <dd class="text-gray-900">{{ $task->creator?->name ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500">Created</dt>

@@ -63,7 +63,7 @@
                     <div class="flex items-center justify-between gap-3">
                         <p class="truncate text-sm font-semibold text-gray-900">{{ $conversation->user->name }}</p>
                         <span class="shrink-0 text-xs text-gray-400">
-                            {{ $conversation->latestMessage?->created_at->diffForHumans() ?? '—' }}
+                            {{ $conversation->latestMessage?->created_at->diffForHumans() ?? '-' }}
                         </span>
                     </div>
                     <div class="flex items-center justify-between gap-3">

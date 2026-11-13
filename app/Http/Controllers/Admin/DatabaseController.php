@@ -52,7 +52,7 @@ class DatabaseController extends Controller
         $failed = collect($results)->firstWhere('ok', false);
 
         if ($results === []) {
-            return back()->with('success', 'Nothing to apply — schema is up to date.');
+            return back()->with('success', 'Nothing to apply. The schema is up to date.');
         }
 
         if ($failed) {

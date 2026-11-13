@@ -3,7 +3,7 @@
     @php
         $tz = (string) config('app.timezone');
         $hms = fn (int $s) => sprintf('%d:%02d:%02d', intdiv(max(0, $s), 3600), intdiv(max(0, $s) % 3600, 60), max(0, $s) % 60);
-        $fmt = fn ($at, string $format = 'H:i:s') => $at ? $at->copy()->setTimezone($tz)->format($format) : '—';
+        $fmt = fn ($at, string $format = 'H:i:s') => $at ? $at->copy()->setTimezone($tz)->format($format) : '-';
     @endphp
 
     <div class="mbui-page-header">
@@ -113,7 +113,7 @@
                                         <span class="text-red-700">{{ $fmt($a->removed_at, 'H:i') }}</span>
                                         @if ($a->remover)<span class="block text-xs text-gray-500">by {{ $a->remover->name }}</span>@endif
                                     @else
-                                        <span class="text-gray-400">—</span>
+                                        <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
                             </tr>

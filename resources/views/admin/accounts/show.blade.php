@@ -18,7 +18,7 @@
             @if ($account->credentials)
                 <x-mbui.card>
                     <h2 class="mbui-section-label">Credentials</h2>
-                    <p class="mt-3 text-sm text-gray-500">Stored encrypted. You may decrypt to view — this action is audited.</p>
+                    <p class="mt-3 text-sm text-gray-500">Stored encrypted. You may decrypt to view. This action is audited.</p>
                     <form method="POST" action="{{ route('admin.accounts.decrypt', $account) }}" class="mt-4">
                         @csrf
                         <x-mbui.button type="submit" variant="secondary">Decrypt credentials</x-mbui.button>
@@ -41,7 +41,7 @@
                 <div class="flex justify-between">
                     <dt class="text-gray-500">Our plan ends</dt>
                     <dd class="font-medium {{ $account->planState() === 'expired' ? 'text-red-600' : 'text-gray-900' }}">
-                        {{ $account->expires_at ? $account->expires_at->format('d M Y') : '—' }}
+                        {{ $account->expires_at ? $account->expires_at->format('d M Y') : '-' }}
                         @if ($account->planState() === 'expired')
                             <span class="block text-xs font-normal">Ended: not given to new customers</span>
                         @endif

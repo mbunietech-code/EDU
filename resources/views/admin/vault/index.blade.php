@@ -106,7 +106,7 @@
                         </div>
                     </div>
                     <div class="sm:col-span-2">
-                        <x-input-label for="v-notes" value="Notes (2FA backup codes, recovery email, PIN…) — encrypted too" />
+                        <x-input-label for="v-notes" value="Notes (2FA backup codes, recovery email, PIN…), encrypted too" />
                         <textarea id="v-notes" name="notes" rows="2" maxlength="3000" class="mbui-input mt-1 w-full"></textarea>
                     </div>
                     <div class="flex justify-end gap-2 sm:col-span-2">
@@ -153,8 +153,8 @@
 
                     <template x-if="shown && data">
                         <dl class="mt-3 grid gap-2 rounded-lg bg-gray-50 p-3 text-sm sm:grid-cols-2">
-                            <div><dt class="text-xs text-gray-500">Username</dt><dd class="break-all font-mono text-gray-900" x-text="data.username || '—'"></dd></div>
-                            <div><dt class="text-xs text-gray-500">Password</dt><dd class="break-all font-mono text-gray-900" x-text="data.password || '—'"></dd></div>
+                            <div><dt class="text-xs text-gray-500">Username</dt><dd class="break-all font-mono text-gray-900" x-text="data.username || '-'"></dd></div>
+                            <div><dt class="text-xs text-gray-500">Password</dt><dd class="break-all font-mono text-gray-900" x-text="data.password || '-'"></dd></div>
                             <div class="sm:col-span-2" x-show="data.notes"><dt class="text-xs text-gray-500">Notes</dt><dd class="whitespace-pre-line break-words text-gray-900" x-text="data.notes"></dd></div>
                         </dl>
                     </template>

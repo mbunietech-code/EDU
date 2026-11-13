@@ -7,7 +7,7 @@
 
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
-            <x-input-label for="plan_name" value="Plan (e.g. ChatGPT Plus – monthly)" />
+            <x-input-label for="plan_name" value="Plan (e.g. ChatGPT Plus, monthly)" />
             <x-text-input id="plan_name" class="mbui-input mt-1" type="text" name="plan_name" maxlength="120"
                           :value="old('plan_name', $account?->plan_name)" />
             <x-input-error :messages="$errors->get('plan_name')" class="mt-2" />

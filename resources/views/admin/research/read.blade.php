@@ -1,4 +1,4 @@
-<x-layouts.admin :title="$chapter->title . ' — ' . $research->title" header="Chapter preview">
+<x-layouts.admin :title="$chapter->title . ' - ' . $research->title" header="Chapter preview">
 
     <nav class="text-sm text-gray-500">
         <a href="{{ route('admin.research.index') }}" class="hover:text-gray-700">Research</a>

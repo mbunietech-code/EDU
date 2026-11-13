@@ -42,7 +42,7 @@ class SubscriptionController extends Controller
 
         return [
             'id' => $s->id,
-            'product' => $s->product?->name ?? '—',
+            'product' => $s->product?->name ?? '-',
             'plan' => $s->plan?->name,
             'status' => $s->status,
             'start_date' => optional($s->start_date)->toDateString(),

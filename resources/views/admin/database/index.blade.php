@@ -92,7 +92,7 @@
         </div>
 
         @if (! count($pending))
-            <p class="mt-3 text-sm text-gray-500">Everything is applied — the schema is up to date.</p>
+            <p class="mt-3 text-sm text-gray-500">Everything is applied. The schema is up to date.</p>
         @else
             <p class="mt-2 text-sm text-gray-500">Review each file, then click apply. Changes run once and are recorded.</p>
             <div class="mt-4 space-y-3">

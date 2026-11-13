@@ -51,7 +51,7 @@
                                         <img class="vpn-thumb" src="{{ route('admin.vpn.payments.proof', $i['id']) }}" alt="Payment screenshot" loading="lazy">
                                     </a>
                                 @else
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="vpn-lg">{{ \Illuminate\Support\Carbon::parse($i['paid_at'] ?? $i['created_at'])->format('d M Y H:i') }}</td>

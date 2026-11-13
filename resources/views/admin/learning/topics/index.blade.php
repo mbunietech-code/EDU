@@ -24,7 +24,7 @@
 
     @if ($canManage)
         @if ($courses->isEmpty())
-            <x-mbui.alert type="info" class="mt-4">Create a course first — every topic belongs to a course.</x-mbui.alert>
+            <x-mbui.alert type="info" class="mt-4">Create a course first. Every topic belongs to a course.</x-mbui.alert>
         @else
             <x-mbui.card class="mt-4">
                 <h2 class="text-base font-semibold text-gray-900">Add a topic</h2>

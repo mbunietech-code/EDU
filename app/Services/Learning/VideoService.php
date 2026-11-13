@@ -495,7 +495,7 @@ class VideoService
                 'learning_course_id' => $course?->id,
                 'learning_topic_id' => $topicId,
                 'instructor_id' => $room->host_id,
-                'title' => Str::limit($room->title.' — recording '.$recordedAt->format('d M Y'), 255, ''),
+                'title' => Str::limit($room->title.': recording '.$recordedAt->format('d M Y'), 255, ''),
                 'description' => $room->description,
                 'visibility' => 'course',
                 'status' => 'draft',

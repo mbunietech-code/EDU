@@ -31,7 +31,7 @@
                                 <span class="text-xs text-gray-400">(you)</span>
                             @endif
                         </td>
-                        <td class="mbui-td text-gray-600">{{ $admin->job_title ?: '—' }}</td>
+                        <td class="mbui-td text-gray-600">{{ $admin->job_title ?: '-' }}</td>
                         <td class="mbui-td text-gray-600">{{ $admin->email }}</td>
                         <td class="mbui-td">
                             @if ($admin->role === 'super_admin')
@@ -51,7 +51,7 @@
                         </td>
                         <td class="mbui-td">
                             @if ($admin->id === auth()->id())
-                                <span class="text-sm text-gray-400">—</span>
+                                <span class="text-sm text-gray-400">-</span>
                             @else
                                 <div class="flex items-center gap-3">
                                     <x-mbui.icon-link :href="route('admin.team.edit', $admin)" />

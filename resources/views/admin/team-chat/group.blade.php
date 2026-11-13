@@ -21,7 +21,7 @@
                     <p class="truncate text-sm font-semibold text-gray-900">{{ $title }}</p>
                     @if ($group->isDirect())
                         <p class="flex items-center gap-1.5 text-xs">
-                            <span class="text-gray-500">Private — only you and {{ $other?->name ?? 'them' }} can read this</span>
+                            <span class="text-gray-500">Private: only you and {{ $other?->name ?? 'them' }} can read this</span>
                             <span class="inline-flex items-center gap-1" :class="otherOnline ? 'text-emerald-600' : 'text-gray-400'">
                                 <span class="h-2 w-2 rounded-full" :class="otherOnline ? 'bg-emerald-500' : 'bg-gray-300'"></span>
                                 <span x-text="otherOnline ? 'Online' : 'Offline'"></span>

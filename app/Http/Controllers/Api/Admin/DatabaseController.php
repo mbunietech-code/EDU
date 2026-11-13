@@ -64,7 +64,7 @@ class DatabaseController extends Controller
         ]);
 
         if ($results === []) {
-            return response()->json(['message' => 'Nothing to apply — schema is up to date.', 'data' => ['results' => []]]);
+            return response()->json(['message' => 'Nothing to apply. The schema is up to date.', 'data' => ['results' => []]]);
         }
 
         $failed = collect($results)->firstWhere('ok', false);

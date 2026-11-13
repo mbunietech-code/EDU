@@ -27,7 +27,7 @@
                 <p class="mt-2 text-sm font-medium text-gray-900">{{ $deletedRecord->deleter?->name ?? 'System' }}</p>
                 <p class="text-xs text-gray-500">{{ $deletedRecord->deleter?->email }}</p>
                 <div class="mt-4 border-t border-gray-100 pt-4">
-                    <p class="text-xs text-gray-500">Original ID: {{ $deletedRecord->entity_id ?? '—' }}</p>
+                    <p class="text-xs text-gray-500">Original ID: {{ $deletedRecord->entity_id ?? '-' }}</p>
                 </div>
             </x-mbui.card>
         </div>

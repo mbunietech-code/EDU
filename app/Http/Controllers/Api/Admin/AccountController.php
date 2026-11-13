@@ -90,7 +90,7 @@ class AccountController extends Controller
             'has_credentials' => $account->credentials !== null,
             'subscriptions' => $account->subscriptions->map(fn ($s) => [
                 'id' => $s->id,
-                'user' => $s->user->name ?? '—',
+                'user' => $s->user->name ?? '-',
                 'status' => $s->status,
             ])->all(),
         ])]);
@@ -193,7 +193,7 @@ class AccountController extends Controller
         return [
             'id' => $a->id,
             'name' => $a->name,
-            'product' => $a->product->name ?? '—',
+            'product' => $a->product->name ?? '-',
             'product_id' => $a->product_id,
             'status' => $a->status,
             'has_credentials' => $a->credentials !== null,

@@ -128,7 +128,7 @@ window.learnUserPicker = (cfg = {}) => ({
                     'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
                 },
             });
-            if (res.status === 429) throw new Error('Too many searches — wait a moment.');
+            if (res.status === 429) throw new Error('Too many searches. Wait a moment.');
             if (res.status === 419 || res.status === 401) throw new Error('Your session expired. Reload the page.');
             if (!res.ok) throw new Error('Search failed. Please try again.');
             const data = await res.json();

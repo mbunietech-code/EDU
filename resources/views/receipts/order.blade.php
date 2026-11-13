@@ -48,7 +48,7 @@
                 <td class="label">Payment method</td>
                 <td>{{ $payment->paymentMethodLabel() }}</td>
                 <td class="label">Reference</td>
-                <td>{{ $payment->transaction_reference ?? '—' }}</td>
+                <td>{{ $payment->transaction_reference ?? '-' }}</td>
             </tr>
         @endif
     </table>
@@ -64,7 +64,7 @@
         <tbody>
             <tr>
                 <td>{{ $order->itemName() }}</td>
-                <td>{{ $order->plan?->name ?? '—' }}</td>
+                <td>{{ $order->plan?->name ?? '-' }}</td>
                 <td style="text-align: right;">TZS {{ number_format($order->amount) }}</td>
             </tr>
             <tr class="total-row">

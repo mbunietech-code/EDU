@@ -45,11 +45,11 @@
 
     <x-legal.section id="services" :number="$n['services'] + 1" title="Our services">
         <ul>
-            <li><strong>AI tools and software</strong> – authorised, managed access to third-party AI tools and software, sold as subscriptions or one-time licences.</li>
-            <li><strong>Research tools</strong> – research software delivered with a product key and download after payment.</li>
-            <li><strong>Learning</strong> – video courses and lessons, live online classes and class recordings, run by MbunieEduHub and approved instructors.</li>
-            <li><strong>Research library</strong> – research papers written by approved writers and reviewed before publication.</li>
-            <li><strong>Scholarships</strong> – listings of opportunities offered by other institutions.</li>
+            <li><strong>AI tools and software</strong>: authorised, managed access to third-party AI tools and software, sold as subscriptions or one-time licences.</li>
+            <li><strong>Research tools</strong>: research software delivered with a product key and download after payment.</li>
+            <li><strong>Learning</strong>: video courses and lessons, live online classes and class recordings, run by MbunieEduHub and approved instructors.</li>
+            <li><strong>Research library</strong>: research papers written by approved writers and reviewed before publication.</li>
+            <li><strong>Scholarships</strong>: listings of opportunities offered by other institutions.</li>
         </ul>
         <p>We may add, change or stop features from time to time. If we stop something you have paid for and not yet received, we will offer a replacement or a refund for the unused part.</p>
     </x-legal.section>
@@ -91,7 +91,7 @@
 
     <x-legal.section id="research" :number="$n['research'] + 1" title="Research library and writers">
         <p>Writers keep the copyright in their research. By submitting research you confirm it is your own original work (or that you have the right to publish it) and you give MbunieEduHub permission to review, publish, display and distribute it on our website and apps.</p>
-        <p>We review every submission and may ask for changes, reject it, or unpublish it later — for example for plagiarism, false information or a complaint from a rights holder. Readers may use published research for study with proper citation, but may not republish it without the writer's permission.</p>
+        <p>We review every submission and may ask for changes, reject it, or unpublish it later, for example for plagiarism, false information or a complaint from a rights holder. Readers may use published research for study with proper citation, but may not republish it without the writer's permission.</p>
     </x-legal.section>
 
     <x-legal.section id="conduct" :number="$n['conduct'] + 1" title="Acceptable use">
@@ -108,7 +108,7 @@
 
     <x-legal.section id="ip" :number="$n['ip'] + 1" title="Content and intellectual property">
         <p>The MbunieEduHub name, logo, website, apps and our own course material belong to MbunieEduHub. Instructors and writers own their own material. You get a personal, non-transferable right to use the content you have access to for your own learning.</p>
-        <p>You keep ownership of what you upload (messages, files, comments). You allow us to store and show it as needed to run the service — for example to show your comment to other learners.</p>
+        <p>You keep ownership of what you upload (messages, files, comments). You allow us to store and show it as needed to run the service, for example to show your comment to other learners.</p>
     </x-legal.section>
 
     <x-legal.section id="refunds" :number="$n['refunds'] + 1" title="Refunds">
@@ -131,7 +131,7 @@
     </x-legal.section>
 
     <x-legal.section id="third-parties" :number="$n['third-parties'] + 1" title="Third-party services">
-        <p>Some parts of the service are provided by others — AI tool and software makers, payment providers and scholarship institutions. Their own terms also apply, and we are not responsible for their services, outages or changes beyond our reasonable control.</p>
+        <p>Some parts of the service are provided by others: AI tool and software makers, payment providers and scholarship institutions. Their own terms also apply, and we are not responsible for their services, outages or changes beyond our reasonable control.</p>
     </x-legal.section>
 
     <x-legal.section id="liability" :number="$n['liability'] + 1" title="Disclaimers and liability">

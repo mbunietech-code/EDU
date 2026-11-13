@@ -51,8 +51,8 @@ class LearningDeletionService
     {
         $lines = match (true) {
             $model instanceof LearningCategory => [
-                $this->count(LearningCourse::query()->where('learning_category_id', $model->id)->count(), 'course').' — must be moved or deleted first',
-                $this->count(LearningVideo::query()->where('learning_category_id', $model->id)->count(), 'lesson').' — must be moved or deleted first',
+                $this->count(LearningCourse::query()->where('learning_category_id', $model->id)->count(), 'course').': must be moved or deleted first',
+                $this->count(LearningVideo::query()->where('learning_category_id', $model->id)->count(), 'lesson').': must be moved or deleted first',
                 $this->count(LearningRoom::query()->where('learning_category_id', $model->id)->count(), 'room').' will be detached from the category',
             ],
             $model instanceof LearningCourse => [
@@ -75,12 +75,12 @@ class LearningDeletionService
                 $this->count($model->sessions()->count(), 'session record'),
                 $this->count($model->attendances()->count(), 'attendance record'),
                 $this->count($model->messages()->count(), 'chat message'),
-                $this->recordingsLine($model->recordings()->get(), ' — files deleted when purged from the trash'),
+                $this->recordingsLine($model->recordings()->get(), ', files deleted when purged from the trash'),
             ],
             $model instanceof LearningRoomSession => [
                 $this->count($model->attendances()->count(), 'attendance record'),
                 $this->count(LearningRoomMessage::query()->where('learning_room_session_id', $model->id)->count(), 'chat message').' kept on the room',
-                $this->recordingsLine($model->recordings()->get(), ' — files deleted'),
+                $this->recordingsLine($model->recordings()->get(), ', files deleted'),
             ],
             $model instanceof LearningRoomRecording => [
                 $model->path !== null

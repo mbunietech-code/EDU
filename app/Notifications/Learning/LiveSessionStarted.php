@@ -26,7 +26,7 @@ class LiveSessionStarted extends Notification implements ShouldQueue
             'type' => 'learning.room_started',
             'room_id' => $this->room->id,
             'title' => 'Live now',
-            'message' => '"'.$this->room->title.'" is live — join the class now.',
+            'message' => '"'.$this->room->title.'" is live. Join the class now.',
             'url' => route('learn.rooms.live', $this->room),
         ];
     }

@@ -12,7 +12,7 @@
                         @if ($session->started_at)
                             <time datetime="{{ $session->started_at->toIso8601String() }}">{{ $session->started_at->format('D, d M Y · H:i') }}</time>
                         @else
-                            —
+                            -
                         @endif
                     </span>
                     <span class="shrink-0 text-gray-500">{{ $durationLabel($session->durationSeconds()) }}</span>

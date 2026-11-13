@@ -33,7 +33,7 @@ class CalendarController extends Controller
             }
 
             // Never bounce "back" (could be the same bad URL): land on the current month.
-            return redirect()->route('learn.calendar')->with('error', 'That month is not valid — showing the current month instead.');
+            return redirect()->route('learn.calendar')->with('error', 'That month is not valid, so the current month is shown instead.');
         }
 
         $user = $request->user();

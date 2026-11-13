@@ -38,7 +38,7 @@
                 </div>
                 <div>
                     <label class="text-sm font-medium text-gray-700">Secret Key</label>
-                    <input type="password" name="beem_secret_key" class="{{ $input }}" autocomplete="new-password" placeholder="{{ $smsConfigured ? '•••••• (imehifadhiwa — acha wazi kuiweka)' : '' }}">
+                    <input type="password" name="beem_secret_key" class="{{ $input }}" autocomplete="new-password" placeholder="{{ $smsConfigured ? '•••••• (imehifadhiwa; acha wazi kuiweka)' : '' }}">
                 </div>
                 <div>
                     <label class="text-sm font-medium text-gray-700">Sender ID</label>

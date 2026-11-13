@@ -109,7 +109,7 @@
                             <label for="announce-body" class="mbui-label">Announcement</label>
                             <p class="text-xs text-gray-500">Pinned in the room’s chat and sent as a notification to everyone who can join.</p>
                             <textarea id="announce-body" name="body" x-model="body" rows="2" maxlength="1000" required
-                                class="mbui-input mt-2 w-full" placeholder="e.g. We start in 2 minutes — grab your notes!"></textarea>
+                                class="mbui-input mt-2 w-full" placeholder="e.g. We start in 2 minutes, grab your notes!"></textarea>
                             <div class="mt-2 flex items-center justify-between gap-2">
                                 <span class="text-xs text-gray-400"><span x-text="body.length"></span>/1000</span>
                                 <x-mbui.button type="submit" x-bind:disabled="!body.trim()" class="disabled:cursor-not-allowed disabled:opacity-50">Post announcement</x-mbui.button>
@@ -149,7 +149,7 @@
                     </div>
                     <div>
                         <dt class="text-gray-500">Host</dt>
-                        <dd class="mt-0.5 text-gray-900">{{ $room->host->name ?? '—' }}</dd>
+                        <dd class="mt-0.5 text-gray-900">{{ $room->host->name ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="text-gray-500">Category / course</dt>
@@ -233,7 +233,7 @@
                     </li>
                     <li>
                         <a href="{{ route('studio.rooms.attendance', $room) }}" class="mbui-anchor">Attendance report</a>
-                        <span class="block text-xs text-gray-500">Time in the call per person, per session — with CSV export.</span>
+                        <span class="block text-xs text-gray-500">Time in the call per person, per session, with CSV export.</span>
                     </li>
                 </ul>
             </x-mbui.card>
@@ -242,10 +242,10 @@
                 <h2 class="mbui-section-label">Details</h2>
                 <dl class="mt-3 space-y-2 text-sm">
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">Created</dt><dd class="text-gray-900">{{ $room->created_at?->copy()->setTimezone($tz)->format('d M Y') }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Last started</dt><dd class="text-gray-900">{{ $room->started_at?->copy()->setTimezone($tz)->format('d M Y H:i') ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Last ended</dt><dd class="text-gray-900">{{ $room->ended_at?->copy()->setTimezone($tz)->format('d M Y H:i') ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Last started</dt><dd class="text-gray-900">{{ $room->started_at?->copy()->setTimezone($tz)->format('d M Y H:i') ?? '-' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Last ended</dt><dd class="text-gray-900">{{ $room->ended_at?->copy()->setTimezone($tz)->format('d M Y H:i') ?? '-' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">Sessions</dt><dd class="text-gray-900">{{ number_format($sessionsTotal) }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Reminder</dt><dd class="text-gray-900">{{ $room->reminder_sent_at ? 'Sent' : ($room->isScheduled() ? '15 min before' : '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Reminder</dt><dd class="text-gray-900">{{ $room->reminder_sent_at ? 'Sent' : ($room->isScheduled() ? '15 min before' : '-') }}</dd></div>
                 </dl>
             </x-mbui.card>
         </div>

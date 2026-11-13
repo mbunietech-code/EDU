@@ -388,8 +388,8 @@ class SystemController extends Controller
     {
         return [
             'id' => $s->id,
-            'customer_name' => $s->user->name ?? '—',
-            'product' => $s->product->name ?? '—',
+            'customer_name' => $s->user->name ?? '-',
+            'product' => $s->product->name ?? '-',
             'plan' => $s->plan->name ?? null,
             'user_id' => $s->user_id,
             'product_id' => $s->product_id,

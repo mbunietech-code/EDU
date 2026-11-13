@@ -90,7 +90,7 @@ class RoomSessionController extends Controller
         }
 
         return redirect()->route('studio.rooms.show', $room)->with('success', $wasScheduled
-            ? 'Room cancelled — learners who could join are being told.'
+            ? 'Room cancelled. Learners who could join are being told.'
             : 'Room cancelled.');
     }
 

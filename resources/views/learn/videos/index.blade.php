@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Video lessons</h1>
-            <p class="mt-1 text-sm text-gray-500">Watch at your own pace — your progress is saved automatically.</p>
+            <p class="mt-1 text-sm text-gray-500">Watch at your own pace. Your progress is saved automatically.</p>
         </div>
         <div class="flex gap-2">
             <x-mbui.btn-link :href="route('learn.courses.index')" variant="secondary">Courses</x-mbui.btn-link>

@@ -605,7 +605,7 @@
             @if ($room->scheduled_at)
                 <div>
                     <dt class="text-xs text-gray-500">Scheduled</dt>
-                    <dd class="text-gray-100">{{ $room->scheduled_at->format('D, d M Y · H:i') }}@if ($room->endsAt()) – {{ $room->endsAt()->format('H:i') }}@endif</dd>
+                    <dd class="text-gray-100">{{ $room->scheduled_at->format('D, d M Y · H:i') }}@if ($room->endsAt()) - {{ $room->endsAt()->format('H:i') }}@endif</dd>
                 </div>
             @endif
             <div><dt class="text-xs text-gray-500">Who can join</dt><dd class="text-gray-100">{{ $room->accessLabel() }}</dd></div>

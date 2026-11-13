@@ -61,7 +61,7 @@
                     message="When your instructors schedule a live class it will show up here." />
             @elseif ($tab === 'completed')
                 <x-learning.empty title="No completed classes yet."
-                    message="Classes that have finished — and their shared recordings — will appear here." />
+                    message="Classes that have finished, and their shared recordings, will appear here." />
             @else
                 <x-learning.empty title="No live classes yet."
                     message="Live classes you can join will appear here." />

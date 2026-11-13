@@ -32,13 +32,13 @@
                     <x-mbui.badge :appearance="['online' => 'success', 'removed' => 'danger'][$d['state']] ?? 'neutral'">{{ ucfirst($d['state']) }}</x-mbui.badge>
                     <span class="sub">{{ $when }}</span>
                 </td>
-                <td class="vpn-md">{{ ucfirst($d['platform'] ?? '—') }} {{ $d['app_version'] }}<span class="sub">{{ $d['protocol'] ? 'protocol '.$d['protocol'] : '' }}</span></td>
+                <td class="vpn-md">{{ ucfirst($d['platform'] ?? '-') }} {{ $d['app_version'] }}<span class="sub">{{ $d['protocol'] ? 'protocol '.$d['protocol'] : '' }}</span></td>
                 <td class="vpn-lg vpn-wrap" style="max-width:18rem">
                     @if ($d['last_error'])
                         <span style="color:#b91c1c" title="{{ $d['last_error'] }}">{{ \Illuminate\Support\Str::limit($d['last_error'], 90) }}</span>
                         <span class="sub">{{ \Illuminate\Support\Carbon::parse($d['last_error_at'])->diffForHumans() }}</span>
                     @else
-                        <span class="text-gray-400">—</span>
+                        <span class="text-gray-400">-</span>
                     @endif
                 </td>
                 <td class="vpn-actions" style="text-align:right">

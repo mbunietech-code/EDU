@@ -104,8 +104,8 @@
                                 @if ($session?->isRecording())<x-mbui.badge appearance="danger">Recording</x-mbui.badge>@endif
                             </p>
                         </div>
-                        <div class="text-sm text-gray-700 md:col-span-2"><span class="block text-xs text-gray-500 md:hidden">Host</span>{{ $room->host?->name ?? '—' }}</div>
-                        <div class="text-sm text-gray-700 md:col-span-2"><span class="block text-xs text-gray-500 md:hidden">Started</span>{{ $room->started_at?->format('H:i') ?? '—' }}</div>
+                        <div class="text-sm text-gray-700 md:col-span-2"><span class="block text-xs text-gray-500 md:hidden">Host</span>{{ $room->host?->name ?? '-' }}</div>
+                        <div class="text-sm text-gray-700 md:col-span-2"><span class="block text-xs text-gray-500 md:hidden">Started</span>{{ $room->started_at?->format('H:i') ?? '-' }}</div>
                         <div class="text-sm tabular-nums md:col-span-1 md:text-right"><span class="block text-xs text-gray-500 md:hidden">Duration</span>{{ $hms($seconds) }}</div>
                         <div class="text-sm tabular-nums md:col-span-1 md:text-right"><span class="block text-xs text-gray-500 md:hidden">People</span>{{ number_format($session?->present_count ?? 0) }}</div>
                         <div class="col-span-2 flex flex-wrap justify-end gap-2 md:col-span-2">
@@ -129,7 +129,7 @@
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 md:px-6">
                         <div class="min-w-0 flex-1">
                             <p class="truncate text-sm font-medium text-gray-900">{{ $session->room?->title ?? 'Deleted room' }}</p>
-                            <p class="text-xs text-gray-500">{{ $session->started_at?->format('D, d M Y · H:i') }} · {{ $session->room?->host?->name ?? '—' }}</p>
+                            <p class="text-xs text-gray-500">{{ $session->started_at?->format('D, d M Y · H:i') }} · {{ $session->room?->host?->name ?? '-' }}</p>
                         </div>
                         <span class="text-sm tabular-nums text-gray-700">{{ $hms($session->durationSeconds()) }}</span>
                         <span class="text-sm text-gray-700">{{ number_format($session->attendances_count) }} {{ Str::plural('attendee', $session->attendances_count) }}</span>

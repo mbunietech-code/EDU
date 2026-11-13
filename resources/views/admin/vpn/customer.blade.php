@@ -1,5 +1,5 @@
 @php
-    $fmt = fn ($iso, $f = 'd M Y H:i') => $iso ? \Illuminate\Support\Carbon::parse($iso)->format($f) : '—';
+    $fmt = fn ($iso, $f = 'd M Y H:i') => $iso ? \Illuminate\Support\Carbon::parse($iso)->format($f) : '-';
     $ago = fn ($iso) => $iso ? \Illuminate\Support\Carbon::parse($iso)->diffForHumans() : 'never';
     $money = fn ($cents, $cur) => strtoupper($cur).' '.number_format($cents / 100, in_array($cur, ['tzs'], true) ? 0 : 2);
     $cust = $c['customer'] ?? null;
@@ -21,9 +21,9 @@
             <x-mbui.card>
                 <h2 class="mbui-section-label">Customer</h2>
                 <dl class="mt-3 space-y-1 text-sm">
-                    <div><span class="text-gray-500">Name:</span> {{ $cust['name'] ?: '—' }}</div>
-                    <div class="vpn-wrap"><span class="text-gray-500">Email:</span> {{ $cust['email'] ?? '—' }}</div>
-                    <div><span class="text-gray-500">Phone:</span> {{ $cust['phone'] ?? '—' }}</div>
+                    <div><span class="text-gray-500">Name:</span> {{ $cust['name'] ?: '-' }}</div>
+                    <div class="vpn-wrap"><span class="text-gray-500">Email:</span> {{ $cust['email'] ?? '-' }}</div>
+                    <div><span class="text-gray-500">Phone:</span> {{ $cust['phone'] ?? '-' }}</div>
                     <div><span class="text-gray-500">EduHub account:</span> {{ $cust['eduhub_user_id'] ? '#'.$cust['eduhub_user_id'] : 'not linked' }}</div>
                     <div><span class="text-gray-500">Status:</span> <x-mbui.status-badge :status="$cust['status'] ?? 'active'" /></div>
                     <div><span class="text-gray-500">Joined:</span> {{ $fmt($cust['created_at'], 'd M Y') }}</div>
@@ -65,7 +65,7 @@
                         @csrf
                         <select class="vpn-input" name="plan_code" required>
                             @foreach ($plans as $p)
-                                <option value="{{ $p['code'] }}" @disabled(! $p['is_active'])>{{ $p['name'] }} ({{ $p['days'] }} days){{ $p['is_active'] ? '' : ' — inactive' }}</option>
+                                <option value="{{ $p['code'] }}" @disabled(! $p['is_active'])>{{ $p['name'] }} ({{ $p['days'] }} days){{ $p['is_active'] ? '' : ' (inactive)' }}</option>
                             @endforeach
                         </select>
                         <input class="vpn-input" name="note" maxlength="200" placeholder="Note (optional)">

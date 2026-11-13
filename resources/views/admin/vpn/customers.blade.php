@@ -31,7 +31,7 @@
                             <td class="vpn-wrap">
                                 <a class="vpn-link" href="{{ route('admin.vpn.customers.show', $c['id']) }}">{{ $c['email'] ?? $c['phone'] ?? 'Customer #'.$c['id'] }}</a>
                                 <span class="sub">
-                                    {{ $c['name'] ?: '—' }}
+                                    {{ $c['name'] ?: '-' }}
                                     @if ($c['eduhub_user_id']) · EduHub #{{ $c['eduhub_user_id'] }} @endif
                                     @if (($c['status'] ?? 'active') !== 'active') · <strong style="color:#b45309">{{ ucfirst($c['status']) }}</strong> @endif
                                 </span>
@@ -48,10 +48,10 @@
                                 @if ($s)
                                     @if ($s['online'])<span class="vpn-dot" title="Online now"></span>@endif{{ $s['devices'] }} / {{ $s['max_devices'] }}
                                 @else
-                                    —
+                                    -
                                 @endif
                             </td>
-                            <td class="vpn-lg">{{ $c['created_at'] ? \Illuminate\Support\Carbon::parse($c['created_at'])->format('d M Y') : '—' }}</td>
+                            <td class="vpn-lg">{{ $c['created_at'] ? \Illuminate\Support\Carbon::parse($c['created_at'])->format('d M Y') : '-' }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="text-center text-gray-500">No customers found.</td></tr>

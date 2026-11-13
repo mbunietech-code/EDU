@@ -24,7 +24,7 @@ class ErrorOccurred extends Notification
             'exception' => class_basename($this->errorLog->exception),
             'url' => $this->errorLog->url,
             'message' => 'Server error: '.class_basename($this->errorLog->exception)
-                .' — '.\Illuminate\Support\Str::limit($this->errorLog->message, 80),
+                .': '.\Illuminate\Support\Str::limit($this->errorLog->message, 80),
         ];
     }
 }

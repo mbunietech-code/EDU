@@ -53,15 +53,15 @@
                     <div><dt class="text-gray-500">Occurrences</dt><dd class="font-semibold text-gray-900">{{ $errorLog->occurrences }}</dd></div>
                     <div><dt class="text-gray-500">First seen</dt><dd class="text-gray-900">{{ $errorLog->first_seen_at }}</dd></div>
                     <div><dt class="text-gray-500">Last seen</dt><dd class="text-gray-900">{{ $errorLog->last_seen_at }} ({{ $errorLog->last_seen_at?->diffForHumans() }})</dd></div>
-                    <div><dt class="text-gray-500">URL</dt><dd class="text-gray-900 break-all">{{ $errorLog->method }} {{ $errorLog->url ?? '—' }}</dd></div>
-                    <div><dt class="text-gray-500">Route</dt><dd class="text-gray-900">{{ $errorLog->context['route'] ?? '—' }}</dd></div>
+                    <div><dt class="text-gray-500">URL</dt><dd class="text-gray-900 break-all">{{ $errorLog->method }} {{ $errorLog->url ?? '-' }}</dd></div>
+                    <div><dt class="text-gray-500">Route</dt><dd class="text-gray-900">{{ $errorLog->context['route'] ?? '-' }}</dd></div>
                     <div><dt class="text-gray-500">User</dt><dd class="text-gray-900">{{ $errorLog->user?->name ?? 'Guest' }} @if($errorLog->user) &lt;{{ $errorLog->user->email }}&gt; @endif</dd></div>
-                    <div><dt class="text-gray-500">IP</dt><dd class="text-gray-900">{{ $errorLog->ip ?? '—' }}</dd></div>
+                    <div><dt class="text-gray-500">IP</dt><dd class="text-gray-900">{{ $errorLog->ip ?? '-' }}</dd></div>
                     <div>
                         <dt class="text-gray-500">Status</dt>
                         <dd>
                             @if ($errorLog->resolved_at)
-                                <span class="text-emerald-700">Resolved by {{ $errorLog->resolver?->name ?? '—' }} · {{ $errorLog->resolved_at->diffForHumans() }}</span>
+                                <span class="text-emerald-700">Resolved by {{ $errorLog->resolver?->name ?? '-' }} · {{ $errorLog->resolved_at->diffForHumans() }}</span>
                             @else
                                 <span class="text-red-600 font-medium">Open</span>
                             @endif

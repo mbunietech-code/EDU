@@ -65,8 +65,8 @@
         <button type="button" @click="toggleLoud()" class="{{ $btn }}"
             :class="loud ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'"
             :aria-pressed="loud.toString()"
-            :aria-label="loud ? 'Loud speaker on — tap for normal volume' : 'Loud speaker: make everyone louder'"
-            :title="loud ? 'Loud speaker on (tap for normal volume)' : 'Loud speaker — make everyone louder'">
+            :aria-label="loud ? 'Loud speaker on (tap for normal volume)' : 'Loud speaker: make everyone louder'"
+            :title="loud ? 'Loud speaker on (tap for normal volume)' : 'Loud speaker: make everyone louder'">
             @include('learn.rooms.partials.icon', ['name' => 'speaker'])
             <span x-show="loud" x-cloak class="absolute -bottom-1 rounded bg-gray-900 px-1 text-[9px] font-bold leading-tight text-indigo-200">LOUD</span>
         </button>
@@ -363,7 +363,7 @@
     <div class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-gray-900 p-5 text-sm text-gray-200 shadow-2xl ring-1 ring-gray-700">
         <h2 id="captions-title" class="text-base font-semibold text-white">Captions &amp; transcript</h2>
 
-        <p class="mt-4 text-xs text-gray-400">Caption my speech — the language I speak</p>
+        <p class="mt-4 text-xs text-gray-400">Caption my speech: the language I speak</p>
         <div class="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="The language I speak">
             <button type="button" role="radio" @click="setCaptionLang('')" :aria-checked="(!captions.lang).toString()"
                 class="rounded-lg px-3 py-2 text-left ring-1"
@@ -375,7 +375,7 @@
                     x-text="l.label"></button>
             </template>
         </div>
-        <p x-show="captions.lang && !media.mic" x-cloak class="mt-2 text-xs text-amber-300">Turn your microphone on — your words are captioned while it is on.</p>
+        <p x-show="captions.lang && !media.mic" x-cloak class="mt-2 text-xs text-amber-300">Turn your microphone on. Your words are captioned while it is on.</p>
         <p x-show="captions.error" x-cloak class="mt-2 text-xs text-red-400" role="alert" x-text="captions.error"></p>
 
         <label class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-gray-800 px-3 py-2">

@@ -136,7 +136,7 @@
                             @if ($subscription->order?->device)
                                 <a href="{{ $by(['device' => $subscription->order->device]) }}" class="hover:text-indigo-600 hover:underline" title="Show subscriptions for this device">{{ $subscription->order->device }}</a>
                             @else
-                                —
+                                -
                             @endif
                         </td>
                         <td class="mbui-td px-3">
@@ -147,7 +147,7 @@
                             @endif
                         </td>
                         <td class="mbui-td px-3 text-gray-600" title="{{ $subscription->created_at?->timezone(config('app.business_timezone', 'Africa/Dar_es_Salaam'))->format('d M Y H:i') }}">
-                            {{ $subscription->created_at?->timezone(config('app.business_timezone', 'Africa/Dar_es_Salaam'))->format('d M Y') ?? '—' }}
+                            {{ $subscription->created_at?->timezone(config('app.business_timezone', 'Africa/Dar_es_Salaam'))->format('d M Y') ?? '-' }}
                         </td>
                         <td class="mbui-td px-3">
                             <a href="{{ $by(['expires' => $subscription->expiry_date->toDateString()]) }}" class="hover:text-indigo-600 hover:underline" title="Show subscriptions ending this day">{{ $subscription->expiry_date->format('d M Y') }}</a>

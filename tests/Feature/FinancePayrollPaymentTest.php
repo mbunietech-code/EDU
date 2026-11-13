@@ -99,7 +99,7 @@ class FinancePayrollPaymentTest extends TestCase
         $expense = FinanceExpense::where('source_type', 'payroll')->where('source_id', $payroll->id)->sole();
         $this->assertEquals((float) $payroll->net_pay, (float) $expense->amount);
         $this->assertSame('salaries', $expense->expense_type);
-        $this->assertSame('Salaries – October 2026', $expense->label);
+        $this->assertSame('Salaries - October 2026', $expense->label);
         $this->assertSame($crdb->id, $expense->money_account_id);
         $this->assertSame('2026-10-20', $expense->spent_at->toDateString());
 
@@ -107,8 +107,8 @@ class FinancePayrollPaymentTest extends TestCase
         $this->finance()->post(route('admin.finance.payroll.paid', $payroll), ['paid_at' => '2026-10-21'])->assertSessionHas('error');
         $this->assertSame(1, FinanceExpense::count());
 
-        $this->finance()->get(route('admin.finance.payroll.index'))->assertOk()->assertSee('Salaries – October 2026');
-        $this->finance()->get(route('admin.finance.money.show', $crdb))->assertOk()->assertSee('Salaries – October 2026');
+        $this->finance()->get(route('admin.finance.payroll.index'))->assertOk()->assertSee('Salaries - October 2026');
+        $this->finance()->get(route('admin.finance.money.show', $crdb))->assertOk()->assertSee('Salaries - October 2026');
     }
 
     public function test_paying_a_return_records_it_and_undo_removes_it(): void

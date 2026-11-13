@@ -59,7 +59,7 @@ class ReportController extends Controller
             'revenue' => $revenue,
             'orders' => $orders,
             'products' => collect($this->reports->getProductsReport())->map(fn ($p) => [
-                'name' => $p['name'] ?? '—',
+                'name' => $p['name'] ?? '-',
                 'status' => $p['status'] ?? null,
                 'orders' => $p['orders_count'] ?? 0,
                 'subscriptions' => $p['subscriptions_count'] ?? 0,

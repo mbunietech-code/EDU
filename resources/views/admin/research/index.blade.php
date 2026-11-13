@@ -48,8 +48,8 @@
                             <a href="{{ route('admin.research.show', $research) }}" class="font-medium text-gray-900 hover:text-indigo-600">{{ $research->title }}</a>
                             <span class="block text-xs text-gray-400">{{ $research->chapters_count }} {{ Str::plural('chapter', $research->chapters_count) }}</span>
                         </td>
-                        <td class="mbui-td">{{ $research->author->name ?? '—' }}</td>
-                        <td class="mbui-td">{{ $research->category->name ?? '—' }}</td>
+                        <td class="mbui-td">{{ $research->author->name ?? '-' }}</td>
+                        <td class="mbui-td">{{ $research->category->name ?? '-' }}</td>
                         <td class="mbui-td"><x-mbui.status-badge :status="$research->status" /></td>
                         <td class="mbui-td text-gray-400">{{ $research->updated_at->diffForHumans() }}</td>
                     </tr>

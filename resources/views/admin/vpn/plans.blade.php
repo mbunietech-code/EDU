@@ -69,7 +69,7 @@
                             <input class="vpn-input" type="number" step="0.01" min="0" name="price_cny" value="{{ $p['price_cny'] }}" required @disabled(! $canManage)>
                         </div>
                         <div style="grid-column:1/-1">
-                            <label class="text-xs text-gray-600">Price TZS (TSh) — 0 hides TZS</label>
+                            <label class="text-xs text-gray-600">Price TZS (TSh), 0 hides TZS</label>
                             <input class="vpn-input" type="number" step="1" min="0" name="price_tzs" value="{{ $p['price_tzs'] }}" required @disabled(! $canManage)>
                         </div>
                     </div>

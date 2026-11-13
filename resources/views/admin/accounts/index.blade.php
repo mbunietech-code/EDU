@@ -50,7 +50,7 @@
                                 <span class="font-medium text-gray-900">{{ $holder->user->name }}</span>
                                 <p class="text-xs text-gray-500">until {{ $holder->expiry_date->format('d M Y') }}</p>
                             @else
-                                <span class="text-gray-400">—</span>
+                                <span class="text-gray-400">-</span>
                             @endif
                         </td>
                         <td class="mbui-td">

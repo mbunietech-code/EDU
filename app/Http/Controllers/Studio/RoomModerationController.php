@@ -33,7 +33,7 @@ class RoomModerationController extends Controller
         $data = $request->validate(['locked' => ['required', 'boolean']]);
         $this->rooms->setLocked($room, (bool) $data['locked'], $request->user());
 
-        $message = $room->is_locked ? 'The room is locked — no new people can join.' : 'The room is unlocked.';
+        $message = $room->is_locked ? 'The room is locked. No new people can join.' : 'The room is unlocked.';
 
         return $this->done($request, $message, ['is_locked' => (bool) $room->is_locked]);
     }
@@ -160,7 +160,7 @@ class RoomModerationController extends Controller
             return $this->failed($request, $e);
         }
 
-        return $this->done($request, 'Recording stopped — it will appear under Recordings when the file is ready.', ['is_recording' => false]);
+        return $this->done($request, 'Recording stopped. It will appear under Recordings when the file is ready.', ['is_recording' => false]);
     }
 
     /** Give the running class more time (it otherwise ends for everyone at its planned end). */

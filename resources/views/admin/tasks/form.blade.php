@@ -27,10 +27,10 @@
             <div>
                 <label for="assigned_to" class="mbui-label">Give it to</label>
                 <select id="assigned_to" name="assigned_to" class="mbui-input mt-1">
-                    <option value="">— Decide later —</option>
+                    <option value="">Decide later</option>
                     @foreach ($people as $person)
                         <option value="{{ $person->id }}" @selected((int) old('assigned_to', $task->assigned_to) === $person->id)>
-                            {{ $person->job_title ? $person->job_title.' — ' : '' }}{{ $person->name }}{{ $person->id === auth()->id() ? ' (me)' : '' }}
+                            {{ $person->job_title ? $person->job_title.': ' : '' }}{{ $person->name }}{{ $person->id === auth()->id() ? ' (me)' : '' }}
                         </option>
                     @endforeach
                 </select>

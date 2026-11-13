@@ -42,11 +42,11 @@
     </x-legal.section>
 
     <x-legal.section id="what-we-collect" :number="$n['what-we-collect'] + 1" title="Information we collect">
-        <p><strong>Account information</strong> – your name, email address, phone number (optional) and password. Passwords are stored only as a secure hash; nobody at MbunieEduHub can read them.</p>
-        <p><strong>Orders and payments</strong> – the products, plans, tools and courses you order, amounts, payment method, transaction references, receipts and, if you pay manually, the proof-of-payment image you upload. When you pay by mobile money we receive the phone number used for the payment.</p>
-        <p><strong>Learning activity</strong> – courses you enrol in, lesson progress, live classes you attend and for how long, comments, questions, poll answers and drawings on the class whiteboard.</p>
-        <p><strong>Messages and files</strong> – what you send to our support team (text, photos, videos and voice notes), messages sent through the contact form, research you write or import, and materials or recordings you upload as an instructor.</p>
-        <p><strong>Technical information</strong> – a notification token for your device (so we can send push notifications), the type of device or browser you use, your IP address and basic logs we keep to keep the service secure and to fix errors.</p>
+        <p><strong>Account information</strong>: your name, email address, phone number (optional) and password. Passwords are stored only as a secure hash; nobody at MbunieEduHub can read them.</p>
+        <p><strong>Orders and payments</strong>: the products, plans, tools and courses you order, amounts, payment method, transaction references, receipts and, if you pay manually, the proof-of-payment image you upload. When you pay by mobile money we receive the phone number used for the payment.</p>
+        <p><strong>Learning activity</strong>: courses you enrol in, lesson progress, live classes you attend and for how long, comments, questions, poll answers and drawings on the class whiteboard.</p>
+        <p><strong>Messages and files</strong>: what you send to our support team (text, photos, videos and voice notes), messages sent through the contact form, research you write or import, and materials or recordings you upload as an instructor.</p>
+        <p><strong>Technical information</strong>: a notification token for your device (so we can send push notifications), the type of device or browser you use, your IP address and basic logs we keep to keep the service secure and to fix errors.</p>
         <p>We do <strong>not</strong> collect your location, contacts, call logs or SMS, and we do not use advertising IDs.</p>
     </x-legal.section>
 
@@ -85,10 +85,10 @@
 
     <x-legal.section id="retention" :number="$n['retention'] + 1" title="How long we keep it">
         <ul>
-            <li><strong>Account, learning and message data</strong> – while your account is active. When you delete your account we delete it within 30 days.</li>
-            <li><strong>Orders, payments and receipts</strong> – up to 7 years, because tax and accounting law requires it. After your account is deleted these records are kept without your profile.</li>
-            <li><strong>Security and error logs</strong> – for a limited period, then deleted.</li>
-            <li><strong>Class recordings</strong> – until the host or our team deletes them.</li>
+            <li><strong>Account, learning and message data</strong>: while your account is active. When you delete your account we delete it within 30 days.</li>
+            <li><strong>Orders, payments and receipts</strong>: up to 7 years, because tax and accounting law requires it. After your account is deleted these records are kept without your profile.</li>
+            <li><strong>Security and error logs</strong>: for a limited period, then deleted.</li>
+            <li><strong>Class recordings</strong>: until the host or our team deletes them.</li>
         </ul>
     </x-legal.section>
 

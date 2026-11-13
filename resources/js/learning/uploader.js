@@ -66,7 +66,7 @@ function messageFrom(res, fallback) {
     if (res?.status === 413) return 'The server refused a piece of the file because it is too large. Ask an administrator to raise the upload limit.';
     if (res?.status === 419) return 'Your session expired. Reload the page and try again.';
     if (res?.status === 403) return d?.message || 'You are not allowed to upload this file.';
-    if (res?.status === 429) return 'Too many requests — wait a moment and try again.';
+    if (res?.status === 429) return 'Too many requests. Wait a moment and try again.';
     if (d?.message && res?.status < 500) return d.message;
     return fallback;
 }
@@ -156,7 +156,7 @@ window.learnChunkUploader = (cfg = {}) => ({
             e.stopImmediatePropagation();
             this.blockedMessage = this.cfg.required
                 ? 'Upload the file first.'
-                : 'Upload the video before publishing — or save it as a draft for now.';
+                : 'Upload the video before publishing, or save it as a draft for now.';
         }
     },
 

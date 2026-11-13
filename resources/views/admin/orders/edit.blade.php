@@ -27,7 +27,7 @@
                 <datalist id="device-suggestions">
                     <option value="Windows"><option value="Mac"><option value="Android"><option value="iPhone"><option value="iPad">
                 </datalist>
-                <p class="mt-1 text-xs text-gray-400">Only admins see and edit this — it tells you which device to remove the customer from when the subscription ends.</p>
+                <p class="mt-1 text-xs text-gray-400">Only admins see and edit this. It tells you which device to remove the customer from when the subscription ends.</p>
                 <x-input-error :messages="$errors->get('device')" class="mt-2" />
             </div>
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">

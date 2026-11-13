@@ -44,7 +44,7 @@ class OptimizationController extends Controller
             'recommendations' => $scan->recommendations->count(),
         ]);
 
-        return back()->with('success', 'Scan complete — '.$scan->recommendations->count().' recommendation(s) found.');
+        return back()->with('success', 'Scan complete: '.$scan->recommendations->count().' recommendation(s) found.');
     }
 
     public function approve(OptimizationRecommendation $recommendation)

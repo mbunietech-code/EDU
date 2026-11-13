@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">AI Assistant</h1>
-            <p class="mt-1 text-sm text-gray-500">Bofya swali kwa haraka, au andika lako mwenyewe. Inasoma tu takwimu za muhtasari — bure, bila API ya nje.</p>
+            <p class="mt-1 text-sm text-gray-500">Bofya swali kwa haraka, au andika lako mwenyewe. Inasoma tu takwimu za muhtasari. Ni bure, bila API ya nje.</p>
         </div>
         <form method="POST" action="{{ route('admin.ai-assistant.new') }}">
             @csrf

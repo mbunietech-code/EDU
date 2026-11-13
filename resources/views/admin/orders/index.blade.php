@@ -148,7 +148,7 @@
                             @if ($order->device)
                                 <a href="{{ $by(['device' => $order->device]) }}" class="hover:text-indigo-600 hover:underline" title="Show orders for this device">{{ $order->device }}</a>
                             @else
-                                —
+                                -
                             @endif
                         </td>
                         <td class="mbui-td whitespace-normal px-3">

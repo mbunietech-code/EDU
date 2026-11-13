@@ -90,7 +90,7 @@ window.learnRoomForm = (cfg = {}) => ({
                 this.$refs.date?.focus();
             } else if (this.isPast) {
                 e.preventDefault();
-                this.scheduleError = 'That start time has already passed — pick a time from now on.';
+                this.scheduleError = 'That start time has already passed. Pick a time from now on.';
                 this.$refs.time?.focus();
             }
         });

@@ -22,7 +22,7 @@
                 <div>
                     <div class="mx-auto mt-5 h-10 w-10 animate-spin rounded-full border-4 border-gray-700 border-t-indigo-500" aria-hidden="true"></div>
                     <p class="mt-4 text-sm text-gray-200">Please wait, the host will let you in soon.</p>
-                    <p class="mt-1 text-xs text-gray-500">Keep this page open — you go straight into the meeting as soon as you are let in.</p>
+                    <p class="mt-1 text-xs text-gray-500">Keep this page open. You go straight into the meeting as soon as you are let in.</p>
                 </div>
             </template>
             <template x-if="state === 'denied' || state === 'ended'">

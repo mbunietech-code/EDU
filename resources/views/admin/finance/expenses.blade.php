@@ -47,9 +47,9 @@
                     <x-input-label for="exp-category" value="Category" />
                     <select id="exp-category" name="category" class="mbui-input mt-1">
                         <option value="">Select category</option>
-                        <option value="Operating Expenses (OPEX)" @selected(old('category') === 'Operating Expenses (OPEX)')>Operating Expenses (OPEX) — rent, salaries, hosting, marketing</option>
-                        <option value="Cost of Goods Sold (COGS)" @selected(old('category') === 'Cost of Goods Sold (COGS)')>Cost of Goods Sold (COGS) — direct product/account costs</option>
-                        <option value="Financial Expenses" @selected(old('category') === 'Financial Expenses')>Financial Expenses — loan interest, bank charges</option>
+                        <option value="Operating Expenses (OPEX)" @selected(old('category') === 'Operating Expenses (OPEX)')>Operating Expenses (OPEX): rent, salaries, hosting, marketing</option>
+                        <option value="Cost of Goods Sold (COGS)" @selected(old('category') === 'Cost of Goods Sold (COGS)')>Cost of Goods Sold (COGS): direct product/account costs</option>
+                        <option value="Financial Expenses" @selected(old('category') === 'Financial Expenses')>Financial Expenses: loan interest, bank charges</option>
                         <option value="Depreciation & Amortization" @selected(old('category') === 'Depreciation & Amortization')>Depreciation & Amortization</option>
                         <option value="Miscellaneous" @selected(old('category') === 'Miscellaneous')>Miscellaneous</option>
                     </select>
@@ -75,7 +75,7 @@
                         <p class="mt-1 text-xs text-gray-500">Image or PDF, max 5 MB.</p>
                         <x-input-error :messages="$errors->get('receipt')" class="mt-2" />
                     @else
-                        <p class="mt-1 text-xs text-amber-600">Receipt uploads need a database update — see Admin → Database.</p>
+                        <p class="mt-1 text-xs text-amber-600">Receipt uploads need a database update. See Admin → Database.</p>
                     @endif
                 </div>
             </div>
@@ -134,7 +134,7 @@
                                     <a href="{{ route('admin.finance.expenses.receipt', ['expense' => $expense, 'download' => 1]) }}" class="mbui-anchor text-sm">Download</a>
                                 </div>
                             @else
-                                <span class="text-sm text-gray-400">—</span>
+                                <span class="text-sm text-gray-400">-</span>
                             @endif
                         </td>
                         <td class="mbui-td text-gray-500">{{ $expense->creator?->name ?? '-' }}</td>

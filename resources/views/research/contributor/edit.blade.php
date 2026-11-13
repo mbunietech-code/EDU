@@ -1,4 +1,4 @@
-<x-layouts.app :title="$research->title" :header="'Edit — ' . $research->title">
+<x-layouts.app :title="$research->title" :header="'Edit: ' . $research->title">
 
     @php($editable = $research->isEditableBy(auth()->user()))
     @php($locked = ! $editable)
@@ -33,7 +33,7 @@
         </x-mbui.alert>
     @elseif ($research->isPublished() && $editable)
         <x-mbui.alert type="warning" class="mt-4">
-            This research is <strong>published</strong> — any change you save here goes live to readers immediately.
+            This research is <strong>published</strong>, so any change you save here goes live to readers immediately.
         </x-mbui.alert>
     @endif
 
@@ -63,11 +63,11 @@
                           onsubmit="return confirm('Import will ADD new chapters and sections to this research (it does not replace what is already here). Continue?')">
                         @csrf
                         <div>
-                            <label class="mbui-label">Document <span class="text-gray-400">(.docx, .md, .txt — up to 15&nbsp;MB)</span></label>
+                            <label class="mbui-label">Document <span class="text-gray-400">(.docx, .md, .txt, up to 15&nbsp;MB)</span></label>
                             <input type="file" name="document" accept=".docx,.md,.markdown,.txt"
                                    class="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100">
                         </div>
-                        <p class="text-center text-xs text-gray-400">— or —</p>
+                        <p class="text-center text-xs text-gray-400">or</p>
                         <div>
                             <label class="mbui-label">Paste text</label>
                             <textarea name="text" rows="6" class="mbui-input mt-1 font-mono text-xs"
@@ -159,7 +159,7 @@
                     <div>
                         <label class="mbui-label">Area</label>
                         <select name="research_category_id" @disabled($locked) class="mbui-input mt-1">
-                            <option value="">— none —</option>
+                            <option value="">None</option>
                             @foreach ($categories as $category)
                                 <option value="{{ $category->id }}" @selected($research->research_category_id == $category->id)>{{ $category->name }}</option>
                             @endforeach

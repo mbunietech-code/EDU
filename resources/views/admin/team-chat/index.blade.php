@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Team Chat</h1>
-            <p class="mt-1 text-sm text-gray-500">Private one-to-one chats and groups. Only the people in a chat can read it — nobody else, super admins included.</p>
+            <p class="mt-1 text-sm text-gray-500">Private one-to-one chats and groups. Only the people in a chat can read it. Nobody else can, super admins included.</p>
         </div>
         @if (auth()->user()->isSuperAdmin())
             <a href="{{ route('admin.team-chat.groups.create') }}" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">+ New group</a>
@@ -39,7 +39,7 @@
                                 <span class="ml-1 text-xs font-normal text-gray-400">Group · {{ $chat->members->count() }}</span>
                             @endunless
                         </p>
-                        <span class="shrink-0 text-xs text-gray-400">{{ $latest?->created_at->diffForHumans() ?? '—' }}</span>
+                        <span class="shrink-0 text-xs text-gray-400">{{ $latest?->created_at->diffForHumans() ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <p class="truncate text-sm {{ $chat->unread > 0 ? 'font-medium text-gray-900' : 'text-gray-500' }}">

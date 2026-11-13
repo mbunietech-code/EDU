@@ -70,7 +70,7 @@
                         <div class="mt-4">
                             <label for="cancel-reason" class="mbui-label">Reason <span class="text-gray-400">(optional, shown to learners)</span></label>
                             <textarea id="cancel-reason" x-ref="cancelReason" x-model="reason" name="reason" rows="3" maxlength="500"
-                                class="mbui-input mt-1 w-full" placeholder="e.g. The instructor is unwell — we will reschedule next week."></textarea>
+                                class="mbui-input mt-1 w-full" placeholder="e.g. The instructor is unwell. We will reschedule next week."></textarea>
                             <p class="mt-1 text-right text-xs text-gray-400"><span x-text="reason.length"></span>/500</p>
                         </div>
                         <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

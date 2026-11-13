@@ -52,10 +52,10 @@
             <tbody class="divide-y divide-gray-100 bg-white">
                 @forelse ($stats['online_now']['list'] as $d)
                     <tr>
-                        <td class="px-6 py-3 text-sm text-gray-900">{{ $d['customer'] ?? '—' }}</td>
-                        <td class="px-6 py-3 text-sm text-gray-600">{{ ucfirst($d['platform'] ?? '—') }}</td>
-                        <td class="px-6 py-3 text-sm text-gray-600">{{ $d['protocol'] ?? '—' }}</td>
-                        <td class="px-6 py-3 text-sm text-gray-600">{{ $d['connected_since'] ? \Illuminate\Support\Carbon::parse($d['connected_since'])->diffForHumans() : '—' }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-900">{{ $d['customer'] ?? '-' }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-600">{{ ucfirst($d['platform'] ?? '-') }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-600">{{ $d['protocol'] ?? '-' }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-600">{{ $d['connected_since'] ? \Illuminate\Support\Carbon::parse($d['connected_since'])->diffForHumans() : '-' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="4" class="px-6 py-6 text-center text-sm text-gray-500">Nobody is connected right now.</td></tr>
@@ -77,7 +77,7 @@
                 <tbody class="divide-y divide-gray-100 bg-white">
                     @forelse ($stats['recent_payments'] as $p)
                         <tr>
-                            <td class="px-4 py-3 text-sm text-gray-900">{{ $p['customer'] ?? '—' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ $p['customer'] ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $p['plan'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ strtoupper($p['currency']) }} {{ number_format($p['amount_cents'] / 100, $p['currency'] === 'tzs' ? 0 : 2) }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $p['provider'] }}</td>
@@ -125,7 +125,7 @@
                     <td class="px-4 py-3 text-sm">
                         @if ($o->vpn_activated_at)
                             <x-mbui.badge appearance="success">Active</x-mbui.badge>
-                            <div class="mt-1 text-xs text-gray-500">Until {{ $o->vpn_expires_at?->format('d M Y H:i') ?? '—' }}</div>
+                            <div class="mt-1 text-xs text-gray-500">Until {{ $o->vpn_expires_at?->format('d M Y H:i') ?? '-' }}</div>
                         @elseif ($o->status === 'confirmed')
                             <x-mbui.badge appearance="danger">Not activated</x-mbui.badge>
                             <div class="mt-1 max-w-xs truncate text-xs text-red-600" title="{{ $o->vpn_activation_error }}">{{ $o->vpn_activation_error }} ({{ $o->vpn_activation_attempts }} attempts)</div>

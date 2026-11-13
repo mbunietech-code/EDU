@@ -57,8 +57,8 @@ class ChatController extends Controller
         return response()->json([
             'data' => $conversations->map(fn (Conversation $c) => [
                 'id' => $c->id,
-                'user_name' => $c->user->name ?? '—',
-                'user_email' => $c->user->email ?? '—',
+                'user_name' => $c->user->name ?? '-',
+                'user_email' => $c->user->email ?? '-',
                 'online' => (bool) $c->user?->isOnline(),
                 'unread' => $c->unread,
                 'last_message' => $c->latestMessage?->body
@@ -107,8 +107,8 @@ class ChatController extends Controller
 
         return response()->json([
             'conversation_id' => $conversation->id,
-            'user_name' => $conversation->user->name ?? '—',
-            'user_email' => $conversation->user->email ?? '—',
+            'user_name' => $conversation->user->name ?? '-',
+            'user_email' => $conversation->user->email ?? '-',
             'customer_online' => $conversation->user->isOnline(),
             'messages' => $messages->map(fn (ChatMessage $m) => $this->row($m))->all(),
         ]);

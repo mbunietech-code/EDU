@@ -206,7 +206,7 @@ class LearningVideo extends Model
     public function durationLabel(): string
     {
         if ($this->duration_seconds === null) {
-            return '—';
+            return '-';
         }
 
         $s = max(0, (int) $this->duration_seconds);
@@ -261,7 +261,7 @@ class LearningVideo extends Model
     public static function humanBytes(?int $bytes): string
     {
         if ($bytes === null) {
-            return '—';
+            return '-';
         }
 
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];

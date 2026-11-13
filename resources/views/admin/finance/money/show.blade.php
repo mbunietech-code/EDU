@@ -44,7 +44,7 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 <tr class="bg-gray-50/50">
-                    <td class="mbui-td text-gray-500">{{ $window['from']?->format('d M Y') ?? '—' }}</td>
+                    <td class="mbui-td text-gray-500">{{ $window['from']?->format('d M Y') ?? '-' }}</td>
                     <td class="mbui-td font-medium text-gray-700">
                         Opening balance
                         @if (\App\Support\FinanceStart::isSet() && $window['from']?->equalTo(\App\Support\FinanceStart::date()))

@@ -99,7 +99,7 @@ class SecurityScanCommand extends Command
     private function sendAlert(AdminAlertService $alerts, array $new): void
     {
         $critical = collect($new)->where('level', 'critical')->count();
-        $subject = ($critical ? 'URGENT security alert' : 'Security warning').' — '.parse_url((string) config('app.url'), PHP_URL_HOST);
+        $subject = ($critical ? 'URGENT security alert' : 'Security warning').' - '.parse_url((string) config('app.url'), PHP_URL_HOST);
 
         $body = "The security scan found something new on the server:\n\n"
             .$this->lines($new)
@@ -134,12 +134,12 @@ class SecurityScanCommand extends Command
         $critical = collect($problems)->where('level', 'critical')->count();
 
         if ($problems === []) {
-            $subject = "Security check OK — {$host} — ".now()->format('d M Y');
+            $subject = "Security check OK - {$host} - ".now()->format('d M Y');
             $body = "Daily security check: nothing suspicious found.\n\nChecked: web shells and runnable files in uploads on every site of the hosting account, "
                 ."hidden programs/miners, code changed outside a deploy (git), cron jobs, SSH keys, admin accounts, debug mode, "
                 ."and secret files reachable from the internet.\n";
         } else {
-            $subject = ($critical ? "Security: {$critical} URGENT" : 'Security: '.count($problems).' to check')." — {$host} — ".now()->format('d M Y');
+            $subject = ($critical ? "Security: {$critical} URGENT" : 'Security: '.count($problems).' to check')." - {$host} - ".now()->format('d M Y');
             $body = "Daily security check: these still need attention.\n\n".$this->lines($problems);
         }
 
@@ -186,7 +186,7 @@ class SecurityScanCommand extends Command
     private function writeLog(bool $quick, array $findings): void
     {
         $line = '['.now()->toDateTimeString().'] '.($quick ? 'quick' : 'full').' scan: '
-            .count($findings).' finding(s)'.($findings ? ' — '.implode('; ', array_map(fn ($f) => "{$f['level']}: {$f['title']} ({$f['detail']})", $findings)) : '')."\n";
+            .count($findings).' finding(s)'.($findings ? ': '.implode('; ', array_map(fn ($f) => "{$f['level']}: {$f['title']} ({$f['detail']})", $findings)) : '')."\n";
         @file_put_contents(storage_path('logs/security.log'), $line, FILE_APPEND);
     }
 

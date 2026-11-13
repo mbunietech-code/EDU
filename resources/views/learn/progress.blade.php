@@ -96,8 +96,8 @@
                                             <span class="block text-xs text-gray-500">{{ $row->room->host->name }}</span>
                                         @endif
                                     </td>
-                                    <td class="mbui-td text-sm text-gray-600">{{ $row->session?->started_at?->format('d M Y · H:i') ?? '—' }}</td>
-                                    <td class="mbui-td text-sm text-gray-600">{{ $row->first_joined_at?->format('H:i') ?? '—' }}
+                                    <td class="mbui-td text-sm text-gray-600">{{ $row->session?->started_at?->format('d M Y · H:i') ?? '-' }}</td>
+                                    <td class="mbui-td text-sm text-gray-600">{{ $row->first_joined_at?->format('H:i') ?? '-' }}
                                         @if ($row->join_count > 1)<span class="text-xs text-gray-400">({{ $row->join_count }}×)</span>@endif
                                     </td>
                                     <td class="mbui-td text-sm font-medium text-gray-900">{{ $dur((int) $row->total_seconds) }}</td>
@@ -124,7 +124,7 @@
                                         @else
                                             <span class="block truncate text-sm font-medium text-gray-900">{{ $row->room->title }}</span>
                                         @endif
-                                        <p class="mt-0.5 text-xs text-gray-500">{{ $row->session?->started_at?->format('d M Y · H:i') ?? '—' }}</p>
+                                        <p class="mt-0.5 text-xs text-gray-500">{{ $row->session?->started_at?->format('d M Y · H:i') ?? '-' }}</p>
                                     </div>
                                     <span class="shrink-0 text-sm font-medium text-gray-900">{{ $dur((int) $row->total_seconds) }}</span>
                                 </div>

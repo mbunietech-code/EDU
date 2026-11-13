@@ -69,8 +69,8 @@ class OrderController extends Controller
                 'rejection_reason' => $order->rejection_reason,
                 'confirmed_at' => optional($order->confirmed_at)->toIso8601String(),
                 'customer' => [
-                    'name' => $order->user->name ?? '—',
-                    'email' => $order->user->email ?? '—',
+                    'name' => $order->user->name ?? '-',
+                    'email' => $order->user->email ?? '-',
                 ],
                 'payments' => $order->payments->map(fn ($p) => [
                     'id' => $p->id,
@@ -158,7 +158,7 @@ class OrderController extends Controller
             'renews_order_number' => Order::renewalsReady() ? $o->renewsOrder?->order_number : null,
             'renews_order_id' => Order::renewalsReady() ? $o->renews_order_id : null,
             'was_renewed' => $o->wasRenewed(),
-            'customer_name' => $o->user->name ?? '—',
+            'customer_name' => $o->user->name ?? '-',
             'plan' => $o->plan->name ?? null,
             'amount_label' => 'TZS '.number_format((float) $o->amount),
             'status' => $o->status,

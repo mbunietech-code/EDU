@@ -192,7 +192,7 @@ class RoomController extends Controller
         return redirect()
             ->route('studio.rooms.show', $room)
             ->with('success', $room->isScheduled()
-                ? 'Room scheduled'.($request->boolean('notify') ? ' — eligible learners are being notified.' : '.')
+                ? 'Room scheduled'.($request->boolean('notify') ? '. Eligible learners are being notified.' : '.')
                 : 'Room saved as a draft. Schedule it when you are ready.');
     }
 
@@ -323,7 +323,7 @@ class RoomController extends Controller
         });
 
         return redirect()->route('studio.rooms.show', $room)->with('success', match (true) {
-            $action === 'schedule' && $notify => 'Room scheduled — eligible learners are being notified.',
+            $action === 'schedule' && $notify => 'Room scheduled. Eligible learners are being notified.',
             $action === 'schedule' => 'Room scheduled.',
             default => 'Room details saved.',
         });
@@ -366,7 +366,7 @@ class RoomController extends Controller
         }
 
         return redirect()->route('studio.rooms.show', $room)
-            ->with('success', $notify ? 'Room scheduled — eligible learners are being notified.' : 'Room scheduled.');
+            ->with('success', $notify ? 'Room scheduled. Eligible learners are being notified.' : 'Room scheduled.');
     }
 
     // --- Internals -------------------------------------------------------
@@ -555,7 +555,7 @@ class RoomController extends Controller
         if ($recordings > 0) {
             $recordingLine = $this->countLine($recordings, 'recording');
             if ((int) $room->recording_files_count > 0) {
-                $recordingLine .= ' ('.LearningVideo::humanBytes((int) $room->recording_bytes).') — files deleted when purged from the trash';
+                $recordingLine .= ' ('.LearningVideo::humanBytes((int) $room->recording_bytes).'), files deleted when purged from the trash';
             }
         }
 
@@ -575,7 +575,7 @@ class RoomController extends Controller
             $recordingLine = $this->countLine($recordings->count(), 'recording');
             $withFiles = $recordings->filter(fn ($r) => $r->path !== null);
             if ($withFiles->isNotEmpty()) {
-                $recordingLine .= ' ('.LearningVideo::humanBytes((int) $withFiles->sum('size_bytes')).') — files deleted';
+                $recordingLine .= ' ('.LearningVideo::humanBytes((int) $withFiles->sum('size_bytes')).'), files deleted';
             }
         }
 

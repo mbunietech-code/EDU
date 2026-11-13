@@ -37,7 +37,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <a href="{{ route('admin.learning.courses.show', $row['course']) }}" class="block truncate text-sm font-medium text-gray-900 hover:text-indigo-600">{{ $row['course']->title }}</a>
-                                    <p class="text-xs text-gray-500">{{ $row['course']->category?->name ?? '—' }} ·
+                                    <p class="text-xs text-gray-500">{{ $row['course']->category?->name ?? '-' }} ·
                                         @if ($row['enrollment'])
                                             enrolled {{ ($row['enrollment']->enrolled_at ?? $row['enrollment']->created_at)?->format('d M Y') }}
                                         @else
@@ -68,7 +68,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-medium text-gray-900">{{ $row->video?->title }}</p>
-                                    <p class="text-xs text-gray-500">{{ $row->video?->course?->title ?? 'Standalone lesson' }} · {{ \App\Services\Learning\LearningAnalytics::duration($row->watched_seconds) }} watched · {{ $row->last_watched_at?->diffForHumans() ?? '—' }}</p>
+                                    <p class="text-xs text-gray-500">{{ $row->video?->course?->title ?? 'Standalone lesson' }} · {{ \App\Services\Learning\LearningAnalytics::duration($row->watched_seconds) }} watched · {{ $row->last_watched_at?->diffForHumans() ?? '-' }}</p>
                                 </div>
                                 @if ($row->isCompleted())
                                     <x-mbui.badge appearance="success">Completed</x-mbui.badge>
@@ -96,7 +96,7 @@
                                 {{ $row->room?->title ?? 'Deleted room' }}
                                 @if ($row->room?->trashed())<span class="text-xs font-normal text-gray-400">(in trash)</span>@endif
                             </p>
-                            <p class="text-xs text-gray-500">{{ ($row->first_joined_at ?? $row->session?->started_at)?->format('D, d M Y · H:i') ?? '—' }} · joined {{ $row->join_count }} {{ Str::plural('time', $row->join_count) }}</p>
+                            <p class="text-xs text-gray-500">{{ ($row->first_joined_at ?? $row->session?->started_at)?->format('D, d M Y · H:i') ?? '-' }} · joined {{ $row->join_count }} {{ Str::plural('time', $row->join_count) }}</p>
                         </div>
                         <div class="flex items-center gap-2 text-sm">
                             @if ($row->isHost())<x-mbui.badge appearance="info">Host</x-mbui.badge>@endif

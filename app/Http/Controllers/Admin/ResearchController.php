@@ -69,7 +69,7 @@ class ResearchController extends Controller
         $comment = $request->validate(['comment' => ['required', 'string', 'max:2000']])['comment'];
         $workflow->requestChanges($research, auth()->user(), $comment);
 
-        return redirect()->route('admin.research.index')->with('success', 'Changes requested — the author has been notified.');
+        return redirect()->route('admin.research.index')->with('success', 'Changes requested. The author has been notified.');
     }
 
     public function reject(Request $request, Research $research, ResearchWorkflow $workflow)

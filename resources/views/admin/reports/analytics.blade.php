@@ -113,7 +113,7 @@
     {{-- Chart --}}
     <div class="mbui-card mt-6 p-5" x-data="{ metric: 'page_view' }">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-sm font-semibold text-gray-900">Over time <span class="font-normal text-gray-500">— dark bar = total, light bar = unique devices</span></h3>
+            <h3 class="text-sm font-semibold text-gray-900">Over time <span class="font-normal text-gray-500">(dark bar = total, light bar = unique devices)</span></h3>
             <div class="inline-flex rounded-lg bg-gray-100 p-1 text-sm">
                 @foreach ($types as $t => $tLabel)
                     <button type="button" @click="metric = '{{ $t }}'"

@@ -49,7 +49,7 @@ class AdminTasksTest extends TestCase
         $dev = $this->admin('Developer');
 
         $form = $this->actingAs($md)->get(route('admin.tasks.create'))->assertOk();
-        $form->assertSee('Developer — '.$dev->name);
+        $form->assertSee('Developer: '.$dev->name);
 
         $task = $this->give($md, $dev);
         $this->assertSame([$md->id, $dev->id, 'todo'], [$task->created_by, $task->assigned_to, $task->status]);

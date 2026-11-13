@@ -20,7 +20,7 @@ class SecurityAlert extends Notification
     {
         return [
             'type' => 'error', // shown in red like server errors
-            'message' => 'Security: '.$this->title.' — '.\Illuminate\Support\Str::limit($this->detail, 120),
+            'message' => 'Security: '.$this->title.': '.\Illuminate\Support\Str::limit($this->detail, 120),
         ];
     }
 }

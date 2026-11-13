@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Tasks</h1>
-            <p class="mt-1 text-sm text-gray-500">Give work to the right person — CEO, MD, developer… — and follow it until it is done.</p>
+            <p class="mt-1 text-sm text-gray-500">Give work to the right person (CEO, MD, developer…) and follow it until it is done.</p>
         </div>
         <x-mbui.btn-link :href="route('admin.tasks.create')">+ New task</x-mbui.btn-link>
     </div>

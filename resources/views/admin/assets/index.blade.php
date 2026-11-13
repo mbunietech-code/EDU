@@ -3,7 +3,7 @@
     <div class="mbui-page-header">
         <div>
             <h1 class="mbui-title">Company assets</h1>
-            <p class="mt-1 text-sm text-gray-500">Everything Mbunie pays for — domains, hosting, servers, software, licences, devices — when it was bought, when it ends and where to renew it.</p>
+            <p class="mt-1 text-sm text-gray-500">Everything Mbunie pays for (domains, hosting, servers, software, licences, devices): when it was bought, when it ends and where to renew it.</p>
         </div>
         @can('assets.manage')
             <x-mbui.btn-link :href="route('admin.assets.create')">+ Add asset</x-mbui.btn-link>
@@ -93,22 +93,22 @@
                         <dl class="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4 lg:w-[30rem] lg:shrink-0">
                             <div>
                                 <dt class="text-xs text-gray-500">Bought</dt>
-                                <dd class="text-gray-900">{{ $asset->purchased_at?->format('d M Y') ?? '—' }}</dd>
+                                <dd class="text-gray-900">{{ $asset->purchased_at?->format('d M Y') ?? '-' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-xs text-gray-500">Ends</dt>
-                                <dd class="font-medium {{ $state === 'expired' ? 'text-red-700' : ($state === 'soon' ? 'text-amber-700' : 'text-gray-900') }}">{{ $asset->expires_at?->format('d M Y') ?? '—' }}</dd>
+                                <dd class="font-medium {{ $state === 'expired' ? 'text-red-700' : ($state === 'soon' ? 'text-amber-700' : 'text-gray-900') }}">{{ $asset->expires_at?->format('d M Y') ?? '-' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-xs text-gray-500">Cost</dt>
                                 <dd class="text-gray-900">
-                                    @if ($asset->cost !== null){{ $asset->currency }} {{ number_format((float) $asset->cost, 2) }}@else — @endif
+                                    @if ($asset->cost !== null){{ $asset->currency }} {{ number_format((float) $asset->cost, 2) }}@else - @endif
                                     <span class="block text-xs text-gray-500">{{ $asset->cycleLabel() }}</span>
                                 </dd>
                             </div>
                             <div class="min-w-0">
                                 <dt class="text-xs text-gray-500">Looks after it</dt>
-                                <dd class="truncate text-gray-900">{{ $asset->responsible?->name ?? '—' }}
+                                <dd class="truncate text-gray-900">{{ $asset->responsible?->name ?? '-' }}
                                     @if ($asset->responsible?->job_title)<span class="block truncate text-xs text-gray-500">{{ $asset->responsible->job_title }}</span>@endif
                                 </dd>
                             </div>

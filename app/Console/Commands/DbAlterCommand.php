@@ -19,7 +19,7 @@ class DbAlterCommand extends Command
             $results = $alters->apply();
 
             if ($results === []) {
-                $this->info('Nothing to apply — schema is up to date.');
+                $this->info('Nothing to apply. The schema is up to date.');
 
                 return self::SUCCESS;
             }
@@ -31,7 +31,7 @@ class DbAlterCommand extends Command
                     $r['filename'],
                     $r['ran'],
                     $r['skipped'],
-                    $r['error'] ? "  — {$r['error']}" : '',
+                    $r['error'] ? "  - {$r['error']}" : '',
                 ));
             }
 

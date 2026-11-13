@@ -12,7 +12,7 @@
 
     @if ($video->renditions->isEmpty())
         <div class="mt-4 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            No extra qualities yet — learners get the original file only.
+            No extra qualities yet. Learners get the original file only.
         </div>
     @else
         <ul class="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-200">
