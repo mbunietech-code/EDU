@@ -13,9 +13,9 @@
         .mb-bot [hidden] { display: none !important; }
         .mb-bot__fab { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; cursor: pointer; }
         .mb-bot__fab-label { display: none; padding: 8px 12px; border-radius: 12px; background: #fff; color: var(--mbh-ink); font-size: 14px; font-weight: 600; box-shadow: 0 10px 25px rgba(15,29,74,.18); border: 1px solid #dbe4f5; }
-        .mb-bot__fab-btn { display: block; width: 68px; height: 68px; filter: drop-shadow(0 8px 16px rgba(15,29,74,.35)); transition: transform .15s; }
-        .mb-bot__fab:hover .mb-bot__fab-btn { transform: scale(1.07) rotate(-3deg); }
-        .mb-bot__fab-btn img { width: 68px; height: 68px; object-fit: contain; display: block; }
+        .mb-bot__fab:focus-visible { outline: 3px solid #a5e3f9; outline-offset: 4px; border-radius: 16px; }
+        .mb-bot__fab-btn { display: block; width: 60px; transition: transform .15s; }
+        .mb-bot__fab:hover .mb-bot__fab-btn { transform: scale(1.08); }
         .mb-bot__panel { position: fixed; right: 16px; bottom: 16px; width: min(380px, calc(100vw - 32px)); height: min(580px, calc(100vh - 32px)); display: flex; flex-direction: column; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(15,29,74,.35); border: 1px solid #dbe4f5; overflow: hidden; }
         .mb-bot__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: linear-gradient(135deg, var(--mbh-navy) 0%, var(--mbh-blue) 60%, var(--mbh-cyan) 100%); color: #fff; }
         .mb-bot__head img { width: 42px; height: 42px; border-radius: 9999px; border: 2px solid rgba(255,255,255,.75); background: #0b1430; object-fit: cover; display: block; }
@@ -46,15 +46,15 @@
         @media (min-width: 640px) { .mb-bot { right: 24px; bottom: 24px; } .mb-bot__fab-label { display: block; } .mb-bot__panel { right: 24px; bottom: 24px; } }
 
         /* Robot mascot: floats, waves and its antenna glows. CSS only. */
-        .mb-bot__fab-btn { position: relative; }
-        .mb-bot__buddy { position: absolute; left: 50%; bottom: calc(100% - 12px); width: 46px; margin-left: -23px; pointer-events: none; animation: mbh-bob 3.2s ease-in-out infinite; }
+        .mb-bot__buddy { display: block; width: 100%; animation: mbh-bob 3.2s ease-in-out infinite; }
+        .mb-bot__buddy img { filter: drop-shadow(0 8px 12px rgba(15,29,74,.35)); }
         .mb-bot__tilt { position: relative; display: block; transform-origin: 50% 90%; animation: mbh-wave 4.5s ease-in-out infinite; }
         .mb-bot__tilt img { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 8px rgba(15,29,74,.3)); }
         .mb-bot__glow { position: absolute; left: 58.1%; top: 2.9%; width: 22%; aspect-ratio: 1; border-radius: 9999px; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(165,243,252,.95) 0%, rgba(0,180,240,.55) 45%, rgba(0,180,240,0) 72%); animation: mbh-glow 1.8s ease-in-out infinite; }
         .mb-bot__head .mb-bot__face { flex: none; width: 42px; height: 42px; border-radius: 9999px; border: 2px solid rgba(255,255,255,.75); display: block; animation: mbh-bob 3.2s ease-in-out infinite; }
         .mb-bot__hero { align-self: center; position: relative; width: 84px; margin: 4px 0 2px; animation: mbh-bob 3.2s ease-in-out infinite; }
         .mb-bot__hero .mb-bot__tilt { animation-duration: 3.6s; }
-        @media (min-width: 640px) { .mb-bot__buddy { width: 56px; margin-left: -28px; } }
+        @media (min-width: 640px) { .mb-bot__fab-btn { width: 72px; } }
         @keyframes mbh-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         @keyframes mbh-wave { 0%, 55%, 100% { transform: rotate(0deg); } 65% { transform: rotate(-9deg); } 75% { transform: rotate(7deg); } 85% { transform: rotate(-5deg); } 93% { transform: rotate(3deg); } }
         @keyframes mbh-glow { 0%, 100% { opacity: .5; transform: translate(-50%, -50%) scale(.8); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); } }
@@ -66,22 +66,18 @@
         data-history-url="{{ route('public.chatbot.history') }}"
         data-support-url="{{ auth()->check() ? route('user.chat.index') : route('public.contact') }}"
         data-avatar="{{ asset('images/chatbot/mbuniehub-robot-head.webp') }}">
-        <button type="button" class="mb-bot__fab" data-bot-open aria-label="Uliza MbunieHub AI">
+        <button type="button" class="mb-bot__fab" data-bot-open aria-label="Fungua chat na MbunieHub AI" title="Ongea na MbunieHub AI">
             <span class="mb-bot__fab-label">Uliza MbunieHub AI</span>
             <span class="mb-bot__fab-btn">
                 <span class="mb-bot__buddy" aria-hidden="true">
                     <span class="mb-bot__tilt">
                         <picture>
                             <source srcset="{{ asset('images/chatbot/mbuniehub-robot.webp') }}" type="image/webp">
-                            <img src="{{ asset('images/chatbot/mbuniehub-robot.png') }}" alt="" width="56" height="76">
+                            <img src="{{ asset('images/chatbot/mbuniehub-robot.png') }}" alt="" width="72" height="98">
                         </picture>
                         <span class="mb-bot__glow"></span>
                     </span>
                 </span>
-                <picture>
-                    <source srcset="{{ asset('images/chatbot/mbuniehub-chat.webp') }}" type="image/webp">
-                    <img src="{{ asset('images/chatbot/mbuniehub-chat.png') }}" alt="MbunieHub chat" width="68" height="68">
-                </picture>
             </span>
         </button>
 

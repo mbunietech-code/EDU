@@ -53,7 +53,8 @@ class WebsiteChatbotTest extends TestCase
         $this->get(route('public.home'))->assertOk()
             ->assertSee('id="mb-bot"', false)
             ->assertSee(route('public.chatbot.send'), false)
-            ->assertSee('images/chatbot/mbuniehub-chat.webp', false)
+            ->assertDontSee('mbuniehub-chat', false)
+            ->assertSee('aria-label="Fungua chat na MbunieHub AI"', false)
             ->assertSee('images/chatbot/mbuniehub-robot.webp', false)
             ->assertSee('images/chatbot/mbuniehub-robot-head.webp', false)
             ->assertSee('@keyframes mbh-wave', false)
@@ -61,7 +62,7 @@ class WebsiteChatbotTest extends TestCase
             ->assertSee('MbunieHub AI')
             ->assertDontSee('sk-test-secret-1234');
 
-        foreach (['mbuniehub-chat.png', 'mbuniehub-chat.webp', 'mbuniehub-robot.png', 'mbuniehub-robot.webp', 'mbuniehub-robot-head.png', 'mbuniehub-robot-head.webp'] as $file) {
+        foreach (['mbuniehub-robot.png', 'mbuniehub-robot.webp', 'mbuniehub-robot-head.png', 'mbuniehub-robot-head.webp'] as $file) {
             $path = public_path('images/chatbot/'.$file);
             $this->assertFileExists($path);
             $this->assertLessThan(60 * 1024, filesize($path), $file.' should stay web-sized');
