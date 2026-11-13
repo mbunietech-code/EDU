@@ -104,16 +104,4 @@
         </section>
     @endif
 
-    <section class="mbui-container py-16">
-        <div class="rounded-2xl bg-gray-900 p-8 sm:p-12 text-center">
-            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Ready to get started?</h2>
-            <p class="mx-auto mt-3 max-w-xl text-gray-300">Choose an AI tool, subscribe, and get secure managed access today.</p>
-            <div class="mt-6 flex justify-center">
-                <a href="{{ route('register') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                    Create your account
-                </a>
-            </div>
-        </div>
-    </section>
-
 </x-layouts.public>
