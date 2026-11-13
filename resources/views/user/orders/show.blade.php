@@ -48,6 +48,25 @@
                 </dl>
             </x-mbui.card>
 
+            {{-- Renew didn't go through (OrderController::renewFailed): ask for a new order instead of an error page. --}}
+            @if (session('renew_failed') && $order->product)
+                @php
+                    $newOrderUrl = match (true) {
+                        $order->product->isVpn() => \App\Models\Product::vpnStoreUrl(),
+                        $order->product->status === 'published' => route('user.orders.create', ['product' => $order->product, 'plan' => $order->plan_id]),
+                        default => route('public.products.index'),
+                    };
+                @endphp
+                <div id="renew-failed" class="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="text-sm text-amber-900">
+                        <p class="font-semibold">We couldn't renew this order. Please place a new order for {{ $order->product->name }}.</p>
+                        <p class="mt-1">Hatukuweza kurenew oda hii. Tafadhali tengeneza oda mpya ya {{ $order->product->name }}.</p>
+                        <p class="mt-1 text-xs text-amber-700">{{ session('renew_failed') }}</p>
+                    </div>
+                    <a href="{{ $newOrderUrl }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Create new order</a>
+                </div>
+            @endif
+
             @if ($renewedBy)
                 <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
                     This order was renewed by <a href="{{ route('user.orders.show', $renewedBy) }}" class="font-semibold underline">{{ $renewedBy->order_number }}</a>; your access continues there.

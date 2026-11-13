@@ -133,14 +133,31 @@ class OrderController extends Controller
 
         $data = $request->validate(['plan_id' => ['nullable', 'integer']]);
 
+        // If the renewal can't be made, no error page: back on the order with
+        // a message asking for a new order instead (see orders/show "renew_failed").
         try {
             $renewal = $renewals->start($order, $data['plan_id'] ?? null);
         } catch (\DomainException $e) {
-            return back()->with('error', $e->getMessage());
+            return self::renewFailed($order->id, $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return self::renewFailed($order->id);
         }
 
         return redirect()->route('user.payments.create', $renewal)
             ->with('success', 'Renewal created. Pay to extend your access; the time is added to what you already have.');
+    }
+
+    /**
+     * Renewal didn't go through (not renewable, plan gone, error, or the page
+     * expired before Renew was pressed): back to the order, which then asks the
+     * customer to place a new order. Also used for the 419 in bootstrap/app.php.
+     */
+    public static function renewFailed(int|string $orderId, ?string $reason = null): \Illuminate\Http\RedirectResponse
+    {
+        return redirect()->to(route('user.orders.show', $orderId).'#renew-failed')
+            ->with('renew_failed', $reason ?: 'The renewal could not be completed.');
     }
 
     public function cancel(Order $order)

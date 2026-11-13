@@ -40,6 +40,17 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Support\ErrorLogger::handle($e);
         });
 
+        // "Page expired" (419) while pressing Renew on an order: no error page,
+        // back on the order with a message asking for a new order instead.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() === 419 && $request->isMethod('POST')
+                && preg_match('#^my-orders/(\d+)/renew$#', $request->path(), $m)) {
+                return \App\Http\Controllers\User\OrderController::renewFailed($m[1], 'Your page expired before Renew was pressed.');
+            }
+
+            return null;
+        });
+
         // Signed-in admins can opt into a detailed error page (Settings ->
         // Developer tools). Visitors are never affected.
         $exceptions->render(function (\Throwable $e, $request) {

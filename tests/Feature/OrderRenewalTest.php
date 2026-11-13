@@ -121,7 +121,7 @@ class OrderRenewalTest extends TestCase
         $foreign = Plan::factory()->create(['product_id' => Product::factory()->create(['status' => 'published'])->id, 'status' => 'active', 'price' => 10]);
 
         $this->actingAs($user)->post(route('user.orders.renew', $order), ['plan_id' => $foreign->id])
-            ->assertSessionHas('error');
+            ->assertSessionHas('renew_failed');
         $this->assertSame(0, Order::where('renews_order_id', $order->id)->count());
 
         $this->actingAs($user)->post(route('user.orders.renew', $order), ['plan_id' => $yearly->id]);
@@ -136,7 +136,7 @@ class OrderRenewalTest extends TestCase
         $this->actingAs(User::factory()->create())->post(route('user.orders.renew', $order))->assertForbidden();
 
         ['order' => $far, 'user' => $owner] = $this->confirmedOrder(25);
-        $this->actingAs($owner)->post(route('user.orders.renew', $far))->assertSessionHas('error');
+        $this->actingAs($owner)->post(route('user.orders.renew', $far))->assertSessionHas('renew_failed');
         $this->assertSame(0, Order::whereNotNull('renews_order_id')->count());
     }
 
@@ -154,7 +154,7 @@ class OrderRenewalTest extends TestCase
         $order->forceFill(['vpn_activated_at' => now()->subDays(27), 'vpn_expires_at' => now()->addDays(3)])->save();
 
         $this->assertFalse($order->fresh()->canBeRenewed());
-        $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('error');
+        $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('renew_failed');
         $this->assertSame(0, Order::where('renews_order_id', $order->id)->count());
 
         $this->actingAs($user)->get(route('user.orders.show', $order))
@@ -245,7 +245,7 @@ class OrderRenewalTest extends TestCase
             $this->actingAs($user)->get(route('user.orders.show', $order))->assertOk()->assertDontSee('Renew now');
             $this->actingAs($user)->get(route('user.subscriptions.index'))->assertOk();
             $this->actingAs($user, 'sanctum')->getJson('/api/orders')->assertOk()->assertJsonPath('data.0.can_renew', false);
-            $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('error');
+            $this->actingAs($user)->post(route('user.orders.renew', $order))->assertSessionHas('renew_failed');
 
             $admin = User::factory()->create(array_merge(
                 ['is_admin' => true],
@@ -256,5 +256,41 @@ class OrderRenewalTest extends TestCase
         } finally {
             Order::forgetRenewalsReady();
         }
+    }
+
+    public function test_a_renewal_that_cannot_be_made_asks_for_a_new_order_instead_of_an_error(): void
+    {
+        ['order' => $order, 'user' => $user, 'product' => $product] = $this->confirmedOrder(20);
+
+        $response = $this->actingAs($user)->post(route('user.orders.renew', $order));
+
+        $response->assertRedirect(route('user.orders.show', $order).'#renew-failed');
+        $this->assertSame(0, Order::where('renews_order_id', $order->id)->count());
+
+        $this->actingAs($user)->get(route('user.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Please place a new order for '.$product->name, false)
+            ->assertSee('Tafadhali tengeneza oda mpya', false)
+            ->assertSee(route('user.orders.create', ['product' => $product, 'plan' => $order->plan_id]), false)
+            ->assertSee('Create new order');
+    }
+
+    public function test_page_expired_on_renew_goes_back_to_the_order_with_the_new_order_message(): void
+    {
+        ['order' => $order, 'user' => $user] = $this->confirmedOrder(2);
+
+        $request = \Illuminate\Http\Request::create('/my-orders/'.$order->id.'/renew', 'POST');
+        $request->setLaravelSession($this->app['session.store']);
+        $response = $this->app->make(\Illuminate\Contracts\Debug\ExceptionHandler::class)
+            ->render($request, new \Illuminate\Session\TokenMismatchException('CSRF token mismatch.'));
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame(route('user.orders.show', $order).'#renew-failed', $response->headers->get('Location'));
+        $this->assertSame('Your page expired before Renew was pressed.', session('renew_failed'));
+
+        // Any other page that expires still gets the normal 419 page.
+        $other = $this->app->make(\Illuminate\Contracts\Debug\ExceptionHandler::class)
+            ->render(\Illuminate\Http\Request::create('/orders', 'POST'), new \Illuminate\Session\TokenMismatchException('CSRF token mismatch.'));
+        $this->assertSame(419, $other->getStatusCode());
     }
 }
