@@ -257,7 +257,10 @@ class ChatbotService
             ."\n\nToday (Tanzania time): ".now('Africa/Dar_es_Salaam')->format('l, j F Y')
             ."\nWebsite: ".url('/')
             ."\nHuman support: signed-in customers chat with our team at {$chat}; visitors can use the contact page {$support}."
-            ."\n\nSite facts (live data):\n".$this->siteFacts();
+            ."\n\nSite facts (live data):\n".$this->siteFacts()
+            // Last on purpose, so it holds even with an admin's own prompt and the
+            // Tanzanian site facts above: answer in the language the visitor used.
+            ."\n\nLanguage: reply in the same language as the visitor's latest message (any language). Do not switch to Swahili unless the visitor wrote in Swahili.";
     }
 
     /** Short, cached summary of what the site sells, so the bot quotes real prices. */
@@ -315,12 +318,12 @@ class ChatbotService
 
     private function fallbackText(): string
     {
-        return "Samahani, siwezi kujibu kwa sasa. Tafadhali wasiliana na timu yetu ya msaada.\nSorry, I can't answer right now. Please contact our support team.";
+        return "Sorry, I can't answer right now. Please contact our support team.\nSamahani, siwezi kujibu kwa sasa. Tafadhali wasiliana na timu yetu ya msaada.";
     }
 
     private function limitText(): string
     {
-        return "Umefikia kikomo cha maswali kwa leo. Tafadhali wasiliana na timu yetu ya msaada.\nYou have reached today's question limit. Please contact our support team.";
+        return "You have reached today's question limit. Please contact our support team.\nUmefikia kikomo cha maswali kwa leo. Tafadhali wasiliana na timu yetu ya msaada.";
     }
 
     /** Site rule: no long dashes in visitor-facing text. */

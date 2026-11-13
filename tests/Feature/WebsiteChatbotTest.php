@@ -73,6 +73,33 @@ class WebsiteChatbotTest extends TestCase
         $this->get(route('public.home'))->assertOk()->assertDontSee('id="mb-bot"', false);
     }
 
+    public function test_the_bot_is_told_to_answer_in_the_visitors_language_even_with_a_custom_prompt(): void
+    {
+        $this->configure('deepseek');
+        $this->settings()->set('chatbot_system_prompt', 'You are a helpful assistant for MbunieEduHub.');
+        Http::fake(['api.deepseek.com/*' => Http::response($this->openAiShaped('Bonjour !'))]);
+
+        $this->postJson(route('public.chatbot.send'), ['message' => 'Bonjour, combien coûte ChatGPT ?'])->assertOk();
+
+        Http::assertSent(function (HttpRequest $request) {
+            $system = $request['messages'][0]['content'];
+
+            return str_starts_with($system, 'You are a helpful assistant for MbunieEduHub.')
+                && str_ends_with($system, "Language: reply in the same language as the visitor's latest message (any language). Do not switch to Swahili unless the visitor wrote in Swahili.");
+        });
+
+        $this->assertStringContainsString('Never default to Swahili', ChatbotSettings::defaultSystemPrompt());
+
+        // The chat window itself greets in English and says any language works.
+        $this->get(route('public.home'))->assertOk()
+            ->assertSee('Your assistant. Ask in any language')
+            ->assertSee('in any language.', false)
+            ->assertDontSee('Habari! Mimi ni MbunieHub AI')
+            // Site colours (indigo), not the logo's navy/cyan.
+            ->assertSee('--mbh-blue: #4f46e5', false)
+            ->assertDontSee('#00b4f0', false);
+    }
+
     public function test_guest_gets_a_deepseek_answer_with_the_key_sent_server_side_only(): void
     {
         $this->configure('deepseek');
