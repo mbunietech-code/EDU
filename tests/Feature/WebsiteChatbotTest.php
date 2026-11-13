@@ -53,7 +53,16 @@ class WebsiteChatbotTest extends TestCase
         $this->get(route('public.home'))->assertOk()
             ->assertSee('id="mb-bot"', false)
             ->assertSee(route('public.chatbot.send'), false)
+            ->assertSee('images/chatbot/mbuniehub-chat.webp', false)
+            ->assertSee('images/chatbot/mbuniehub-bot.webp', false)
+            ->assertSee('MbunieHub AI')
             ->assertDontSee('sk-test-secret-1234');
+
+        foreach (['mbuniehub-chat.png', 'mbuniehub-chat.webp', 'mbuniehub-bot.png', 'mbuniehub-bot.webp'] as $file) {
+            $path = public_path('images/chatbot/'.$file);
+            $this->assertFileExists($path);
+            $this->assertLessThan(60 * 1024, filesize($path), $file.' should stay web-sized');
+        }
 
         $this->settings()->set('chatbot_enabled', '0');
         $this->get(route('public.home'))->assertOk()->assertDontSee('id="mb-bot"', false);
