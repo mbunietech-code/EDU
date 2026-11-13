@@ -126,7 +126,7 @@ class ChatService
             'body' => $message->is_deleted ? 'This message was deleted' : $message->body,
             'file' => (! $message->is_deleted && $message->file_path) ? route($attachmentRoute, [$conversation, $message]) : null,
             'filename' => $message->file_name,
-            'time' => $message->created_at->format('H:i'),
+            'time' => \App\Support\MessageTime::label($message->created_at),
             'deleted' => (bool) $message->is_deleted,
             'edited' => (bool) $message->edited_at,
             'auto' => (bool) $message->is_auto,

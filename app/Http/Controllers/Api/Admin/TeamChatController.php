@@ -205,7 +205,7 @@ class TeamChatController extends Controller
             'body' => $m->is_deleted ? 'This message was deleted' : $m->body,
             'has_file' => ! $m->is_deleted && (bool) $m->file_path,
             'file_name' => $m->file_name,
-            'time' => $m->created_at->format('H:i'),
+            'time' => \App\Support\MessageTime::label($m->created_at),
             'date' => $m->created_at->toDateString(),
             'deleted' => (bool) $m->is_deleted,
             'edited' => (bool) $m->edited_at,

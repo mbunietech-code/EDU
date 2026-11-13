@@ -145,7 +145,7 @@ class ChatController extends Controller
             'type' => $m->type,
             'body' => $m->body,
             'created_at' => optional($m->created_at)->toIso8601String(),
-            'time' => optional($m->created_at)->format('H:i'),
+            'time' => \App\Support\MessageTime::label($m->created_at),
         ];
     }
 }

@@ -82,7 +82,7 @@ class ChatController extends Controller
             'has_file' => (bool) $m->file_path,
             'file_name' => $m->file_name,
             'created_at' => optional($m->created_at)->toIso8601String(),
-            'time' => optional($m->created_at)->format('H:i'),
+            'time' => \App\Support\MessageTime::label($m->created_at),
         ];
     }
 }

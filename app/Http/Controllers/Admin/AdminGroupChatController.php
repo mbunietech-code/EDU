@@ -265,7 +265,7 @@ class AdminGroupChatController extends Controller
             'body' => $message->is_deleted ? 'This message was deleted' : $message->body,
             'file' => (! $message->is_deleted && $message->file_path) ? route('admin.team-chat.groups.attachment', [$group, $message]) : null,
             'filename' => $message->file_name,
-            'time' => $message->created_at->format('H:i'),
+            'time' => \App\Support\MessageTime::label($message->created_at),
             'deleted' => (bool) $message->is_deleted,
             'edited' => (bool) $message->edited_at,
             'mine' => $mine,
