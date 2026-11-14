@@ -4,7 +4,6 @@ namespace App\Services\Chatbot;
 
 use App\Models\ChatbotMessage;
 use App\Models\LearningCourse;
-use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Scholarship;
 use App\Support\ChatbotSettings;
@@ -111,7 +110,30 @@ class ChatbotService
 
         $text = trim((string) $text);
 
-        return $text === '' ? [$this->fallbackText(), 'error'] : [$this->cleanDashes($text), 'ok'];
+        if ($text === '') {
+            return [$this->fallbackText(), 'error'];
+        }
+
+        // Safety net for the no-money rule: a reply that still quotes an amount is not shown.
+        if ($this->mentionsMoney($text)) {
+            return [$this->noMoneyText(), 'ok'];
+        }
+
+        return [$this->cleanDashes($text), 'ok'];
+    }
+
+    /** True when the text quotes an amount of money (TZS 45,000, Tsh 10000, 5,000/=, $20, 20 USD, shilingi...). */
+    public function mentionsMoney(string $text): bool
+    {
+        return (bool) preg_match(
+            '/\b(?:TZS|TSH|TShs?|KES|KSh|UGX|USD|EUR|GBP|shilingi|shillings?|dollars?)\b|[$€£]\s?\d|\d[\d,.]*\s?\/=/iu',
+            $text
+        );
+    }
+
+    private function noMoneyText(): string
+    {
+        return "You can see the current plans and details on the tool's page, and our support team can help with anything else.\nMaelezo ya sasa ya plans yapo kwenye ukurasa wa tool, na timu yetu ya msaada inaweza kukusaidia zaidi.";
     }
 
     /**
@@ -258,15 +280,17 @@ class ChatbotService
             ."\nWebsite: ".url('/')
             ."\nHuman support: signed-in customers chat with our team at {$chat}; visitors can use the contact page {$support}."
             ."\n\nSite facts (live data):\n".$this->siteFacts()
+            // Site rule, kept even when an admin writes their own prompt.
+            ."\n\nMoney: never mention prices, costs, fees, amounts, currencies, discounts or payment methods. If the visitor asks about price or payment, say the current details are on the tool's page and our support team can help."
             // Last on purpose, so it holds even with an admin's own prompt and the
             // Tanzanian site facts above: answer in the language the visitor used.
             ."\n\nLanguage: reply in the same language as the visitor's latest message (any language). Do not switch to Swahili unless the visitor wrote in Swahili.";
     }
 
-    /** Short, cached summary of what the site sells, so the bot quotes real prices. */
+    /** Short, cached summary of what the site offers. No prices or payment details: the bot must not talk about money. */
     public function siteFacts(): string
     {
-        return Cache::remember('chatbot:site-facts', now()->addMinutes(10), function () {
+        return Cache::remember('chatbot:site-facts:no-prices', now()->addMinutes(10), function () {
             $lines = [];
 
             try {
@@ -277,9 +301,9 @@ class ChatbotService
                     ->get();
 
                 if ($products->isNotEmpty()) {
-                    $lines[] = 'AI tools and plans (prices in TZS):';
+                    $lines[] = 'AI tools and plans:';
                     foreach ($products as $product) {
-                        $plans = $product->plans->map(fn ($p) => $p->name.' ('.$p->durationLabel().'): TZS '.number_format((float) $p->price))->implode('; ');
+                        $plans = $product->plans->map(fn ($p) => $p->name.' ('.$p->durationLabel().')')->implode('; ');
                         $lines[] = '- '.$product->name.($plans !== '' ? ': '.$plans : '').' | '.route('public.products.show', $product);
                     }
                 }
@@ -288,14 +312,6 @@ class ChatbotService
             }
 
             $lines[] = 'All tools: '.route('public.products.index');
-
-            try {
-                $methods = PaymentMethod::enabled()->orderBy('sort_order')->pluck('name')->filter()->implode(', ');
-                if ($methods !== '') {
-                    $lines[] = 'Payment methods: '.$methods.'.';
-                }
-            } catch (\Throwable $e) {
-            }
 
             try {
                 $scholarships = Scholarship::published()->open()->latest('id')->limit(5)->pluck('title')->implode('; ');

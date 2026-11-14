@@ -325,4 +325,51 @@ class WebsiteChatbotTest extends TestCase
         $this->actingAs(User::factory()->create(['is_admin' => true, 'role' => Permissions::ROLE_ADMIN, 'permissions' => ['chatbot.manage']]));
         $this->get(route('admin.chatbot.edit'))->assertOk();
     }
+    public function test_the_bot_is_never_given_prices_or_payment_methods_and_must_not_talk_about_money(): void
+    {
+        $product = \App\Models\Product::factory()->create(['name' => 'ChatGPT Plus', 'slug' => 'chatgpt-plus', 'status' => 'published']);
+        \App\Models\Plan::factory()->create(['product_id' => $product->id, 'name' => 'Monthly', 'duration_days' => 30, 'price' => 45000, 'status' => 'active']);
+        \App\Models\PaymentMethod::create(['code' => 'yas', 'name' => 'MIX by YAS', 'enabled' => true, 'sort_order' => 1]);
+
+        $this->configure('deepseek');
+        // Even an admin's own prompt cannot switch the money rule off.
+        $this->settings()->set('chatbot_system_prompt', 'You are a helpful assistant.');
+        Http::fake(['api.deepseek.com/*' => Http::response($this->openAiShaped('Open the ChatGPT Plus page to see the plans.'))]);
+
+        $this->postJson(route('public.chatbot.send'), ['message' => 'How much is ChatGPT Plus?'])
+            ->assertOk()->assertJson(['status' => 'ok']);
+
+        Http::assertSent(function (HttpRequest $request) {
+            $system = $request['messages'][0]['content'];
+
+            return str_contains($system, 'ChatGPT Plus')
+                && str_contains($system, 'Monthly (30 days)')
+                && ! str_contains($system, '45,000')
+                && ! str_contains($system, '45000')
+                && ! str_contains($system, 'TZS')
+                && ! str_contains($system, 'MIX by YAS')
+                && str_contains($system, 'never mention prices');
+        });
+    }
+
+    public function test_a_reply_that_still_quotes_an_amount_is_replaced(): void
+    {
+        $this->configure('deepseek');
+        Http::fake(['api.deepseek.com/*' => Http::response($this->openAiShaped('ChatGPT Plus ni TZS 45,000 kwa mwezi.'))]);
+
+        $this->postJson(route('public.chatbot.send'), ['message' => 'Bei gani?'])
+            ->assertOk()
+            ->assertJson(['status' => 'ok'])
+            ->assertJsonPath('reply', fn ($reply) => ! str_contains($reply, '45,000') && str_contains($reply, "tool's page"));
+
+        $this->assertFalse(ChatbotMessage::where('content', 'like', '%45,000%')->exists());
+
+        $service = app(\App\Services\Chatbot\ChatbotService::class);
+        foreach (['Tsh 10000', '5,000/=', '$20 a month', '20 USD', 'shilingi elfu kumi'] as $money) {
+            $this->assertTrue($service->mentionsMoney($money), $money);
+        }
+        foreach (['Open the tools page', 'Plans last 30 days', 'GPT-4 and Claude 3'] as $fine) {
+            $this->assertFalse($service->mentionsMoney($fine), $fine);
+        }
+    }
 }

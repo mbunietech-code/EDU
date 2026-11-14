@@ -172,7 +172,7 @@
         function addChips() {
             var wrap = document.createElement('div');
             wrap.className = 'mb-bot__chips';
-            ['How much do AI tools cost?', 'How do I pay?', 'Open scholarships', 'How do live classes work?'].forEach(function (q) {
+            ['Which AI tools do you offer?', 'How do I get started?', 'Open scholarships', 'How do live classes work?'].forEach(function (q) {
                 var b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'mb-bot__chip';
@@ -186,7 +186,7 @@
         function welcome() {
             var hero = root.querySelector('[data-bot-hero]');
             if (hero && hero.content) body.appendChild(hero.content.cloneNode(true));
-            addMessage('bot', 'Hi! I am MbunieHub AI. Ask me about AI tools, prices, payments, learning, research or scholarships, in any language.');
+            addMessage('bot', 'Hi! I am MbunieHub AI. Ask me about AI tools, learning, research or scholarships, in any language.');
             addChips();
         }
 

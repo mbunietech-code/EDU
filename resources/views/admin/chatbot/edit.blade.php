@@ -5,7 +5,7 @@
             <h1 class="mbui-title">Website chatbot</h1>
             <p class="mt-1 text-sm text-gray-500">
                 The chat bubble visitors and customers see on the public pages. Answers come from the AI provider you pick below,
-                using live tool, plan and payment information from this site. API keys are stored encrypted and are never shown again or sent to the browser.
+                using the live tools, plans, courses and scholarships on this site. It never talks about prices or payments. API keys are stored encrypted and are never shown again or sent to the browser.
             </p>
         </div>
     </div>
@@ -128,8 +128,7 @@
         <x-mbui.card class="p-6">
             <h2 class="mbui-section-label">Instructions (system prompt)</h2>
             <p class="mt-1 text-sm text-gray-500">
-                How the bot should behave. Leave empty to use the built-in instructions. Live tool prices, payment methods,
-                scholarships and support links are always added automatically.
+                How the bot should behave. Leave empty to use the built-in instructions. Live tools, plans, courses, scholarships, support links and the no-money rule are always added automatically.
             </p>
             <textarea name="system_prompt" rows="10" class="mbui-input mt-3 font-mono text-xs" placeholder="{{ $defaultPrompt }}">{{ old('system_prompt', $settings->customSystemPrompt()) }}</textarea>
             <x-input-error :messages="$errors->get('system_prompt')" class="mt-2" />
