@@ -134,6 +134,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}/pay/paypal/return', [\App\Http\Controllers\User\PayPalPaymentController::class, 'return'])->name('user.payments.paypal.return');
     Route::get('/orders/{order}/pay/paypal/cancel', [\App\Http\Controllers\User\PayPalPaymentController::class, 'cancel'])->name('user.payments.paypal.cancel');
 
+    // Video help: ring every support admin until one answers, then meet in the support live room.
+    Route::get('/video-help', [\App\Http\Controllers\User\VideoHelpController::class, 'index'])->name('user.video-help.index');
+    Route::post('/video-help', [\App\Http\Controllers\User\VideoHelpController::class, 'store'])->middleware('throttle:6,1')->name('user.video-help.store');
+    Route::get('/video-help/{videoHelpRequest}/status', [\App\Http\Controllers\User\VideoHelpController::class, 'status'])
+        ->whereNumber('videoHelpRequest')->middleware('throttle:120,1')->name('user.video-help.status');
+    Route::post('/video-help/{videoHelpRequest}/cancel', [\App\Http\Controllers\User\VideoHelpController::class, 'cancel'])
+        ->whereNumber('videoHelpRequest')->middleware('throttle:20,1')->name('user.video-help.cancel');
+
     Route::get('/messages', [UserChatController::class, 'index'])->name('user.chat.index');
     Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');
     Route::get('/messages/{conversation}/fetch', [UserChatController::class, 'fetch'])->name('user.chat.fetch');
@@ -201,6 +209,14 @@ Route::prefix('admin')
             Route::put('{note}', 'update')->whereNumber('note')->name('update');
             Route::post('{note}/pin', 'pin')->whereNumber('note')->name('pin');
             Route::delete('{note}', 'destroy')->whereNumber('note')->name('destroy');
+        });
+
+        // --- Video help calls: rings on every admin page until one admin accepts ---
+        Route::controller(\App\Http\Controllers\Admin\VideoHelpController::class)->prefix('video-help')->name('video-help.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/ringing', 'ringing')->middleware('throttle:150,1')->name('ringing');
+            Route::post('{videoHelpRequest}/accept', 'accept')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('accept');
+            Route::post('{videoHelpRequest}/decline', 'decline')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('decline');
         });
 
         // --- Password vault (vault.view + PIN; vault.manage to change) ------

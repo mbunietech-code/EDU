@@ -70,4 +70,15 @@ return [
             'layout' => env('LIVE_RECORDING_LAYOUT', 'speaker'), // speaker | grid
         ],
     ],
+
+    /*
+    | Video help: a member asks for help on video and every support admin is
+    | rung (popup + sound on admin pages, push to the MHub app) until one
+    | accepts. Both then meet in this live room. Unanswered calls turn into
+    | "missed" after ring_seconds.
+    */
+    'video_help' => [
+        'room_id' => (int) env('VIDEO_HELP_ROOM_ID', 15),
+        'ring_seconds' => (int) env('VIDEO_HELP_RING_SECONDS', 150),
+    ],
 ];

@@ -48,6 +48,7 @@ return [
             'chat.manage'            => 'Reply to support messages',
             'contact_messages.view'  => 'View contact messages',
             'contact_messages.manage'=> 'Delete contact messages',
+            'video_help.answer'      => 'Answer video help calls (rings on every admin page)',
         ],
 
         'Insights & records' => [

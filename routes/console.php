@@ -21,6 +21,9 @@ Schedule::command(OptimizationScanCommand::class)->dailyAt('02:00');
 
 Schedule::command(\App\Console\Commands\ChatAutoReplyCommand::class)->everyMinute();
 
+// Video help calls nobody answered become "missed" (polls do it too; this covers closed pages).
+Schedule::command(\App\Console\Commands\VideoHelpExpireCommand::class)->everyMinute()->withoutOverlapping();
+
 // Learning (ROOM) — live-room reminders & housekeeping
 Schedule::command(\App\Console\Commands\LearningSendRemindersCommand::class)->everyMinute()->withoutOverlapping();
 

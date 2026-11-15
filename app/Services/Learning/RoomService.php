@@ -201,8 +201,10 @@ class RoomService
     /**
      * Go live from draft | scheduled | completed. Locks the room row; calling
      * it on a room that is already live returns the running session.
+     * $notify false opens it quietly (the support room answering a video-help
+     * call must not tell every member a class started).
      */
-    public function start(LearningRoom $room, User $actor): LearningRoomSession
+    public function start(LearningRoom $room, User $actor, bool $notify = true): LearningRoomSession
     {
         [$session, $started] = DB::transaction(function () use ($room, $actor) {
             $locked = $this->lockRoom($room);
@@ -243,7 +245,9 @@ class RoomService
                 'session_id' => $session->id,
             ]);
 
-            $this->notifier->notifyRoomStarted($room, $actor);
+            if ($notify) {
+                $this->notifier->notifyRoomStarted($room, $actor);
+            }
         }
 
         return $session;
