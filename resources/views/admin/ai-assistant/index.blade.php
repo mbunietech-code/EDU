@@ -6,6 +6,7 @@
         ['icon' => '📈', 'title' => 'This week in numbers', 'prompt' => 'Give me a short report for the last 7 days: orders, revenue, payments, new users and anything unusual.'],
         ['icon' => '💬', 'title' => 'Customers waiting', 'prompt' => 'Which customers are waiting for a reply in support chat? Summarise each and draft a reply.'],
         ['icon' => '🛠️', 'title' => 'Explain the latest errors', 'prompt' => 'List the latest unresolved server errors, explain the likely cause of each and how to fix it.'],
+        ['icon' => '🗄️', 'title' => 'Review database optimization', 'prompt' => 'Review the latest database optimization scan. Which recommendations are safe to approve, which should I reject, and why?'],
         ['icon' => '🖼️', 'title' => 'Design a poster', 'prompt' => 'Design an A4 poster (1240x1754) promoting our AI tools with real product names from the catalogue. Text in Swahili.'],
         ['icon' => '✍️', 'title' => 'Write a social post', 'prompt' => 'Write an Instagram and WhatsApp status post in Swahili promoting MbunieEduHub live classes, with hashtags.'],
     ];

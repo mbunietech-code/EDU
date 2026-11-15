@@ -6,6 +6,15 @@
             <p class="mt-1 text-sm text-gray-500">Read-only analysis of expired, inactive, duplicate and orphaned data. Nothing is ever changed without your explicit approval, and every change is backed up first.</p>
         </div>
         <div class="flex items-center gap-3">
+            @can('ai.access')
+                @if ($scan)
+                    <a href="{{ route('admin.ai-assistant.index', ['ask' => 'Review the latest database optimization scan (#'.$scan->id.'). Which recommendations are safe to approve, which should I reject, and why? Start with the high risk ones.']) }}"
+                       class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100">
+                        <span class="flex h-5 w-5 items-center justify-center rounded bg-indigo-600 text-[9px] font-bold text-white">AI</span>
+                        Ask AI to review
+                    </a>
+                @endif
+            @endcan
             <a href="{{ route('admin.alerts.index') }}" class="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Alerts (Email/SMS)</a>
             <form method="POST" action="{{ route('admin.optimization.scan') }}">
                 @csrf
@@ -52,7 +61,7 @@
                             $riskColor = ['low' => 'success', 'medium' => 'warning', 'high' => 'danger'][$rec->risk_level];
                             $statusColor = ['pending' => 'neutral', 'approved' => 'info', 'rejected' => 'danger', 'executed' => 'success'][$rec->status];
                         @endphp
-                        <details class="group">
+                        <details class="group scroll-mt-24" id="rec-{{ $rec->id }}">
                             <summary class="flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3 hover:bg-gray-50">
                                 <x-mbui.badge appearance="{{ $riskColor }}">{{ ucfirst($rec->risk_level) }} risk</x-mbui.badge>
                                 <x-mbui.badge appearance="{{ $statusColor }}">{{ ucfirst($rec->status) }}</x-mbui.badge>
@@ -62,7 +71,13 @@
                             </summary>
 
                             <div class="border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-3">
-                                <p class="text-sm text-gray-700">{{ $rec->action }}</p>
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <p class="text-sm text-gray-700">{{ $rec->action }}</p>
+                                    @can('ai.access')
+                                        <a href="{{ route('admin.ai-assistant.index', ['ask' => 'Explain optimization recommendation #'.$rec->id.' ('.$rec->table_name.', '.$rec->category.'). What exactly will it change, is it safe to '.($rec->status === 'approved' ? 'execute' : 'approve').', and what could go wrong?']) }}"
+                                           class="shrink-0 text-xs font-semibold text-indigo-600 hover:text-indigo-800">Ask AI about this</a>
+                                    @endcan
+                                </div>
 
                                 <dl class="grid gap-2 text-xs text-gray-500 sm:grid-cols-2">
                                     @if ($rec->column_name)
@@ -163,5 +178,13 @@
             </x-mbui.table>
         </div>
     @endif
+
+    {{-- A link from the AI Assistant (#rec-12) opens that recommendation. --}}
+    <script>
+        (() => {
+            const el = location.hash.startsWith('#rec-') ? document.getElementById(location.hash.slice(1)) : null;
+            if (el) { el.open = true; el.scrollIntoView({ block: 'start' }); }
+        })();
+    </script>
 
 </x-layouts.admin>

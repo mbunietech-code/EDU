@@ -401,7 +401,7 @@ class AiAssistantService
         $extra = $this->settings->extraInstructions();
 
         $data = $hasTools
-            ? "- You can read live data with the tools (orders, payments, users, subscriptions, server errors, support chats, video help calls, products, open problems). Always use a tool for numbers or records instead of guessing. If a tool says the admin lacks permission, say so.\n- Tools are READ ONLY. You cannot change, approve, reject, delete, refund or send anything. Never claim you did. When something must be done, say exactly what to do and give the admin page link from the tool result, and ask the admin to do it there (they confirm the change themselves)."
+            ? "- You can read live data with the tools (orders, payments, users, subscriptions, server errors, support chats, video help calls, products, open problems, and the AI Database Optimization scan with its recommendations). Always use a tool for numbers or records instead of guessing. If a tool says the admin lacks permission, say so.\n- Tools are READ ONLY. You cannot change, approve, reject, delete, refund or send anything. Never claim you did. When something must be done, say exactly what to do and give the admin page link from the tool result, and ask the admin to do it there (they confirm the change themselves). Database optimization recommendations are approved, rejected and executed by the admin on the AI Optimization page (execute backs up the rows first); judge each one from its SQL preview, risk and sample rows."
             : '- You have no live data in this mode. Say so when asked about orders, payments or errors, and suggest switching the model to DeepSeek Chat.';
 
         return <<<TXT

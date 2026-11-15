@@ -369,4 +369,50 @@ class AiAssistantDeepSeekTest extends TestCase
         $this->artisan('ai:watch')->assertSuccessful();
         $this->assertSame(0, DB::table('notifications')->count());
     }
+
+    // ------------------------------------------------------------- AI Optimization page
+
+    public function test_chat_reads_optimization_recommendations_and_the_page_links_to_the_chat(): void
+    {
+        $boss = $this->superAdmin();
+        $old = User::factory()->create(['email' => 'old@example.com']);
+        $scan = \App\Models\OptimizationScan::create([]);
+        $rec = \App\Models\OptimizationRecommendation::create([
+            'scan_id' => $scan->id,
+            'category' => 'inactive',
+            'operation' => 'delete',
+            'table_name' => 'users',
+            'affected_count' => 1,
+            'action' => 'Delete members who never signed in.',
+            'risk_level' => 'high',
+            'where_sql' => 'email = ?',
+            'where_bindings' => ['old@example.com'],
+            'sql_preview' => "DELETE FROM users WHERE email = 'old@example.com';",
+            'rollback_note' => 'Rows are backed up first.',
+            'status' => 'pending',
+        ]);
+        $tools = app(AiAssistantTools::class);
+
+        $list = $tools->call('list_optimization_recommendations', [], $boss);
+        $this->assertSame($rec->id, $list['recommendations'][0]['id']);
+        $this->assertSame('high', $list['recommendations'][0]['risk']);
+        $this->assertStringEndsWith('#rec-'.$rec->id, $list['recommendations'][0]['link']);
+
+        $one = $tools->call('get_optimization_recommendation', ['id' => $rec->id], $boss);
+        $this->assertSame('old@example.com', $one['sample_rows'][0]['email']);
+        $this->assertArrayNotHasKey('password', $one['sample_rows'][0]);
+        $this->assertArrayNotHasKey('remember_token', $one['sample_rows'][0]);
+
+        // Reading only: the recommendation is still pending and the row is still there.
+        $this->assertSame('pending', $rec->fresh()->status);
+        $this->assertNotNull($old->fresh());
+
+        // Like the Database page: super admin only.
+        $this->assertArrayHasKey('error', $tools->call('list_optimization_recommendations', [], $this->admin(['orders.view', 'users.view'])));
+
+        $this->actingAs($boss)->get(route('admin.optimization.index'))
+            ->assertOk()
+            ->assertSee('Ask AI to review') // (the list itself only shows on MySQL)
+            ->assertSee(route('admin.ai-assistant.index').'?ask=', false);
+    }
 }

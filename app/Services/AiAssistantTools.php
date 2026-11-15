@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\OptimizationRecommendation;
 use App\Models\OptimizationScan;
 use App\Models\User;
 use App\Services\Ai\AiWatchdog;
@@ -28,6 +29,8 @@ class AiAssistantTools
         'get_site_info' => [],
         'get_products_catalog' => ['products.view'],
         'get_optimization_summary' => null,
+        'list_optimization_recommendations' => null,
+        'get_optimization_recommendation' => null,
         'get_database_health' => null,
         'get_orders_summary' => ['orders.view'],
         'list_orders' => ['orders.view'],
@@ -92,7 +95,9 @@ class AiAssistantTools
             'get_open_alerts' => ['Problems that need a person right now: new server errors, payments waiting for approval, stuck online payments, customers waiting in support chat, missed video help calls, paid orders not yet activated.', $none],
             'get_site_info' => ['Name, web address, contact details and brand colours of the platform. Use before designing posters or banners.', $none],
             'get_products_catalog' => ['Published products (AI tools, software, VPN, courses) with their plans and prices. Use for marketing material and questions about what we sell.', $none],
-            'get_optimization_summary' => ['Latest database-optimization scan: expired/inactive/duplicate counts, missing indexes, orphaned rows, pending recommendations.', $none],
+            'get_optimization_summary' => ['Latest database-optimization scan (AI Optimization page): expired/inactive/duplicate counts, missing indexes, orphaned rows, pending recommendations.', $none],
+            'list_optimization_recommendations' => ['Recommendations of the latest database-optimization scan: table, category, operation (delete, update, create_index, detection only), risk, affected rows, estimated MB recovered, status (pending, approved, rejected, executed), link. Use to advise which ones are safe to approve.', ['type' => 'object', 'properties' => ['status' => $str('pending, approved, rejected or executed'), 'scan_id' => $int('A specific scan instead of the latest'), 'limit' => $int('Max rows, default 30, max 80')]]],
+            'get_optimization_recommendation' => ['One optimization recommendation in full: what it does, SQL preview, backup / rollback strategy, a few sample rows it would touch, review history.', ['type' => 'object', 'properties' => ['id' => $int('Recommendation id')], 'required' => ['id']]],
             'get_database_health' => ['Database health: table count, approximate rows, size, pending schema changes, failed jobs.', $none],
             'get_orders_summary' => ['Order counts by status and confirmed revenue, optionally for the last N days.', ['type' => 'object', 'properties' => ['days' => $int('Only orders from the last N days. Omit for all time.')]]],
             'list_orders' => ['Recent orders with number, customer, product, plan, amount, status and link. Filter by status (pending, paid, confirmed, active, expired, rejected, cancelled) and/or a search on order number or customer name/email.', ['type' => 'object', 'properties' => ['status' => $str('Order status filter'), 'search' => $str('Order number, customer name or email'), 'days' => $int('Only the last N days'), 'limit' => $int('Max rows, default 15, max 50')]]],
@@ -145,6 +150,8 @@ class AiAssistantTools
                 'get_site_info' => $this->getSiteInfo(),
                 'get_products_catalog' => $this->getProductsCatalog(),
                 'get_optimization_summary' => $this->getOptimizationSummary(),
+                'list_optimization_recommendations' => $this->listOptimizationRecommendations($input),
+                'get_optimization_recommendation' => $this->getOptimizationRecommendation($input),
                 'get_database_health' => $this->getDatabaseHealth(),
                 'get_orders_summary' => $this->getOrdersSummary($input),
                 'list_orders' => $this->listOrders($input),
@@ -296,6 +303,76 @@ class AiAssistantTools
             'orphaned_count' => $scan->orphaned_count,
             'estimated_recovery_mb' => (float) $scan->estimated_recovery_mb,
             'pending_recommendations' => $scan->recommendations()->where('status', 'pending')->count(),
+        ];
+    }
+
+    private function recommendationRow(OptimizationRecommendation $r): array
+    {
+        return [
+            'id' => $r->id,
+            'scan_id' => $r->scan_id,
+            'table' => $r->table_name,
+            'column' => $r->column_name,
+            'category' => $r->category,
+            'operation' => $r->operation,
+            'risk' => $r->risk_level,
+            'affected_rows' => (int) $r->affected_count,
+            'estimated_recovery_mb' => (float) $r->estimated_recovery_mb,
+            'what_it_does' => $r->action,
+            'status' => $r->status,
+            'can_run_from_page' => in_array($r->operation, ['delete', 'update', 'create_index'], true),
+            'link' => $this->route('admin.optimization.index', []).'#rec-'.$r->id,
+        ];
+    }
+
+    private function listOptimizationRecommendations(array $input): array
+    {
+        $scanId = (int) ($input['scan_id'] ?? 0) ?: OptimizationScan::latest('id')->value('id');
+        if (! $scanId) {
+            return ['message' => 'No optimization scan has been run yet.'];
+        }
+
+        $q = OptimizationRecommendation::where('scan_id', $scanId)->orderByRaw("CASE risk_level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END")->orderByDesc('affected_count');
+        if (! empty($input['status'])) {
+            $q->where('status', (string) $input['status']);
+        }
+
+        return [
+            'scan_id' => $scanId,
+            'page' => $this->route('admin.optimization.index', []),
+            'note' => 'Approving, rejecting and executing is done by the admin on the AI Optimization page. Execute backs up the affected rows first.',
+            'recommendations' => $q->limit($this->limit($input, 30, 80))->get()->map(fn ($r) => $this->recommendationRow($r))->values(),
+        ];
+    }
+
+    private function getOptimizationRecommendation(array $input): array
+    {
+        $r = OptimizationRecommendation::with(['reviewedBy:id,name', 'executedBy:id,name'])->find((int) ($input['id'] ?? 0));
+        if (! $r) {
+            return ['error' => 'Recommendation not found.'];
+        }
+
+        // A few rows it would touch, without long text or secret-looking columns.
+        $sample = [];
+        if (in_array($r->operation, ['delete', 'update'], true) && $r->where_sql && Schema::hasTable($r->table_name)) {
+            $rows = rescue(fn () => DB::table($r->table_name)->whereRaw($r->where_sql, $r->where_bindings ?? [])->limit(3)->get(), collect(), false);
+            $sample = $rows->map(fn ($row) => collect((array) $row)
+                ->reject(fn ($v, $k) => preg_match('/pass|secret|token|key|credential|payload|trace|remember/i', (string) $k))
+                ->map(fn ($v) => is_string($v) ? Str::limit($v, 60) : $v)
+                ->all())->values()->all();
+        }
+
+        return $this->recommendationRow($r) + [
+            'expiration_status' => $r->expiration_status,
+            'sql_preview' => Str::limit((string) $r->sql_preview, 1500),
+            'backup_and_rollback' => $r->rollback_note,
+            'sample_rows' => $sample,
+            'reviewed_by' => $r->reviewedBy?->name,
+            'reviewed_at' => $this->time($r->reviewed_at),
+            'rejection_reason' => $r->rejection_reason,
+            'executed_by' => $r->executedBy?->name,
+            'executed_at' => $this->time($r->executed_at),
+            'executed_rows' => $r->executed_count,
         ];
     }
 
