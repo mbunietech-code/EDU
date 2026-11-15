@@ -82,6 +82,9 @@ class AiWatchdog
             if ($problem['since'] && Carbon::parse($problem['since'])->lt($oldest)) {
                 continue;
             }
+            if ($problem['kind'] === 'error' && ! $this->ringsFor($problem)) {
+                continue; // ErrorOccurred already tells admins; the AI only calls when asked to
+            }
             if ($this->alreadyRung($problem['fingerprint'])) {
                 continue;
             }
@@ -96,6 +99,17 @@ class AiWatchdog
         }
 
         return $new;
+    }
+
+    /**
+     * Server errors already reach admins as a normal notification (ErrorOccurred),
+     * so by default the AI does not ring for them. When switched on in settings it
+     * rings only for an error that keeps happening (50, 250... times), never for
+     * every new one. Customer problems always ring.
+     */
+    private function ringsFor(array $problem): bool
+    {
+        return $this->settings->ringForErrors() && str_contains($problem['fingerprint'], ':x');
     }
 
     /** @param list<string> $permissions */
@@ -184,10 +198,10 @@ class AiWatchdog
                 );
             }
 
-            // Rings again each time it crosses 10, 50, 250... occurrences.
+            // Counts again each time it crosses 50, 250, 500... occurrences.
             $n = (int) $e->occurrences;
-            if ($n >= 10) {
-                $step = $n >= 250 ? 250 : ($n >= 50 ? 50 : 10);
+            if ($n >= 50) {
+                $step = $n >= 250 ? 250 : 50;
                 $bucket = (int) (floor($n / $step) * $step);
                 $out[] = $this->problem(
                     "error:{$e->id}:x{$bucket}", 'error', 'high',

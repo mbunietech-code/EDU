@@ -174,6 +174,7 @@ class AiAssistantController extends Controller
             'model' => ['required', Rule::in(array_keys(AiAssistantSettings::MODELS))],
             'daily_limit' => ['required', 'integer', 'min:0', 'max:100000'],
             'alerts_enabled' => ['nullable', 'boolean'],
+            'ring_errors' => ['nullable', 'boolean'],
             'payment_wait' => ['required', 'integer', 'min:5', 'max:1440'],
             'chat_wait' => ['required', 'integer', 'min:1', 'max:1440'],
             'instructions' => ['nullable', 'string', 'max:4000'],
@@ -191,6 +192,7 @@ class AiAssistantController extends Controller
         $this->settings->set('ai_assistant_model', $data['model']);
         $this->settings->set('ai_assistant_daily_limit', (string) $data['daily_limit']);
         $this->settings->set('ai_assistant_alerts_enabled', $request->boolean('alerts_enabled') ? '1' : '0');
+        $this->settings->set('ai_assistant_ring_errors', $request->boolean('ring_errors') ? '1' : '0');
         $this->settings->set('ai_assistant_payment_wait', (string) $data['payment_wait']);
         $this->settings->set('ai_assistant_chat_wait', (string) $data['chat_wait']);
         $this->settings->set('ai_assistant_instructions', trim((string) ($data['instructions'] ?? '')));
@@ -198,6 +200,7 @@ class AiAssistantController extends Controller
         ActivityLog::log('ai_assistant_settings_updated', 'Setting', null, [
             'model' => $data['model'],
             'alerts' => $request->boolean('alerts_enabled'),
+            'ring_errors' => $request->boolean('ring_errors'),
             'key' => $keyChange,
         ]);
 

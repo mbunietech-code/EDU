@@ -370,6 +370,31 @@ class AiAssistantDeepSeekTest extends TestCase
         $this->assertSame(0, DB::table('notifications')->count());
     }
 
+    public function test_server_errors_do_not_ring_unless_switched_on_and_then_only_when_they_keep_happening(): void
+    {
+        $boss = $this->superAdmin();
+        $error = fn (string $fp, int $times) => DB::table('error_logs')->insertGetId([
+            'fingerprint' => $fp, 'level' => 'error', 'exception' => 'RuntimeException', 'message' => 'Boom '.$fp,
+            'file' => 'app/Foo.php', 'line' => 10, 'occurrences' => $times,
+            'first_seen_at' => now()->subMinutes(5), 'last_seen_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $error('once', 1);
+        $error('often', 60);
+
+        // Off by default: errors already arrive as a normal notification (ErrorOccurred).
+        $this->assertSame(0, app(AiWatchdog::class)->scan());
+        $this->assertSame(0, $boss->notifications()->where('type', AiAlert::class)->count());
+        // The chat still sees them (get_open_alerts).
+        $this->assertNotEmpty(collect(app(AiWatchdog::class)->problems())->where('kind', 'error')->all());
+
+        // Switched on: only the one that keeps happening rings, once.
+        app(AiAssistantSettings::class)->set('ai_assistant_ring_errors', '1');
+        $this->assertSame(1, app(AiWatchdog::class)->scan());
+        $this->assertSame(0, app(AiWatchdog::class)->scan());
+        $alert = $boss->notifications()->where('type', AiAlert::class)->first();
+        $this->assertSame('AI Assistant: Error keeps happening', $alert->data['title']);
+    }
+
     // ------------------------------------------------------------- AI Optimization page
 
     public function test_chat_reads_optimization_recommendations_and_the_page_links_to_the_chat(): void

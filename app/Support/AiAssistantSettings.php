@@ -112,6 +112,12 @@ class AiAssistantSettings
         return (string) $this->values()->get('ai_assistant_alerts_enabled', '1') === '1';
     }
 
+    /** Ring for server errors that keep happening. Off by default: errors already notify. */
+    public function ringForErrors(): bool
+    {
+        return (string) $this->values()->get('ai_assistant_ring_errors', '0') === '1';
+    }
+
     public function paymentWaitMinutes(): int
     {
         return max(5, (int) $this->values()->get('ai_assistant_payment_wait', self::DEFAULT_PAYMENT_WAIT_MINUTES));

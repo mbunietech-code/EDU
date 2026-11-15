@@ -71,7 +71,16 @@
                 <input type="checkbox" name="alerts_enabled" value="1" @checked(old('alerts_enabled', $settings->alertsEnabled())) class="mt-1 rounded border-gray-300 text-indigo-600">
                 <span>
                     <span class="block text-sm font-medium text-gray-900">Ring admins about problems</span>
-                    <span class="block text-sm text-gray-500">New server errors (and errors that keep happening), payments waiting for approval, stuck online payments, customers waiting in support chat, missed video help calls, paid orders not activated.</span>
+                    <span class="block text-sm text-gray-500">Payments waiting for approval, stuck online payments, customers waiting in support chat, missed video help calls, paid orders not activated.</span>
+                </span>
+            </label>
+
+            <label class="mt-4 flex items-start gap-3">
+                <input type="hidden" name="ring_errors" value="0">
+                <input type="checkbox" name="ring_errors" value="1" @checked(old('ring_errors', $settings->ringForErrors())) class="mt-1 rounded border-gray-300 text-indigo-600">
+                <span>
+                    <span class="block text-sm font-medium text-gray-900">Also ring for server errors that keep happening</span>
+                    <span class="block text-sm text-gray-500">Off by default. Every server error already arrives as a normal notification. When this is on, the assistant rings only when one error has happened 50 times or more, not for every new error.</span>
                 </span>
             </label>
 
