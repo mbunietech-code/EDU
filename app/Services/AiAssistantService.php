@@ -190,8 +190,12 @@ class AiAssistantService
             return $reply;
         }
 
-        @set_time_limit(180);
-        ignore_user_abort(true);
+        // Web only: the answer keeps being written even if the tab closes. (In the
+        // console a time limit would apply to the whole process, e.g. a test run.)
+        if (! app()->runningInConsole()) {
+            @set_time_limit(180);
+            ignore_user_abort(true);
+        }
 
         try {
             return $this->generate($reply, $admin);
