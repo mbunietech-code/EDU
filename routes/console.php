@@ -24,6 +24,10 @@ Schedule::command(\App\Console\Commands\ChatAutoReplyCommand::class)->everyMinut
 // Video help calls nobody answered become "missed" (polls do it too; this covers closed pages).
 Schedule::command(\App\Console\Commands\VideoHelpExpireCommand::class)->everyMinute()->withoutOverlapping();
 
+// AI Assistant watchman: rings admins (popup + app push) about new errors, payments
+// waiting for approval, customers waiting in chat and missed video help calls.
+Schedule::command(\App\Console\Commands\AiWatchCommand::class)->everyMinute()->withoutOverlapping();
+
 // Learning (ROOM) — live-room reminders & housekeeping
 Schedule::command(\App\Console\Commands\LearningSendRemindersCommand::class)->everyMinute()->withoutOverlapping();
 

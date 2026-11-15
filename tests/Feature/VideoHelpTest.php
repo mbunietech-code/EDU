@@ -137,7 +137,8 @@ class VideoHelpTest extends TestCase
             ->assertJsonPath('calls.0.name', $member->name)
             ->assertJsonPath('calls.0.reason', 'My plan is not active');
 
-        $this->actingAs($other)->getJson(route('admin.video-help.ringing'))->assertForbidden();
+        // Other admins poll too (AI Assistant alerts ring there) but never see calls.
+        $this->actingAs($other)->getJson(route('admin.video-help.ringing'))->assertOk()->assertJsonCount(0, 'calls');
         $this->actingAs($member)->getJson(route('admin.video-help.ringing'))->assertForbidden();
         $this->actingAs($other)->postJson(route('admin.video-help.accept', $call))->assertForbidden();
 

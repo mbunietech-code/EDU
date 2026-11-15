@@ -59,11 +59,11 @@ class AiAssistantController extends Controller
         $this->own($request, $conversation);
 
         $data = $request->validate([
-            'message' => ['required', 'string', 'max:2000'],
+            'message' => ['required', 'string', 'max:12000'],
             'question_id' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $reply = $this->assistant->answer($conversation, $data['message'], $data['question_id'] ?? null);
+        $reply = $this->assistant->answer($conversation, $data['message'], $data['question_id'] ?? null, $request->user());
 
         return response()->json(['data' => $this->message($reply) + ['conversation_title' => $conversation->refresh()->displayTitle()]]);
     }

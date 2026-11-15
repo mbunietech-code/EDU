@@ -215,6 +215,7 @@ Route::prefix('admin')
         Route::controller(\App\Http\Controllers\Admin\VideoHelpController::class)->prefix('video-help')->name('video-help.')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/ringing', 'ringing')->middleware('throttle:150,1')->name('ringing');
+            Route::post('/alerts/{notification}/dismiss', 'dismissAlert')->middleware('throttle:60,1')->name('alerts.dismiss');
             Route::post('{videoHelpRequest}/accept', 'accept')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('accept');
             Route::post('{videoHelpRequest}/decline', 'decline')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('decline');
         });
@@ -335,13 +336,22 @@ Route::prefix('admin')
             });
         });
 
-        // --- AI Assistant chat — super admin only --------------------------
+        // --- AI Assistant chat (DeepSeek), super admin only --------------------------
         Route::middleware('can:ai.access')->prefix('ai-assistant')->name('ai-assistant.')->group(function () {
             Route::get('/', [AiAssistantController::class, 'index'])->name('index');
             Route::post('new', [AiAssistantController::class, 'newConversation'])->name('new');
-            Route::get('{conversation}', [AiAssistantController::class, 'index'])->name('show');
-            Route::post('{conversation}/send', [AiAssistantController::class, 'send'])->name('send');
-            Route::delete('{conversation}', [AiAssistantController::class, 'destroy'])->name('destroy');
+            Route::get('settings', [AiAssistantController::class, 'settings'])->name('settings');
+            Route::put('settings', [AiAssistantController::class, 'updateSettings'])->name('settings.update');
+            Route::post('settings/test', [AiAssistantController::class, 'testKey'])->middleware('throttle:10,1')->name('settings.test');
+            // Replies: run = generate (long request), show = poll while it streams, stop = cut it off.
+            Route::post('messages/{message}/run', [AiAssistantController::class, 'run'])->whereNumber('message')->middleware('throttle:40,1')->name('messages.run');
+            Route::get('messages/{message}', [AiAssistantController::class, 'poll'])->whereNumber('message')->middleware('throttle:400,1')->name('messages.show');
+            Route::post('messages/{message}/stop', [AiAssistantController::class, 'stop'])->whereNumber('message')->name('messages.stop');
+            Route::get('{conversation}', [AiAssistantController::class, 'index'])->whereNumber('conversation')->name('show');
+            Route::post('{conversation}/send', [AiAssistantController::class, 'send'])->whereNumber('conversation')->middleware('throttle:40,1')->name('send');
+            Route::post('{conversation}/regenerate', [AiAssistantController::class, 'regenerate'])->whereNumber('conversation')->middleware('throttle:20,1')->name('regenerate');
+            Route::patch('{conversation}', [AiAssistantController::class, 'rename'])->whereNumber('conversation')->name('rename');
+            Route::delete('{conversation}', [AiAssistantController::class, 'destroy'])->whereNumber('conversation')->name('destroy');
         });
 
         // --- Catalogue --------------------------------------------------

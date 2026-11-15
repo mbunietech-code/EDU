@@ -8,25 +8,39 @@
       "node_modules/livekit-client/dist/livekit-client.esm.mjs"
     ]
   },
+  "node_modules/dompurify/dist/purify.es.mjs": {
+    "file": "assets/purify.es-Ci5xwkH_.js",
+    "name": "purify.es",
+    "src": "node_modules/dompurify/dist/purify.es.mjs",
+    "isDynamicEntry": true
+  },
   "node_modules/livekit-client/dist/livekit-client.esm.mjs": {
     "file": "assets/livekit-client.esm-BEQj0Dup.js",
     "name": "livekit-client.esm",
     "src": "node_modules/livekit-client/dist/livekit-client.esm.mjs",
     "isDynamicEntry": true
   },
+  "node_modules/marked/lib/marked.esm.js": {
+    "file": "assets/marked.esm-BGCHI5NM.js",
+    "name": "marked.esm",
+    "src": "node_modules/marked/lib/marked.esm.js",
+    "isDynamicEntry": true
+  },
   "resources/css/app.css": {
-    "file": "assets/app-DN7TC9G4.css",
+    "file": "assets/app-WiBan9Is.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-COMtHBRW.js",
+    "file": "assets/app-BzhMpyos.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
       "node_modules/livekit-client/dist/livekit-client.esm.mjs",
-      "node_modules/@livekit/track-processors/dist/index.mjs"
+      "node_modules/@livekit/track-processors/dist/index.mjs",
+      "node_modules/marked/lib/marked.esm.js",
+      "node_modules/dompurify/dist/purify.es.mjs"
     ]
   }
 }

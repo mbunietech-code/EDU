@@ -445,8 +445,8 @@
         </div>
     </div>
 
-    {{-- Video help calls ring here, on every admin page, for admins who may answer. --}}
-    @if (\App\Services\VideoHelpService::canAnswer(auth()->user()))
+    {{-- Video help calls (admins who may answer) and AI Assistant alerts ring here, on every admin page. --}}
+    @if (auth()->user()?->is_admin)
         <x-admin.video-help-ringer />
     @endif
 

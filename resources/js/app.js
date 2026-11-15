@@ -7,6 +7,9 @@ window.Alpine = Alpine;
 // Learning (ROOM) Alpine factories must exist before Alpine boots.
 import './learning';
 
+// Admin AI Assistant chat (its Markdown library loads lazily, only on that page).
+import './ai-chat';
+
 Alpine.start();
 
 window.submitWithReason = function (form, promptText) {
