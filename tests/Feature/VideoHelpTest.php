@@ -155,7 +155,7 @@ class VideoHelpTest extends TestCase
         $member = $this->member();
         $call = $this->ringFor($member);
 
-        $liveUrl = route('learn.rooms.live', $this->room);
+        $liveUrl = route('learn.rooms.live', ['room' => $this->room, 'live' => 1]);
 
         $this->actingAs($first)->postJson(route('admin.video-help.accept', $call))
             ->assertOk()

@@ -3,54 +3,51 @@
     on every admin page until one admin accepts. Accept sends this admin into
     the support live room; the popup disappears for everyone else on their
     next poll. Rendered only for admins who may answer (VideoHelpService::canAnswer).
+    Styled like the rest of the admin (white card, indigo, mbui buttons).
 --}}
 <div x-data="videoHelpRinger(@js(route('admin.video-help.ringing')))" x-cloak>
     <template x-if="call">
-        <div class="fixed inset-x-3 bottom-3 z-[60] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-96" role="alertdialog" aria-live="assertive" aria-label="Incoming video help call">
-            <div class="overflow-hidden rounded-2xl bg-gray-900 text-white shadow-2xl ring-1 ring-white/10">
-                <div class="flex items-center gap-4 p-5">
-                    <span class="relative flex h-14 w-14 shrink-0 items-center justify-center">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50"></span>
-                        <span class="relative flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500">
-                            <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                            </svg>
-                        </span>
+        <div class="fixed inset-x-3 bottom-3 z-[60] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-96" role="alertdialog" aria-live="assertive" aria-label="Incoming video help call">
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <x-brand-mark class="h-6 w-6" rounded="rounded-md" />
+                        <p class="text-sm font-semibold text-gray-900">Video help call</p>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600">
+                        <span class="h-2 w-2 animate-pulse rounded-full bg-indigo-600"></span>
+                        Ringing
                     </span>
-                    <div class="min-w-0 flex-1">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-300">Video help call</p>
-                        <p class="truncate text-lg font-semibold" x-text="call.name"></p>
-                        <p class="truncate text-xs text-gray-400" x-text="call.email"></p>
+                </div>
+
+                <div class="flex items-center gap-3 px-4 py-4">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white" x-text="initials(call.name)"></span>
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-gray-900" x-text="call.name"></p>
+                        <p class="truncate text-xs text-gray-500" x-text="call.email"></p>
                     </div>
                 </div>
 
-                <p x-show="call.reason" class="mx-5 -mt-1 mb-4 max-h-24 overflow-y-auto whitespace-pre-line break-words rounded-lg bg-white/5 px-3 py-2 text-sm text-gray-200" x-text="call.reason"></p>
+                <p x-show="call.reason" class="mx-4 mb-4 max-h-24 overflow-y-auto whitespace-pre-line break-words rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700" x-text="call.reason"></p>
 
-                <p x-show="message" class="mx-5 mb-3 rounded-lg bg-amber-500/20 px-3 py-2 text-sm text-amber-200" x-text="message"></p>
+                <p x-show="message" class="mx-4 mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800" x-text="message"></p>
 
-                <p x-show="muted" class="mx-5 mb-3 text-xs text-gray-400">Click anywhere on the page to hear the ring.</p>
+                <p x-show="muted" class="mx-4 mb-3 text-xs text-gray-500">Click anywhere on the page to hear the ring.</p>
 
-                <div class="flex items-center justify-between gap-3 border-t border-white/10 px-5 py-4">
-                    <span class="text-xs text-gray-400">
-                        <span x-text="calls.length > 1 ? (calls.length - 1) + ' more waiting' : 'Ringing all support staff'"></span>
-                    </span>
+                <div class="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-4 py-3">
+                    <span class="text-xs text-gray-500" x-text="calls.length > 1 ? (calls.length - 1) + ' more waiting' : 'Ringing all support staff'"></span>
                     <div class="flex gap-2">
-                        <button type="button" @click="decline()" :disabled="busy"
-                            class="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            Decline
-                        </button>
-                        <button type="button" @click="accept()" :disabled="busy"
-                            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-60">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                        <x-mbui.button variant="secondary" class="!px-3" @click="decline()" ::disabled="busy">Decline</x-mbui.button>
+                        <x-mbui.button variant="primary" class="!px-3 disabled:opacity-60" @click="accept()" ::disabled="busy">
                             <span x-text="busy ? 'Joining...' : 'Accept'"></span>
-                        </button>
+                        </x-mbui.button>
                     </div>
                 </div>
             </div>
         </div>
     </template>
 </div>
+
 
 <script>
     function videoHelpRinger(pollUrl) {
@@ -83,6 +80,10 @@
 
             csrf() {
                 return document.querySelector('meta[name="csrf-token"]')?.content || '';
+            },
+
+            initials(name) {
+                return String(name || '?').trim().split(/\s+/).slice(0, 2).map(p => p.charAt(0).toUpperCase()).join('');
             },
 
             async poll() {

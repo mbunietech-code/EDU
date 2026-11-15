@@ -161,8 +161,10 @@ window.learnClassroom = (cfg = {}) => {
     state: 'waiting',
     hasLeft: false,
     // Guests (and links with ?join=1) go straight into the call once it is live — no extra Join click.
+    // ?live=1 (an answered video help call) also goes straight in, camera and microphone on.
     autoJoin: !!(cfg.viewer && cfg.viewer.is_guest)
-        || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('join') === '1'),
+        || (typeof window !== 'undefined' && ['join', 'live'].some(k => new URLSearchParams(window.location.search).get(k) === '1')),
+    goLive: typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('live') === '1',
     errorTitle: '',
     errorText: '',
     notice: '',
@@ -942,7 +944,8 @@ window.learnClassroom = (cfg = {}) => {
         if (!(await this.handleTokenResult(result))) return;
 
         // Hosts and meeting guests start with camera + microphone on (guests came to see each other).
-        await this.connect(result.data.config, this.isManager || !!this.viewer.is_guest);
+        // So does someone sent in by an answered video help call (?live=1): they came to talk face to face.
+        await this.connect(result.data.config, this.isManager || !!this.viewer.is_guest || this.goLive);
     },
 
     /** Maps token errors to screens. Returns true when a config is available. */

@@ -88,7 +88,8 @@ class VideoHelpController extends Controller
 
         return response()->json([
             'ok' => true,
-            'url' => route('learn.rooms.live', $room),
+            // live=1: straight into the call with camera and microphone on, no second Join click.
+            'url' => route('learn.rooms.live', ['room' => $room, 'live' => 1]),
         ]);
     }
 

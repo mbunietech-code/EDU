@@ -236,7 +236,7 @@ class VideoHelpService
             $room = $call->room ?? $this->room();
             // "connecting" until the admin's accept has opened the room.
             if ($room && $room->isLive()) {
-                $payload['join_url'] = route('learn.rooms.live', $room);
+                $payload['join_url'] = route('learn.rooms.live', ['room' => $room, 'live' => 1]);
             } else {
                 $payload['status'] = 'connecting';
             }
