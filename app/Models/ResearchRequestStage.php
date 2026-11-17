@@ -28,14 +28,17 @@ class ResearchRequestStage extends Model
 
     public const CLOSED = 'closed';
 
-    /** Tailwind colour families a stage can use (badge, board column, tracker dot). */
-    public const COLORS = ['gray', 'sky', 'indigo', 'violet', 'amber', 'orange', 'emerald', 'green', 'red', 'pink', 'teal'];
+    /**
+     * Flat colours a stage can use (badge, board column, tracker dot). No
+     * violet / pink "AI look" accents — the site style is flat and plain.
+     */
+    public const COLORS = ['gray', 'sky', 'indigo', 'teal', 'amber', 'orange', 'emerald', 'green', 'red'];
 
     /** Hex for the app (MHub) — the Tailwind 600 shade of each colour. */
     public const HEX = [
-        'gray' => '#4B5563', 'sky' => '#0284C7', 'indigo' => '#4F46E5', 'violet' => '#7C3AED',
+        'gray' => '#4B5563', 'sky' => '#0284C7', 'indigo' => '#4F46E5', 'teal' => '#0D9488',
         'amber' => '#D97706', 'orange' => '#EA580C', 'emerald' => '#059669', 'green' => '#16A34A',
-        'red' => '#DC2626', 'pink' => '#DB2777', 'teal' => '#0D9488',
+        'red' => '#DC2626',
     ];
 
     protected $fillable = ['key', 'name', 'description', 'color', 'progress', 'sort_order', 'allows_cancel', 'is_active'];

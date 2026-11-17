@@ -8,10 +8,10 @@
 @endphp
 
 <div {{ $attributes->merge(['class' => 'mbui-card overflow-hidden']) }}>
-    <div class="flex flex-wrap items-end justify-between gap-3 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-5 text-white sm:px-6">
+    <div class="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 px-5 py-5 sm:px-6">
         <div class="min-w-0">
-            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-100">Where your work is</p>
-            <p class="mt-1 text-xl font-bold">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Where your work is</p>
+            <p class="mt-1 text-xl font-bold text-gray-900">
                 @if ($cancelled)
                     Cancelled
                 @elseif ($completed)
@@ -21,12 +21,12 @@
                 @endif
             </p>
             @if (! $cancelled && ! $completed && $rr->stage?->description)
-                <p class="mt-0.5 text-sm text-indigo-100">{{ $rr->stage->description }}</p>
+                <p class="mt-0.5 text-sm text-gray-500">{{ $rr->stage->description }}</p>
             @endif
         </div>
         <div class="text-right">
-            <p class="text-4xl font-extrabold leading-none tabular-nums">{{ $rr->progress }}<span class="text-xl font-bold">%</span></p>
-            <p class="mt-1 text-xs text-indigo-100">complete</p>
+            <p class="text-3xl font-bold leading-none tabular-nums text-gray-900">{{ $rr->progress }}<span class="text-lg">%</span></p>
+            <p class="mt-1 text-xs text-gray-500">complete</p>
         </div>
     </div>
 
@@ -50,9 +50,6 @@
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                     @else
                         {{ $i + 1 }}
-                    @endif
-                    @if ($isCurrent)
-                        <span class="absolute inset-0 animate-ping rounded-full opacity-30" style="background-color: {{ $step['color'] }}"></span>
                     @endif
                 </span>
                 <span class="min-w-0">

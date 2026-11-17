@@ -67,7 +67,7 @@
     @endif
 
     @if ($rr->canBeCompletedByCustomer() || $rr->canRequestRevision())
-        <div class="mt-6 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-5" x-data="{ mode: null, rating: 0, hover: 0 }">
+        <div class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5" x-data="{ mode: null, rating: 0, hover: 0 }">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p class="font-semibold text-gray-900">{{ $rr->canBeCompletedByCustomer() ? 'Your work is delivered 🎉' : 'A draft is ready for you' }}</p>
@@ -145,7 +145,7 @@
                             @php($group = $deliverables->where('kind', $kind))
                             @if ($group->isNotEmpty())
                                 <div>
-                                    <p @class(['mb-2 text-xs font-semibold uppercase tracking-wider', 'text-emerald-700' => $kind === 'final', 'text-violet-700' => $kind === 'draft'])>{{ $label }}</p>
+                                    <p @class(['mb-2 text-xs font-semibold uppercase tracking-wider', 'text-emerald-700' => $kind === 'final', 'text-sky-700' => $kind === 'draft'])>{{ $label }}</p>
                                     <div class="grid gap-2 sm:grid-cols-2">
                                         @foreach ($group as $file)
                                             <x-research-requests.file-link :file="$file" :href="route('user.research-requests.file', [$rr, $file])" />

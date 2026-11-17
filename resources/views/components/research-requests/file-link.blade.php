@@ -8,7 +8,7 @@
         in_array($ext, ['doc', 'docx', 'odt', 'rtf', 'txt'], true) => 'bg-sky-50 text-sky-600',
         in_array($ext, ['xls', 'xlsx', 'csv', 'sav', 'dta'], true) => 'bg-emerald-50 text-emerald-600',
         in_array($ext, ['ppt', 'pptx'], true) => 'bg-orange-50 text-orange-600',
-        in_array($ext, ['png', 'jpg', 'jpeg'], true) => 'bg-violet-50 text-violet-600',
+        in_array($ext, ['png', 'jpg', 'jpeg'], true) => 'bg-gray-100 text-gray-700',
         default => 'bg-gray-100 text-gray-600',
     };
 @endphp

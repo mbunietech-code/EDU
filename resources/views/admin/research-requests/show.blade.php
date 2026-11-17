@@ -241,7 +241,7 @@
                         @csrf
                         <input type="hidden" name="kind" :value="kind">
                         <div class="grid grid-cols-2 gap-2">
-                            <button type="button" @click="kind = 'draft'" class="rounded-lg border px-3 py-2 text-sm font-medium" :class="kind === 'draft' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-700'">Draft</button>
+                            <button type="button" @click="kind = 'draft'" class="rounded-lg border px-3 py-2 text-sm font-medium" :class="kind === 'draft' ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-gray-200 text-gray-700'">Draft</button>
                             <button type="button" @click="kind = 'final'" class="rounded-lg border px-3 py-2 text-sm font-medium" :class="kind === 'final' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-700'">Final work</button>
                         </div>
                         <label class="flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-gray-300 px-3 py-4 text-center text-sm hover:border-indigo-400">
@@ -262,7 +262,7 @@
                 <h2 class="text-sm font-semibold text-gray-900">Delivered files</h2>
                 @forelse ($delivered as $file)
                     <div class="mt-2">
-                        <p class="mb-1 text-[11px] font-semibold uppercase {{ $file->kind === 'final' ? 'text-emerald-700' : 'text-violet-700' }}">{{ $file->kindLabel() }} · {{ $file->user?->name }}</p>
+                        <p class="mb-1 text-[11px] font-semibold uppercase {{ $file->kind === 'final' ? 'text-emerald-700' : 'text-sky-700' }}">{{ $file->kindLabel() }} · {{ $file->user?->name }}</p>
                         <x-research-requests.file-link :file="$file" :href="route('admin.research-requests.file', [$rr, $file])" />
                     </div>
                 @empty

@@ -26,7 +26,7 @@
         ['Unassigned', $summary['unassigned'], ['status' => 'active', 'assignee' => 'none'], 'text-gray-700'],
         ['Overdue', $summary['overdue'], ['status' => 'active', 'deadline' => 'overdue'], 'text-red-600'],
         ['Due in '.\App\Models\ResearchRequest::DUE_SOON_DAYS.' days', $summary['due_soon'], ['status' => 'active', 'deadline' => 'soon'], 'text-amber-600'],
-        ['Quotes waiting', $summary['quotes'], null, 'text-violet-600'],
+        ['Quotes waiting', $summary['quotes'], null, 'text-amber-600'],
         ['Done this month', $summary['completed_month'], ['status' => 'completed'], 'text-emerald-600'],
         ['Avg. rating', $summary['rating'] ? $summary['rating'].' ★' : '—', null, 'text-amber-500'],
     ])
@@ -217,7 +217,7 @@
                                         @if ($rr->deadline)
                                             <span @class(['font-semibold text-red-600' => $rr->isOverdue(), 'font-semibold text-amber-600' => $rr->isDueSoon()])>⏱ {{ $rr->deadlineLabel() }}</span>
                                         @endif
-                                        @if ($rr->quote_status === 'pending')<span class="text-violet-600">Quote waiting</span>@endif
+                                        @if ($rr->quote_status === 'pending')<span class="font-semibold text-amber-600">Quote waiting</span>@endif
                                         @if ($rr->revision_count)<span>↺ {{ $rr->revision_count }}</span>@endif
                                         <span class="ml-auto inline-flex items-center gap-1">
                                             @if ($rr->assignee)

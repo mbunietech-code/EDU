@@ -243,14 +243,11 @@ class _ResearchRequestDetailScreenState extends ConsumerState<ResearchRequestDet
     );
   }
 
+  /// Plain white card (site style): stage, % and a flat progress bar — no gradients.
   Widget _hero(ResearchRequest rr) {
     final headline = rr.status == 'cancelled' ? 'Cancelled' : (rr.status == 'completed' ? 'Completed' : (rr.stageName ?? 'Received'));
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        gradient: const LinearGradient(colors: [AppColors.indigo600, Color(0xFF7C3AED)]),
-      ),
+    final barColor = rr.status == 'cancelled' ? AppColors.gray400 : (rr.status == 'completed' ? AppColors.emerald600 : rr.color);
+    return MbuiCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -259,29 +256,24 @@ class _ResearchRequestDetailScreenState extends ConsumerState<ResearchRequestDet
             children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('WHERE YOUR WORK IS', style: TextStyle(color: Color(0xFFC7D2FE), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8)),
+                  const MbuiSectionLabel('Where your work is'),
                   const SizedBox(height: 4),
-                  Text(headline, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(headline, style: const TextStyle(color: AppColors.gray900, fontSize: 20, fontWeight: FontWeight.bold)),
                   if (rr.isActive && rr.stageDescription != null)
-                    Text(rr.stageDescription!, style: const TextStyle(color: Color(0xFFE0E7FF), fontSize: 13)),
+                    Text(rr.stageDescription!, style: const TextStyle(color: AppColors.gray500, fontSize: 13)),
                 ]),
               ),
-              Text('${rr.progress}%', style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
+              Text('${rr.progress}%', style: const TextStyle(color: AppColors.gray900, fontSize: 30, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: rr.progress / 100),
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.easeOutCubic,
-              builder: (_, v, _) => LinearProgressIndicator(
-                value: v,
-                minHeight: 10,
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-              ),
+            child: LinearProgressIndicator(
+              value: rr.progress / 100,
+              minHeight: 8,
+              backgroundColor: AppColors.gray100,
+              valueColor: AlwaysStoppedAnimation(barColor),
             ),
           ),
         ],
@@ -580,7 +572,6 @@ class _TrackerRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: dotColor,
                 shape: BoxShape.circle,
-                boxShadow: current ? [BoxShadow(color: step.color.withValues(alpha: 0.35), blurRadius: 10, spreadRadius: 2)] : null,
               ),
               alignment: Alignment.center,
               child: done
