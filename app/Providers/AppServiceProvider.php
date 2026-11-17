@@ -35,6 +35,12 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
 
+        // MHub app: a suspended (or inactive) account's tokens stop working at once (401,
+        // so the app signs out), the same as the website (EnsureUserIsActive).
+        \Laravel\Sanctum\Sanctum::authenticateAccessTokensUsing(
+            fn ($token, bool $isValid) => $isValid && ! ($token->tokenable instanceof \App\Models\User && ! $token->tokenable->isActive())
+        );
+
         // Website chatbot: each message can cost money at the AI provider.
         \Illuminate\Support\Facades\RateLimiter::for('chatbot', fn (\Illuminate\Http\Request $request) => [
             \Illuminate\Cache\RateLimiting\Limit::perMinute(6)->by('chatbot-min:'.$request->ip()),

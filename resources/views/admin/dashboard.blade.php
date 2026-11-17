@@ -27,10 +27,13 @@
         <x-mbui.stats-card title="Total Users" :value="number_format($metrics['total_users'])" />
         <x-mbui.stats-card title="Total Products" :value="number_format($metrics['total_products'])" />
         <x-mbui.stats-card title="Active Subscriptions" :value="number_format($metrics['active_subscriptions'])" />
-        <x-mbui.stats-card title="Pending Payments" :value="number_format($metrics['pending_payments'])" />
+        @if ($can['payments'])
+            <x-mbui.stats-card title="Pending Payments" :value="number_format($metrics['pending_payments'])" />
+        @endif
         <x-mbui.stats-card title="Accounts (Avail / Total)" :value="$metrics['available_accounts'] . ' / ' . $metrics['total_accounts']" :trend="$metrics['assigned_accounts'] . ' assigned'" />
         <x-mbui.stats-card title="Expiring Soon" :value="number_format($metrics['expiring_soon'])" :trend="'Threshold: 3 days'" />
         <x-mbui.stats-card title="Expired" :value="number_format($metrics['expired_subscriptions'])" />
+        @if ($can['revenue'])
         <div class="mbui-card p-6">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-medium text-gray-500">Monthly Revenue</p>
@@ -49,11 +52,15 @@
             <p class="rev-mask mt-2 text-2xl font-bold tracking-tight text-gray-900">TZS ••••••</p>
             <p class="rev-mask mt-1 text-xs text-gray-500">≈ $•••• USD · ≈ ¥•••• CNY</p>
         </div>
+        @endif
     </div>
 
     {{-- Full width, one under the other: side by side each table was only half the
-         page, and the "≈ $ USD · ≈ ¥ CNY" line under every amount forced a horizontal scrollbar. --}}
+         page, and the "≈ $ USD · ≈ ¥ CNY" line under every amount forced a horizontal scrollbar.
+         Orders, payments and revenue only for admins with those permissions. --}}
+    @if ($can['orders'] || $can['payments'])
     <div class="mt-8 grid gap-8">
+        @if ($can['orders'])
         <x-mbui.table :title="'Recent Orders'">
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">
@@ -80,7 +87,9 @@
                 @endforelse
             </tbody>
         </x-mbui.table>
+        @endif
 
+        @if ($can['payments'])
         <x-mbui.table :title="'Recent Payments'">
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">
@@ -111,8 +120,11 @@
                 @endforelse
             </tbody>
         </x-mbui.table>
+        @endif
     </div>
+    @endif
 
+    @if ($can['revenue'])
     <div class="mt-8">
         <x-mbui.card>
             <div class="flex items-center justify-between">
@@ -133,5 +145,6 @@
             </div>
         </x-mbui.card>
     </div>
+    @endif
 
 </x-layouts.admin>

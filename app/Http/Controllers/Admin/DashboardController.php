@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Services\CurrencyRateService;
 use App\Services\ReportService;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -18,25 +19,43 @@ class DashboardController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        // Every admin opens the dashboard, but money and customer lists only
+        // reach admins who may open those pages (same permissions as the menu).
+        $can = self::sections($request->user());
+
         $metrics = $this->reportService->getDashboardMetrics();
 
-        $recentOrders = Order::with(['user', 'product', 'tool', 'subscription'])
-            ->latest()
-            ->take(5)
-            ->get();
+        $recentOrders = $can['orders']
+            ? Order::with(['user', 'product', 'tool', 'subscription'])->latest()->take(5)->get()
+            : collect();
 
-        $recentPayments = Payment::with(['user', 'order.product'])
-            ->latest()
-            ->take(5)
-            ->get();
+        $recentPayments = $can['payments']
+            ? Payment::with(['user', 'order.product'])->latest()->take(5)->get()
+            : collect();
 
-        $revenueReport = $this->fillMissingMonths($this->reportService->getRevenueReport(6));
+        $revenueReport = $can['revenue']
+            ? $this->fillMissingMonths($this->reportService->getRevenueReport(6))
+            : [];
 
         $rates = app(CurrencyRateService::class)->rates();
 
-        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport', 'rates'));
+        return view('admin.dashboard', compact('metrics', 'recentOrders', 'recentPayments', 'revenueReport', 'rates', 'can'));
+    }
+
+    /**
+     * Which dashboard parts this admin may see (also used by the MHub app dashboard).
+     *
+     * @return array{revenue:bool,orders:bool,payments:bool}
+     */
+    public static function sections(User $user): array
+    {
+        return [
+            'revenue' => $user->can('reports.view'),
+            'orders' => $user->can('orders.view'),
+            'payments' => $user->can('payments.view'),
+        ];
     }
 
     protected function fillMissingMonths(array $revenue, int $months = 6): array

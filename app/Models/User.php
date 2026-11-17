@@ -67,6 +67,25 @@ class User extends Authenticatable implements MustVerifyEmail
                 ], true);
             }
         });
+
+        // Suspended / made inactive: sign out everywhere now — website sessions,
+        // app tokens, and phones/computers that receive pushes or ring for calls.
+        static::updated(function (User $user) {
+            if ($user->wasChanged('status') && ! $user->isActive()) {
+                $user->signOutEverywhere();
+            }
+        });
+    }
+
+    public function signOutEverywhere(): void
+    {
+        // Each step on its own: a table not created yet on this server must not stop the rest
+        // (and is not an error worth reporting). Other session drivers are covered by
+        // EnsureUserIsActive on the next request.
+        rescue(fn () => $this->tokens()->delete(), null, false);
+        rescue(fn () => $this->deviceTokens()->delete(), null, false);
+        rescue(fn () => \App\Models\CallDevice::query()->where('user_id', $this->id)->delete(), null, false);
+        rescue(fn () => \Illuminate\Support\Facades\DB::table(config('session.table', 'sessions'))->where('user_id', $this->id)->delete(), null, false);
     }
 
     public function sendEmailVerificationNotification(): void

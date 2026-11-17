@@ -51,6 +51,15 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // Same rule as the MHub app sign-in: suspended / inactive accounts stay out.
+        if (! Auth::user()->isActive()) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => \App\Http\Middleware\EnsureUserIsActive::MESSAGE,
+            ]);
+        }
     }
 
     /**

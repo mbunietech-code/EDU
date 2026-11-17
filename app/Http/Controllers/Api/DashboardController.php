@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
@@ -49,8 +50,10 @@ class DashboardController extends Controller
     public function admin(Request $request): JsonResponse
     {
         $metrics = app(ReportService::class)->getDashboardMetrics();
+        // Same rule as the web dashboard: money and customer lists need the matching permission.
+        $can = AdminDashboardController::sections($request->user());
 
-        $recent = Order::with(['user:id,name', 'product:id,name', 'tool:id,name'])
+        $recent = ! $can['orders'] ? collect() : Order::with(['user:id,name', 'product:id,name', 'tool:id,name'])
             ->latest()
             ->take(6)
             ->get()
@@ -60,21 +63,24 @@ class DashboardController extends Controller
                 'amount' => $this->money($order->amount),
             ]);
 
+        $stats = [
+            ['label' => 'Users', 'value' => $metrics['total_users']],
+            ['label' => 'Products', 'value' => $metrics['total_products']],
+            ['label' => 'Active subscriptions', 'value' => $metrics['active_subscriptions']],
+            ['label' => 'Expiring soon', 'value' => $metrics['expiring_soon']],
+        ];
+        if ($can['payments']) {
+            $stats[] = ['label' => 'Pending payments', 'value' => $metrics['pending_payments']];
+        }
+        $stats[] = ['label' => 'Available accounts', 'value' => $metrics['available_accounts']];
+        if ($can['revenue']) {
+            $stats[] = ['label' => 'Revenue this month', 'value' => $this->money($metrics['monthly_revenue'])];
+        }
+        $stats[] = ['label' => 'Assigned accounts', 'value' => $metrics['assigned_accounts']];
+
         return response()->json([
-            'stats' => [
-                ['label' => 'Users', 'value' => $metrics['total_users']],
-                ['label' => 'Products', 'value' => $metrics['total_products']],
-                ['label' => 'Active subscriptions', 'value' => $metrics['active_subscriptions']],
-                ['label' => 'Expiring soon', 'value' => $metrics['expiring_soon']],
-                ['label' => 'Pending payments', 'value' => $metrics['pending_payments']],
-                ['label' => 'Available accounts', 'value' => $metrics['available_accounts']],
-                [
-                    'label' => 'Revenue this month',
-                    'value' => $this->money($metrics['monthly_revenue']),
-                ],
-                ['label' => 'Assigned accounts', 'value' => $metrics['assigned_accounts']],
-            ],
-            'recent' => $recent,
+            'stats' => $stats,
+            'recent' => $recent->values(),
         ]);
     }
 
