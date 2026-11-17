@@ -48,8 +48,9 @@ class FcmService
      *
      * @param  iterable<int>  $userIds
      * @param  array<string,string>  $data  extra key/value payload (strings only)
+     * @param  array{channel?:string,ttl?:int}  $options  Android channel id; seconds the push stays deliverable
      */
-    public function sendToUsers(iterable $userIds, string $title, string $body, array $data = []): void
+    public function sendToUsers(iterable $userIds, string $title, string $body, array $data = [], array $options = []): void
     {
         $ids = collect($userIds)->filter()->unique()->values();
         if ($ids->isEmpty() || ! $this->isConfigured()) {
@@ -61,42 +62,71 @@ class FcmService
             return;
         }
 
+        $stale = [];
+
+        foreach ($tokens as $id => $token) {
+            if (static::isGone($this->send($token, $title, $body, $data, $options))) {
+                $stale[] = $id; // UNREGISTERED / invalid token — drop it.
+            }
+        }
+
+        if ($stale) {
+            DeviceToken::whereIn('id', $stale)->delete();
+        }
+    }
+
+    /** True when FCM says this token no longer exists. */
+    public static function isGone(?int $status): bool
+    {
+        return $status === 404 || $status === 400;
+    }
+
+    /**
+     * Push one message to one token. Returns FCM's HTTP status, or null when
+     * FCM is not configured or the request failed.
+     *
+     * @param  array<string,string>  $data
+     * @param  array{channel?:string,ttl?:int}  $options
+     */
+    public function send(string $token, string $title, string $body, array $data = [], array $options = []): ?int
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
         try {
             $accessToken = $this->accessToken();
             $projectId = $this->projectId();
         } catch (Throwable $e) {
             Log::warning('FCM: could not authenticate', ['error' => $e->getMessage()]);
 
-            return;
+            return null;
         }
 
-        $stale = [];
-
-        foreach ($tokens as $id => $token) {
-            try {
-                $res = Http::withToken($accessToken)
-                    ->acceptJson()
-                    ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
-                        'message' => [
-                            'token' => $token,
-                            'notification' => ['title' => $title, 'body' => $body],
-                            'data' => array_map('strval', $data),
-                            'android' => ['priority' => 'high', 'notification' => ['channel_id' => 'mhub_default']],
-                            'apns' => ['headers' => ['apns-priority' => '10']],
-                        ],
-                    ]);
-
-                if ($res->status() === 404 || $res->status() === 400) {
-                    // UNREGISTERED / invalid token — drop it.
-                    $stale[] = $id;
-                }
-            } catch (Throwable $e) {
-                Log::warning('FCM: send failed', ['error' => $e->getMessage()]);
-            }
+        $android = ['priority' => 'high', 'notification' => ['channel_id' => $options['channel'] ?? 'mhub_default']];
+        $apnsHeaders = ['apns-priority' => '10'];
+        if (isset($options['ttl'])) {
+            $ttl = max(0, (int) $options['ttl']);
+            $android['ttl'] = $ttl.'s';
+            $apnsHeaders['apns-expiration'] = (string) (time() + $ttl);
         }
 
-        if ($stale) {
-            DeviceToken::whereIn('id', $stale)->delete();
+        try {
+            return Http::withToken($accessToken)
+                ->acceptJson()
+                ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
+                    'message' => [
+                        'token' => $token,
+                        'notification' => ['title' => $title, 'body' => $body],
+                        'data' => array_map('strval', $data),
+                        'android' => $android,
+                        'apns' => ['headers' => $apnsHeaders],
+                    ],
+                ])->status();
+        } catch (Throwable $e) {
+            Log::warning('FCM: send failed', ['error' => $e->getMessage()]);
+
+            return null;
         }
     }
 

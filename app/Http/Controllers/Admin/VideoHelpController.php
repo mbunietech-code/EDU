@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CallDevice;
 use App\Models\VideoHelpRequest;
 use App\Services\Ai\AiWatchdog;
 use App\Services\VideoHelpService;
+use App\Services\WebPushService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,9 +34,17 @@ class VideoHelpController extends Controller
             ->latest('id')
             ->paginate(30);
 
+        $devices = rescue(fn () => CallDevice::query()
+            ->with('user:id,name')
+            ->orderByRaw('user_id = ? desc', [$request->user()->id])
+            ->latest('id')
+            ->get(), collect(), false); // empty until database/alters/0043 is applied
+
         return view('admin.video-help.index', [
             'calls' => $calls,
             'room' => $this->help->room(),
+            'devices' => $devices,
+            'vapidKey' => app(WebPushService::class)->publicKey(),
         ]);
     }
 

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/notifications/notifications_repository.dart';
 import '../api_client.dart';
@@ -44,7 +45,38 @@ class NotificationCenter with WidgetsBindingObserver {
     importance: Importance.high,
   );
 
+  /// Video help calls (support admins): loud, heads-up, the phone's ringtone.
+  static const _callsChannel = AndroidNotificationChannel(
+    'mhub_calls',
+    'Video help calls',
+    description: 'Rings when a customer calls for video help',
+    importance: Importance.max,
+    sound: UriAndroidNotificationSound('content://settings/system/ringtone'),
+  );
+
+  /// Set while this phone is registered to ring for calls even when signed out.
+  static const ringsCallsPref = 'mhub_rings_calls';
+
   bool get _fcmSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  /// Only phones (FCM) can ring for calls while the app is closed.
+  bool get supportsCalls => _fcmSupported;
+
+  /// This phone's FCM token for registering it as a call device (null if unavailable).
+  Future<String?> callToken() async {
+    if (!_fcmSupported) return null;
+    await _ensureInit();
+    return _fcmToken;
+  }
+
+  /// Signed out but registered for calls: set up FCM so calls also show while the app is open.
+  Future<void> warmUpForCalls() async {
+    if (!_fcmSupported) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(ringsCallsPref) == true) await _ensureInit();
+    } catch (_) {}
+  }
 
   Future<void> _ensureInit() async {
     if (_initialised) return;
@@ -63,6 +95,10 @@ class NotificationCenter with WidgetsBindingObserver {
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_androidChannel);
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_callsChannel);
       await _plugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
@@ -100,7 +136,8 @@ class NotificationCenter with WidgetsBindingObserver {
   void _showFcmForeground(RemoteMessage message) {
     final n = message.notification;
     if (n == null) return;
-    _showLocal(n.hashCode, n.title ?? 'MHub', n.body ?? '');
+    final isCall = (message.data['type'] ?? '').toString().startsWith('video_help');
+    _showLocal(n.hashCode, n.title ?? 'MHub', n.body ?? '', call: isCall);
     _ref.invalidate(notificationsProvider);
   }
 
@@ -182,22 +219,31 @@ class NotificationCenter with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  void _showLocal(int id, String title, String body) {
+  void _showLocal(int id, String title, String body, {bool call = false}) {
     try {
       _plugin.show(
         id,
         title,
         body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'mhub_default',
-            'MHub notifications',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-          macOS: DarwinNotificationDetails(),
-          linux: LinuxNotificationDetails(),
+        NotificationDetails(
+          android: call
+              ? AndroidNotificationDetails(
+                  _callsChannel.id,
+                  _callsChannel.name,
+                  importance: Importance.max,
+                  priority: Priority.max,
+                  category: AndroidNotificationCategory.call,
+                  sound: _callsChannel.sound,
+                )
+              : const AndroidNotificationDetails(
+                  'mhub_default',
+                  'MHub notifications',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                ),
+          iOS: const DarwinNotificationDetails(),
+          macOS: const DarwinNotificationDetails(),
+          linux: const LinuxNotificationDetails(),
         ),
       );
     } catch (e) {

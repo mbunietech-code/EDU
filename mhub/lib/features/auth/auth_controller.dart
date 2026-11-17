@@ -53,6 +53,8 @@ class AuthController extends StateNotifier<AuthState> {
   TokenStorage get _tokens => _ref.read(tokenStorageProvider);
 
   Future<void> _restore() async {
+    // A support admin's phone registered for video help calls rings even signed out.
+    unawaited(_ref.read(notificationCenterProvider).warmUpForCalls());
     final token = await _tokens.read();
     if (token == null || token.isEmpty) {
       debugPrint('[MHub] restore: no saved token');

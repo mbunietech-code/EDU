@@ -13,9 +13,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
+use function Illuminate\Support\defer;
+
 /**
  * Video help calls: a member asks, every support admin is rung (popup with
- * sound on admin pages, a push to the MHub app) until one accepts. The first
+ * sound on admin pages, a push to the MHub app, and every registered call
+ * device: CallDeviceService) until one accepts. The first
  * accept wins through an atomic "update ... where status = ringing"; that
  * admin opens the support live room and the member is sent into it.
  * Calls nobody answers within ring_seconds become "missed" (checked on
@@ -91,7 +94,12 @@ class VideoHelpService
         $call->setRelation('user', $user);
 
         // Database notification per admin; PushDatabaseNotification also sends it to their phones (FCM).
-        $this->notify($this->answerers(), new VideoHelpCalling($call));
+        $answerers = $this->answerers();
+        $this->notify($answerers, new VideoHelpCalling($call));
+
+        // Computers and phones registered to ring even while signed out; after the response, never blocking the call.
+        $ttl = $this->ringSeconds();
+        defer(fn () => rescue(fn () => app(CallDeviceService::class)->ring($call, $answerers, $ttl)));
 
         return $call;
     }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/mbui/mbui.dart';
 import '../auth/auth_controller.dart';
+import 'call_ring_tile.dart';
 import 'profile_edit_screens.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -96,6 +97,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
+          if (user?.isAdmin == true) const CallRingTile(),
           MbuiCard(
             padding: EdgeInsets.zero,
             child: ListTile(

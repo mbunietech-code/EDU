@@ -43,6 +43,14 @@ return [
         'project_id' => env('FCM_PROJECT_ID'),
     ],
 
+    // Web Push (VAPID) for "ring this computer" call devices. Leave the keys
+    // empty to have one pair created in storage/app/webpush/vapid.json.
+    'webpush' => [
+        'enabled' => env('WEBPUSH_ENABLED', true),
+        'public_key' => env('WEBPUSH_PUBLIC_KEY'),
+        'private_key' => env('WEBPUSH_PRIVATE_KEY'),
+    ],
+
     /*
     | Mbunie VPN control plane (vpn.mbuniehub.com). partner_secret must equal
     | EDUHUB_PARTNER_SECRET on the VPN side; it signs every partner API call.

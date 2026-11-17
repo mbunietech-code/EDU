@@ -79,6 +79,12 @@ Route::get('/about', [AboutController::class, 'index'])->name('public.about');
 Route::get('/faq', [FaqController::class, 'index'])->name('public.faq');
 Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('public.contact.store');
+// Call devices: a support admin's computer woken by Web Push asks what is ringing (public/call-sw.js).
+// No session or CSRF token: the push endpoint in the body identifies the device.
+Route::post('/call-devices/check', \App\Http\Controllers\CallDeviceCheckController::class)
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->middleware('throttle:30,1')->name('call-devices.check');
+
 // Website chatbot widget (public pages). Provider calls happen server-side only.
 Route::get('/chatbot/history', [\App\Http\Controllers\Public\ChatbotController::class, 'history'])->middleware('throttle:30,1')->name('public.chatbot.history');
 Route::post('/chatbot/message', [\App\Http\Controllers\Public\ChatbotController::class, 'send'])->middleware('throttle:chatbot')->name('public.chatbot.send');
@@ -218,6 +224,12 @@ Route::prefix('admin')
             Route::post('/alerts/{notification}/dismiss', 'dismissAlert')->middleware('throttle:60,1')->name('alerts.dismiss');
             Route::post('{videoHelpRequest}/accept', 'accept')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('accept');
             Route::post('{videoHelpRequest}/decline', 'decline')->whereNumber('videoHelpRequest')->middleware('throttle:30,1')->name('decline');
+        });
+        // Computers / phones that ring for calls even when signed out.
+        Route::controller(\App\Http\Controllers\Admin\CallDeviceController::class)->prefix('video-help/devices')->name('video-help.devices.')->group(function () {
+            Route::post('/', 'store')->middleware('throttle:10,1')->name('store');
+            Route::post('{callDevice}/test', 'test')->whereNumber('callDevice')->middleware('throttle:10,1')->name('test');
+            Route::delete('{callDevice}', 'destroy')->whereNumber('callDevice')->name('destroy');
         });
 
         // --- Password vault (vault.view + PIN; vault.manage to change) ------

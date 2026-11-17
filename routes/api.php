@@ -244,6 +244,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);
 
+    // Support admins: this phone rings for video help calls even when signed out.
+    Route::get('/call-devices', [\App\Http\Controllers\Api\CallDeviceController::class, 'show']);
+    Route::post('/call-devices', [\App\Http\Controllers\Api\CallDeviceController::class, 'store'])->middleware('throttle:10,1');
+    Route::delete('/call-devices', [\App\Http\Controllers\Api\CallDeviceController::class, 'destroy']);
+
     // In-app notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
