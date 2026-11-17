@@ -24,6 +24,7 @@ class NotificationController extends Controller
                 'created_ago' => $n->created_at?->diffForHumans(),
                 'order_id' => $n->data['order_id'] ?? null,
                 'payment_id' => $n->data['payment_id'] ?? null,
+                'research_request_id' => $n->data['research_request_id'] ?? null,
             ])->all(),
             'meta' => [
                 'unread' => $user->unreadNotifications()->count(),

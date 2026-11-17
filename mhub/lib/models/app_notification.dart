@@ -7,6 +7,7 @@ class AppNotification {
     this.createdAgo,
     this.orderId,
     this.paymentId,
+    this.researchRequestId,
   });
 
   final String id;
@@ -17,6 +18,9 @@ class AppNotification {
   final int? orderId;
   final int? paymentId;
 
+  /// Set on research work request news (customer side opens the request).
+  final int? researchRequestId;
+
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
         id: j['id'].toString(),
         type: j['type'] as String? ?? 'notification',
@@ -25,5 +29,6 @@ class AppNotification {
         createdAgo: j['created_ago'] as String?,
         orderId: (j['order_id'] as num?)?.toInt(),
         paymentId: (j['payment_id'] as num?)?.toInt(),
+        researchRequestId: (j['research_request_id'] as num?)?.toInt(),
       );
 }

@@ -48,6 +48,8 @@ Schedule::command(\App\Console\Commands\MvpnRetryActivationsCommand::class)->eve
 // Company assets ending soon, and team tasks due / overdue: morning reminders.
 Schedule::command(\App\Console\Commands\AssetsRemindCommand::class)->dailyAt('07:00')->withoutOverlapping();
 Schedule::command(\App\Console\Commands\TasksRemindCommand::class)->dailyAt('07:05')->withoutOverlapping();
+// Research work requests due within two days or overdue: warn the assignee (or the team).
+Schedule::command(\App\Console\Commands\ResearchRequestsDeadlineCommand::class)->dailyAt('07:10')->withoutOverlapping();
 
 // Copy the VPN's plans onto the EduHub "vpn" product (prices live in Mbunie VPN → Plans).
 Schedule::command('mvpn:sync-plans')->hourly()->withoutOverlapping();

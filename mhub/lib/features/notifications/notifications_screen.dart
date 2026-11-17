@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/app_notification.dart';
 import '../../widgets/async_value_view.dart';
 import '../orders/order_detail_screen.dart';
+import '../research_requests/research_request_detail_screen.dart';
 import 'notifications_repository.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -11,6 +12,7 @@ class NotificationsScreen extends ConsumerWidget {
 
   IconData _iconFor(String type) {
     final t = type.toLowerCase();
+    if (t.startsWith('research_request')) return Icons.assignment_outlined;
     if (t.contains('order')) return Icons.receipt_long_outlined;
     if (t.contains('payment')) return Icons.payments_outlined;
     if (t.contains('subscription')) return Icons.autorenew;
@@ -77,6 +79,12 @@ class NotificationsScreen extends ConsumerWidget {
                   if (!n.read) {
                     await ref.read(notificationsRepositoryProvider).markRead(n.id);
                     ref.invalidate(notificationsProvider);
+                  }
+                  if (n.type == 'research_request' && n.researchRequestId != null && context.mounted) {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ResearchRequestDetailScreen(requestId: n.researchRequestId!),
+                    ));
+                    return;
                   }
                   if (n.orderId != null && context.mounted) {
                     Navigator.of(context).push(MaterialPageRoute(

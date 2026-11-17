@@ -32,6 +32,8 @@ final class AdminNotifications
         AccountUnavailable::class => 'accounts.view',
         ErrorOccurred::class => 'error_logs.view',
         \App\Notifications\Admin\SecurityAlert::class => 'settings.manage',
+        \App\Notifications\Admin\NewResearchRequest::class => 'research_requests.view',
+        \App\Notifications\Admin\ResearchRequestActivity::class => 'research_requests.view',
     ];
 
     /**

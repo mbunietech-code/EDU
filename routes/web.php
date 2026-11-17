@@ -68,6 +68,11 @@ Route::get('/signed/orders/{order}/download-software', [\App\Http\Controllers\Si
 Route::get('/signed/orders/{order}/download-tool', [\App\Http\Controllers\SignedDownloadController::class, 'tool'])
     ->middleware('signed')
     ->name('signed.orders.download-tool');
+// Research request files for the app: the API checks ownership, then hands out a 5-minute signed link.
+Route::get('/signed/research-requests/files/{file}', [\App\Http\Controllers\Api\ResearchRequestController::class, 'signedFile'])
+    ->whereNumber('file')
+    ->middleware(['signed', 'throttle:30,1'])
+    ->name('signed.research-requests.file');
 // Return pages for card / PayPal payments started in the app (opened in the
 // phone's browser, no web login): found by the payment's random reference.
 Route::middleware('throttle:30,1')->group(function () {
@@ -147,6 +152,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('videoHelpRequest')->middleware('throttle:120,1')->name('user.video-help.status');
     Route::post('/video-help/{videoHelpRequest}/cancel', [\App\Http\Controllers\User\VideoHelpController::class, 'cancel'])
         ->whereNumber('videoHelpRequest')->middleware('throttle:20,1')->name('user.video-help.cancel');
+
+    // Research work requests: the customer orders research work and follows it to delivery (own requests only).
+    Route::controller(\App\Http\Controllers\User\ResearchRequestController::class)
+        ->prefix('research-requests')->name('user.research-requests.')
+        ->whereNumber(['researchRequest', 'file'])
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/new', 'create')->name('create');
+            Route::post('/', 'store')->middleware('throttle:10,1')->name('store');
+            Route::get('/{researchRequest}', 'show')->name('show');
+            Route::post('/{researchRequest}/messages', 'message')->middleware('throttle:30,1')->name('message');
+            Route::post('/{researchRequest}/quote/accept', 'acceptQuote')->middleware('throttle:10,1')->name('quote.accept');
+            Route::post('/{researchRequest}/quote/decline', 'declineQuote')->middleware('throttle:10,1')->name('quote.decline');
+            Route::post('/{researchRequest}/revision', 'revision')->middleware('throttle:10,1')->name('revision');
+            Route::post('/{researchRequest}/complete', 'complete')->middleware('throttle:10,1')->name('complete');
+            Route::post('/{researchRequest}/cancel', 'cancel')->middleware('throttle:10,1')->name('cancel');
+            Route::get('/{researchRequest}/files/{file}', 'file')->name('file');
+        });
 
     Route::get('/messages', [UserChatController::class, 'index'])->name('user.chat.index');
     Route::get('/messages/{conversation}', [UserChatController::class, 'show'])->name('user.chat.show');
@@ -629,8 +652,39 @@ Route::prefix('admin')
         });
 
         // --- Research library -----------------------------------------
+        // --- Research work requests (customers ordering research work) ---------
+        Route::prefix('research-requests')->name('research-requests.')->whereNumber(['researchRequest', 'file', 'stage'])->group(function () {
+            $rr = \App\Http\Controllers\Admin\ResearchRequestController::class;
+            $st = \App\Http\Controllers\Admin\ResearchRequestStageController::class;
+
+            Route::middleware('can:research_requests.view')->group(function () use ($rr, $st) {
+                Route::get('/', [$rr, 'index'])->name('index');
+                Route::get('/stages', [$st, 'index'])->name('stages.index');
+                Route::get('/{researchRequest}', [$rr, 'show'])->name('show');
+                Route::get('/{researchRequest}/files/{file}', [$rr, 'file'])->name('file');
+            });
+
+            Route::middleware('can:research_requests.manage')->group(function () use ($rr, $st) {
+                Route::post('/{researchRequest}/stage', [$rr, 'stage'])->middleware('throttle:60,1')->name('stage');
+                Route::post('/{researchRequest}/assign', [$rr, 'assign'])->name('assign');
+                Route::post('/{researchRequest}/quote', [$rr, 'quote'])->name('quote');
+                Route::post('/{researchRequest}/messages', [$rr, 'message'])->middleware('throttle:30,1')->name('message');
+                Route::post('/{researchRequest}/deliver', [$rr, 'deliver'])->middleware('throttle:20,1')->name('deliver');
+                Route::put('/{researchRequest}/details', [$rr, 'details'])->name('details');
+                Route::post('/{researchRequest}/cancel', [$rr, 'cancel'])->name('cancel');
+                Route::post('/{researchRequest}/reopen', [$rr, 'reopen'])->name('reopen');
+                Route::delete('/{researchRequest}', [$rr, 'destroy'])->name('destroy');
+
+                Route::post('/stages', [$st, 'store'])->name('stages.store');
+                Route::post('/stages/reorder', [$st, 'reorder'])->name('stages.reorder');
+                Route::put('/stages/{stage}', [$st, 'update'])->name('stages.update');
+                Route::post('/stages/{stage}/move', [$st, 'move'])->name('stages.move');
+                Route::delete('/stages/{stage}', [$st, 'destroy'])->name('stages.destroy');
+            });
+        });
+
         Route::middleware('can:research.view')->group(function () {
-            Route::get('research', [\App\Http\Controllers\Admin\ResearchController::class, 'index'])->name('research.index');
+            Route::get('research',[\App\Http\Controllers\Admin\ResearchController::class, 'index'])->name('research.index');
             Route::get('research/categories', [\App\Http\Controllers\Admin\ResearchController::class, 'categories'])->name('research.categories');
             Route::get('research/{research}', [\App\Http\Controllers\Admin\ResearchController::class, 'show'])->name('research.show');
             Route::get('research/{research}/chapters/{chapter}', [\App\Http\Controllers\Admin\ResearchController::class, 'readChapter'])->name('research.read');

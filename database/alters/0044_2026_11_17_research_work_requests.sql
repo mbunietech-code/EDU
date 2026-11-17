@@ -1,0 +1,140 @@
+-- Research work requests: a customer orders research work and describes it; admins move it through
+-- configurable stages (Received -> Reviewing -> Quoted -> In progress -> Draft ready -> Revisions -> Delivered -> Closed).
+-- Separate from `researches` (research a member writes and publishes).
+-- Additive; "table already exists" = already applied. Stage rows use INSERT IGNORE on the unique `key`.
+
+CREATE TABLE IF NOT EXISTS `research_request_stages` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `key` VARCHAR(32) NULL,
+    `name` VARCHAR(80) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(16) NOT NULL DEFAULT 'indigo',
+    `progress` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `allows_cancel` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `research_request_stages_key_unique` (`key`),
+    KEY `research_request_stages_is_active_sort_order_index` (`is_active`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `research_request_stages` (`key`, `name`, `description`, `color`, `progress`, `sort_order`, `allows_cancel`, `is_active`, `created_at`, `updated_at`) VALUES
+('received', 'Received', 'We have your request.', 'gray', 5, 1, 1, 1, NOW(), NOW()),
+('reviewing', 'Reviewing', 'Our team is studying the brief.', 'sky', 10, 2, 1, 1, NOW(), NOW()),
+('quoted', 'Quoted', 'Price sent, waiting for your answer.', 'amber', 20, 3, 1, 1, NOW(), NOW()),
+('in_progress', 'In progress', 'The work is being done.', 'indigo', 40, 4, 0, 1, NOW(), NOW()),
+('draft_ready', 'Draft ready', 'A draft is ready for you to read.', 'violet', 70, 5, 0, 1, NOW(), NOW()),
+('revisions', 'Revisions', 'Changes you asked for are being made.', 'orange', 80, 6, 0, 1, NOW(), NOW()),
+('delivered', 'Delivered', 'Final work delivered. Accept it or ask for changes.', 'emerald', 95, 7, 0, 1, NOW(), NOW()),
+('closed', 'Closed', 'Finished.', 'green', 100, 8, 0, 1, NOW(), NOW());
+
+CREATE TABLE IF NOT EXISTS `research_requests` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `reference` VARCHAR(20) NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `title` VARCHAR(200) NOT NULL,
+    `research_type` VARCHAR(40) NOT NULL,
+    `field_of_study` VARCHAR(120) NULL,
+    `description` TEXT NOT NULL,
+    `academic_level` VARCHAR(30) NOT NULL,
+    `purpose` VARCHAR(200) NULL,
+    `deadline` DATE NULL,
+    `budget` DECIMAL(12,2) NULL,
+    `currency` VARCHAR(3) NOT NULL DEFAULT 'TZS',
+    `pages` INT UNSIGNED NULL,
+    `citation_style` VARCHAR(20) NULL,
+    `priority` VARCHAR(10) NOT NULL DEFAULT 'normal',
+    `stage_id` BIGINT UNSIGNED NULL,
+    `status` VARCHAR(12) NOT NULL DEFAULT 'active',
+    `progress` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    `assigned_to` BIGINT UNSIGNED NULL,
+    `quote_amount` DECIMAL(12,2) NULL,
+    `quote_currency` VARCHAR(3) NULL,
+    `quote_note` TEXT NULL,
+    `quote_status` VARCHAR(10) NULL,
+    `quoted_at` TIMESTAMP NULL,
+    `quote_answered_at` TIMESTAMP NULL,
+    `revision_count` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `delivered_at` TIMESTAMP NULL,
+    `completed_at` TIMESTAMP NULL,
+    `cancelled_at` TIMESTAMP NULL,
+    `cancel_reason` VARCHAR(500) NULL,
+    `rating` TINYINT UNSIGNED NULL,
+    `review` TEXT NULL,
+    `customer_activity_at` TIMESTAMP NULL,
+    `admin_activity_at` TIMESTAMP NULL,
+    `customer_seen_at` TIMESTAMP NULL,
+    `admin_seen_at` TIMESTAMP NULL,
+    `deadline_alerted_on` DATE NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `research_requests_reference_unique` (`reference`),
+    KEY `research_requests_user_id_id_index` (`user_id`, `id`),
+    KEY `research_requests_status_stage_id_index` (`status`, `stage_id`),
+    KEY `research_requests_status_deadline_index` (`status`, `deadline`),
+    KEY `research_requests_assigned_to_index` (`assigned_to`),
+    CONSTRAINT `research_requests_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `research_requests_stage_id_foreign` FOREIGN KEY (`stage_id`) REFERENCES `research_request_stages` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `research_requests_assigned_to_foreign` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `research_request_messages` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `research_request_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NULL,
+    `is_from_admin` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_internal` TINYINT(1) NOT NULL DEFAULT 0,
+    `body` TEXT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    KEY `research_request_messages_research_request_id_id_index` (`research_request_id`, `id`),
+    CONSTRAINT `research_request_messages_research_request_id_foreign` FOREIGN KEY (`research_request_id`) REFERENCES `research_requests` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `research_request_messages_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `research_request_files` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `research_request_id` BIGINT UNSIGNED NOT NULL,
+    `message_id` BIGINT UNSIGNED NULL,
+    `user_id` BIGINT UNSIGNED NULL,
+    `kind` VARCHAR(10) NOT NULL DEFAULT 'brief',
+    `is_internal` TINYINT(1) NOT NULL DEFAULT 0,
+    `path` VARCHAR(255) NOT NULL,
+    `original_name` VARCHAR(255) NOT NULL,
+    `mime` VARCHAR(120) NULL,
+    `size` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `note` VARCHAR(500) NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    KEY `research_request_files_research_request_id_kind_index` (`research_request_id`, `kind`),
+    CONSTRAINT `research_request_files_research_request_id_foreign` FOREIGN KEY (`research_request_id`) REFERENCES `research_requests` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `research_request_files_message_id_foreign` FOREIGN KEY (`message_id`) REFERENCES `research_request_messages` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `research_request_files_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `research_request_events` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `research_request_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NULL,
+    `type` VARCHAR(30) NOT NULL,
+    `from_stage_id` BIGINT UNSIGNED NULL,
+    `to_stage_id` BIGINT UNSIGNED NULL,
+    `progress` TINYINT UNSIGNED NULL,
+    `note` TEXT NULL,
+    `internal_note` TEXT NULL,
+    `is_internal` TINYINT(1) NOT NULL DEFAULT 0,
+    `meta` TEXT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    KEY `research_request_events_research_request_id_id_index` (`research_request_id`, `id`),
+    CONSTRAINT `research_request_events_research_request_id_foreign` FOREIGN KEY (`research_request_id`) REFERENCES `research_requests` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `research_request_events_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `research_request_events_from_stage_id_foreign` FOREIGN KEY (`from_stage_id`) REFERENCES `research_request_stages` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `research_request_events_to_stage_id_foreign` FOREIGN KEY (`to_stage_id`) REFERENCES `research_request_stages` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

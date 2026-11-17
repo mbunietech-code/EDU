@@ -55,6 +55,11 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                 </x-user.sidebar-link>
 
+                <x-user.sidebar-link :route="route('user.research-requests.index')" :active="request()->routeIs('user.research-requests.*')" label="Research requests"
+                    :badge="\App\Models\ResearchRequest::unseenCountFor(auth()->user())">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </x-user.sidebar-link>
+
                 @if (auth()->user()?->canWriteResearch())
                     <x-user.sidebar-link :route="route('research.contributor.index')" :active="request()->routeIs('research.contributor.*')" label="My Research">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -107,9 +112,9 @@
                 @endif
 
                 @php($consultation = [
-                    ['id' => 'thesis', 'name' => 'Thesis Writing', 'items' => ['Chapter writing', 'Editing', 'Formatting', 'Referencing']],
-                    ['id' => 'data', 'name' => 'Data analysis', 'items' => ['SPSS', 'Stata', 'R', 'Python']],
-                    ['id' => 'pub', 'name' => 'Publication', 'items' => ['Journal selection', 'Submission', 'Proofreading', 'Indexing']],
+                    ['id' => 'thesis', 'type' => 'thesis', 'name' => 'Thesis Writing', 'items' => ['Chapter writing', 'Editing', 'Formatting', 'Referencing']],
+                    ['id' => 'data', 'type' => 'data_analysis', 'name' => 'Data analysis', 'items' => ['SPSS', 'Stata', 'R', 'Python']],
+                    ['id' => 'pub', 'type' => 'article', 'name' => 'Publication', 'items' => ['Journal selection', 'Submission', 'Proofreading', 'Indexing']],
                 ])
 
                 <div>
@@ -144,7 +149,7 @@
                                 <div x-show="consultationSub === '{{ $group['id'] }}'" x-cloak x-transition
                                     class="mt-1 ml-6 space-y-1">
                                     @foreach ($group['items'] as $item)
-                                        <a href="{{ route('public.contact') }}"
+                                        <a href="{{ route('user.research-requests.create', ['type' => $group['type']]) }}"
                                             class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
                                             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"></span>
                                             <span class="text-left">{{ $item }}</span>

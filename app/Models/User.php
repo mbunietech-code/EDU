@@ -218,6 +218,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Order::class);
     }
 
+    /** Research work this customer asked the team to do (not research they write themselves). */
+    public function researchRequests(): HasMany
+    {
+        return $this->hasMany(ResearchRequest::class);
+    }
+
     /**
      * My notifications, without the staff ones I may not see (see
      * AdminNotifications): a customer never sees "New order" or "Error

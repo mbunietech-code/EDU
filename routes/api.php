@@ -224,6 +224,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/gateway-payments/{gatewayPayment}', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'status'])
         ->middleware('throttle:60,1');
 
+    // Research work requests (the customer's own; same flow as the website)
+    Route::controller(\App\Http\Controllers\Api\ResearchRequestController::class)
+        ->prefix('research-requests')
+        ->whereNumber(['researchRequest', 'file'])
+        ->group(function () {
+            Route::get('/', 'index');
+            Route::get('/options', 'options');
+            Route::post('/', 'store')->middleware('throttle:10,1');
+            Route::get('/{researchRequest}', 'show');
+            Route::post('/{researchRequest}/messages', 'message')->middleware('throttle:30,1');
+            Route::post('/{researchRequest}/quote/accept', 'acceptQuote')->middleware('throttle:10,1');
+            Route::post('/{researchRequest}/quote/decline', 'declineQuote')->middleware('throttle:10,1');
+            Route::post('/{researchRequest}/revision', 'revision')->middleware('throttle:10,1');
+            Route::post('/{researchRequest}/complete', 'complete')->middleware('throttle:10,1');
+            Route::post('/{researchRequest}/cancel', 'cancel')->middleware('throttle:10,1');
+            Route::get('/{researchRequest}/files/{file}', 'file');
+            Route::get('/{researchRequest}/files/{file}/url', 'fileUrl');
+        });
+
     // Subscriptions
     Route::get('/subscriptions', [SubscriptionController::class, 'index']);
     Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show']);

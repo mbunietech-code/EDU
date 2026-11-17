@@ -34,6 +34,7 @@ import '../products/products_screen.dart';
 import '../profile/profile_screen.dart';
 import '../research/my_research_screen.dart';
 import '../research/research_screen.dart';
+import '../research_requests/research_requests_screen.dart';
 import '../scholarships/scholarships_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../tools/tools_screen.dart';
@@ -128,6 +129,7 @@ List<_Destination> _destinationsFor(AppUser? user) {
       const _Destination('Research Tools', Icons.science_outlined, ToolsScreen()),
       const _Destination('Scholarships', Icons.workspace_premium_outlined, ScholarshipsScreen()),
       const _Destination('Research', Icons.menu_book_outlined, ResearchScreen()),
+      const _Destination('Research requests', Icons.assignment_outlined, ResearchRequestsScreen()),
       if (canWriteResearch) const _Destination('My Research', Icons.edit_note, MyResearchScreen()),
       const _Destination('Learning', Icons.school_outlined, LearningHomeScreen()),
       if (canAccessStudio)

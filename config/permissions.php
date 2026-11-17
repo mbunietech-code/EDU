@@ -64,6 +64,12 @@ return [
             'research.manage'  => 'Review, approve/reject, publish & manage categories',
         ],
 
+        // Customers ordering research work to be done for them (not the library above).
+        'Research work requests' => [
+            'research_requests.view'   => 'View research work requests: board, details, files, messages & internal notes',
+            'research_requests.manage' => 'Move stages, quote, assign, reply, upload drafts/finals & set up the process stages',
+        ],
+
         'Learning & live rooms' => [
             'learning.view'   => 'View learning content, analytics, learner progress',
             'learning.manage' => 'Manage categories, courses, topics, videos, enrolments & instructors',
