@@ -74,7 +74,7 @@
 
                             <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                                 @if ($rr->deadline)
-                                    <span @class(['font-semibold text-red-600' => $rr->isOverdue(), 'font-semibold text-amber-600' => $rr->isDueSoon()])>⏱ {{ $rr->deadlineLabel() }}</span>
+                                    <span @class(['inline-flex items-center gap-1', 'font-semibold text-red-600' => $rr->isOverdue(), 'font-semibold text-amber-600' => $rr->isDueSoon()])><x-research-requests.icon name="clock" class="h-3.5 w-3.5" /> {{ $rr->deadlineLabel() }}</span>
                                 @endif
                                 <span>{{ $rr->levelLabel() }}</span>
                                 @if ($rr->pages)<span>{{ $rr->pages }} pages</span>@endif

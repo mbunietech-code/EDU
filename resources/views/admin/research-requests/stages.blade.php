@@ -32,11 +32,11 @@
                                 <div class="flex shrink-0 items-center gap-1">
                                     <form method="POST" action="{{ route('admin.research-requests.stages.move', $stage) }}">
                                         @csrf<input type="hidden" name="dir" value="up">
-                                        <button type="submit" @disabled($loop->first) class="rounded p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" aria-label="Move up">▲</button>
+                                        <button type="submit" @disabled($loop->first) class="rounded p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" aria-label="Move up"><x-research-requests.icon name="up" class="h-4 w-4" /></button>
                                     </form>
                                     <form method="POST" action="{{ route('admin.research-requests.stages.move', $stage) }}">
                                         @csrf<input type="hidden" name="dir" value="down">
-                                        <button type="submit" @disabled($loop->last) class="rounded p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" aria-label="Move down">▼</button>
+                                        <button type="submit" @disabled($loop->last) class="rounded p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" aria-label="Move down"><x-research-requests.icon name="down" class="h-4 w-4" /></button>
                                     </form>
                                     <button type="button" @click="edit = ! edit" class="rounded px-2 py-1 text-sm font-medium text-indigo-600 hover:bg-indigo-50">Edit</button>
                                 </div>

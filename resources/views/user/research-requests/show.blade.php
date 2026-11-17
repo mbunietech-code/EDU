@@ -70,7 +70,7 @@
         <div class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5" x-data="{ mode: null, rating: 0, hover: 0 }">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="font-semibold text-gray-900">{{ $rr->canBeCompletedByCustomer() ? 'Your work is delivered 🎉' : 'A draft is ready for you' }}</p>
+                    <p class="font-semibold text-gray-900">{{ $rr->canBeCompletedByCustomer() ? 'Your work is delivered' : 'A draft is ready for you' }}</p>
                     <p class="text-sm text-gray-600">Download it below. {{ $rr->canBeCompletedByCustomer() ? 'Happy with it? Accept and rate it — or ask for changes.' : 'Read it and tell us what to change.' }}</p>
                 </div>
                 <div class="flex shrink-0 gap-2">
@@ -90,7 +90,9 @@
                     <div class="mt-1 flex items-center gap-1" @mouseleave="hover = 0">
                         @for ($i = 1; $i <= 5; $i++)
                             <button type="button" @click="rating = {{ $i }}" @mouseenter="hover = {{ $i }}" aria-label="{{ $i }} star{{ $i > 1 ? 's' : '' }}"
-                                class="text-3xl leading-none transition" :class="(hover || rating) >= {{ $i }} ? 'text-amber-400 scale-110' : 'text-gray-300'">★</button>
+                                class="p-0.5" :class="(hover || rating) >= {{ $i }} ? 'text-amber-400' : 'text-gray-300'">
+                                <svg class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd" /></svg>
+                            </button>
                         @endfor
                         <span class="ml-2 text-sm text-gray-500" x-text="['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'][hover || rating]"></span>
                     </div>
@@ -117,7 +119,7 @@
 
     @if ($rr->status === 'completed' && $rr->rating)
         <div class="mt-6 flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-sm">
-            <span class="text-xl text-amber-400">{{ str_repeat('★', $rr->rating) }}<span class="text-gray-300">{{ str_repeat('★', 5 - $rr->rating) }}</span></span>
+            <x-research-requests.stars :rating="$rr->rating" />
             <span class="text-gray-600">You rated this work {{ $rr->rating }}/5 @if ($rr->review) — “{{ \Illuminate\Support\Str::limit($rr->review, 140) }}” @endif</span>
         </div>
     @endif
@@ -172,7 +174,7 @@
                                 @if ($msg->body)<p class="mt-0.5 whitespace-pre-line text-sm [overflow-wrap:anywhere]">{{ $msg->body }}</p>@endif
                                 @foreach ($msg->files as $file)
                                     <a href="{{ route('user.research-requests.file', [$rr, $file]) }}" @class(['mt-1.5 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium', 'bg-white/15 hover:bg-white/25' => $mine, 'bg-white hover:bg-gray-50' => ! $mine])>
-                                        📎 <span class="truncate">{{ $file->original_name }}</span><span class="shrink-0 opacity-70">{{ $file->sizeLabel() }}</span>
+                                        <x-research-requests.icon name="paperclip" class="h-3.5 w-3.5" /> <span class="truncate">{{ $file->original_name }}</span><span class="shrink-0 opacity-70">{{ $file->sizeLabel() }}</span>
                                     </a>
                                 @endforeach
                             </div>

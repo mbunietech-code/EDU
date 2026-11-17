@@ -10,11 +10,11 @@
                 <x-mbui.badge :appearance="$rr->status === 'completed' ? 'success' : ($rr->status === 'cancelled' ? 'neutral' : 'info')">{{ $rr->statusLabel() }}</x-mbui.badge>
                 @if ($rr->deadline)
                     <span @class(['inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold', 'bg-red-100 text-red-700' => $rr->isOverdue(), 'bg-amber-100 text-amber-800' => $rr->isDueSoon(), 'bg-gray-100 text-gray-700' => ! $rr->isOverdue() && ! $rr->isDueSoon()])>
-                        ⏱ {{ $rr->deadline->format('D, d M Y') }} @if ($rr->isActive()) · {{ $rr->deadlineLabel() }} @endif
+                        <x-research-requests.icon name="clock" class="h-3.5 w-3.5" /> {{ $rr->deadline->format('D, d M Y') }} @if ($rr->isActive()) · {{ $rr->deadlineLabel() }} @endif
                     </span>
                 @endif
-                @if ($rr->revision_count)<span class="text-xs text-gray-500">↺ {{ $rr->revision_count }} revision{{ $rr->revision_count > 1 ? 's' : '' }}</span>@endif
-                @if ($rr->rating)<span class="text-sm text-amber-500">{{ str_repeat('★', $rr->rating) }}<span class="text-gray-300">{{ str_repeat('★', 5 - $rr->rating) }}</span></span>@endif
+                @if ($rr->revision_count)<span class="inline-flex items-center gap-1 text-xs text-gray-500"><x-research-requests.icon name="revision" class="h-3.5 w-3.5" /> {{ $rr->revision_count }} revision{{ $rr->revision_count > 1 ? 's' : '' }}</span>@endif
+                @if ($rr->rating)<x-research-requests.stars :rating="$rr->rating" />@endif
             </div>
         </div>
         @if ($canManage)
@@ -107,13 +107,13 @@
                                 'rounded-bl-sm bg-gray-100 text-gray-900' => ! $staff,
                             ])>
                                 <p @class(['text-xs', 'text-indigo-100' => $staff && ! $msg->is_internal, 'text-gray-500' => ! $staff || $msg->is_internal])>
-                                    @if ($msg->is_internal)<span class="font-semibold text-amber-700">🔒 Internal ·</span>@endif
+                                    @if ($msg->is_internal)<span class="inline-flex items-center gap-1 font-semibold text-amber-700"><x-research-requests.icon name="lock" class="h-3 w-3" /> Internal ·</span>@endif
                                     {{ $msg->user?->name ?? 'Former user' }}{{ $staff ? ' · Team' : ' · Customer' }} · {{ $msg->created_at->format('d M, H:i') }}
                                 </p>
                                 @if ($msg->body)<p class="mt-0.5 whitespace-pre-line text-sm [overflow-wrap:anywhere]">{{ $msg->body }}</p>@endif
                                 @foreach ($msg->files as $file)
                                     <a href="{{ route('admin.research-requests.file', [$rr, $file]) }}" @class(['mt-1.5 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium', 'bg-white/15 hover:bg-white/25' => $staff && ! $msg->is_internal, 'bg-white hover:bg-gray-50' => ! $staff || $msg->is_internal])>
-                                        📎 <span class="truncate">{{ $file->original_name }}</span><span class="shrink-0 opacity-70">{{ $file->sizeLabel() }}</span>
+                                        <x-research-requests.icon name="paperclip" class="h-3.5 w-3.5" /> <span class="truncate">{{ $file->original_name }}</span><span class="shrink-0 opacity-70">{{ $file->sizeLabel() }}</span>
                                     </a>
                                 @endforeach
                             </div>
@@ -129,14 +129,14 @@
                         <input type="hidden" name="internal" :value="internal ? 1 : 0">
                         <div class="mb-2 inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
                             <button type="button" @click="internal = false" class="rounded-md px-3 py-1 font-medium" :class="! internal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'">Reply to customer</button>
-                            <button type="button" @click="internal = true" class="rounded-md px-3 py-1 font-medium" :class="internal ? 'bg-amber-100 text-amber-900 shadow-sm' : 'text-gray-600'">🔒 Internal note</button>
+                            <button type="button" @click="internal = true" class="rounded-md px-3 py-1 font-medium" :class="internal ? 'bg-amber-100 text-amber-900 shadow-sm' : 'text-gray-600'"><span class="inline-flex items-center gap-1"><x-research-requests.icon name="lock" class="h-3.5 w-3.5" /> Internal note</span></button>
                         </div>
                         <label for="body" class="sr-only">Message</label>
                         <textarea id="body" name="body" rows="3" maxlength="5000" class="mbui-input" :class="internal && '!border-amber-300 !bg-amber-50'"
                             :placeholder="internal ? 'Only the team sees this…' : 'Write to the customer…'"></textarea>
                         <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                             <label class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-gray-600 hover:text-indigo-600">
-                                📎 <span x-text="n ? n + ' file(s)' : 'Attach files'"></span>
+                                <x-research-requests.icon name="paperclip" class="h-5 w-5" /> <span x-text="n ? n + ' file(s)' : 'Attach files'"></span>
                                 <input type="file" name="files[]" multiple class="sr-only" @change="n = $event.target.files.length">
                             </label>
                             <x-mbui.button type="submit"><span x-text="internal ? 'Save note' : 'Send'">Send</span></x-mbui.button>
@@ -158,7 +158,7 @@
                                 @if ($event->is_internal)<span class="ml-1 rounded bg-amber-100 px-1.5 text-[10px] font-semibold uppercase text-amber-800">staff only</span>@endif
                             </p>
                             @if ($event->note)<p class="mt-0.5 whitespace-pre-line text-sm text-gray-600 [overflow-wrap:anywhere]"><span class="text-xs text-gray-400">To customer:</span> {{ $event->note }}</p>@endif
-                            @if ($event->internal_note)<p class="mt-0.5 whitespace-pre-line rounded bg-amber-50 px-2 py-1 text-sm text-amber-900 [overflow-wrap:anywhere]">🔒 {{ $event->internal_note }}</p>@endif
+                            @if ($event->internal_note)<p class="mt-0.5 whitespace-pre-line rounded bg-amber-50 px-2 py-1 text-sm text-amber-900 [overflow-wrap:anywhere]"><span class="mr-1 font-semibold">Internal:</span>{{ $event->internal_note }}</p>@endif
                             <p class="text-xs text-gray-400">{{ $event->user?->name ?? 'System' }} · {{ $event->created_at->format('d M Y, H:i') }}</p>
                         </li>
                     @endforeach
@@ -195,7 +195,7 @@
                             <textarea id="note" name="note" rows="2" maxlength="3000" class="mbui-input mt-1" placeholder="e.g. Chapter 2 is half way, data collection starts Monday"></textarea>
                         </div>
                         <div>
-                            <label for="internal_note" class="mbui-label">🔒 Internal note <span class="font-normal text-gray-400">(staff only)</span></label>
+                            <label for="internal_note" class="mbui-label">Internal note <span class="font-normal text-gray-400">(staff only)</span></label>
                             <textarea id="internal_note" name="internal_note" rows="2" maxlength="3000" class="mbui-input mt-1 !bg-amber-50/60"></textarea>
                         </div>
                         <label class="flex items-center gap-2 text-sm text-gray-700"><input type="hidden" name="notify" value="0"><input type="checkbox" name="notify" value="1" checked class="rounded border-gray-300 text-indigo-600"> Tell the customer (app + website)</label>

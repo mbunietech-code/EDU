@@ -28,7 +28,7 @@
         ['Due in '.\App\Models\ResearchRequest::DUE_SOON_DAYS.' days', $summary['due_soon'], ['status' => 'active', 'deadline' => 'soon'], 'text-amber-600'],
         ['Quotes waiting', $summary['quotes'], null, 'text-amber-600'],
         ['Done this month', $summary['completed_month'], ['status' => 'completed'], 'text-emerald-600'],
-        ['Avg. rating', $summary['rating'] ? $summary['rating'].' ★' : '—', null, 'text-amber-500'],
+        ['Avg. rating', $summary['rating'] ? $summary['rating'].' / 5' : '—', null, 'text-amber-500'],
     ])
     <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         @foreach ($cards as [$label, $value, $params, $text])
@@ -215,10 +215,10 @@
                                     </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
                                         @if ($rr->deadline)
-                                            <span @class(['font-semibold text-red-600' => $rr->isOverdue(), 'font-semibold text-amber-600' => $rr->isDueSoon()])>⏱ {{ $rr->deadlineLabel() }}</span>
+                                            <span @class(['inline-flex items-center gap-1', 'font-semibold text-red-600' => $rr->isOverdue(), 'font-semibold text-amber-600' => $rr->isDueSoon()])><x-research-requests.icon name="clock" class="h-3.5 w-3.5" /> {{ $rr->deadlineLabel() }}</span>
                                         @endif
                                         @if ($rr->quote_status === 'pending')<span class="font-semibold text-amber-600">Quote waiting</span>@endif
-                                        @if ($rr->revision_count)<span>↺ {{ $rr->revision_count }}</span>@endif
+                                        @if ($rr->revision_count)<span class="inline-flex items-center gap-0.5" title="Revisions"><x-research-requests.icon name="revision" class="h-3 w-3" /> {{ $rr->revision_count }}</span>@endif
                                         <span class="ml-auto inline-flex items-center gap-1">
                                             @if ($rr->assignee)
                                                 <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700" title="{{ $rr->assignee->name }}">{{ mb_strtoupper(mb_substr($rr->assignee->name, 0, 1)) }}</span>

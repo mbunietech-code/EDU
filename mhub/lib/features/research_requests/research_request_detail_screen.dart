@@ -212,7 +212,7 @@ class _ResearchRequestDetailScreenState extends ConsumerState<ResearchRequestDet
         Wrap(spacing: 8, runSpacing: 6, children: [
           MbuiBadge('${rr.priorityLabel} priority', appearance: rr.priority == 'urgent' ? MbuiAppearance.danger : (rr.priority == 'high' ? MbuiAppearance.warning : MbuiAppearance.info)),
           if (rr.deadlineLabel != null)
-            MbuiBadge('⏱ ${rr.deadlineLabel}', appearance: rr.overdue ? MbuiAppearance.danger : (rr.dueSoon ? MbuiAppearance.warning : MbuiAppearance.neutral)),
+            MbuiBadge(rr.deadlineLabel!, appearance: rr.overdue ? MbuiAppearance.danger : (rr.dueSoon ? MbuiAppearance.warning : MbuiAppearance.neutral)),
         ]),
         const SizedBox(height: 14),
         _hero(rr),
@@ -226,7 +226,8 @@ class _ResearchRequestDetailScreenState extends ConsumerState<ResearchRequestDet
           const SizedBox(height: 14),
           MbuiCard(
             child: Row(children: [
-              Text('★' * rr.rating!, style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 20)),
+              for (var i = 1; i <= 5; i++)
+                Icon(Icons.star_rounded, size: 20, color: i <= rr.rating! ? const Color(0xFFFBBF24) : AppColors.gray300),
               const SizedBox(width: 8),
               Expanded(child: Text('You rated this work ${rr.rating}/5', style: const TextStyle(color: AppColors.gray600))),
             ]),
@@ -355,7 +356,7 @@ class _ResearchRequestDetailScreenState extends ConsumerState<ResearchRequestDet
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(rr.canComplete ? 'Your work is delivered 🎉' : 'A draft is ready for you',
+          Text(rr.canComplete ? 'Your work is delivered' : 'A draft is ready for you',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.gray900)),
           const SizedBox(height: 4),
           Text(rr.canComplete ? 'Download it below. Happy? Accept and rate it — or ask for changes.' : 'Read it and tell us what to change.',
