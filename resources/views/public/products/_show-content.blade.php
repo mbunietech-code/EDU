@@ -58,9 +58,22 @@
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">{{ $plan->description }}</p>
                                 <p class="mt-2 text-xs font-medium text-gray-600">{{ $plan->durationLabel() }} duration</p>
-                                <a href="{{ route('user.orders.create.plan', ['product' => $product->slug, 'plan' => $plan->id]) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
-                                    Order now
-                                </a>
+                                @auth
+                                    {{-- One click: the order is created and the customer goes straight to choosing how to pay. --}}
+                                    <form method="POST" action="{{ route('user.orders.store') }}" class="mt-3" x-data="{ sending: false }" @submit="sending = true">
+                                        @csrf
+                                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                        <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                        <button type="submit" x-bind:disabled="sending" class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+                                            <span x-show="! sending">Order now</span>
+                                            <span x-show="sending" x-cloak>Opening payment...</span>
+                                        </button>
+                                    </form>
+                                @else
+                                    <a href="{{ route('user.orders.create.plan', ['product' => $product->slug, 'plan' => $plan->id]) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                                        Order now
+                                    </a>
+                                @endauth
                             </div>
                         @empty
                             <p class="text-sm text-gray-500">No active plans available for this product.</p>

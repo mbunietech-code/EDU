@@ -79,6 +79,22 @@ class OrderController extends Controller
             abort(404);
         }
 
+        // Double click, back button or a refreshed page: reuse the order the
+        // customer just made instead of creating another one.
+        $recent = Order::where('user_id', auth()->id())
+            ->where('product_id', $product->id)
+            ->where('plan_id', $plan->id)
+            ->where('status', 'pending')
+            ->when(Order::renewalsReady(), fn ($q) => $q->whereNull('renews_order_id'))
+            ->where('created_at', '>=', now()->subMinutes(30))
+            ->whereDoesntHave('payments')
+            ->latest('id')
+            ->first();
+
+        if ($recent) {
+            return redirect()->route('user.payments.create', $recent);
+        }
+
         $order = Order::create([
             'user_id' => auth()->id(),
             'order_number' => $this->generateOrderNumber(),
@@ -96,8 +112,9 @@ class OrderController extends Controller
             ['order_number' => $order->order_number, 'amount' => $order->amount]
         );
 
-        return redirect()->route('user.orders.show', $order)
-            ->with('success', 'Order created. Please complete payment to activate your subscription.');
+        // Straight to choosing how to pay; the order page stays one click away.
+        return redirect()->route('user.payments.create', $order)
+            ->with('success', 'Order '.$order->order_number.' created. Choose how you want to pay.');
     }
 
     public function show(Order $order)

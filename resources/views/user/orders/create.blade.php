@@ -36,18 +36,25 @@
             </div>
 
             <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">
-                <form method="POST" action="{{ route('user.orders.store') }}">
+                {{-- The customer already chose this plan (often before signing in):
+                     continue straight to payment. The button stays as a fallback. --}}
+                <form method="POST" action="{{ route('user.orders.store') }}" x-data="{ sending: false }"
+                    @if (! $errors->any() && ! session('error')) x-init="sending = true; $nextTick(() => $el.submit())" @endif
+                    @submit="sending = true">
                     @csrf
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
                     <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                    <x-mbui.button type="submit" class="w-full">Confirm Order</x-mbui.button>
+                    <x-mbui.button type="submit" class="w-full" x-bind:disabled="sending">
+                        <span x-show="! sending">Continue to payment</span>
+                        <span x-show="sending">Opening payment...</span>
+                    </x-mbui.button>
                 </form>
             </div>
         </div>
 
         <div class="mt-4 mbui-card p-4">
             <p class="text-xs text-gray-500">
-                After confirming, you will receive payment instructions and a payment proof submission form for manual verification.
+                Next you choose how to pay: mobile money, card or manual payment.
             </p>
         </div>
     </div>
