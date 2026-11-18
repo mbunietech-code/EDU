@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\Product;
 use App\Services\CredentialService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
@@ -74,7 +75,7 @@ class AccountController extends Controller
     {
         $this->authorize('create', Account::class);
 
-        $validated = $request->validated();
+        $validated = collect($request->validated())->except(['login_email', 'login_password'])->all();
 
         if (! empty($validated['credentials'])) {
             $validated['credentials'] = $this->credentialService->encrypt($validated['credentials']);
@@ -95,6 +96,83 @@ class AccountController extends Controller
             ->with('success', 'Account created.');
     }
 
+    /**
+     * Several logins at once, one per line ("email:password"; a comma, tab or
+     * space also works). Logins already listed for the product are skipped.
+     */
+    public function bulkStore(Request $request)
+    {
+        $this->authorize('create', Account::class);
+
+        $data = $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'lines' => ['required', 'string', 'max:40000'],
+            'plan_name' => ['nullable', 'string', 'max:120'],
+            'expires_at' => ['nullable', 'date'],
+        ], [], ['lines' => 'logins']);
+
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $data['lines']) ?: [])));
+
+        if (count($lines) > 200) {
+            return back()->withInput($request->except('lines'))->withErrors(['lines' => 'Add at most 200 logins at a time.']);
+        }
+
+        $pairs = [];
+        $bad = [];
+        foreach ($lines as $number => $line) {
+            $parts = preg_split('/\s*[:,\t]\s*|\s+/', $line, 2);
+            $login = trim($parts[0] ?? '');
+            $password = trim($parts[1] ?? '');
+
+            if ($login === '' || $password === '' || mb_strlen($login) > 255 || mb_strlen($password) > 500) {
+                $bad[] = $number + 1;
+
+                continue;
+            }
+
+            $pairs[mb_strtolower($login)] = [$login, $password];
+        }
+
+        if ($bad !== []) {
+            return back()->withInput($request->except('lines'))
+                ->withErrors(['lines' => 'Line '.implode(', ', array_slice($bad, 0, 10)).' needs both a login and a password.']);
+        }
+
+        $known = Account::where('product_id', $data['product_id'])
+            ->whereIn('name', array_column($pairs, 0))
+            ->pluck('name')
+            ->map(fn ($name) => mb_strtolower($name))
+            ->all();
+
+        $created = 0;
+        DB::transaction(function () use ($pairs, $known, $data, &$created) {
+            foreach ($pairs as $key => [$login, $password]) {
+                if (in_array($key, $known, true)) {
+                    continue;
+                }
+
+                $account = Account::create([
+                    'product_id' => $data['product_id'],
+                    'name' => $login,
+                    'credentials' => $this->credentialService->encrypt("email: {$login}\npassword: {$password}"),
+                    'status' => 'available',
+                    'plan_name' => $data['plan_name'] ?? null,
+                    'expires_at' => $data['expires_at'] ?? null,
+                ]);
+                $created++;
+
+                \App\Models\ActivityLog::log('account_created', 'Account', $account->id, [
+                    'name' => $account->name, 'product_id' => $account->product_id, 'via' => 'bulk',
+                ]);
+            }
+        });
+
+        $skipped = count($pairs) - $created;
+
+        return redirect()->route('admin.accounts.index', ['product_id' => $data['product_id']])
+            ->with('success', "{$created} account(s) added.".($skipped ? " {$skipped} already in the list were skipped." : ''));
+    }
+
     public function edit(Account $account)
     {
         $products = Product::all();
@@ -106,7 +184,7 @@ class AccountController extends Controller
     {
         $this->authorize('update', $account);
 
-        $validated = $request->validated();
+        $validated = collect($request->validated())->except(['login_email', 'login_password'])->all();
 
         if (! empty($validated['credentials'])) {
             $validated['credentials'] = $this->credentialService->encrypt($validated['credentials']);

@@ -19,13 +19,14 @@
 
     <div class="mbui-page-header">
         <div>
-            <h1 class="mbui-title">AI plans we bought</h1>
+            <h1 class="mbui-title">Products &amp; accounts</h1>
             <p class="mt-1 text-sm text-gray-500">The plans MbunieEduHub pays the AI providers for: when each was bought and when it ends.</p>
         </div>
         @can('accounts.manage')
             <a href="{{ route('admin.accounts.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add a plan</a>
         @endcan
     </div>
+    @include('admin.partials.catalog-tabs')
 
     {{-- Summary --}}
     <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

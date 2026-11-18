@@ -2,10 +2,11 @@
 
     <div class="mbui-page-header">
         <div>
-            <h1 class="mbui-title">Products</h1>
+            <h1 class="mbui-title">Products &amp; accounts</h1>
         </div>
         <a href="{{ route('admin.products.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add product</a>
     </div>
+    @include('admin.partials.catalog-tabs')
 
     {{-- Compact on purpose: slug and "Featured" sit under the name and cells use
          tighter side padding, so every column fits without a horizontal scrollbar. --}}

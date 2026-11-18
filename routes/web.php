@@ -432,6 +432,8 @@ Route::prefix('admin')
         // Before the resource, so "plans" is never read as an account id.
         Route::get('accounts/plans', [AdminAccountController::class, 'plans'])
             ->middleware('can:accounts.view')->name('accounts.plans');
+        Route::post('accounts/bulk', [AdminAccountController::class, 'bulkStore'])
+            ->middleware(['can:accounts.manage', 'throttle:20,1'])->name('accounts.bulk');
         Route::resource('accounts', AdminAccountController::class)
             ->middlewareFor(['index', 'show'], 'can:accounts.view')
             ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'can:accounts.manage');

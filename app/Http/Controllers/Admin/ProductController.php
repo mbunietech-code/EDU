@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Product;
 use App\Services\DeletionService;
+use App\Services\ProductPlanService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,7 +29,7 @@ class ProductController extends Controller
         return view('admin.products.create');
     }
 
-    public function store(StoreProductRequest $request)
+    public function store(StoreProductRequest $request, ProductPlanService $plans)
     {
         $this->authorize('create', Product::class);
 
@@ -53,8 +55,15 @@ class ProductController extends Controller
         }
 
         $this->normalizeType($validated);
+        $planRows = $validated['plans'] ?? [];
+        unset($validated['plans']);
 
-        $product = Product::create($validated);
+        $product = DB::transaction(function () use ($validated, $planRows, $plans) {
+            $product = Product::create($validated);
+            $plans->sync($product, $planRows);
+
+            return $product;
+        });
 
         \App\Models\ActivityLog::log(
             'product_created',
@@ -72,7 +81,7 @@ class ProductController extends Controller
         return view('admin.products.edit', compact('product'));
     }
 
-    public function update(UpdateProductRequest $request, Product $product)
+    public function update(UpdateProductRequest $request, Product $product, ProductPlanService $plans)
     {
         $this->authorize('update', $product);
 
@@ -104,8 +113,14 @@ class ProductController extends Controller
         }
 
         $this->normalizeType($validated, $product);
+        $planRows = $validated['plans'] ?? [];
+        unset($validated['plans']);
 
-        $product->update($validated);
+        $summary = DB::transaction(function () use ($product, $validated, $planRows, $plans) {
+            $product->update($validated);
+
+            return $plans->sync($product, $planRows);
+        });
 
         \App\Models\ActivityLog::log(
             'product_updated',
@@ -115,7 +130,7 @@ class ProductController extends Controller
         );
 
         return redirect()->route('admin.products.index')
-            ->with('success', 'Product updated.');
+            ->with('success', 'Product updated.'.($summary['deactivated'] ? ' Plans that customers already bought were switched off instead of removed.' : ''));
     }
 
     public function destroy(Request $request, Product $product, DeletionService $deletionService)

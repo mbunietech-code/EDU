@@ -39,10 +39,11 @@
                     $systemSectionVisible = $canAny('settings.manage', 'chatbot.manage', 'finance.access', 'vault.view', 'database.access', 'ai.access', 'team.manage');
                     $adminNavSection = match (true) {
                         request()->routeIs('admin.tasks.*', 'admin.assets.*') => 'company',
-                        request()->routeIs('admin.research-requests.*') => 'management',
+                        request()->routeIs('admin.research-requests.*', 'admin.users.*', 'admin.products.*', 'admin.plans.*', 'admin.accounts.*', 'admin.tools.*', 'admin.scholarships.*', 'admin.research.*', 'library.*', 'research.contributor.*') => 'management',
                         request()->routeIs('admin.learning.*', 'studio.*', 'learn.*') => 'learning',
                         request()->routeIs('admin.orders.*', 'admin.payments.*', 'admin.chat.*', 'admin.team-chat.*', 'admin.contact-messages.*', 'admin.payment-methods.*', 'admin.subscriptions.*') => 'operations',
-                        request()->routeIs('admin.reports.*', 'admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.notifications.*') => 'insights',
+                        request()->routeIs('admin.reports.*', 'admin.notifications.*') => 'insights',
+                        request()->routeIs('admin.activity-logs.*', 'admin.deleted-records.*', 'admin.error-logs.*', 'admin.settings.*', 'admin.chatbot.*', 'admin.finance.*', 'admin.vault.*', 'admin.database.*', 'admin.optimization.*', 'admin.ai-assistant.*', 'admin.team.*') => 'system',
                         default => null,
                     };
                 @endphp
@@ -100,27 +101,21 @@
                 </x-admin.sidebar-link>
                 @endcan
 
-                @can('products.view')
-                <x-admin.sidebar-link :route="route('admin.products.index')" :active="request()->routeIs('admin.products.*')" label="Products">
+                @if ($canAny('products.view', 'accounts.view'))
+                @php
+                    $loginsWaiting = 0;
+                    try {
+                        $loginsWaiting = auth()->user()->can('accounts.view') ? \App\Models\Account::awaitingSetup()->count() : 0;
+                    } catch (\Throwable $e) {
+                        $loginsWaiting = 0;
+                    }
+                @endphp
+                {{-- Products, their plans, the accounts we hand out and the AI plans we bought: one place, tabs inside. --}}
+                <x-admin.sidebar-link :route="auth()->user()->can('products.view') ? route('admin.products.index') : route('admin.accounts.index')"
+                    :active="request()->routeIs('admin.products.*', 'admin.plans.*', 'admin.accounts.*')" label="Products & accounts" :badge="$loginsWaiting">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </x-admin.sidebar-link>
-
-                <x-admin.sidebar-link :route="route('admin.plans.index')" :active="request()->routeIs('admin.plans.*')" label="Plans">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-                </x-admin.sidebar-link>
-                @endcan
-
-                @can('accounts.view')
-                <x-admin.sidebar-link :route="route('admin.accounts.index')" :active="request()->routeIs('admin.accounts.*') && ! request()->routeIs('admin.accounts.plans')" label="Accounts">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 18.75v-2.25m0 0a2.25 2.25 0 00-4.5 0m4.5 0a2.25 2.25 0 01-4.5 0m0-12V6m0 0H8.25m0 0c0-.621.504-1.125 1.125-1.125H18.75A1.125 1.125 0 0119.875 6v6.75m-9 0V10.5c0-.621.504-1.125 1.125-1.125h7.875m-4.125 0a1.125 1.125 0 01-2.25 0m2.25 0a1.5 1.5 0 103 0m-3 3v7.5c0 .621-.504 1.125-1.125 1.125h-9A1.125 1.125 0 014.5 19.125v-7.5c0-.621.504-1.125 1.125-1.125h7.125z" />
-                </x-admin.sidebar-link>
-                @endcan
-
-                @can('accounts.view')
-                <x-admin.sidebar-link :route="route('admin.accounts.plans')" :active="request()->routeIs('admin.accounts.plans')" label="AI plans we bought">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
-                </x-admin.sidebar-link>
-                @endcan
+                @endif
 
                 @can('tools.view')
                 <x-admin.sidebar-link :route="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')" label="Research Tools">
@@ -305,6 +300,26 @@
                 </x-admin.sidebar-link>
                 @endcan
 
+                <x-admin.sidebar-link :route="route('admin.notifications.index')" :active="request()->routeIs('admin.notifications.*')" label="Notifications"
+                    :badge="auth()->user()->unreadNotifications()->count()">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </x-admin.sidebar-link>
+                    </div>
+
+                    @if ($systemSectionVisible || $canAny('activity_logs.view', 'deleted_records.view', 'error_logs.view'))
+                    @php $systemErrors = auth()->user()->can('error_logs.view') ? \App\Models\ErrorLog::openCount() : 0; @endphp
+                    <button type="button" @click="openSection = openSection === 'system' ? null : 'system'"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <span class="flex items-center gap-2">System
+                            @if ($systemErrors > 0)
+                                <span class="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold normal-case leading-4 text-white">{{ $systemErrors }}</span>
+                            @endif
+                        </span>
+                        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': openSection === 'system' }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+                    <div class="space-y-1 pl-1" x-show="openSection === 'system'" x-cloak>
                 @can('activity_logs.view')
                 <x-admin.sidebar-link :route="route('admin.activity-logs.index')" :active="request()->routeIs('admin.activity-logs.*')" label="Activity Logs">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -324,14 +339,6 @@
                 </x-admin.sidebar-link>
                 @endcan
 
-                <x-admin.sidebar-link :route="route('admin.notifications.index')" :active="request()->routeIs('admin.notifications.*')" label="Notifications"
-                    :badge="auth()->user()->unreadNotifications()->count()">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                </x-admin.sidebar-link>
-                    </div>
-
-                    @if ($systemSectionVisible)
-                    <div class="space-y-1">
 
                 @can('settings.manage')
                 <x-admin.sidebar-link :route="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*')" label="Settings">

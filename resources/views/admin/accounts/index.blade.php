@@ -2,10 +2,11 @@
 
     <div class="mbui-page-header">
         <div>
-            <h1 class="mbui-title">Accounts</h1>
+            <h1 class="mbui-title">Products &amp; accounts</h1>
         </div>
         <a href="{{ route('admin.accounts.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add account</a>
     </div>
+    @include('admin.partials.catalog-tabs')
 
     @if ($awaiting->isNotEmpty())
         <div class="mt-6 mbui-card overflow-hidden border-amber-200">

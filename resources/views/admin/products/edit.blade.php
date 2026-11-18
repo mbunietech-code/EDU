@@ -1,6 +1,6 @@
 <x-layouts.admin title="Edit Product" header="Edit Product">
 
-    <div class="max-w-2xl">
+    <div class="max-w-3xl">
         <form method="POST" action="{{ route('admin.products.update', $product) }}" enctype="multipart/form-data" class="mbui-card p-6 space-y-5">
             @csrf
             @method('PUT')
@@ -133,6 +133,11 @@
                     </label>
                 </div>
             </div>
+            @if (old('type', $product->type) !== 'vpn')
+                @include('admin.products._plans', ['planRows' => \App\Services\ProductPlanService::formRows($product)])
+            @else
+                <p class="border-t border-gray-100 pt-5 text-xs text-gray-500">VPN plans come from Mbunie VPN → Plans and are copied here automatically.</p>
+            @endif
             <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                 <a href="{{ route('admin.products.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                 <x-mbui.button type="submit">Update product</x-mbui.button>

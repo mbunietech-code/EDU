@@ -1,9 +1,29 @@
 <x-layouts.admin title="Edit Account" header="Edit Account">
 
     <div class="max-w-2xl">
+        @if ($account->isAwaitingSetup())
+            @php $holder = $account->currentSubscription(); @endphp
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <p class="font-semibold">{{ $holder?->user?->name ?? 'A customer' }} has paid and is waiting for this login.</p>
+                <p class="mt-1">Fill in the login email and password below and save. The customer is notified and sees the login straight away.</p>
+            </div>
+        @endif
         <form method="POST" action="{{ route('admin.accounts.update', $account) }}" class="mbui-card p-6 space-y-5">
             @csrf
             @method('PUT')
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="login_email" value="Login email or username" />
+                    <x-text-input id="login_email" class="mbui-input mt-1" type="text" name="login_email" :value="old('login_email')" autocomplete="off" :required="$account->isAwaitingSetup()" />
+                    <x-input-error :messages="$errors->get('login_email')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="login_password" value="Password" />
+                    <x-text-input id="login_password" class="mbui-input mt-1" type="text" name="login_password" autocomplete="off" :required="$account->isAwaitingSetup()" />
+                    <x-input-error :messages="$errors->get('login_password')" class="mt-2" />
+                </div>
+                <p class="text-xs text-gray-500 sm:col-span-2">{{ $account->credentials ? 'Leave both empty to keep the saved login. Filling them replaces it.' : 'No login saved yet.' }}</p>
+            </div>
             <div>
                 <x-input-label for="product_id" value="Product" />
                 <select id="product_id" name="product_id" class="mbui-input mt-1" required>
@@ -25,7 +45,7 @@
                 <textarea id="description" name="description" rows="2" class="mbui-input mt-1">{{ old('description', $account->description) }}</textarea>
             </div>
             <div>
-                <x-input-label for="credentials" value="Credentials (leave empty to keep current)" />
+                <x-input-label for="credentials" value="Full login text instead (2FA, workspace...), leave empty to keep current" />
                 <textarea id="credentials" name="credentials" rows="3" class="mbui-input mt-1 font-mono text-xs">{{ old('credentials') }}</textarea>
                 <x-input-error :messages="$errors->get('credentials')" class="mt-2" />
                 <p class="mt-1 text-xs text-gray-500">Stored encrypted. Existing credentials are kept if this field is left empty.</p>
