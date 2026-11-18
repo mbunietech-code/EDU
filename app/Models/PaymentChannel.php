@@ -45,10 +45,19 @@ class PaymentChannel extends Model
         };
     }
 
+    /**
+     * Only our own forms ask for the number. PesaPal asks on its own form,
+     * so asking here too would make the customer type it twice.
+     */
     public function needsPhone(): bool
     {
-        return in_array($this->flow(), ['push', 'card'], true)
-            || ($this->flow() === 'hosted' && $this->kind === 'mobile');
+        return in_array($this->flow(), ['push', 'card'], true);
+    }
+
+    /** Pay straight away: no fields to fill on our page. */
+    public function isOneClick(): bool
+    {
+        return in_array($this->flow(), ['hosted', 'paypal'], true);
     }
 
     public function needsName(): bool

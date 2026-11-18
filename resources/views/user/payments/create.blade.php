@@ -106,7 +106,7 @@
                         @else Pay with {{ $option['name'] }}
                         @endif
                     </h2>
-                    <p class="mt-1 text-sm text-gray-500">{{ $option['via'] }}'s secure payment form opens right here on this page. You pay <span class="font-semibold text-gray-900">TZS {{ number_format($order->amount) }}</span> and your order is confirmed automatically.</p>
+                    <p class="mt-1 text-sm text-gray-500">Press pay and {{ $option['via'] }}'s secure form opens right here on this page{{ $option['kind'] === 'mobile' ? ': enter your '.$option['name'].' number there' : ($option['kind'] === 'card' ? ': enter your card there' : '') }}. You pay <span class="font-semibold text-gray-900">TZS {{ number_format($order->amount) }}</span> and your order is confirmed automatically.</p>
                 @elseif ($option['flow'] === 'card')
                     <h2 class="text-base font-semibold text-gray-900">Pay by card (Visa / Mastercard)</h2>
                     <p class="mt-1 text-sm text-gray-500">
@@ -125,7 +125,8 @@
                     @csrf
                     <input type="hidden" name="channel" value="{{ $code }}">
 
-                    @if ($option['flow'] !== 'paypal')
+                    {{-- PesaPal and PayPal ask for the number / card on their own form: one click here. --}}
+                    @if (in_array($option['flow'], ['push', 'card'], true))
                         <div class="grid gap-4 sm:grid-cols-2">
                             @if ($option['flow'] === 'card')
                                 <div>
@@ -135,7 +136,7 @@
                                 </div>
                             @endif
                             <div>
-                                <x-input-label :for="$phoneId" :value="$option['flow'] === 'push' || ($option['flow'] === 'hosted' && $option['kind'] === 'mobile') ? $option['name'].' number' : ($option['needs_phone'] ? 'Phone number' : 'Phone number (optional)')" />
+                                <x-input-label :for="$phoneId" :value="$option['flow'] === 'push' ? $option['name'].' number' : 'Phone number'" />
                                 <x-text-input :id="$phoneId" name="phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="$mine ? old('phone') : ''" placeholder="0712 345 678" :required="$option['needs_phone']" />
                                 @if ($mine) <x-input-error :messages="$errors->get('phone')" class="mt-2" /> @endif
                             </div>

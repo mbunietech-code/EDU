@@ -377,6 +377,21 @@ class PesaPalGatewayTest extends TestCase
         $this->assertSame('pending', $context['order']->fresh()->status);
     }
 
+    public function test_pesapal_needs_no_number_on_our_page(): void
+    {
+        $this->fakePesaPal();
+        $this->switchOn('pesapal_mpesa');
+        $context = $this->createOrderContext();
+
+        // The number is typed once, on PesaPal's own form.
+        $this->actingAs($context['user'])->get(route('user.payments.create', $context['order']))
+            ->assertOk()
+            ->assertDontSee('id="phone-pesapal_mpesa"', false);
+
+        $this->payWithChannel($context, 'pesapal_mpesa', ['phone' => ''])
+            ->assertRedirect(route('user.payments.mobile.show', [$context['order'], GatewayPayment::firstOrFail()]));
+    }
+
     public function test_mobile_channel_needs_a_valid_tanzanian_number(): void
     {
         $this->fakePesaPal();
@@ -398,7 +413,7 @@ class PesaPalGatewayTest extends TestCase
 
         $this->getJson("/api/orders/{$context['order']->id}/payment-options")
             ->assertOk()
-            ->assertJsonFragment(['code' => 'pesapal_mpesa', 'flow' => 'hosted', 'gateway_label' => 'PesaPal', 'needs_phone' => true, 'currency' => 'TZS']);
+            ->assertJsonFragment(['code' => 'pesapal_mpesa', 'flow' => 'hosted', 'gateway_label' => 'PesaPal', 'needs_phone' => false, 'currency' => 'TZS']);
 
         $this->postJson("/api/orders/{$context['order']->id}/payments/channel", ['channel' => 'pesapal_mpesa', 'phone' => '0754123456'])
             ->assertCreated()
