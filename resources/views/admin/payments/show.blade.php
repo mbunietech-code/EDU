@@ -41,7 +41,9 @@
                 @endif
             </x-mbui.card>
 
-            @if ($payment->paymentProofs->isNotEmpty())
+            @if ($payment->gatewayPayment)
+                <x-payments.gateway-proof :gateway-payment="$payment->gatewayPayment" :receipt-url="$payment->isApproved() ? route('admin.orders.receipt', $payment->order) : null" />
+            @elseif ($payment->paymentProofs->isNotEmpty())
                 <div>
                     <h2 class="mbui-section-label">Payment proof</h2>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">

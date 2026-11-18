@@ -35,7 +35,7 @@ class PaymentController extends Controller
     {
         $this->authorize('view', $payment);
 
-        $payment->load(['order.product', 'order.plan', 'paymentProofs']);
+        $payment->load(['order.product', 'order.plan', 'paymentProofs', 'gatewayPayment']);
 
         return view('user.payments.show', compact('payment'));
     }

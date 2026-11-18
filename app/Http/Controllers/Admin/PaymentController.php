@@ -34,7 +34,7 @@ class PaymentController extends Controller
 
     public function show(Payment $payment)
     {
-        $payment->load(['user', 'order.product', 'order.plan', 'paymentProofs', 'reviewer']);
+        $payment->load(['user', 'order.product', 'order.plan', 'paymentProofs', 'reviewer', 'gatewayPayment']);
 
         return view('admin.payments.show', compact('payment'));
     }

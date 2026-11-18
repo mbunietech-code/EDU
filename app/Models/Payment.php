@@ -39,6 +39,15 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * The automatic payment (PesaPal, ClickPesa, AzamPay, PayPal) this came
+     * from: its confirmation from the provider is the proof of payment.
+     */
+    public function gatewayPayment(): HasOne
+    {
+        return $this->hasOne(GatewayPayment::class);
+    }
+
     public function paymentProofs(): HasMany
     {
         return $this->hasMany(PaymentProof::class);

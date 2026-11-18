@@ -144,6 +144,16 @@ class PesaPalGateway implements AcknowledgesCallback, MobileMoneyGateway
         $code = (int) ($data['status_code'] ?? 0);
         $reference = filled($data['confirmation_code'] ?? null) ? (string) $data['confirmation_code'] : null;
 
+        // How the customer paid (e.g. MpesaTZ, Visa) and the number / masked
+        // card PesaPal reports: shown as the payment proof.
+        $paidWith = array_filter([
+            'network' => filled($data['payment_method'] ?? null) ? Str::limit((string) $data['payment_method'], 60, '') : null,
+            'phone' => blank($payment->phone) && filled($data['payment_account'] ?? null) ? Str::limit((string) $data['payment_account'], 60, '') : null,
+        ]);
+        if ($paidWith !== [] && in_array($code, [self::COMPLETED, self::FAILED], true)) {
+            $payment->forceFill($paidWith)->save();
+        }
+
         if ($code === self::COMPLETED && strcasecmp((string) ($data['payment_status_description'] ?? ''), 'Completed') === 0) {
             // Anything not paid in TZS is checked by an admin (amount 0 → underpaid).
             $amount = strtoupper((string) ($data['currency'] ?? '')) === 'TZS' ? (float) ($data['amount'] ?? 0) : 0.0;

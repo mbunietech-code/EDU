@@ -39,7 +39,7 @@ class PaymentController extends Controller
 
     public function show(Payment $payment): JsonResponse
     {
-        $payment->load(['user:id,name,email', 'order.product:id,name', 'order.plan:id,name', 'paymentProofs', 'reviewer:id,name']);
+        $payment->load(['user:id,name,email', 'order.product:id,name', 'order.plan:id,name', 'paymentProofs', 'reviewer:id,name', 'gatewayPayment']);
 
         return response()->json([
             'data' => array_merge($this->row($payment), [
@@ -60,6 +60,18 @@ class PaymentController extends Controller
                     'path' => "/admin/payments/{$payment->id}/proofs/{$proof->id}",
                     'caption' => $proof->caption,
                 ])->all(),
+                // Automatic payments: the provider's confirmation is the proof.
+                'gateway_proof' => ($g = $payment->gatewayPayment) ? [
+                    'gateway' => $g->gateway,
+                    'label' => config("payments.gateways.{$g->gateway}.label") ?? $g->gateway,
+                    'verified' => $g->isSuccessful(),
+                    'paid_with' => $g->network,
+                    'account' => $g->phone ?: null,
+                    'confirmation_code' => $g->provider_reference,
+                    'transaction_id' => $g->provider_transaction_id,
+                    'reference' => $g->external_id,
+                    'confirmed_at' => optional($g->completed_at)->toIso8601String(),
+                ] : null,
             ]),
         ]);
     }
