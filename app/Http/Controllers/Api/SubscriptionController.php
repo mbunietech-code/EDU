@@ -33,6 +33,8 @@ class SubscriptionController extends Controller
 
         return response()->json(['data' => $this->row($subscription) + [
             'credentials' => $canView ? $credentialService->decryptValue($subscription->account->credentials) : null,
+            // Paid, login being prepared by the admin.
+            'login_pending' => (bool) $subscription->account?->isAwaitingSetup(),
         ]]);
     }
 

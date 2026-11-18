@@ -7,6 +7,30 @@
         <a href="{{ route('admin.accounts.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add account</a>
     </div>
 
+    @if ($awaiting->isNotEmpty())
+        <div class="mt-6 mbui-card overflow-hidden border-amber-200">
+            <div class="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-3">
+                <svg class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h2 class="text-sm font-semibold text-amber-800">Waiting for login details ({{ $awaiting->count() }})</h2>
+                <p class="hidden text-xs text-amber-700 sm:block">Paid customers who got a new account because the stock was empty. Add the login and they are notified.</p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($awaiting as $waiting)
+                    @php $holder = $waiting->currentSubscription(); @endphp
+                    <li class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-gray-900">{{ $waiting->product?->name }} · {{ $holder?->user?->name ?? 'Customer' }}</p>
+                            <p class="truncate text-xs text-gray-500">{{ $holder?->user?->email }} · paid {{ $waiting->created_at->diffForHumans() }}</p>
+                        </div>
+                        <a href="{{ route('admin.accounts.edit', $waiting) }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">Add login</a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="mt-6 mbui-card overflow-hidden">
         <div class="border-b border-gray-200 px-4 py-3">
             <form method="GET" class="flex flex-col sm:flex-row gap-3">

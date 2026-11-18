@@ -60,6 +60,11 @@
                                 <p class="mt-2 select-all whitespace-pre-wrap break-all rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900">{{ $credentials }}</p>
                                 <p class="mt-2 text-xs text-gray-500">Use these details to sign in to {{ $subscription->product->name }} directly. Do not share them with anyone outside your account.</p>
                             </div>
+                        @elseif ($subscription->account?->isAwaitingSetup())
+                            <div class="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                                <p class="font-semibold text-gray-900">Payment received</p>
+                                <p class="mt-1">Your login details for {{ $subscription->product->name }} are being prepared. They will appear here and we will notify you as soon as they are ready, usually within a few hours.</p>
+                            </div>
                         @elseif ($subscription->account)
                             <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                                 Your access is active, but login details aren't available yet. Contact support if this doesn't resolve shortly.

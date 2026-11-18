@@ -41,7 +41,13 @@ class AccountController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.accounts.index', compact('accounts'));
+        // Paid customers whose account still needs its login details.
+        $awaiting = Account::awaitingSetup()
+            ->with(['product:id,name', 'subscriptions' => fn ($q) => $q->whereIn('status', Account::HOLDING_STATUSES)->with('user:id,name,email')])
+            ->oldest()
+            ->get();
+
+        return view('admin.accounts.index', compact('accounts', 'awaiting'));
     }
 
     /** AI plans we bought: when each one was bought and when it ends. */

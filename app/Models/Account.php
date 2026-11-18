@@ -36,6 +36,9 @@ class Account extends Model
 
     public const CURRENCIES = ['TZS', 'USD', 'CNY', 'EUR', 'GBP', 'KES'];
 
+    /** Set while saving the login of an account that was waiting for it. */
+    public bool $loginJustAdded = false;
+
     /** Validation for the plan we bought (shared by the web form and the app API). */
     public static function planRules(): array
     {
@@ -98,6 +101,23 @@ class Account extends Model
         return $this->status === 'available';
     }
 
+    /**
+     * Made automatically when a paid order found no free account: given to the
+     * customer, waiting for the admin to add the login details.
+     */
+    public function isAwaitingSetup(): bool
+    {
+        return (bool) ($this->metadata['awaiting_setup'] ?? false);
+    }
+
+    /** Accounts that still need their login details. */
+    public function scopeAwaitingSetup($query)
+    {
+        return $query->whereNull('credentials')
+            ->where('metadata', 'like', '%"awaiting_setup":true%')
+            ->where('status', '!=', 'archived');
+    }
+
     public function assign(): void
     {
         $this->update(['status' => 'assigned']);
@@ -141,6 +161,32 @@ class Account extends Model
     /** A new purchase or a renewal (purchase date moved) is recorded under Finance → Expenses by itself. */
     protected static function booted(): void
     {
+        // Login added to an account that was waiting for it: no longer waiting.
+        static::saving(function (self $account) {
+            if ($account->isAwaitingSetup() && filled($account->credentials) && $account->isDirty('credentials')) {
+                $account->metadata = array_merge($account->metadata ?? [], ['awaiting_setup' => false, 'setup_done_at' => now()->toIso8601String()]);
+                $account->loginJustAdded = true;
+            }
+        });
+
+        // ...and the customer holding it is told their login is ready.
+        static::saved(function (self $account) {
+            if (! $account->loginJustAdded) {
+                return;
+            }
+
+            $account->loginJustAdded = false;
+            $subscription = $account->currentSubscription();
+
+            if ($subscription?->user) {
+                try {
+                    app(\App\Services\NotificationService::class)->notifySubscriptionActivated($subscription->user, $subscription);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
         static::saved(function (self $account) {
             if ($account->wasRecentlyCreated || $account->wasChanged('purchased_at')) {
                 try {

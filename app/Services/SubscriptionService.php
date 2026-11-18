@@ -30,14 +30,50 @@ class SubscriptionService
         $this->accountAssignmentService = $accountAssignmentService;
     }
 
+    /**
+     * A free account from stock, or, when the stock is empty, a new account
+     * waiting for its login details. A paid order is never stuck: the admin
+     * adds the login to that account and the customer sees it at once.
+     */
+    public function accountForOrder(Order $order, ?Account $preferred = null): Account
+    {
+        return $preferred
+            ?? $this->accountAssignmentService->findAvailableAccount($order->product_id)
+            ?? $this->awaitingSetupAccount($order);
+    }
+
+    protected function awaitingSetupAccount(Order $order): Account
+    {
+        $account = Account::create([
+            'product_id' => $order->product_id,
+            'name' => 'Waiting for login · '.($order->order_number ?? '#'.$order->id),
+            'description' => 'Created automatically when this order was approved and no account was free. Add the login details.',
+            'credentials' => null,
+            'status' => 'available',
+            'metadata' => ['awaiting_setup' => true, 'order_id' => $order->id],
+        ]);
+
+        \App\Models\ActivityLog::log('account_awaiting_setup', 'Account', $account->id, [
+            'order_id' => $order->id,
+            'product_id' => $order->product_id,
+        ]);
+
+        $product = $order->product;
+        DB::afterCommit(function () use ($product) {
+            try {
+                app(NotificationService::class)->notifyAdminAccountUnavailable($product);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+
+        return $account;
+    }
+
     public function createFromOrder(Order $order): Subscription
     {
         return DB::transaction(function () use ($order) {
-            $account = $this->accountAssignmentService->findAvailableAccount($order->product_id);
-
-            if (! $account) {
-                throw new \RuntimeException('No available account for product: ' . $order->product->name);
-            }
+            $account = $this->accountForOrder($order);
 
             $startDate = Carbon::now(config('app.timezone'));
 
@@ -90,11 +126,7 @@ class SubscriptionService
             $account = $previous?->account_id
                 ? Account::whereKey($previous->account_id)->assignable()->lockForUpdate()->first()
                 : null;
-            $account ??= $this->accountAssignmentService->findAvailableAccount($order->product_id);
-
-            if (! $account) {
-                throw new \RuntimeException('No available account for product: ' . $order->product->name);
-            }
+            $account = $this->accountForOrder($order, $account);
 
             $endDate = $order->plan->isLifetime()
                 ? Carbon::parse('2099-12-31', $tz)
@@ -107,11 +139,7 @@ class SubscriptionService
     public function createFromOrderWithDates(Order $order, Carbon $startDate, Carbon $endDate): Subscription
     {
         return DB::transaction(function () use ($order, $startDate, $endDate) {
-            $account = $this->accountAssignmentService->findAvailableAccount($order->product_id);
-
-            if (! $account) {
-                throw new \RuntimeException('No available account for product: ' . $order->product->name);
-            }
+            $account = $this->accountForOrder($order);
 
             return $this->createSubscription->execute($order, $account, $startDate, $endDate);
         });
