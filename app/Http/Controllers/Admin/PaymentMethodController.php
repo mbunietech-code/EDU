@@ -7,17 +7,21 @@ use App\Http\Requests\Admin\StorePaymentMethodRequest;
 use App\Http\Requests\Admin\UpdatePaymentMethodRequest;
 use App\Http\Requests\Admin\UploadPaymentMethodQrRequest;
 use App\Models\ActivityLog;
+use App\Models\PaymentChannel;
 use App\Models\PaymentMethod;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use App\Services\Payments\PaymentGatewaySettingsService;
+use App\Services\Payments\PesaPalGateway;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PaymentMethodController extends Controller
 {
-    public function index(GatewayPaymentService $gateways, PaymentGatewaySettingsService $settings)
+    public function index(GatewayPaymentService $gateways, PaymentGatewaySettingsService $settings, PaymentChannelService $channelService)
     {
         $paymentMethods = PaymentMethod::orderBy('sort_order')->get();
         $callbackToken = $settings->callbackToken();
@@ -32,10 +36,44 @@ class PaymentMethodController extends Controller
                 'ready' => $gateway->isEnabled(),
                 'redirect' => $gateway->usesRedirect(),
                 'callback_url' => $gateway->usesRedirect() ? null : route('api.payments.callback', [$key, $callbackToken]),
+                'ipn_id' => $gateway instanceof PesaPalGateway ? $gateway->savedIpnId() : null,
             ];
         }
 
-        return view('admin.payment-methods.index', compact('paymentMethods', 'onlineGateways'));
+        $channelsReady = Schema::hasTable('payment_channels');
+        $manualReady = $paymentMethods->where('enabled', true)->whereNotNull('qr_image')->isNotEmpty();
+        $channels = $channelService->all()->map(fn (PaymentChannel $channel) => [
+            'code' => $channel->code,
+            'name' => $channel->name,
+            'description' => $channel->description,
+            'kind' => $channel->kind,
+            'gateway' => $channel->gateway,
+            'gateway_label' => $channel->gateway ? ($onlineGateways[$channel->gateway]['label'] ?? $channel->gateway) : 'QR code',
+            // Live for customers only when its gateway is live too.
+            'gateway_ready' => $channel->gateway ? (bool) ($onlineGateways[$channel->gateway]['ready'] ?? false) : $manualReady,
+            'enabled' => (bool) $channel->enabled,
+        ])->values()->all();
+
+        return view('admin.payment-methods.index', compact('paymentMethods', 'onlineGateways', 'channels', 'channelsReady'));
+    }
+
+    public function updateChannels(Request $request, PaymentChannelService $channels)
+    {
+        abort_unless(Schema::hasTable('payment_channels'), 409, 'Apply database change 0046 first (Admin → Database).');
+
+        $validated = $request->validate([
+            'channels' => ['required', 'array', 'max:100'],
+            'channels.*.code' => ['required', 'string', Rule::in(array_keys(PaymentChannelService::CATALOG))],
+            'channels.*.enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $channels->save($validated['channels']);
+
+        ActivityLog::log('payment_channels_updated', 'PaymentChannel', null, [
+            'on' => collect($validated['channels'])->filter(fn ($row) => ! empty($row['enabled']))->pluck('code')->values()->all(),
+        ]);
+
+        return redirect()->route('admin.payment-methods.index', ['tab' => 'channels'])->with('success', 'Checkout order and channels saved.');
     }
 
     public function updateGateway(Request $request, string $gateway, PaymentGatewaySettingsService $settings, GatewayPaymentService $gateways)
@@ -94,7 +132,7 @@ class PaymentMethodController extends Controller
 
         ActivityLog::log('payment_callback_token_regenerated', 'PaymentGateway', null, []);
 
-        return back()->with('success', 'New callback URLs created. Update them on the AzamPay and ClickPesa dashboards now.');
+        return back()->with('success', 'New callback URLs created. Update them on the AzamPay and ClickPesa dashboards now. PesaPal is updated automatically on its next payment.');
     }
 
     public function store(StorePaymentMethodRequest $request)

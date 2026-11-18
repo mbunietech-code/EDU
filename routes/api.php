@@ -38,7 +38,7 @@ Route::post('/webhooks/livekit', \App\Http\Controllers\Api\LiveKitWebhookControl
     ->middleware('throttle:600,1')
     ->name('api.webhooks.livekit');
 
-// AzamPay / ClickPesa payment results — authenticated by the secret token in the URL.
+// AzamPay / ClickPesa / PesaPal payment results — authenticated by the secret token in the URL.
 Route::post('/payments/callback/{gateway}/{token}', \App\Http\Controllers\Api\PaymentCallbackController::class)
     ->middleware('throttle:120,1')
     ->name('api.payments.callback');
@@ -220,6 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/orders/{order}/payments/mobile', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'mobile']);
         Route::post('/orders/{order}/payments/card', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'card']);
         Route::post('/orders/{order}/payments/paypal', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'paypal']);
+        Route::post('/orders/{order}/payments/channel', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'channel']);
     });
     Route::get('/gateway-payments/{gatewayPayment}', [\App\Http\Controllers\Api\GatewayPaymentController::class, 'status'])
         ->middleware('throttle:60,1');
@@ -593,9 +594,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{group}/messages/{message}/file', 'attachment')->whereNumber(['group', 'message']);
         });
 
-        // Automatic payment gateways (AzamPay, ClickPesa, card, PayPal).
+        // Automatic payment gateways (AzamPay, ClickPesa, PesaPal, card, PayPal) and checkout channels.
         Route::controller(\App\Http\Controllers\Api\Admin\PaymentGatewayController::class)->prefix('payment-gateways')->group(function () {
             Route::get('/', 'index');
+            Route::get('/channels', 'channels');
+            Route::put('/channels', 'updateChannels');
             Route::put('/{gateway}', 'update');
             Route::post('/{gateway}/test', 'test');
         });

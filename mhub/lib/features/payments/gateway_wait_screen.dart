@@ -77,7 +77,8 @@ class _GatewayWaitScreenState extends ConsumerState<GatewayWaitScreen> with Widg
   Future<void> _openPage() async {
     final url = _payment.redirectUrl ?? widget.initial.redirectUrl;
     if (url == null) return;
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    // In-app browser view: the customer stays inside MHub, not another app.
+    await launchUrl(Uri.parse(url), mode: LaunchMode.inAppBrowserView);
   }
 
   void _done() => Navigator.of(context).pop(_payment.isSuccessful);

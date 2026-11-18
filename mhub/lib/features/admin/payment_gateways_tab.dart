@@ -56,6 +56,7 @@ class PaymentGatewaysTab extends ConsumerWidget {
     'azampay': 'M-Pesa, Mixx by Yas, Airtel, Halopesa, AzamPesa (USSD push)',
     'clickpesa': 'All Tanzanian mobile money (USSD push)',
     'clickpesa_card': 'Visa / Mastercard via ClickPesa, in USD. Uses the ClickPesa keys; needs ClickPesa KYC.',
+    'pesapal': 'M-Pesa, Airtel Money, Mixx by Yas, cards and bank in TZS on a PesaPal form inside the app. IPN registers automatically.',
     'paypal': 'PayPal balance or card, charged in USD',
   };
 

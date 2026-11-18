@@ -348,8 +348,8 @@ class MobileMoneyGatewayTest extends TestCase
         $this->actingAs($context['user'])->get(route('user.payments.create', $context['order']))
             ->assertOk()
             ->assertSee('Pay instantly with mobile money')
-            ->assertSee('AzamPay')
-            ->assertSee('ClickPesa');
+            ->assertSee('data-channel="azampay_mpesa"', false)
+            ->assertSee('data-channel="clickpesa_mpesa"', false);
 
         config(['payments.gateways.azampay.enabled' => false, 'payments.gateways.clickpesa.enabled' => false]);
 

@@ -38,6 +38,12 @@ class PaymentGatewaySettingsService
         'clickpesa_card' => [
             'enabled' => ['Enabled', 'toggle'],
         ],
+        'pesapal' => [
+            'enabled' => ['Enabled', 'toggle'],
+            'environment' => ['Environment', 'mode'],
+            'consumer_key' => ['Consumer key', 'secret'],
+            'consumer_secret' => ['Consumer secret', 'secret'],
+        ],
         'paypal' => [
             'enabled' => ['Enabled', 'toggle'],
             'mode' => ['Environment', 'mode'],

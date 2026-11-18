@@ -7,6 +7,7 @@ return [
     | it when registering callback URLs on the AzamPay / ClickPesa dashboards:
     |   https://YOUR-DOMAIN/api/payments/callback/azampay/{PAYMENT_CALLBACK_TOKEN}
     |   https://YOUR-DOMAIN/api/payments/callback/clickpesa/{PAYMENT_CALLBACK_TOKEN}
+    | PesaPal's IPN URL is registered automatically through its API.
     */
     'callback_token' => env('PAYMENT_CALLBACK_TOKEN'),
 
@@ -64,6 +65,23 @@ return [
             'enabled' => (bool) env('CLICKPESA_CARD_ENABLED', false),
             'timeout_minutes' => 60,
             'poll_seconds' => 45,
+        ],
+
+        'pesapal' => [
+            'label' => 'PesaPal',
+            // Mobile money (M-Pesa, Airtel Money, Mixx by Yas), cards and bank
+            // on PesaPal's secure page, charged in TZS.
+            'enabled' => (bool) env('PESAPAL_ENABLED', false),
+            'environment' => env('PESAPAL_ENV', 'sandbox'), // sandbox | live
+            'consumer_key' => env('PESAPAL_CONSUMER_KEY'),
+            'consumer_secret' => env('PESAPAL_CONSUMER_SECRET'),
+            'urls' => [
+                'sandbox' => 'https://cybqa.pesapal.com/pesapalv3',
+                'live' => 'https://pay.pesapal.com/v3',
+            ],
+            // Customers may take a while on PesaPal's page.
+            'timeout_minutes' => 60,
+            'poll_seconds' => 20,
         ],
 
         'clickpesa' => [

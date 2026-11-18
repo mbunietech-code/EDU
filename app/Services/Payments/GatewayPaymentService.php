@@ -23,6 +23,7 @@ class GatewayPaymentService
         ClickPesaGateway $clickPesa,
         ClickPesaCardGateway $clickPesaCard,
         PayPalGateway $payPal,
+        PesaPalGateway $pesaPal,
         protected PaymentApprovalService $approvals,
         protected NotificationService $notifications,
     ) {
@@ -31,6 +32,7 @@ class GatewayPaymentService
             $clickPesa->key() => $clickPesa,
             $clickPesaCard->key() => $clickPesaCard,
             $payPal->key() => $payPal,
+            $pesaPal->key() => $pesaPal,
         ];
     }
 
@@ -91,7 +93,8 @@ class GatewayPaymentService
     {
         return GatewayPayment::where('order_id', $order->id)
             ->where('status', 'pending')
-            ->where('gateway', '!=', 'paypal')
+            // Pages the customer opens (PayPal, PesaPal) do not block a new push.
+            ->whereNotIn('gateway', ['paypal', 'pesapal'])
             ->where('created_at', '>=', now()->subMinutes($this->timeoutMinutes()))
             ->latest('id')
             ->first();

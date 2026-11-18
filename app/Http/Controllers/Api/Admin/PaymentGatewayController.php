@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use App\Services\Payments\PaymentGatewaySettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -101,6 +102,51 @@ class PaymentGatewayController extends Controller
         }
 
         return response()->json(['ok' => true, 'message' => $driver->label().' connected successfully.']);
+    }
+
+    /**
+     * Checkout channels in priority order, with their switch and whether
+     * their gateway is live.
+     */
+    public function channels(Request $request, PaymentChannelService $channels): JsonResponse
+    {
+        $this->authorizeManage($request);
+
+        return response()->json(['data' => $channels->all()->map(fn ($channel) => [
+            'code' => $channel->code,
+            'name' => $channel->name,
+            'description' => $channel->description,
+            'kind' => $channel->kind,
+            'gateway' => $channel->gateway,
+            'gateway_label' => $channel->gateway ? $this->gateways->gateway($channel->gateway)?->label() : null,
+            'gateway_ready' => $channel->gateway ? (bool) $this->gateways->gateway($channel->gateway)?->isEnabled() : true,
+            'enabled' => (bool) $channel->enabled,
+            'sort_order' => $channel->sort_order,
+        ])->values()]);
+    }
+
+    /**
+     * Body: {"channels": [{"code": "...", "enabled": true}, ...]} top to bottom.
+     */
+    public function updateChannels(Request $request, PaymentChannelService $channels): JsonResponse
+    {
+        $this->authorizeManage($request);
+        abort_unless(\Illuminate\Support\Facades\Schema::hasTable('payment_channels'), 409, 'Apply database change 0046 first (Admin → Database).');
+
+        $validated = $request->validate([
+            'channels' => ['required', 'array', 'max:100'],
+            'channels.*.code' => ['required', 'string', Rule::in(array_keys(PaymentChannelService::CATALOG))],
+            'channels.*.enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $channels->save($validated['channels']);
+
+        ActivityLog::log('payment_channels_updated', 'PaymentChannel', null, [
+            'on' => collect($validated['channels'])->filter(fn ($row) => ! empty($row['enabled']))->pluck('code')->values()->all(),
+            'via' => 'api',
+        ]);
+
+        return $this->channels($request, $channels);
     }
 
     protected function authorizeManage(Request $request): void

@@ -26,24 +26,35 @@
     </div>
 
     @php
-        $showManual = $paymentMethods->isNotEmpty() || (empty($mobileGateways) && ! $payPalOffer && ! $cardOffer);
-        $tabs = array_filter([
-            'mobile' => ! empty($mobileGateways) ? ['Mobile money', 'M-Pesa, Mixx, Airtel, Halopesa'] : null,
-            'card' => $cardOffer ? ['Card', 'Visa, Mastercard'] : null,
-            'paypal' => $payPalOffer ? ['PayPal', 'PayPal balance or card'] : null,
-            'manual' => $showManual ? ['Pay manually', 'Scan QR and upload proof'] : null,
-        ]);
-
-        // Reopen the tab whose form came back with errors, else ?tab=, else the first.
-        $activeTab = match (true) {
-            $errors->hasAny(['card_name', 'card_phone']) => 'card',
-            $errors->hasAny(['gateway', 'network', 'phone']) => 'mobile',
-            $errors->hasAny(['payment_method', 'payment_proof', 'note', 'amount', 'transaction_reference']) => 'manual',
-            default => request('tab'),
-        };
-        if (! isset($tabs[$activeTab])) {
-            $activeTab = array_key_first($tabs);
+        // Manual payment is the fallback when nothing else is switched on.
+        $showManual = isset($channelOptions['manual']) || empty($channelOptions);
+        $options = $channelOptions;
+        if ($showManual && ! isset($options['manual'])) {
+            $options['manual'] = ['code' => 'manual', 'name' => 'Pay manually (QR code)', 'kind' => 'manual', 'flow' => 'manual', 'via' => null, 'needs_phone' => false, 'charge' => null];
         }
+
+        $firstOf = fn (array $flows) => collect($options)->first(fn ($o) => in_array($o['flow'], $flows, true))['code'] ?? null;
+        $legacyTabs = ['mobile' => $firstOf(['push', 'hosted']), 'card' => $firstOf(['card']), 'paypal' => $firstOf(['paypal'])];
+
+        // Reopen the option whose form came back with errors, else ?tab=, else the first.
+        $activeTab = match (true) {
+            $errors->hasAny(['phone', 'name', 'channel']) && isset($options[old('channel')]) => old('channel'),
+            $errors->hasAny(['card_name', 'card_phone']) => $legacyTabs['card'],
+            $errors->hasAny(['gateway', 'network']) => $legacyTabs['mobile'],
+            $errors->hasAny(['payment_method', 'payment_proof', 'note', 'amount', 'transaction_reference']) => 'manual',
+            default => $legacyTabs[request('tab')] ?? request('tab'),
+        };
+        if (! isset($options[$activeTab])) {
+            $activeTab = array_key_first($options);
+        }
+
+        $hint = fn (array $o) => match ($o['flow']) {
+            'push' => 'PIN prompt on your phone',
+            'hosted' => 'Secure form via '.$o['via'],
+            'card' => 'Charged in '.$o['charge']['currency'],
+            'paypal' => 'PayPal balance or card',
+            default => 'Scan QR and upload proof',
+        };
     @endphp
 
     <div x-data="{
@@ -56,132 +67,104 @@
             },
         }">
 
-    @if (count($tabs) > 1)
+    @if (count($options) > 1)
         <div class="mt-6">
             <p class="text-sm font-medium text-gray-700">How would you like to pay?</p>
-            <div class="mt-2 grid grid-cols-2 gap-2 {{ [2 => 'sm:grid-cols-2', 3 => 'sm:grid-cols-3', 4 => 'sm:grid-cols-4'][count($tabs)] ?? 'sm:grid-cols-4' }}" role="tablist" aria-label="Payment options">
-                @foreach ($tabs as $key => [$label, $hint])
-                    <button type="button" role="tab" @click="show(@js($key))" :aria-selected="tab === @js($key)"
-                        :class="tab === @js($key) ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white hover:border-gray-300'"
-                        class="rounded-lg border px-3 py-2.5 text-left transition {{ $activeTab === $key ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white' }}">
-                        <span class="block text-sm font-semibold text-gray-900">{{ $label }}</span>
-                        <span class="mt-0.5 block text-xs text-gray-500">{{ $hint }}</span>
+            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" role="tablist" aria-label="Payment options">
+                @foreach ($options as $code => $option)
+                    <button type="button" role="tab" @click="show(@js($code))" :aria-selected="tab === @js($code)" data-channel="{{ $code }}"
+                        :class="tab === @js($code) ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white hover:border-gray-300'"
+                        class="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition {{ $activeTab === $code ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white' }}">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600">
+                            <x-payment-kind-icon :kind="$option['kind']" />
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-semibold text-gray-900">{{ $option['name'] }}</span>
+                            <span class="mt-0.5 block truncate text-xs text-gray-500">{{ $hint($option) }}</span>
+                        </span>
                     </button>
                 @endforeach
             </div>
         </div>
     @endif
 
-    @if (! empty($mobileGateways))
-    <div role="tabpanel" x-show="tab === 'mobile'" @if ($activeTab !== 'mobile') x-cloak @endif>
-        <div class="mt-6 mbui-card p-6" x-data="{ gateway: @js(old('gateway', array_key_first($mobileGateways))), gateways: @js($mobileGateways), sending: false }">
-            <h2 class="text-base font-semibold text-gray-900">Pay instantly with mobile money</h2>
-            <p class="mt-1 text-sm text-gray-500">We send a payment request to your phone. Enter your PIN and your order is confirmed automatically, with no screenshot needed.</p>
-
-            <form method="POST" action="{{ route('user.payments.mobile.store', $order) }}" class="mt-5 space-y-4" @submit="sending = true">
-                @csrf
-
-                @if (count($mobileGateways) > 1)
-                    <div>
-                        <x-input-label value="Pay with" />
-                        <div class="mt-1 flex flex-wrap gap-3">
-                            @foreach ($mobileGateways as $key => $gateway)
-                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-900">
-                                    <input type="radio" name="gateway" value="{{ $key }}" x-model="gateway" class="h-4 w-4 text-indigo-600">
-                                    {{ $gateway['label'] }}
-                                </label>
-                            @endforeach
-                        </div>
-                        <x-input-error :messages="$errors->get('gateway')" class="mt-2" />
-                    </div>
+    @foreach ($options as $code => $option)
+        @continue($option['flow'] === 'manual')
+        @php
+            $mine = old('channel') === $code;
+            $phoneId = 'phone-'.$code;
+        @endphp
+        <div role="tabpanel" data-channel-panel="{{ $code }}" x-show="tab === @js($code)" @if ($activeTab !== $code) x-cloak @endif>
+            <div class="mt-6 mbui-card p-6">
+                @if ($option['flow'] === 'push')
+                    <h2 class="text-base font-semibold text-gray-900">Pay instantly with mobile money</h2>
+                    <p class="mt-1 text-sm text-gray-500">We send a payment request to your {{ $option['name'] }} number. Enter your PIN and your order is confirmed automatically, with no screenshot needed.</p>
+                @elseif ($option['flow'] === 'hosted')
+                    <h2 class="text-base font-semibold text-gray-900">
+                        @if ($option['kind'] === 'card') Pay by card (Visa / Mastercard)
+                        @elseif ($option['kind'] === 'bank') Pay from your bank
+                        @else Pay with {{ $option['name'] }}
+                        @endif
+                    </h2>
+                    <p class="mt-1 text-sm text-gray-500">{{ $option['via'] }}'s secure payment form opens right here on this page. You pay <span class="font-semibold text-gray-900">TZS {{ number_format($order->amount) }}</span> and your order is confirmed automatically.</p>
+                @elseif ($option['flow'] === 'card')
+                    <h2 class="text-base font-semibold text-gray-900">Pay by card (Visa / Mastercard)</h2>
+                    <p class="mt-1 text-sm text-gray-500">
+                        You will be charged <span class="font-semibold text-gray-900">{{ $option['charge']['currency'] }} {{ number_format($option['charge']['amount'], 2) }}</span>
+                        (TZS {{ number_format($order->amount) }} at today's rate) on {{ $option['via'] }}'s secure card form, shown on this page. We never see your card number.
+                    </p>
                 @else
-                    <input type="hidden" name="gateway" value="{{ array_key_first($mobileGateways) }}">
-                @endif
-
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div x-show="Object.keys(gateways[gateway]?.networks || {}).length" x-cloak>
-                        <x-input-label for="mm-network" value="Network" />
-                        <select id="mm-network" name="network" class="mbui-input mt-1" x-bind:required="Object.keys(gateways[gateway]?.networks || {}).length > 0">
-                            <option value="">Choose network</option>
-                            <template x-for="(label, value) in (gateways[gateway]?.networks || {})" :key="value">
-                                <option :value="value" x-text="label" :selected="value === @js(old('network'))"></option>
-                            </template>
-                        </select>
-                        <x-input-error :messages="$errors->get('network')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label for="mm-phone" value="Mobile money number" />
-                        <x-text-input id="mm-phone" name="phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="old('phone')" placeholder="0712 345 678" required />
-                        <x-input-error :messages="$errors->get('phone')" class="mt-2" />
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-end border-t border-gray-100 pt-4">
-                    <x-mbui.button type="submit" x-bind:disabled="sending">
-                        <span x-show="! sending">Pay TZS {{ number_format($order->amount) }}</span>
-                        <span x-show="sending" x-cloak>Sending request...</span>
-                    </x-mbui.button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
-
-    @if ($payPalOffer)
-    <div role="tabpanel" x-show="tab === 'paypal'" @if ($activeTab !== 'paypal') x-cloak @endif>
-        <div class="mt-6 mbui-card p-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
                     <h2 class="text-base font-semibold text-gray-900">Pay with PayPal or card</h2>
                     <p class="mt-1 text-sm text-gray-500">
-                        You will be charged <span class="font-semibold text-gray-900">{{ $payPalOffer['currency'] }} {{ number_format($payPalOffer['amount'], 2) }}</span>
+                        You will be charged <span class="font-semibold text-gray-900">{{ $option['charge']['currency'] }} {{ number_format($option['charge']['amount'], 2) }}</span>
                         (TZS {{ number_format($order->amount) }} at today's rate) on PayPal's secure page. Your order is confirmed as soon as you return.
                     </p>
-                </div>
-                <form method="POST" action="{{ route('user.payments.paypal.start', $order) }}" x-data="{ sending: false }" @submit="sending = true" class="shrink-0">
+                @endif
+
+                <form method="POST" action="{{ route('user.payments.channel.store', $order) }}" class="mt-5 space-y-4" x-data="{ sending: false }" @submit="sending = true">
                     @csrf
-                    <button type="submit" x-bind:disabled="sending" class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-60" style="background-color: #FFC439; color: #003087;">
-                        <span x-show="! sending">Pay with PayPal</span>
-                        <span x-show="sending" x-cloak>Opening PayPal...</span>
-                    </button>
+                    <input type="hidden" name="channel" value="{{ $code }}">
+
+                    @if ($option['flow'] !== 'paypal')
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            @if ($option['flow'] === 'card')
+                                <div>
+                                    <x-input-label :for="'name-'.$code" value="Name on card" />
+                                    <x-text-input :id="'name-'.$code" name="name" class="mbui-input mt-1" :value="$mine ? old('name') : auth()->user()->name" required />
+                                    @if ($mine) <x-input-error :messages="$errors->get('name')" class="mt-2" /> @endif
+                                </div>
+                            @endif
+                            <div>
+                                <x-input-label :for="$phoneId" :value="$option['flow'] === 'push' || ($option['flow'] === 'hosted' && $option['kind'] === 'mobile') ? $option['name'].' number' : ($option['needs_phone'] ? 'Phone number' : 'Phone number (optional)')" />
+                                <x-text-input :id="$phoneId" name="phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="$mine ? old('phone') : ''" placeholder="0712 345 678" :required="$option['needs_phone']" />
+                                @if ($mine) <x-input-error :messages="$errors->get('phone')" class="mt-2" /> @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex items-center justify-end border-t border-gray-100 pt-4">
+                        @if ($option['flow'] === 'paypal')
+                            <button type="submit" x-bind:disabled="sending" class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-60" style="background-color: #FFC439; color: #003087;">
+                                <span x-show="! sending">Pay with PayPal</span>
+                                <span x-show="sending" x-cloak>Opening PayPal...</span>
+                            </button>
+                        @else
+                            <x-mbui.button type="submit" x-bind:disabled="sending">
+                                <span x-show="! sending">
+                                    @if ($option['charge'])
+                                        Pay {{ $option['charge']['currency'] }} {{ number_format($option['charge']['amount'], 2) }}
+                                    @else
+                                        Pay TZS {{ number_format($order->amount) }}
+                                    @endif
+                                </span>
+                                <span x-show="sending" x-cloak>{{ $option['flow'] === 'push' ? 'Sending request...' : 'Preparing secure form...' }}</span>
+                            </x-mbui.button>
+                        @endif
+                    </div>
                 </form>
             </div>
         </div>
-    </div>
-    @endif
-
-    @if ($cardOffer)
-    <div role="tabpanel" x-show="tab === 'card'" @if ($activeTab !== 'card') x-cloak @endif>
-        <div class="mt-6 mbui-card p-6">
-            <h2 class="text-base font-semibold text-gray-900">Pay by card (Visa / Mastercard)</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                You will be charged <span class="font-semibold text-gray-900">{{ $cardOffer['currency'] }} {{ number_format($cardOffer['amount'], 2) }}</span>
-                (TZS {{ number_format($order->amount) }} at today's rate) on ClickPesa's secure card page. We never see your card number.
-            </p>
-            <form method="POST" action="{{ route('user.payments.card.store', $order) }}" class="mt-5 space-y-4" x-data="{ sending: false }" @submit="sending = true">
-                @csrf
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <x-input-label for="card-name" value="Name on card" />
-                        <x-text-input id="card-name" name="card_name" class="mbui-input mt-1" :value="old('card_name', auth()->user()->name)" required />
-                        <x-input-error :messages="$errors->get('card_name')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label for="card-phone" value="Phone number" />
-                        <x-text-input id="card-phone" name="card_phone" type="tel" inputmode="tel" class="mbui-input mt-1" :value="old('card_phone')" placeholder="0712 345 678" required />
-                        <x-input-error :messages="$errors->get('card_phone')" class="mt-2" />
-                    </div>
-                </div>
-                <div class="flex items-center justify-end border-t border-gray-100 pt-4">
-                    <x-mbui.button type="submit" x-bind:disabled="sending">
-                        <span x-show="! sending">Pay {{ $cardOffer['currency'] }} {{ number_format($cardOffer['amount'], 2) }} by card</span>
-                        <span x-show="sending" x-cloak>Preparing secure card page...</span>
-                    </x-mbui.button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
+    @endforeach
 
     @if ($showManual)
     <div role="tabpanel" x-show="tab === 'manual'" @if ($activeTab !== 'manual') x-cloak @endif>

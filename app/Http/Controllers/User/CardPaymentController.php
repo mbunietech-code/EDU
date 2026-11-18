@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use Illuminate\Http\Request;
 
 /**
@@ -13,8 +14,10 @@ use Illuminate\Http\Request;
  */
 class CardPaymentController extends Controller
 {
-    public function __construct(protected GatewayPaymentService $gateways)
-    {
+    public function __construct(
+        protected GatewayPaymentService $gateways,
+        protected PaymentChannelService $channels,
+    ) {
     }
 
     public function store(Request $request, Order $order)
@@ -27,7 +30,7 @@ class CardPaymentController extends Controller
 
         $card = $this->gateways->gateway('clickpesa_card');
 
-        if (! $card?->isEnabled()) {
+        if (! $card?->isEnabled() || ! $this->channels->isAvailable('clickpesa_card')) {
             return back()->with('error', 'Card payments are not available right now.');
         }
 

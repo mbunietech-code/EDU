@@ -7,6 +7,7 @@ use App\Models\GatewayPayment;
 use App\Models\Order;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use Illuminate\Http\Request;
 
 /**
@@ -14,8 +15,10 @@ use Illuminate\Http\Request;
  */
 class PayPalPaymentController extends Controller
 {
-    public function __construct(protected GatewayPaymentService $gateways)
-    {
+    public function __construct(
+        protected GatewayPaymentService $gateways,
+        protected PaymentChannelService $channels,
+    ) {
     }
 
     public function start(Request $request, Order $order)
@@ -28,7 +31,7 @@ class PayPalPaymentController extends Controller
 
         $payPal = $this->gateways->gateway('paypal');
 
-        if (! $payPal?->isEnabled()) {
+        if (! $payPal?->isEnabled() || ! $this->channels->isAvailable('paypal')) {
             return back()->with('error', 'PayPal is not available right now.');
         }
 

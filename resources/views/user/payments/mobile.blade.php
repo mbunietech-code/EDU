@@ -1,10 +1,15 @@
 @php
-    $retryTab = ['clickpesa_card' => 'card', 'paypal' => 'paypal'][$gatewayPayment->gateway] ?? 'mobile';
+    $retryTab = ['clickpesa_card' => 'card', 'paypal' => 'paypal', 'pesapal' => null][$gatewayPayment->gateway] ?? 'mobile';
+    // PesaPal and ClickPesa card forms are shown inside this page.
+    $embedded = ! ($returned ?? false)
+        && in_array($gatewayPayment->gateway, ['pesapal', 'clickpesa_card'], true)
+        && $gatewayPayment->isPending()
+        && filled($gatewayPayment->redirect_url);
 @endphp
 
 <x-layouts.user title="Confirm Payment" header="Confirm Payment">
 
-    <div class="mx-auto mt-6 max-w-lg">
+    <div class="mx-auto mt-6 {{ $embedded ? 'max-w-2xl' : 'max-w-lg' }}">
         <div class="mbui-card p-6 text-center"
             x-data="{
                 status: @js($gatewayPayment->status),
@@ -28,20 +33,24 @@
 
             <template x-if="status === 'pending'">
                 <div>
-                    <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-                    @if ($gatewayPayment->gateway === 'clickpesa_card')
-                        <h1 class="mt-5 text-lg font-semibold text-gray-900">Complete your card payment</h1>
-                        <p class="mt-2 text-sm text-gray-600">
-                            Open the secure card page and pay
-                            <span class="font-semibold">{{ $gatewayPayment->charged_currency }} {{ number_format((float) $gatewayPayment->charged_amount, 2) }}</span>.
-                            Keep this page open: your order is confirmed here automatically once the card is charged.
+                    @unless ($embedded)
+                        <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+                    @endunless
+                    @if ($embedded)
+                        {{-- The provider's secure form, inside our own page. --}}
+                        <h1 class="text-lg font-semibold text-gray-900">Complete your payment</h1>
+                        <p class="mt-1 text-sm text-gray-600">
+                            Pay <span class="font-semibold">{{ $gatewayPayment->charged_currency ?: 'TZS' }} {{ number_format((float) ($gatewayPayment->charged_amount ?: $gatewayPayment->amount), $gatewayPayment->charged_currency === 'USD' ? 2 : 0) }}</span>
+                            in the secure {{ $gatewayLabel }} form below. This page confirms your order by itself.
                         </p>
-                        @if ($gatewayPayment->redirect_url)
-                            <a href="{{ $gatewayPayment->redirect_url }}" target="_blank" rel="noopener"
-                                class="mt-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
-                                Open secure card page
-                            </a>
-                        @endif
+                        <div class="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                            <iframe src="{{ $gatewayPayment->redirect_url }}" title="{{ $gatewayLabel }} secure payment form"
+                                class="block h-[640px] w-full" allow="payment" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-400">Form not loading? <a href="{{ $gatewayPayment->redirect_url }}" target="_blank" rel="noopener" class="mbui-anchor">Open it in a new tab</a>.</p>
+                    @elseif (in_array($gatewayPayment->gateway, ['pesapal', 'clickpesa_card'], true))
+                        <h1 class="mt-5 text-lg font-semibold text-gray-900">Confirming your payment</h1>
+                        <p class="mt-2 text-sm text-gray-600">{{ $gatewayLabel }} is confirming your payment. Keep this page open: your order is confirmed here automatically.</p>
                     @elseif ($gatewayPayment->gateway === 'paypal')
                         <h1 class="mt-5 text-lg font-semibold text-gray-900">Confirming your PayPal payment</h1>
                         <p class="mt-2 text-sm text-gray-600">

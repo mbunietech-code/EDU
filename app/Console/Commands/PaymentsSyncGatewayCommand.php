@@ -14,7 +14,7 @@ class PaymentsSyncGatewayCommand extends Command
 {
     protected $signature = 'payments:sync-gateway';
 
-    protected $description = 'Check pending mobile money payments with AzamPay / ClickPesa';
+    protected $description = 'Check pending online payments with AzamPay / ClickPesa / PesaPal / PayPal';
 
     public function handle(GatewayPaymentService $gateways): int
     {

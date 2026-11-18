@@ -55,19 +55,41 @@ class PaymentController extends Controller
             ->get();
 
         $gatewayService = app(\App\Services\Payments\GatewayPaymentService::class);
-        $mobileGateways = collect($gatewayService->mobile())
-            ->map(fn ($gateway) => ['label' => $gateway->label(), 'networks' => $gateway->networks()])
-            ->all();
+        $channelService = app(\App\Services\Payments\PaymentChannelService::class);
 
-        $payPal = $gatewayService->gateway('paypal');
-        $payPalCharge = $payPal?->isEnabled() ? $payPal->chargeFor((float) $order->amount) : null;
-        $payPalOffer = $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $payPal->currency()] : null;
+        // Every way to pay, in the order set in Admin → Payment methods.
+        $channelOptions = [];
+        foreach ($channelService->available() as $channel) {
+            $flow = $channel->flow();
+            $charge = null;
 
-        $card = $gatewayService->gateway('clickpesa_card');
-        $cardCharge = $card?->isEnabled() ? $card->chargeFor((float) $order->amount) : null;
-        $cardOffer = $cardCharge ? ['amount' => $cardCharge, 'currency' => $card->currency()] : null;
+            if ($flow === 'manual' && $paymentMethods->isEmpty()) {
+                continue;
+            }
 
-        return view('user.payments.create', compact('order', 'paymentMethods', 'mobileGateways', 'payPalOffer', 'cardOffer'));
+            if (in_array($flow, ['card', 'paypal'], true)) {
+                $driver = $gatewayService->gateway($channel->gateway);
+                $amount = $driver->chargeFor((float) $order->amount);
+
+                if (! $amount) {
+                    continue; // No exchange rate today.
+                }
+
+                $charge = ['amount' => $amount, 'currency' => $driver->currency()];
+            }
+
+            $channelOptions[$channel->code] = [
+                'code' => $channel->code,
+                'name' => $channel->name,
+                'kind' => $channel->kind,
+                'flow' => $flow,
+                'via' => $channel->gateway ? ($gatewayService->gateway($channel->gateway)?->label() ?? $channel->gateway) : null,
+                'needs_phone' => $channel->needsPhone(),
+                'charge' => $charge,
+            ];
+        }
+
+        return view('user.payments.create', compact('order', 'paymentMethods', 'channelOptions'));
     }
 
     public function store(UploadPaymentProofRequest $request, Order $order)

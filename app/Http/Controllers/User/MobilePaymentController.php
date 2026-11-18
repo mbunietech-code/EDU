@@ -7,6 +7,7 @@ use App\Models\GatewayPayment;
 use App\Models\Order;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -15,8 +16,10 @@ use Illuminate\Validation\Rule;
  */
 class MobilePaymentController extends Controller
 {
-    public function __construct(protected GatewayPaymentService $gateways)
-    {
+    public function __construct(
+        protected GatewayPaymentService $gateways,
+        protected PaymentChannelService $channels,
+    ) {
     }
 
     public function store(Request $request, Order $order)
@@ -27,7 +30,8 @@ class MobilePaymentController extends Controller
             return redirect()->route('user.orders.show', $order)->with('error', 'This order is no longer pending payment.');
         }
 
-        $enabled = $this->gateways->mobile();
+        // Only gateways with a channel switched on in Payment methods.
+        $enabled = $this->channels->pushGateways();
 
         $validated = $request->validate([
             'gateway' => ['required', Rule::in(array_keys($enabled))],
@@ -35,8 +39,8 @@ class MobilePaymentController extends Controller
             'network' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $gateway = $enabled[$validated['gateway']];
-        $networks = $gateway->networks();
+        $gateway = $enabled[$validated['gateway']]['gateway'];
+        $networks = $enabled[$validated['gateway']]['networks'];
 
         if ($networks && ! array_key_exists($validated['network'] ?? '', $networks)) {
             return back()->withInput()->withErrors(['network' => 'Choose your mobile money network.']);
@@ -68,7 +72,21 @@ class MobilePaymentController extends Controller
 
         $gatewayLabel = $this->gateways->gateway($gatewayPayment->gateway)?->label() ?? $gatewayPayment->gateway;
 
+        // Back from PesaPal's form (it reloads this page): confirm right away
+        // instead of showing the form again.
+        $returned = filled($gatewayPayment->provider_transaction_id)
+            && hash_equals((string) $gatewayPayment->provider_transaction_id, (string) request()->query('OrderTrackingId', ''));
+
+        if ($returned) {
+            $gatewayPayment = $this->gateways->refresh($gatewayPayment, force: true);
+
+            if ($gatewayPayment->isSuccessful()) {
+                return redirect()->route('user.orders.show', $order)->with('success', 'Payment received through '.$gatewayLabel.'. Thank you!');
+            }
+        }
+
         return view('user.payments.mobile', [
+            'returned' => $returned,
             'order' => $order,
             'gatewayPayment' => $gatewayPayment,
             'gatewayLabel' => $gatewayLabel,

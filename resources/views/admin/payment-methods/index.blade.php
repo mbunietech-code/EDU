@@ -1,7 +1,8 @@
 @php
-    $activeTab = request('tab') === 'manual' ? 'manual' : 'automatic';
+    $activeTab = in_array(request('tab'), ['automatic', 'manual'], true) ? request('tab') : 'channels';
     $liveGateways = collect($onlineGateways)->where('ready', true)->count();
     $enabledManual = $paymentMethods->where('enabled', true)->count();
+    $liveChannels = collect($channels)->filter(fn ($c) => $c['enabled'] && $c['gateway_ready'])->count();
 @endphp
 
 <x-layouts.admin title="Payment Methods" header="Payment Methods">
@@ -24,25 +25,136 @@
         }">
 
         <div class="mt-6 border-b border-gray-200">
-            <nav class="-mb-px flex gap-6" role="tablist" aria-label="Payment method types">
+            <nav class="-mb-px flex gap-6 overflow-x-auto" role="tablist" aria-label="Payment method types">
+                <button type="button" role="tab" @click="show('channels')" :aria-selected="tab === 'channels'"
+                    :class="tab === 'channels' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                    class="inline-flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'channels' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
+                    Checkout order
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $liveChannels }} live</span>
+                </button>
                 <button type="button" role="tab" @click="show('automatic')" :aria-selected="tab === 'automatic'"
                     :class="tab === 'automatic' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
-                    class="inline-flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'automatic' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
-                    Automatic
+                    class="inline-flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'automatic' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
+                    Gateways
                     <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $liveGateways }} live</span>
                 </button>
                 <button type="button" role="tab" @click="show('manual')" :aria-selected="tab === 'manual'"
                     :class="tab === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
-                    class="inline-flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
+                    class="inline-flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold {{ $activeTab === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500' }}">
                     Manual
                     <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $enabledManual }} on</span>
                 </button>
             </nav>
         </div>
 
+    {{-- ================= Checkout order: channels and priority ================= --}}
+    <section role="tabpanel" x-show="tab === 'channels'" @if ($activeTab !== 'channels') x-cloak @endif class="mt-6">
+        <p class="text-sm text-gray-500">Switch on each way to pay and set the order customers see it in, on the website and in MHub. A channel reaches customers only while its gateway is live under Gateways.</p>
+
+        @unless ($channelsReady)
+            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Apply database change <span class="font-mono">0046_2026_11_18_payment_channels.sql</span> in Admin → Database to save channels and their order. Until then checkout shows every live gateway as before.
+            </div>
+        @endunless
+
+        <form method="POST" action="{{ route('admin.payment-methods.channels.update') }}" class="mt-4"
+            x-data="{
+                items: @js($channels),
+                dragging: null,
+                changed: false,
+                move(from, to) {
+                    if (to < 0 || to >= this.items.length || from === to) return;
+                    const [item] = this.items.splice(from, 1);
+                    this.items.splice(to, 0, item);
+                    this.changed = true;
+                },
+                toggle(item) { item.enabled = ! item.enabled; this.changed = true; },
+                drop(index) { if (this.dragging !== null) this.move(this.dragging, index); this.dragging = null; },
+            }">
+            @csrf
+            @method('PUT')
+
+            <div class="mbui-card overflow-hidden">
+                <div class="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900">Checkout order</h2>
+                        <p class="mt-0.5 text-xs text-gray-500">Top of the list shows first. Drag a row or use the arrows, then save.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span x-show="changed" x-cloak class="text-xs font-medium text-amber-700">Unsaved changes</span>
+                        <x-mbui.button type="submit" :disabled="! $channelsReady">Save order</x-mbui.button>
+                    </div>
+                </div>
+
+                <ol class="divide-y divide-gray-100">
+                    <template x-for="(item, index) in items" :key="item.code">
+                        <li class="flex items-center gap-3 px-3 py-3 sm:px-6"
+                            draggable="true"
+                            @dragstart="dragging = index; $event.dataTransfer.effectAllowed = 'move'"
+                            @dragover.prevent
+                            @drop.prevent="drop(index)"
+                            @dragend="dragging = null"
+                            :class="dragging === index ? 'bg-gray-50 opacity-60' : 'bg-white'">
+                            <input type="hidden" :name="'channels[' + index + '][code]'" :value="item.code">
+                            <input type="hidden" :name="'channels[' + index + '][enabled]'" :value="item.enabled ? 1 : 0">
+
+                            <span class="hidden cursor-grab text-gray-300 hover:text-gray-500 sm:block" title="Drag to reorder">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+                                </svg>
+                            </span>
+                            <span class="w-5 text-right text-sm font-semibold tabular-nums text-gray-400" x-text="index + 1"></span>
+
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600">
+                                <x-payment-kind-icon kind="mobile" x-show="item.kind === 'mobile'" />
+                                <x-payment-kind-icon kind="card" x-show="item.kind === 'card'" x-cloak />
+                                <x-payment-kind-icon kind="bank" x-show="item.kind === 'bank'" x-cloak />
+                                <x-payment-kind-icon kind="wallet" x-show="item.kind === 'wallet'" x-cloak />
+                                <x-payment-kind-icon kind="manual" x-show="item.kind === 'manual'" x-cloak />
+                            </span>
+
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-semibold text-gray-900" x-text="item.name"></p>
+                                <p class="truncate text-xs text-gray-500">
+                                    <span class="font-medium text-gray-700" x-text="'via ' + item.gateway_label"></span>
+                                    <span class="hidden sm:inline" x-text="' · ' + (item.description || '')"></span>
+                                </p>
+                            </div>
+
+                            <span class="hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-medium md:inline-block"
+                                :class="item.enabled && item.gateway_ready ? 'bg-emerald-50 text-emerald-700' : (item.enabled ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500')"
+                                x-text="item.enabled && item.gateway_ready ? 'Live' : (item.enabled ? (item.kind === 'manual' ? 'No QR codes yet' : 'Gateway off') : 'Off')"></span>
+
+                            <button type="button" role="switch" :aria-checked="item.enabled.toString()" @click="toggle(item)"
+                                :aria-label="(item.enabled ? 'Switch off ' : 'Switch on ') + item.name + ' via ' + item.gateway_label"
+                                class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                :class="item.enabled ? 'bg-indigo-600' : 'bg-gray-200'">
+                                <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform"
+                                    :class="item.enabled ? 'translate-x-5' : 'translate-x-0.5'"></span>
+                            </button>
+
+                            <div class="flex shrink-0 flex-col">
+                                <button type="button" @click="move(index, index - 1)" :disabled="index === 0"
+                                    class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30" aria-label="Move up">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+                                </button>
+                                <button type="button" @click="move(index, index + 1)" :disabled="index === items.length - 1"
+                                    class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30" aria-label="Move down">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                                </button>
+                            </div>
+                        </li>
+                    </template>
+                </ol>
+            </div>
+        </form>
+
+        <p class="mt-3 text-xs text-gray-500">Mobile money through ClickPesa or AzamPay sends a PIN prompt to the customer's phone. PesaPal and ClickPesa card forms open inside our own checkout page, so customers never leave MbunieHub. PayPal is the only one that opens PayPal's own page.</p>
+    </section>
+
     {{-- ================= Automatic (online) payments ================= --}}
     <section role="tabpanel" x-show="tab === 'automatic'" @if ($activeTab !== 'automatic') x-cloak @endif class="mt-6">
-        <p class="text-sm text-gray-500">The customer pays online and the order is verified, marked paid and receipted by email automatically. Admins get an email for every payment.</p>
+        <p class="text-sm text-gray-500">The customer pays online and the order is verified, marked paid and receipted by email automatically. Admins get an email for every payment. After a gateway is live, switch its channels on under <button type="button" @click="show('channels')" class="font-semibold text-indigo-600 hover:text-indigo-500">Checkout order</button>.</p>
 
         <div class="mt-4 grid gap-6 xl:grid-cols-3">
             @foreach ($onlineGateways as $key => $gw)
@@ -54,6 +166,7 @@
                                 @if ($key === 'azampay') M-Pesa, Mixx by Yas, Airtel, Halopesa, AzamPesa (USSD push)
                                 @elseif ($key === 'clickpesa') All Tanzanian mobile money (USSD push)
                                 @elseif ($key === 'clickpesa_card') Visa, Mastercard, Amex, UnionPay via ClickPesa, charged in USD
+                                @elseif ($key === 'pesapal') M-Pesa, Airtel Money, Mixx by Yas, cards and bank in TZS, on a PesaPal form inside checkout
                                 @else PayPal balance or card, charged in USD
                                 @endif
                             </p>
@@ -76,7 +189,7 @@
                                 <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
                                     <input type="hidden" name="{{ $field }}" value="0">
                                     <input type="checkbox" name="{{ $field }}" value="1" @checked($gw['values'][$field]) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                    Show at checkout
+                                    Gateway on
                                 </label>
                             @elseif ($type === 'mode')
                                 <div>
@@ -103,6 +216,13 @@
 
                         @if ($key === 'clickpesa_card')
                             <p class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Uses the ClickPesa keys and the ClickPesa callback URL above. Card payments only work after ClickPesa approves your KYC.</p>
+                        @elseif ($key === 'pesapal')
+                            <div class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+                                <p>Get the consumer key and secret from your PesaPal merchant dashboard (sandbox keys for Sandbox). The payment notification (IPN) URL is registered with PesaPal automatically.</p>
+                                <p class="mt-1.5 font-medium {{ $gw['ipn_id'] ? 'text-emerald-700' : 'text-gray-500' }}">
+                                    {{ $gw['ipn_id'] ? 'IPN registered for this environment.' : 'IPN not registered yet: it registers on Test connection or the first payment.' }}
+                                </p>
+                            </div>
                         @elseif ($gw['callback_url'])
                             <div class="rounded-lg bg-gray-50 p-3" x-data="{ copied: false }">
                                 <p class="text-xs font-medium text-gray-600">Callback URL (paste on the {{ $gw['label'] }} dashboard)</p>

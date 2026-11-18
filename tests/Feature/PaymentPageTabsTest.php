@@ -61,12 +61,12 @@ class PaymentPageTabsTest extends TestCase
         $html = $this->page($context)
             ->assertOk()
             ->assertSee('How would you like to pay?')
-            ->assertSeeInOrder(['Mobile money', 'Card', 'PayPal', 'Pay manually'])
+            ->assertSeeInOrder(['data-channel="azampay_mpesa"', 'data-channel="clickpesa_card"', 'data-channel="paypal"', 'data-channel="manual"'], false)
             ->getContent();
 
-        // Mobile money opens first; the others are hidden until chosen.
-        $this->assertTrue($this->panelIsOpen($html, 'mobile'));
-        foreach (['card', 'paypal', 'manual'] as $tab) {
+        // The first channel opens; the others are hidden until chosen.
+        $this->assertTrue($this->panelIsOpen($html, 'azampay_mpesa'));
+        foreach (['clickpesa_card', 'paypal', 'manual'] as $tab) {
             $this->assertFalse($this->panelIsOpen($html, $tab), "$tab should start hidden");
         }
     }
@@ -79,7 +79,10 @@ class PaymentPageTabsTest extends TestCase
         $html = $this->page($context, ['tab' => 'paypal'])->getContent();
 
         $this->assertTrue($this->panelIsOpen($html, 'paypal'));
-        $this->assertFalse($this->panelIsOpen($html, 'mobile'));
+        $this->assertFalse($this->panelIsOpen($html, 'azampay_mpesa'));
+
+        // Old links (?tab=card) still open the card option.
+        $this->assertTrue($this->panelIsOpen($this->page($context, ['tab' => 'card'])->getContent(), 'clickpesa_card'));
     }
 
     public function test_form_errors_reopen_their_tab(): void
@@ -87,8 +90,12 @@ class PaymentPageTabsTest extends TestCase
         $this->enableEverything();
         $context = $this->createOrderContext();
 
+        $html = $this->withSession(['_old_input' => ['channel' => 'azampay_airtel']])
+            ->page($context, [], ['phone' => 'Enter a valid number'])->getContent();
+        $this->assertTrue($this->panelIsOpen($html, 'azampay_airtel'));
+
         $html = $this->page($context, [], ['card_phone' => 'Enter a valid number'])->getContent();
-        $this->assertTrue($this->panelIsOpen($html, 'card'));
+        $this->assertTrue($this->panelIsOpen($html, 'clickpesa_card'));
 
         $html = $this->page($context, [], ['payment_proof' => 'Upload a file'])->getContent();
         $this->assertTrue($this->panelIsOpen($html, 'manual'));

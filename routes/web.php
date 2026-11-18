@@ -138,6 +138,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}', [\App\Http\Controllers\User\MobilePaymentController::class, 'show'])->name('user.payments.mobile.show');
     Route::get('/orders/{order}/pay/mobile/{gatewayPayment}/status', [\App\Http\Controllers\User\MobilePaymentController::class, 'status'])
         ->middleware('throttle:60,1')->name('user.payments.mobile.status');
+    Route::post('/orders/{order}/pay/channel', [\App\Http\Controllers\User\ChannelPaymentController::class, 'store'])
+        ->middleware('throttle:6,1')->name('user.payments.channel.store');
     Route::post('/orders/{order}/pay/card', [\App\Http\Controllers\User\CardPaymentController::class, 'store'])
         ->middleware('throttle:6,1')->name('user.payments.card.store');
     Route::post('/orders/{order}/pay/paypal', [\App\Http\Controllers\User\PayPalPaymentController::class, 'start'])
@@ -463,6 +465,7 @@ Route::prefix('admin')
 
         Route::middleware('can:payment_methods.manage')->group(function () {
             Route::get('payment-methods', [AdminPaymentMethodController::class, 'index'])->name('payment-methods.index');
+            Route::put('payment-methods/channels', [AdminPaymentMethodController::class, 'updateChannels'])->name('payment-methods.channels.update');
             Route::put('payment-methods/gateways/{gateway}', [AdminPaymentMethodController::class, 'updateGateway'])->name('payment-methods.gateways.update');
             Route::post('payment-methods/gateways/{gateway}/test', [AdminPaymentMethodController::class, 'testGateway'])->name('payment-methods.gateways.test');
             Route::post('payment-methods/callback-token', [AdminPaymentMethodController::class, 'regenerateCallbackToken'])->name('payment-methods.callback-token');

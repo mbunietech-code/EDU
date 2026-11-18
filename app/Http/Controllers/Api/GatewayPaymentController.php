@@ -5,45 +5,58 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\GatewayPayment;
 use App\Models\Order;
+use App\Models\PaymentChannel;
 use App\Models\PaymentMethod;
 use App\Services\Payments\GatewayException;
 use App\Services\Payments\GatewayPaymentService;
+use App\Services\Payments\PaymentChannelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Automatic payments for the mobile app: mobile money push, ClickPesa card
- * and PayPal. Same rules as the web checkout; card and PayPal pages open in
- * the phone's browser and return to a page that needs no web login.
+ * Automatic payments for the mobile app: mobile money push, PesaPal, ClickPesa
+ * card and PayPal. Same rules and channel order as the web checkout; provider
+ * pages open inside the app and return to a page that needs no web login.
+ * `channels` (priority order) is the current list; mobile / card / paypal
+ * stay for older app versions.
  */
 class GatewayPaymentController extends Controller
 {
-    public function __construct(protected GatewayPaymentService $gateways)
-    {
+    public function __construct(
+        protected GatewayPaymentService $gateways,
+        protected PaymentChannelService $channels,
+    ) {
     }
 
     public function options(Request $request, Order $order): JsonResponse
     {
         $this->ownOrder($request, $order);
 
+        $available = $this->channels->available();
         $card = $this->gateways->gateway('clickpesa_card');
         $payPal = $this->gateways->gateway('paypal');
-        $cardCharge = $card?->isEnabled() ? $card->chargeFor((float) $order->amount) : null;
-        $payPalCharge = $payPal?->isEnabled() ? $payPal->chargeFor((float) $order->amount) : null;
+        $cardCharge = $available->contains('code', 'clickpesa_card') ? $card->chargeFor((float) $order->amount) : null;
+        $payPalCharge = $available->contains('code', 'paypal') ? $payPal->chargeFor((float) $order->amount) : null;
+        $manual = $available->contains('code', 'manual') && PaymentMethod::enabled()->exists();
 
         return response()->json(['data' => [
             'order_id' => $order->id,
             'amount' => (float) $order->amount,
             'amount_label' => 'TZS '.number_format((float) $order->amount),
-            'mobile' => collect($this->gateways->mobile())->map(fn ($gateway, $key) => [
+            'channels' => $available
+                ->map(fn (PaymentChannel $channel) => $this->channelRow($channel, $order, $cardCharge, $payPalCharge, $manual))
+                ->filter()
+                ->values()
+                ->all(),
+            'mobile' => collect($this->channels->pushGateways())->map(fn ($push, $key) => [
                 'key' => $key,
-                'label' => $gateway->label(),
-                'networks' => collect($gateway->networks())->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values()->all(),
+                'label' => $push['gateway']->label(),
+                'networks' => collect($push['networks'])->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values()->all(),
             ])->values()->all(),
             'card' => $cardCharge ? ['amount' => $cardCharge, 'currency' => $card->currency(), 'label' => $card->label()] : null,
             'paypal' => $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $payPal->currency(), 'label' => $payPal->label()] : null,
-            'manual' => PaymentMethod::enabled()->exists(),
+            'manual' => $manual,
             'active' => ($active = $this->gateways->activeFor($order)) ? $this->row($active) : null,
         ]]);
     }
@@ -51,7 +64,7 @@ class GatewayPaymentController extends Controller
     public function mobile(Request $request, Order $order): JsonResponse
     {
         $this->payableOrder($request, $order);
-        $enabled = $this->gateways->mobile();
+        $enabled = $this->channels->pushGateways();
 
         $data = $request->validate([
             'gateway' => ['required', Rule::in(array_keys($enabled))],
@@ -59,8 +72,8 @@ class GatewayPaymentController extends Controller
             'network' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $gateway = $enabled[$data['gateway']];
-        $networks = $gateway->networks();
+        $gateway = $enabled[$data['gateway']]['gateway'];
+        $networks = $enabled[$data['gateway']]['networks'];
 
         if ($networks && ! array_key_exists($data['network'] ?? '', $networks)) {
             return $this->invalid('network', 'Choose your mobile money network.');
@@ -87,7 +100,7 @@ class GatewayPaymentController extends Controller
         $this->payableOrder($request, $order);
         $card = $this->gateways->gateway('clickpesa_card');
 
-        if (! $card?->isEnabled()) {
+        if (! $card?->isEnabled() || ! $this->channels->isAvailable('clickpesa_card')) {
             return response()->json(['message' => 'Card payments are not available right now.'], 422);
         }
 
@@ -110,11 +123,48 @@ class GatewayPaymentController extends Controller
         $this->payableOrder($request, $order);
         $payPal = $this->gateways->gateway('paypal');
 
-        if (! $payPal?->isEnabled()) {
+        if (! $payPal?->isEnabled() || ! $this->channels->isAvailable('paypal')) {
             return response()->json(['message' => 'PayPal is not available right now.'], 422);
         }
 
         return $this->begin($request, $order, $payPal, '', null, ['from_app' => true]);
+    }
+
+    /**
+     * Pay through one entry of `channels` (any gateway).
+     */
+    public function channel(Request $request, Order $order): JsonResponse
+    {
+        $this->payableOrder($request, $order);
+
+        $data = $request->validate([
+            'channel' => ['required', 'string', 'max:60'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $channel = $this->channels->find($data['channel']);
+
+        if (! $channel || $channel->flow() === 'manual') {
+            return $this->invalid('channel', 'This payment option is not available right now. Please choose another.');
+        }
+
+        if ($channel->flow() === 'push' && ($active = $this->gateways->activeFor($order))) {
+            return response()->json([
+                'message' => 'A payment request was already sent. Complete it on your phone or wait for it to expire.',
+                'data' => $this->row($active),
+            ], 409);
+        }
+
+        try {
+            $payment = $this->channels->start($order, $request->user(), $channel, $data, fromApp: true);
+        } catch (GatewayException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->row($payment->fresh()), 'message' => $channel->flow() === 'push'
+            ? 'Payment request sent. Enter your PIN on your phone.'
+            : 'Opening the secure payment page.'], 201);
     }
 
     public function status(Request $request, GatewayPayment $gatewayPayment): JsonResponse
@@ -157,6 +207,37 @@ class GatewayPaymentController extends Controller
             'reference' => $payment->external_id,
             'timeout_minutes' => $this->gateways->timeoutMinutes($payment->gateway),
             'created_at' => optional($payment->created_at)->toIso8601String(),
+        ];
+    }
+
+    /**
+     * One checkout option for the app, or null when it cannot be offered for
+     * this order (e.g. no exchange rate for a USD charge).
+     */
+    protected function channelRow(PaymentChannel $channel, Order $order, ?float $cardCharge, ?float $payPalCharge, bool $manual): ?array
+    {
+        $charge = match ($channel->flow()) {
+            'card' => $cardCharge ? ['amount' => $cardCharge, 'currency' => 'USD'] : false,
+            'paypal' => $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $this->gateways->gateway('paypal')->currency()] : false,
+            'manual' => $manual ? [] : false,
+            default => ['amount' => (float) $order->amount, 'currency' => 'TZS'],
+        };
+
+        if ($charge === false) {
+            return null;
+        }
+
+        return [
+            'code' => $channel->code,
+            'name' => $channel->name,
+            'kind' => $channel->kind,
+            'flow' => $channel->flow(),
+            'gateway' => $channel->gateway,
+            'gateway_label' => $channel->gateway ? $this->gateways->gateway($channel->gateway)?->label() : null,
+            'needs_phone' => $channel->needsPhone(),
+            'needs_name' => $channel->needsName(),
+            'amount' => $charge['amount'] ?? null,
+            'currency' => $charge['currency'] ?? null,
         ];
     }
 
