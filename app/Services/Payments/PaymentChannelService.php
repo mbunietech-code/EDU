@@ -38,7 +38,17 @@ class PaymentChannelService
         'clickpesa_card' => ['Card (Visa / Mastercard)', 'card', 'clickpesa_card', null, 'Card in USD through ClickPesa (needs ClickPesa KYC)'],
         'paypal' => ['PayPal', 'wallet', 'paypal', null, 'PayPal balance or card, in USD'],
         'manual' => ['Pay manually (QR code)', 'manual', null, null, 'Scan a QR code, pay, upload proof'],
+        // Main manual methods shown as their own option; network = the
+        // Payment method code (Admin → Payment methods → Manual).
+        'manual_wechat' => ['WeChat Pay', 'manual', null, 'wechat_pay', 'Scan the WeChat Pay QR code, pay, upload proof'],
+        'manual_alipay' => ['Alipay', 'manual', null, 'alipay', 'Scan the Alipay QR code, pay, upload proof'],
     ];
+
+    /** Shown first when they are added (most customers pay with them). */
+    private const ADDED_ON_TOP = ['manual_alipay', 'manual_wechat'];
+
+    /** @var array<string, \App\Models\PaymentMethod>|null enabled manual methods with a QR code, by code */
+    private ?array $qrMethods = null;
 
     private static ?bool $tableReady = null;
 
@@ -62,10 +72,16 @@ class PaymentChannelService
         $missing = array_diff(array_keys(self::CATALOG), $rows->pluck('code')->all());
 
         if ($missing !== []) {
-            $next = (int) $rows->max('sort_order');
+            // New "on top" channels (Alipay, then WeChat Pay) go first; the rest move down.
+            $onTop = array_values(array_intersect(self::ADDED_ON_TOP, $missing));
+            if ($onTop !== [] && $rows->isNotEmpty()) {
+                PaymentChannel::query()->increment('sort_order', count($onTop));
+            }
+            $next = (int) $rows->max('sort_order') + count($onTop);
 
-            PaymentChannel::insertOrIgnore(collect($missing)->values()->map(function (string $code, int $i) use ($next) {
-                $channel = $this->fromCatalog($code, $next + $i + 1);
+            PaymentChannel::insertOrIgnore(collect($missing)->values()->map(function (string $code, int $i) use ($next, $onTop) {
+                $top = array_search($code, $onTop, true);
+                $channel = $this->fromCatalog($code, $top !== false ? $top + 1 : $next + $i + 1);
 
                 return $channel->only(['code', 'name', 'description', 'kind', 'gateway', 'network', 'sort_order'])
                     + ['enabled' => $channel->enabled, 'created_at' => now(), 'updated_at' => now()];
@@ -86,9 +102,43 @@ class PaymentChannelService
     public function available(): Collection
     {
         return $this->all()
-            ->filter(fn (PaymentChannel $channel) => $channel->enabled
-                && ($channel->flow() === 'manual' || $this->gateways->gateway((string) $channel->gateway)?->isEnabled()))
+            ->filter(fn (PaymentChannel $channel) => $channel->enabled && match (true) {
+                // WeChat Pay / Alipay: only while that method is on and has its QR code.
+                $channel->flow() === 'manual' && filled($channel->network) => isset($this->qrMethods()[$channel->network]),
+                $channel->flow() === 'manual' => true,
+                default => (bool) $this->gateways->gateway((string) $channel->gateway)?->isEnabled(),
+            })
             ->values();
+    }
+
+    /**
+     * Enabled manual payment methods that have a QR code, keyed by code.
+     *
+     * @return array<string, \App\Models\PaymentMethod>
+     */
+    public function qrMethods(): array
+    {
+        return $this->qrMethods ??= \App\Models\PaymentMethod::enabled()
+            ->whereNotNull('qr_image')
+            ->orderBy('sort_order')
+            ->get()
+            ->keyBy('code')
+            ->all();
+    }
+
+    /**
+     * Method codes that have their own switched-on option at checkout, so
+     * "Pay manually" lists only the others.
+     *
+     * @return list<string>
+     */
+    public function ownOptionMethodCodes(): array
+    {
+        return $this->available()
+            ->filter(fn (PaymentChannel $c) => $c->flow() === 'manual' && filled($c->network))
+            ->pluck('network')
+            ->values()
+            ->all();
     }
 
     public function find(string $code): ?PaymentChannel

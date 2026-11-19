@@ -1,19 +1,3 @@
-@php
-    $methodsArray = $paymentMethods
-        ->map(fn ($m) => [
-            'code' => $m->code,
-            'name' => $m->name,
-            'qr' => $m->qrImageUrl(),
-            'account' => $m->account_number,
-            'instructions' => $m->instructions,
-            'link' => $m->link_url,
-            'store' => $m->store_url,
-        ])
-        ->values()
-        ->all();
-    $defaultMethod = old('payment_method', $paymentMethods->first()?->code ?? '');
-@endphp
-
 <x-layouts.user title="Submit Payment" header="Submit Payment">
 
     <div class="mbui-page-header">
@@ -41,7 +25,8 @@
             $errors->hasAny(['phone', 'name', 'channel']) && isset($options[old('channel')]) => old('channel'),
             $errors->hasAny(['card_name', 'card_phone']) => $legacyTabs['card'],
             $errors->hasAny(['gateway', 'network']) => $legacyTabs['mobile'],
-            $errors->hasAny(['payment_method', 'payment_proof', 'note', 'amount', 'transaction_reference']) => 'manual',
+            $errors->hasAny(['payment_method', 'payment_proof', 'note', 'amount', 'transaction_reference']) =>
+                collect($options)->first(fn ($o) => ($o['own'] ?? false) && $o['methods']->contains('code', old('payment_method')))['code'] ?? 'manual',
             default => $legacyTabs[request('tab')] ?? request('tab'),
         };
         if (! isset($options[$activeTab])) {
@@ -167,22 +152,36 @@
         </div>
     @endforeach
 
-    @if ($showManual)
-    <div role="tabpanel" x-show="tab === 'manual'" @if ($activeTab !== 'manual') x-cloak @endif>
+    {{-- Manual payments: WeChat Pay / Alipay each have their own option; "Pay manually" holds the rest. --}}
+    @foreach ($options as $code => $option)
+        @continue($option['flow'] !== 'manual')
+        @php
+            $panelMethods = $option['methods'] ?? $paymentMethods;
+            $panelCodes = $panelMethods->pluck('code')->all();
+            $panelArray = $panelMethods->map(fn ($m) => [
+                'code' => $m->code,
+                'name' => $m->name,
+                'qr' => $m->qrImageUrl(),
+                'account' => $m->account_number,
+                'instructions' => $m->instructions,
+                'link' => $m->link_url,
+                'store' => $m->store_url,
+            ])->values()->all();
+            $panelDefault = in_array(old('payment_method'), $panelCodes, true) ? old('payment_method') : ($panelCodes[0] ?? '');
+            $panelErrors = in_array(old('payment_method'), $panelCodes, true) || (! old('payment_method') && $code === 'manual');
+            $suffix = $code === 'manual' ? '' : '-'.$code;
+            $single = count($panelCodes) === 1;
+        @endphp
+    <div role="tabpanel" data-channel-panel="{{ $code }}" x-show="tab === @js($code)" @if ($activeTab !== $code) x-cloak @endif>
     <div class="mt-6 mbui-card p-6"
         x-data='{
-            selectedMethod: "{{ $defaultMethod }}",
-            methods: @json($methodsArray),
+            selectedMethod: @json($panelDefault),
+            methods: @json($panelArray),
             preview: null,
             selectedProofName: "",
             selectedProofIsImage: false,
             submitting: false,
             selected() { return this.methods.find(m => m.code === this.selectedMethod) || {}; },
-            payHref() {
-                const m = this.selected();
-                if (/android/i.test(navigator.userAgent)) return m.link || m.store || "#";
-                return m.store || m.link || "#";
-            },
             openPay() {
                 const m = this.selected();
                 if (/android/i.test(navigator.userAgent)) {
@@ -206,7 +205,7 @@
             }
         }'>
 
-        @if ($paymentMethods->isEmpty())
+        @if ($panelMethods->isEmpty())
             <div class="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
                 Payment is temporarily unavailable. Please contact support.
             </div>
@@ -214,29 +213,42 @@
             <form method="POST" action="{{ route('user.payments.store', $order) }}" enctype="multipart/form-data" class="space-y-5" @submit="submitting = true">
                 @csrf
 
-                <div>
-                    <x-input-label value="Choose payment method" />
-                    <div class="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach ($paymentMethods as $method)
-                            <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3">
-                                <input type="radio" name="payment_method" :value="'{{ $method->code }}'" x-model="selectedMethod"
-                                    class="mt-1 h-4 w-4 text-indigo-600" @checked($defaultMethod === $method->code)>
-                                <span>
-                                    <span class="block text-sm font-semibold text-gray-900">{{ $method->name }}</span>
-                                    <span class="block text-xs text-gray-500">{{ $method->description }}</span>
-                                </span>
-                            </label>
-                        @endforeach
+                @if ($single)
+                    <input type="hidden" name="payment_method" value="{{ $panelCodes[0] }}">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900">Pay with {{ $panelMethods->first()->name }}</h2>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Pay <span class="font-semibold text-gray-900">TZS {{ number_format($order->amount) }}</span>
+                            <x-currency-conversion :amount="$order->amount" class="inline text-xs font-semibold text-gray-600" />
+                            and write <span class="font-mono font-semibold text-gray-900">{{ $order->order_number }}</span> in the payment note. Then upload the screenshot below.
+                        </p>
+                        @if ($panelErrors) <x-input-error :messages="$errors->get('payment_method')" class="mt-2" /> @endif
                     </div>
-                    <x-input-error :messages="$errors->get('payment_method')" class="mt-2" />
-                </div>
+                @else
+                    <div>
+                        <x-input-label value="Choose payment method" />
+                        <div class="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach ($panelMethods as $method)
+                                <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3">
+                                    <input type="radio" name="payment_method" :value="'{{ $method->code }}'" x-model="selectedMethod"
+                                        class="mt-1 h-4 w-4 text-indigo-600" @checked($panelDefault === $method->code)>
+                                    <span>
+                                        <span class="block text-sm font-semibold text-gray-900">{{ $method->name }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $method->description }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                        @if ($panelErrors) <x-input-error :messages="$errors->get('payment_method')" class="mt-2" /> @endif
+                    </div>
+                @endif
 
                 <template x-if="selectedMethod">
-                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-5">
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
                         <div class="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                             <button type="button" x-show="selected().qr" @click="openPay()" class="shrink-0 text-center">
-                                <img :src="selected().qr" :alt="selected().name"
-                                    class="h-48 w-48 sm:h-40 sm:w-40 rounded-lg border border-gray-200 bg-white object-cover">
+                                <img :src="selected().qr" :alt="selected().name + ' QR code'"
+                                    class="h-56 w-56 sm:h-44 sm:w-44 rounded-lg border border-gray-200 bg-white object-contain">
                                 <template x-if="selected().link || selected().store">
                                     <span class="mt-2 block rounded-lg bg-indigo-600 px-3 py-1.5 text-center text-xs font-semibold text-white">
                                         Tap to open the app
@@ -245,14 +257,15 @@
                             </button>
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="'Scan the QR code with ' + selected().name"></h3>
-                                <p class="mt-2 text-sm text-gray-600" x-text="selected().instructions || 'Complete the payment, then confirm below.'"></p>
+                                <p class="mt-2 text-sm text-gray-600" x-text="selected().instructions || 'Complete the payment, then upload the screenshot below.'"></p>
+                                <p class="mt-2 text-sm text-gray-600">Amount: <span class="font-semibold text-gray-900">TZS {{ number_format($order->amount) }}</span> · Reference: <span class="font-mono font-semibold text-gray-900">{{ $order->order_number }}</span></p>
                                 <template x-if="selected().account">
                                     <div class="mt-3">
                                         <p class="text-xs font-medium text-gray-500">Can't scan? Enter this number manually:</p>
                                         <button type="button" @click="copyAccount()"
-                                            class="mt-1 inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 font-mono text-sm font-semibold text-gray-900 hover:bg-indigo-50">
+                                            class="mt-1 inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 font-mono text-sm font-semibold text-gray-900 hover:bg-gray-50">
                                             <span x-text="selected().account"></span>
-                                            <svg class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <svg class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                                             </svg>
                                         </button>
@@ -266,12 +279,12 @@
 
                 <div class="grid gap-5 sm:grid-cols-2">
                     <div>
-                        <x-input-label for="payment_proof" value="Payment proof" />
-                        <input id="payment_proof" type="file" name="payment_proof" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                        <x-input-label :for="'payment_proof'.$suffix" value="Payment proof (screenshot)" />
+                        <input id="payment_proof{{ $suffix }}" type="file" name="payment_proof" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,image/jpeg,image/png,image/gif,image/webp,application/pdf"
                             class="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
                             @change="const f = $event.target.files[0]; selectedProofName = f ? f.name : ''; selectedProofIsImage = !!(f && f.type && f.type.startsWith('image/')); preview = selectedProofIsImage ? URL.createObjectURL(f) : null" required>
                         <p class="mt-1 text-xs text-gray-500">Upload JPG, PNG, GIF, WebP, or PDF. Max 12 MB.</p>
-                        <x-input-error :messages="$errors->get('payment_proof')" class="mt-2" />
+                        @if ($panelErrors) <x-input-error :messages="$errors->get('payment_proof')" class="mt-2" /> @endif
 
                         <template x-if="preview">
                             <div class="mt-3">
@@ -286,9 +299,9 @@
                     </div>
 
                     <div>
-                        <x-input-label for="note" value="Note (optional)" />
-                        <textarea id="note" name="note" rows="3" class="mbui-input mt-1" placeholder="Any additional information about this payment">{{ old('note') }}</textarea>
-                        <x-input-error :messages="$errors->get('note')" class="mt-2" />
+                        <x-input-label :for="'note'.$suffix" value="Note (optional)" />
+                        <textarea id="note{{ $suffix }}" name="note" rows="3" class="mbui-input mt-1" placeholder="Any additional information about this payment">{{ $panelErrors ? old('note') : '' }}</textarea>
+                        @if ($panelErrors) <x-input-error :messages="$errors->get('note')" class="mt-2" /> @endif
                     </div>
                 </div>
 
@@ -300,8 +313,7 @@
         @endif
     </div>
     </div>
-    @endif
-
+    @endforeach
     </div>
 
 </x-layouts.user>

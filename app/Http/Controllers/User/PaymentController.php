@@ -58,12 +58,35 @@ class PaymentController extends Controller
         $channelService = app(\App\Services\Payments\PaymentChannelService::class);
 
         // Every way to pay, in the order set in Admin → Payment methods.
+        // WeChat Pay / Alipay have their own option; "Pay manually" lists the rest.
+        $ownCodes = $channelService->ownOptionMethodCodes();
         $channelOptions = [];
         foreach ($channelService->available() as $channel) {
             $flow = $channel->flow();
             $charge = null;
 
-            if ($flow === 'manual' && $paymentMethods->isEmpty()) {
+            if ($flow === 'manual') {
+                $methods = filled($channel->network)
+                    ? $paymentMethods->where('code', $channel->network)->values()
+                    : $paymentMethods->whereNotIn('code', $ownCodes)->values();
+
+                if ($methods->isEmpty()) {
+                    continue;
+                }
+
+                $own = filled($channel->network);
+                $channelOptions[$channel->code] = [
+                    'code' => $channel->code,
+                    'name' => $own ? $methods->first()->name : $channel->name,
+                    'kind' => 'manual',
+                    'flow' => 'manual',
+                    'via' => null,
+                    'needs_phone' => false,
+                    'charge' => null,
+                    'methods' => $methods,
+                    'own' => $own,
+                ];
+
                 continue;
             }
 

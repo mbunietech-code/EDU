@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\PaymentMethod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PaymentPageTabsTest extends TestCase
@@ -109,9 +111,40 @@ class PaymentPageTabsTest extends TestCase
         $html = $this->page($context)
             ->assertOk()
             ->assertDontSee('How would you like to pay?')
-            ->assertSee('Choose payment method')
+            ->assertSee('Pay with M-Pesa')
             ->getContent();
 
         $this->assertTrue($this->panelIsOpen($html, 'manual'));
+    }
+
+    public function test_alipay_and_wechat_pay_are_their_own_options_first(): void
+    {
+        PaymentMethod::create(['code' => 'mpesa', 'name' => 'M-Pesa', 'qr_image' => 'payment-methods/mpesa.png', 'enabled' => true, 'sort_order' => 1]);
+        PaymentMethod::create(['code' => 'alipay', 'name' => 'Alipay', 'qr_image' => 'payment-methods/alipay.png', 'enabled' => true, 'sort_order' => 2]);
+        PaymentMethod::create(['code' => 'wechat_pay', 'name' => 'WeChat Pay', 'qr_image' => 'payment-methods/wechat.png', 'enabled' => true, 'sort_order' => 3]);
+        $context = $this->createOrderContext();
+
+        $html = $this->page($context)
+            ->assertOk()
+            ->assertSeeInOrder(['data-channel="manual_alipay"', 'data-channel="manual_wechat"', 'data-channel="manual"'], false)
+            ->getContent();
+
+        // Alipay opens first, with its own QR and the order reference.
+        $this->assertTrue($this->panelIsOpen($html, 'manual_alipay'));
+        $this->assertStringContainsString('alipay.png', $html);
+        $this->assertStringContainsString($context['order']->order_number, $html);
+
+        // "Pay manually" keeps only the other methods.
+        preg_match('/data-channel-panel="manual" .*?<\/form>/s', $html, $manual);
+        $this->assertStringContainsString('mpesa', $manual[0] ?? '');
+        $this->assertStringNotContainsString('wechat_pay', $manual[0] ?? '');
+
+        // A WeChat Pay proof is saved as a WeChat Pay payment.
+        Storage::fake('private');
+        $this->actingAs($context['user'])->post(route('user.payments.store', $context['order']), [
+            'payment_method' => 'wechat_pay',
+            'payment_proof' => UploadedFile::fake()->image('proof.jpg'),
+        ])->assertRedirect();
+        $this->assertSame('wechat_pay', \App\Models\Payment::firstOrFail()->payment_method);
     }
 }

@@ -50,7 +50,12 @@ class PaymentMethodController extends Controller
             'gateway' => $channel->gateway,
             'gateway_label' => $channel->gateway ? ($onlineGateways[$channel->gateway]['label'] ?? $channel->gateway) : 'QR code',
             // Live for customers only when its gateway is live too.
-            'gateway_ready' => $channel->gateway ? (bool) ($onlineGateways[$channel->gateway]['ready'] ?? false) : $manualReady,
+            'gateway_ready' => match (true) {
+                (bool) $channel->gateway => (bool) ($onlineGateways[$channel->gateway]['ready'] ?? false),
+                // WeChat Pay / Alipay: live while that manual method is on with a QR code.
+                filled($channel->network) => $paymentMethods->where('enabled', true)->whereNotNull('qr_image')->contains('code', $channel->network),
+                default => $manualReady,
+            },
             'enabled' => (bool) $channel->enabled,
         ])->values()->all();
 

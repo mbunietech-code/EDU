@@ -219,7 +219,8 @@ class GatewayPaymentController extends Controller
         $charge = match ($channel->flow()) {
             'card' => $cardCharge ? ['amount' => $cardCharge, 'currency' => 'USD'] : false,
             'paypal' => $payPalCharge ? ['amount' => $payPalCharge, 'currency' => $this->gateways->gateway('paypal')->currency()] : false,
-            'manual' => $manual ? [] : false,
+            // WeChat Pay / Alipay have their own option (method checked in available()).
+            'manual' => ($channel->network || $manual) ? [] : false,
             default => ['amount' => (float) $order->amount, 'currency' => 'TZS'],
         };
 
@@ -236,6 +237,8 @@ class GatewayPaymentController extends Controller
             'gateway_label' => $channel->gateway ? $this->gateways->gateway($channel->gateway)?->label() : null,
             'needs_phone' => $channel->needsPhone(),
             'needs_name' => $channel->needsName(),
+            // Manual method to preselect (e.g. wechat_pay), for the proof upload.
+            'payment_method' => $channel->flow() === 'manual' ? $channel->network : null,
             'amount' => $charge['amount'] ?? null,
             'currency' => $charge['currency'] ?? null,
         ];
