@@ -4,7 +4,7 @@
     <video :data-tile-id="t.id" autoplay playsinline muted x-show="t.hasVideo"
         @if ($big) :autopictureinpicture="mini.auto" @endif
         class="h-full w-full bg-black"
-        :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' ? '-scale-x-100' : '']"
+        :class="[t.source === 'screen' ? 'object-contain' : 'object-cover', t.isLocal && t.source === 'camera' && mirrorSelf ? '-scale-x-100' : '']"
         :aria-label="t.source === 'screen' ? t.name + ' is sharing their screen' : 'Video of ' + t.name"></video>
 
     {{-- My own whole-screen / window share: drawn live, with the spot where this page shows it blacked

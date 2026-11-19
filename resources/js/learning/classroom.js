@@ -204,6 +204,10 @@ window.learnClassroom = (cfg = {}) => {
     ask: { open: false, kind: '', from: '' }, // the host asks me to turn on my mic / camera
     isFullscreen: false,
     devices: { open: false, cams: [], mics: [], speakers: [], cam: '', mic: '', speaker: '' },
+    // Switch camera (front / back on a phone, the next camera on a computer). count: cameras on this
+    // device (the button shows only with 2+). facing: user = front (my picture is mirrored to me),
+    // environment = back (not mirrored). The choice is remembered per class on this device.
+    camSwitch: { count: 0, facing: 'user', deviceId: '', busy: false },
 
     // Feed
     messages: [],
@@ -330,6 +334,11 @@ window.learnClassroom = (cfg = {}) => {
             if (bg && bg.mode === 'blur') this.bg.mode = 'blur';
             if (bg && bg.mode === 'image' && this.bgImages.some((i) => i.url === bg.image)) Object.assign(this.bg, { mode: 'image', image: bg.image });
         } catch (e) { /* storage unavailable */ }
+        this.loadCameraChoice();
+        this.countCameras();
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange', () => this.countCameras());
+        }
         this.tick();
         this.clockTimer = setInterval(() => this.tick(), 1000);
 
@@ -2836,9 +2845,11 @@ window.learnClassroom = (cfg = {}) => {
         this.mediaBusy.cam = true;
         this.mediaError = '';
         try {
-            await room.localParticipant.setCameraEnabled(on, on ? { resolution: this.cameraResolution() } : undefined);
+            await room.localParticipant.setCameraEnabled(on, on ? this.cameraCaptureOptions() : undefined);
             // Turned back on after the phone was turned: film the way it is held now.
             if (on) await this.fitCameraShape();
+            // Labels and the full camera list are only readable once the camera is allowed.
+            if (on) { this.syncCameraFacing(); this.countCameras(); }
         } catch (e) {
             this.mediaError = this.deviceHelp('camera', e);
         } finally {
@@ -2885,6 +2896,128 @@ window.learnClassroom = (cfg = {}) => {
     toggleCamera() {
         if (!this.inCall) return;
         this.setCam(!this.media.cam);
+    },
+
+    // --- Switch camera (front / back) -----------------------------------------
+
+    /** This class's key for the remembered camera choice. */
+    cameraChoiceKey() {
+        return 'classroom.camera.' + (this.room.id || 'room');
+    },
+
+    loadCameraChoice() {
+        try {
+            const saved = JSON.parse(window.localStorage.getItem(this.cameraChoiceKey()) || 'null');
+            if (saved && saved.facing === 'environment') this.camSwitch.facing = 'environment';
+            if (saved && typeof saved.deviceId === 'string') this.camSwitch.deviceId = saved.deviceId;
+        } catch (e) { /* storage unavailable */ }
+    },
+
+    saveCameraChoice() {
+        try {
+            window.localStorage.setItem(this.cameraChoiceKey(), JSON.stringify({ facing: this.camSwitch.facing, deviceId: this.camSwitch.deviceId }));
+        } catch (e) { /* storage unavailable */ }
+    },
+
+    /** How many cameras this device has (the switch button shows only with two or more). */
+    async countCameras() {
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            const list = await navigator.mediaDevices.enumerateDevices();
+            const cams = list.filter((d) => d.kind === 'videoinput');
+            // Before the camera is allowed some browsers list one blank camera only: keep a bigger count seen earlier.
+            const known = cams.some((d) => d.deviceId);
+            this.camSwitch.count = known ? cams.length : Math.max(this.camSwitch.count, cams.length);
+        } catch (e) { /* cannot list devices: no switch button */ }
+    },
+
+    /**
+     * What to ask the browser for when my camera starts: the camera chosen for this
+     * class. Phones and tablets ask by side (front / back); computers by device.
+     */
+    cameraCaptureOptions() {
+        const opts = { resolution: this.cameraResolution() };
+        if (!this.canHover) opts.facingMode = this.camSwitch.facing;
+        else if (this.camSwitch.deviceId) opts.deviceId = this.camSwitch.deviceId; // not exact: a camera unplugged since falls back
+        return opts;
+    },
+
+    /** My camera track (null when off). */
+    myCameraTrack() {
+        const room = lk.room;
+        const mod = lk.mod;
+        if (!room || !mod) return null;
+        const pub = room.localParticipant.getTrackPublication(mod.Track.Source.Camera);
+        return pub && pub.track ? pub.track : null;
+    },
+
+    /**
+     * Which way the running camera faces: from the browser when it says so, else
+     * from the camera's name ("back", "rear"), else what was asked for. Only the
+     * front camera is shown mirrored to me.
+     */
+    syncCameraFacing() {
+        const track = this.myCameraTrack();
+        const mst = track && track.mediaStreamTrack;
+        if (!mst) return;
+        let settings = {};
+        try { settings = mst.getSettings ? mst.getSettings() : {}; } catch (e) { settings = {}; }
+        let facing = settings.facingMode === 'environment' || settings.facingMode === 'user' ? settings.facingMode : '';
+        if (!facing && /back|rear|environment/i.test(mst.label || '')) facing = 'environment';
+        if (!facing) facing = this.canHover ? 'user' : this.camSwitch.facing;
+        this.camSwitch.facing = facing;
+        if (this.canHover && settings.deviceId) this.camSwitch.deviceId = settings.deviceId;
+    },
+
+    /** My own camera is shown mirrored (front camera) or as it is (back camera). */
+    get mirrorSelf() {
+        return this.camSwitch.facing !== 'environment';
+    },
+
+    /**
+     * Switch camera without leaving the class: front / back on a phone, the next
+     * camera on a computer. With my camera off, the other camera is chosen and turned on.
+     */
+    async switchCamera() {
+        if (!this.inCall || this.camSwitch.busy || this.mediaBusy.cam) return;
+        if (!this.canUseCam) { this.flash(this.mediaLockedText, 7000); return; }
+        const room = lk.room;
+        if (!room) return;
+        this.camSwitch.busy = true;
+        this.mediaError = '';
+        try {
+            if (!this.canHover) {
+                const next = this.camSwitch.facing === 'environment' ? 'user' : 'environment';
+                const track = this.media.cam ? this.myCameraTrack() : null;
+                this.camSwitch.facing = next;
+                this.camSwitch.deviceId = '';
+                if (track) await track.restartTrack({ facingMode: next, resolution: this.cameraResolution() });
+                else await this.setCam(true);
+            } else {
+                if (this.devices.cams.length < 2) await this.loadDevices();
+                const cams = this.devices.cams;
+                if (cams.length < 2) return;
+                const track = this.media.cam ? this.myCameraTrack() : null;
+                let current = this.camSwitch.deviceId;
+                try { current = (track && track.mediaStreamTrack.getSettings().deviceId) || current; } catch (e) { /* keep the saved one */ }
+                const at = cams.findIndex((c) => c.id === current);
+                const next = cams[(at + 1) % cams.length];
+                this.camSwitch.deviceId = next.id;
+                if (track) await room.switchActiveDevice('videoinput', next.id);
+                else await this.setCam(true);
+                this.devices.cam = next.id;
+            }
+            this.syncCameraFacing();
+            this.saveCameraChoice();
+            // A blurred / image background moves to the new camera by itself (LiveKit restarts the processor).
+            this.flash(this.canHover ? 'Camera switched.' : (this.camSwitch.facing === 'environment' ? 'Back camera on.' : 'Front camera on.'), 2500);
+        } catch (e) {
+            this.mediaError = this.deviceHelp('camera', e);
+            this.syncCameraFacing(); // back to what is really running
+        } finally {
+            this.camSwitch.busy = false;
+            this.scheduleRefresh();
+        }
     },
 
     async toggleShare() {
@@ -3025,6 +3158,8 @@ window.learnClassroom = (cfg = {}) => {
         if (!room || !id) return;
         try {
             await room.switchActiveDevice(kind, id);
+            // A camera picked in Settings is remembered for this class too.
+            if (kind === 'videoinput') { this.camSwitch.deviceId = id; this.syncCameraFacing(); this.saveCameraChoice(); }
             if (kind === 'audioinput') this.recAttachAudio(); // the new microphone into a recording in progress
             // The loud speaker plays through its own output: move it along.
             if (kind === 'audiooutput' && lk.loud && typeof lk.loud.ctx.setSinkId === 'function') lk.loud.ctx.setSinkId(id).catch(() => {});
@@ -3036,6 +3171,7 @@ window.learnClassroom = (cfg = {}) => {
     async onDevicesChanged() {
         const before = { cams: this.devices.cams.length, mics: this.devices.mics.length };
         await this.loadDevices();
+        this.countCameras();
         if (this.devices.mics.length < before.mics || this.devices.cams.length < before.cams) {
             this.flash('A camera or microphone was disconnected. Check Settings if your audio or video stopped.', 8000);
         }

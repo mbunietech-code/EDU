@@ -39,6 +39,17 @@
             aria-label="Change your camera background" title="Change background">✨</button>
         </div>
 
+        {{-- Switch camera: front / back on a phone, the next camera on a computer (only with 2+ cameras) --}}
+        <button type="button" @click="switchCamera()" class="{{ $btn }}" x-show="camSwitch.count > 1" x-cloak
+            :disabled="camSwitch.busy || mediaBusy.cam"
+            :class="!inCall || !canUseCam ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'"
+            :aria-disabled="(!inCall || !canUseCam).toString()"
+            :aria-busy="camSwitch.busy.toString()"
+            :aria-label="canHover ? 'Switch to the next camera' : (camSwitch.facing === 'environment' ? 'Switch to the front camera' : 'Switch to the back camera')"
+            :title="!canUseCam ? mediaLockedText : (canHover ? 'Switch camera' : (camSwitch.facing === 'environment' ? 'Switch to the front camera' : 'Switch to the back camera'))">
+            <span :class="camSwitch.busy ? 'opacity-50' : ''">@include('learn.rooms.partials.icon', ['name' => 'camera-switch'])</span>
+        </button>
+
         {{-- Share screen (hidden where the browser cannot share) --}}
         <button type="button" @click="toggleShare()" class="{{ $btn }}" x-show="screenShareSupported" :disabled="mediaBusy.screen"
             :class="!inCall || !canShare ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : (media.screen ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600')"
@@ -340,7 +351,7 @@
         <h2 id="bg-title" class="text-base font-semibold text-white">Camera background</h2>
         <div class="mt-3 aspect-video overflow-hidden rounded-lg bg-gray-800">
             <video x-show="media.cam" :data-tile-id="viewer.identity + ':camera'" autoplay playsinline muted
-                class="h-full w-full -scale-x-100 object-cover" aria-label="Preview of your camera"></video>
+                class="h-full w-full object-cover" :class="mirrorSelf ? '-scale-x-100' : ''" aria-label="Preview of your camera"></video>
             <div x-show="!media.cam" class="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
                 <p class="text-gray-300" x-text="inCall ? 'Your camera is off.' : 'Join the class to see a preview.'"></p>
                 <button type="button" x-show="inCall && canUseCam" @click="setCam(true)" :disabled="mediaBusy.cam"
