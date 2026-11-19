@@ -1,7 +1,7 @@
 <x-layouts.app :title="$research->title" :header="$research->title">
 
     <nav class="text-sm text-gray-500">
-        <a href="{{ route('library.index') }}" class="hover:text-gray-700">Research &amp; Consultancy</a>
+        <a href="{{ route('library.index') }}" class="hover:text-gray-700">Research requests</a>
         @if ($research->category)
             <span class="mx-1.5">/</span>
             <a href="{{ route('library.category', $research->category) }}" class="hover:text-gray-700">{{ $research->category->name }}</a>

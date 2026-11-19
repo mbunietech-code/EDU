@@ -1,8 +1,8 @@
-<x-layouts.user title="Research requests" header="Research requests">
+<x-layouts.user title="Research & Consultancy" header="Research & Consultancy">
 
     <div class="mbui-page-header">
         <div>
-            <h1 class="mbui-title">Research requests</h1>
+            <h1 class="mbui-title">Research &amp; Consultancy</h1>
             <p class="mt-1 text-sm text-gray-500">Ask our team to do research work for you and follow every step until it is delivered.</p>
         </div>
         <x-mbui.btn-link :href="route('user.research-requests.create')">

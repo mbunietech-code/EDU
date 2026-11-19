@@ -1,4 +1,4 @@
-<x-layouts.user title="New research request" header="Research requests">
+<x-layouts.user title="New research request" header="Research & Consultancy">
 
     <div class="mbui-page-header">
         <div>

@@ -1,4 +1,4 @@
-<x-layouts.user :title="$rr->reference.' · '.$rr->title" header="Research requests">
+<x-layouts.user :title="$rr->reference.' · '.$rr->title" header="Research & Consultancy">
 
     <div class="mbui-page-header">
         <div class="min-w-0">

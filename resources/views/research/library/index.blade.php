@@ -1,8 +1,8 @@
-<x-layouts.app title="Research & Consultancy" header="Research & Consultancy">
+<x-layouts.app title="Research requests" header="Research requests">
 
     <div class="mbui-page-header">
         <div>
-            <h1 class="mbui-title">Research &amp; Consultancy</h1>
+            <h1 class="mbui-title">Research requests</h1>
             <p class="mt-1 text-sm text-gray-500">Research work and consultancy guides, reviewed before publishing.</p>
         </div>
         <div class="flex gap-2">

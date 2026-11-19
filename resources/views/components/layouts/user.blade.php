@@ -12,7 +12,7 @@
     @livewireStyles
 </head>
 <body class="min-h-screen bg-gray-100">
-    <div class="min-h-full" x-data="{ sidebarOpen: false, consultationOpen: false, consultationSub: null, learningOpen: @js(request()->routeIs('learn.*')) }">
+    <div class="min-h-full" x-data="{ sidebarOpen: false, learningOpen: @js(request()->routeIs('learn.*')) }">
         <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-gray-900 transform transition-transform lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
             <div class="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-gray-800 px-6">
@@ -51,11 +51,11 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443" />
                 </x-user.sidebar-link>
 
-                <x-user.sidebar-link :route="route('library.index')" :active="request()->routeIs('library.*')" label="Research & Consultancy">
+                <x-user.sidebar-link :route="route('library.index')" :active="request()->routeIs('library.*')" label="Research requests">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                 </x-user.sidebar-link>
 
-                <x-user.sidebar-link :route="route('user.research-requests.index')" :active="request()->routeIs('user.research-requests.*')" label="Research requests"
+                <x-user.sidebar-link :route="route('user.research-requests.index')" :active="request()->routeIs('user.research-requests.*')" label="Research & Consultancy"
                     :badge="\App\Models\ResearchRequest::unseenCountFor(auth()->user())">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                 </x-user.sidebar-link>
@@ -110,56 +110,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
                     </x-user.sidebar-link>
                 @endif
-
-                @php($consultation = [
-                    ['id' => 'thesis', 'type' => 'thesis', 'name' => 'Thesis Writing', 'items' => ['Chapter writing', 'Editing', 'Formatting', 'Referencing']],
-                    ['id' => 'data', 'type' => 'data_analysis', 'name' => 'Data analysis', 'items' => ['SPSS', 'Stata', 'R', 'Python']],
-                    ['id' => 'pub', 'type' => 'article', 'name' => 'Publication', 'items' => ['Journal selection', 'Submission', 'Proofreading', 'Indexing']],
-                ])
-
-                <div>
-                    <button type="button" @click="consultationOpen = !consultationOpen"
-                        class="group flex w-full items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
-                        <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 6v6a6 6 0 01-12 0V6a6 6 0 1112 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 12v6m-3-3h6" />
-                        </svg>
-                        <span class="flex-1">Consultation</span>
-                        <svg class="h-4 w-4 shrink-0 transition-transform"
-                            :class="consultationOpen ? 'transform rotate-180' : ''" fill="none"
-                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <div x-show="consultationOpen" x-cloak x-transition class="mt-1 ml-6 space-y-1">
-                        @foreach ($consultation as $group)
-                            <div>
-                                <button type="button"
-                                    @click="consultationSub = consultationSub === '{{ $group['id'] }}' ? null : '{{ $group['id'] }}'"
-                                    class="flex w-full items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
-                                    <span class="flex-1 text-left">{{ $group['name'] }}</span>
-                                    <svg class="h-4 w-4 shrink-0 transition-transform"
-                                        :class="consultationSub === '{{ $group['id'] }}' ? 'transform rotate-180' : ''"
-                                        fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-
-                                <div x-show="consultationSub === '{{ $group['id'] }}'" x-cloak x-transition
-                                    class="mt-1 ml-6 space-y-1">
-                                    @foreach ($group['items'] as $item)
-                                        <a href="{{ route('user.research-requests.create', ['type' => $group['type']]) }}"
-                                            class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
-                                            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"></span>
-                                            <span class="text-left">{{ $item }}</span>
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
 
                 <x-user.sidebar-link :route="route('user.subscriptions.index')" :active="request()->routeIs('user.subscriptions.*')" label="My Subscriptions">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
